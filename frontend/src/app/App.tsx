@@ -45,6 +45,7 @@ import ProviderConfigPage from '@/payments/ProviderConfigPage'
 import TransactionsPage from '@/payments/TransactionsPage'
 import ReconciliationBatchesPage from '@/payments/ReconciliationBatchesPage'
 import ReconciliationBatchDetailPage from '@/payments/ReconciliationBatchDetailPage'
+import OperationsPage from '@/monitoring/OperationsPage'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
@@ -108,6 +109,7 @@ export default function App(): ReactNode {
               <Route path="payments/transactions" element={<TransactionsPage />} />
               <Route path="payments/reconciliation-batches" element={<ReconciliationBatchesPage />} />
               <Route path="payments/reconciliation-batches/:id" element={<ReconciliationBatchDetailPage />} />
+              <Route path="monitoring/operations" element={<OperationsPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

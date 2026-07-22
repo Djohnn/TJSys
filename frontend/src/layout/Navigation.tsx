@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Financeiro', to: '/financial' },
   { label: 'Fiscal', to: '/fiscal/documents' },
   { label: 'Pagamentos', to: '/payments/transactions' },
+  { label: 'Monitoramento', to: '/monitoring/operations' },
 ]
 
 const ADMIN_ITEMS: NavItem[] = [
