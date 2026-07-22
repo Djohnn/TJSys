@@ -28,17 +28,16 @@ function normalizeProblem(
 ): ApiProblem {
   if (body && typeof body === 'object' && !Array.isArray(body)) {
     const obj = body as Record<string, unknown>
-    if (
-      typeof obj.type === 'string' &&
-      typeof obj.title === 'string' &&
-      typeof obj.status === 'number'
-    ) {
+    const ptype = obj.type
+    const ptitle = obj.title
+    const pstatus = obj.status
+    if (typeof ptype === 'string' && typeof ptitle === 'string' && typeof pstatus === 'number') {
       return {
-        type: obj.type as string,
-        title: obj.title as string,
-        status: obj.status as number,
-        detail: (obj.detail as string) ?? statusText,
-        code: obj.code as string | undefined,
+        type: ptype,
+        title: ptitle,
+        status: pstatus,
+        detail: typeof obj.detail === 'string' ? obj.detail : statusText,
+        code: typeof obj.code === 'string' ? obj.code : undefined,
         errors: obj.errors as Record<string, string[]> | undefined,
         correlationId,
       }
@@ -57,7 +56,7 @@ function normalizeProblem(
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<T | void> {
   const baseUrl = getBaseUrl()
   const method = (options.method ?? 'GET').toUpperCase()
   const url = `${baseUrl}${path}`
@@ -95,15 +94,11 @@ export async function apiRequest<T>(
 
   try {
     response = await doFetch()
-  } catch (err) {
+  } catch (firstErr) {
     if (method === 'GET') {
-      try {
-        response = await doFetch()
-      } catch {
-        throw err
-      }
+      response = await doFetch()
     } else {
-      throw err
+      throw firstErr
     }
   }
 
@@ -132,7 +127,7 @@ export async function apiRequest<T>(
   }
 
   if (response.status === 204) {
-    return undefined as T
+    return undefined
   }
 
   const json: unknown = await response.json()
