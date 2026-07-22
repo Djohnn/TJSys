@@ -41,6 +41,10 @@ import FiscalDocumentsPage from '@/fiscal/FiscalDocumentsPage'
 import FiscalDocumentDetailPage from '@/fiscal/FiscalDocumentDetailPage'
 import PurchaseFiscalReconciliationPage from '@/fiscal/PurchaseFiscalReconciliationPage'
 import ProductConfigPage from '@/fiscal/ProductConfigPage'
+import ProviderConfigPage from '@/payments/ProviderConfigPage'
+import TransactionsPage from '@/payments/TransactionsPage'
+import ReconciliationBatchesPage from '@/payments/ReconciliationBatchesPage'
+import ReconciliationBatchDetailPage from '@/payments/ReconciliationBatchDetailPage'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
@@ -100,6 +104,10 @@ export default function App(): ReactNode {
               <Route path="fiscal/documents/:id" element={<FiscalDocumentDetailPage />} />
               <Route path="fiscal/reconciliation" element={<PurchaseFiscalReconciliationPage />} />
               <Route path="fiscal/product-configs" element={<ProductConfigPage />} />
+              <Route path="payments/provider-configs" element={<ProviderConfigPage />} />
+              <Route path="payments/transactions" element={<TransactionsPage />} />
+              <Route path="payments/reconciliation-batches" element={<ReconciliationBatchesPage />} />
+              <Route path="payments/reconciliation-batches/:id" element={<ReconciliationBatchDetailPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
