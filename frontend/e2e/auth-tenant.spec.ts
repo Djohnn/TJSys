@@ -73,4 +73,9 @@ test.describe('Autenticação e troca de tenant', () => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/login/)
   })
+
+  test('Página MFA carrega quando acessada diretamente', async ({ page }) => {
+    await page.goto('/mfa')
+    await expect(page.getByTestId('mfa-page')).toBeVisible()
+  })
 })
