@@ -577,6 +577,237 @@ export const handlers = [
     }
     return HttpResponse.json({ ...template, is_active: body.is_active ?? template.is_active })
   }),
+
+  // Sales — management list & compensating actions
+  http.get(`${BASE}/sales/`, ({ request }) => {
+    const url = new URL(request.url)
+    const status = url.searchParams.get('status')
+    let results = SALES_LIST_DATA
+    if (status) results = results.filter((s) => s.status === status)
+    return HttpResponse.json({ count: results.length, next: null, previous: null, results })
+  }),
+
+  http.get(`${BASE}/sales/:id/`, ({ params }) => {
+    const detail = SALES_DETAIL_MAP[params.id as string]
+    if (detail) return HttpResponse.json(detail)
+    const sale = SALES_DATA.find((s) => s.id === params.id)
+    if (!sale) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Venda não encontrada.', correlationId: 'corr-sale-404' },
+        { status: 404, headers: { 'X-Correlation-ID': 'corr-sale-404' } },
+      )
+    }
+    return HttpResponse.json(sale)
+  }),
+
+  http.post(`${BASE}/sales/:id/return/`, async ({ request, params }) => {
+    const saleId = params.id as string
+    if (saleId === 'sale-409-return' || saleId === 'sale-conflict') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui devolução registrada.', code: 'already_returned' },
+        { status: 409 },
+      )
+    }
+    const body = await request.json() as { items?: { product: string; quantity: string }[]; reason?: string }
+    if (!body.items?.length || !body.reason?.trim()) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { reason: !body.reason?.trim() ? ['Este campo é obrigatório.'] : undefined } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 200 })
+  }),
+
+  http.post(`${BASE}/sales/:id/cancel/`, async ({ request, params }) => {
+    const saleId = params.id as string
+    if (saleId === 'sale-409-cancel' || saleId === 'sale-already-cancelled') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já está cancelada.', code: 'already_cancelled' },
+        { status: 409 },
+      )
+    }
+    const body = await request.json() as { reason?: string }
+    if (!body.reason?.trim()) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 200 })
+  }),
+
+  http.post(`${BASE}/sales/:id/refund/`, async ({ request, params }) => {
+    const saleId = params.id as string
+    if (saleId === 'sale-409-refund' || saleId === 'sale-already-refunded') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui reembolso.', code: 'already_refunded' },
+        { status: 409 },
+      )
+    }
+    if (saleId === 'sale-403') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Permissão negada. Reautenticação MFA necessária.', code: 'mfa_required' },
+        { status: 403 },
+      )
+    }
+    const body = await request.json() as { amount?: string; reason?: string }
+    if (!body.reason?.trim()) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 200 })
+  }),
+
+  // Cash sessions — management
+  http.get(`${BASE}/cash-sessions/`, () => {
+    return HttpResponse.json({ count: CASH_SESSIONS_LIST.length, next: null, previous: null, results: CASH_SESSIONS_LIST })
+  }),
+
+  http.get(`${BASE}/cash-sessions/:id/`, ({ params }) => {
+    const session = CASH_SESSIONS_LIST.find((s) => s.id === params.id)
+    if (!session) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Sessão de caixa não encontrada.' },
+        { status: 404 },
+      )
+    }
+    const detail = CASH_SESSION_DETAILS[params.id as string]
+    return HttpResponse.json(detail ?? session)
+  }),
+
+  // People — PII-controlled
+  http.get(`${BASE}/people/`, ({ request }) => {
+    const url = new URL(request.url)
+    const q = url.searchParams.get('q')
+    const role = url.searchParams.get('role')
+    const active = url.searchParams.get('active')
+    const all = [
+      { id: 'p1', person_type: 'PF', name: 'João Silva', document: '123.456.789-00', role: 'customer', is_active: true },
+      { id: 'p2', person_type: 'PJ', name: 'Empresa ABC Ltda', document: '11.222.333/0001-44', role: 'supplier', is_active: true },
+      { id: 'p3', person_type: 'PF', name: 'Maria Oliveira', document: '987.654.321-00', role: 'employee', is_active: false },
+    ]
+    let results = all
+    if (q) results = results.filter((r) => r.name.includes(q))
+    if (role) results = results.filter((r) => r.role === role)
+    if (active !== '') results = results.filter((r) => String(r.is_active) === active)
+    return HttpResponse.json({ count: results.length, next: null, previous: null, results })
+  }),
+
+  http.post(`${BASE}/people/`, async ({ request }) => {
+    const body = (await request.json()) as { name?: string; person_type?: string }
+    if (!body.name && body.person_type === 'PF') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { name: ['Nome é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(
+      { id: 'p-new', person_type: body.person_type ?? 'PF', name: body.name ?? 'New Person', document: '', role: 'customer', is_active: true },
+      { status: 201 },
+    )
+  }),
+
+  http.get(`${BASE}/people/:id/`, ({ params }) => {
+    if (params.id === 'p-not-found') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Pessoa não encontrada.' },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({
+      id: params.id,
+      person_type: 'PF',
+      name: 'João Silva',
+      cpf: '123.456.789-00',
+      rg: '12.345.678-9',
+      company_name: null,
+      trade_name: null,
+      cnpj: null,
+      ie: null,
+      role: 'customer',
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      addresses: [
+        { id: 'addr-1', street: 'Rua A', number: '100', complement: 'Apto 1', neighborhood: 'Centro', city: 'São Paulo', state: 'SP', zip: '01001-000', is_primary: true },
+      ],
+      contacts: [
+        { id: 'cont-1', type: 'phone', value: '(11) 99999-8888', is_primary: true },
+      ],
+      consents: [
+        { id: 'cons-1', type: 'privacy_policy', granted_at: '2026-01-01T00:00:00Z', revoked_at: null },
+      ],
+    })
+  }),
+
+  http.patch(`${BASE}/people/:id/`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ id: params.id, ...body })
+  }),
+
+  http.post(`${BASE}/people/:id/deactivate/`, ({ params }) => {
+    if (params.id === 'p-fail-deactivate') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Não é possível desativar esta pessoa.', code: 'cannot_deactivate' },
+        { status: 409 },
+      )
+    }
+    return HttpResponse.json({ detail: 'Pessoa desativada com sucesso.' })
+  }),
+
+  http.post(`${BASE}/people/:id/consents/`, async ({ request }) => {
+    const body = (await request.json()) as { type?: string }
+    return HttpResponse.json(
+      { id: 'cons-new', type: body.type, granted_at: '2026-07-22T00:00:00Z', revoked_at: null },
+      { status: 201 },
+    )
+  }),
+
+  http.post(`${BASE}/people/:id/consents/:consentId/revoke/`, ({ params }) => {
+    return HttpResponse.json(
+      { id: params.consentId, type: 'privacy_policy', granted_at: '2026-01-01T00:00:00Z', revoked_at: '2026-07-22T00:00:00Z' },
+    )
+  }),
+
+  http.post(`${BASE}/people/:personId/addresses/`, async ({ request }) => {
+    const body = (await request.json()) as { street?: string }
+    if (!body.street) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { street: ['Logradouro é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(
+      { id: 'addr-new', ...body, complement: '', is_primary: false },
+      { status: 201 },
+    )
+  }),
+
+  http.patch(`${BASE}/people/:personId/addresses/:addressId/`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ id: params.addressId, ...body })
+  }),
+
+  http.post(`${BASE}/people/:personId/contacts/`, async ({ request }) => {
+    const body = (await request.json()) as { value?: string }
+    if (!body.value) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { value: ['Valor é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(
+      { id: 'cont-new', ...body, is_primary: false },
+      { status: 201 },
+    )
+  }),
+
+  http.patch(`${BASE}/people/:personId/contacts/:contactId/`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ id: params.contactId, ...body })
+  }),
 ]
 
 interface PurchaseReceipt {
@@ -699,6 +930,168 @@ const RETURNS_DATA: SupplierReturn[] = [
     created_at: '2026-07-20T08:00:00Z',
   },
 ]
+
+interface SaleItem {
+  id: string
+  product: string
+  product_name: string
+  quantity: string
+  unit_price: string
+  total: string
+}
+
+interface Sale {
+  id: string
+  number: string
+  status: string
+  customer_name?: string
+  branch_name?: string
+  total: string
+  created_at: string
+  items: SaleItem[]
+}
+
+const SALES_DATA: Sale[] = [
+  {
+    id: 'sale-1',
+    number: 'V-001',
+    status: 'completed',
+    customer_name: 'Cliente A',
+    branch_name: 'Centro',
+    total: '150.00',
+    created_at: '2026-07-22T10:00:00Z',
+    items: [
+      { id: 'si-1', product: 'prod-1', product_name: 'Parafuso', quantity: '10', unit_price: '10.00', total: '100.00' },
+      { id: 'si-2', product: 'prod-2', product_name: 'Porca', quantity: '5', unit_price: '10.00', total: '50.00' },
+    ],
+  },
+  {
+    id: 'sale-409-return',
+    number: 'V-002',
+    status: 'returned',
+    customer_name: 'Cliente B',
+    branch_name: 'Shopping',
+    total: '200.00',
+    created_at: '2026-07-22T11:00:00Z',
+    items: [
+      { id: 'si-3', product: 'prod-3', product_name: 'Prego', quantity: '20', unit_price: '10.00', total: '200.00' },
+    ],
+  },
+  {
+    id: 'sale-409-cancel',
+    number: 'V-003',
+    status: 'cancelled',
+    customer_name: 'Cliente C',
+    branch_name: 'Centro',
+    total: '75.00',
+    created_at: '2026-07-21T10:00:00Z',
+    items: [
+      { id: 'si-4', product: 'prod-4', product_name: 'Arruela', quantity: '15', unit_price: '5.00', total: '75.00' },
+    ],
+  },
+  {
+    id: 'sale-403',
+    number: 'V-004',
+    status: 'completed',
+    customer_name: 'Cliente D',
+    branch_name: 'Shopping',
+    total: '300.00',
+    created_at: '2026-07-22T12:00:00Z',
+    items: [
+      { id: 'si-5', product: 'prod-5', product_name: 'Martelo', quantity: '3', unit_price: '100.00', total: '300.00' },
+    ],
+  },
+]
+
+const SALES_LIST_DATA = [
+  {
+    id: 'sale-1', created_at: '2026-07-22T10:30:00Z', customer: 'cust-1', customer_name: 'João Silva',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-1', branch_name: 'Centro',
+    device: 'dev-1', device_name: 'PDV Centro #1', total: '150.00', status: 'completed', status_label: 'Concluída',
+    items: [], payments: [], linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+  {
+    id: 'sale-2', created_at: '2026-07-22T14:00:00Z', customer: 'cust-2', customer_name: 'Maria Santos',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-2', branch_name: 'Shopping',
+    device: 'dev-2', device_name: 'PDV Shopping #1', total: '89.90', status: 'cancelled', status_label: 'Cancelada',
+    items: [], payments: [], linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+]
+
+const SALES_DETAIL_MAP: Record<string, unknown> = {
+  'sale-1': {
+    id: 'sale-1', created_at: '2026-07-22T10:30:00Z', customer: 'cust-1', customer_name: 'João Silva',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-1', branch_name: 'Centro',
+    device: 'dev-1', device_name: 'PDV Centro #1', total: '150.00', status: 'completed', status_label: 'Concluída',
+    items: [
+      { id: 'si-1', product: 'prod-1', product_name: 'Parafuso', quantity: '10', unit_price: '10.00', total: '100.00' },
+      { id: 'si-2', product: 'prod-2', product_name: 'Porca', quantity: '5', unit_price: '10.00', total: '50.00' },
+    ],
+    payments: [
+      { id: 'sp-1', method: 'cash', method_name: 'Dinheiro', amount: '150.00', status: 'confirmed', status_label: 'Confirmado' },
+    ],
+    linked_stock_movement: 'sm-001', linked_fiscal_document: 'fd-001', linked_financial_entries: ['fin-001', 'fin-002'],
+  },
+  'sale-409-cancel': {
+    id: 'sale-409-cancel', created_at: '2026-07-21T10:00:00Z', customer: 'cust-3', customer_name: 'Cliente C',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-1', branch_name: 'Centro',
+    device: 'dev-1', device_name: 'PDV Centro #1', total: '75.00', status: 'completed', status_label: 'Concluída',
+    items: [{ id: 'si-4', product: 'prod-4', product_name: 'Arruela', quantity: '15', unit_price: '5.00', total: '75.00' }],
+    payments: [{ id: 'sp-4', method: 'cash', method_name: 'Dinheiro', amount: '75.00', status: 'confirmed', status_label: 'Confirmado' }],
+    linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+  'sale-409-return': {
+    id: 'sale-409-return', created_at: '2026-07-22T11:00:00Z', customer: 'cust-2', customer_name: 'Cliente B',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-2', branch_name: 'Shopping',
+    device: 'dev-2', device_name: 'PDV Shopping #1', total: '200.00', status: 'completed', status_label: 'Concluída',
+    items: [{ id: 'si-3', product: 'prod-3', product_name: 'Prego', quantity: '20', unit_price: '10.00', total: '200.00' }],
+    payments: [{ id: 'sp-3', method: 'cash', method_name: 'Dinheiro', amount: '200.00', status: 'confirmed', status_label: 'Confirmado' }],
+    linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+  'sale-409-refund': {
+    id: 'sale-409-refund', created_at: '2026-07-22T12:00:00Z', customer: 'cust-4', customer_name: 'Cliente E',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-1', branch_name: 'Centro',
+    device: 'dev-1', device_name: 'PDV Centro #1', total: '120.00', status: 'completed', status_label: 'Concluída',
+    items: [{ id: 'si-6', product: 'prod-6', product_name: 'Chave', quantity: '4', unit_price: '30.00', total: '120.00' }],
+    payments: [{ id: 'sp-6', method: 'cash', method_name: 'Dinheiro', amount: '120.00', status: 'confirmed', status_label: 'Confirmado' }],
+    linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+  'sale-403': {
+    id: 'sale-403', created_at: '2026-07-22T12:00:00Z', customer: 'cust-5', customer_name: 'Cliente D',
+    operator: 'op-1', operator_name: 'Maria Souza', branch: 'branch-2', branch_name: 'Shopping',
+    device: 'dev-2', device_name: 'PDV Shopping #1', total: '300.00', status: 'completed', status_label: 'Concluída',
+    items: [{ id: 'si-5', product: 'prod-5', product_name: 'Martelo', quantity: '3', unit_price: '100.00', total: '300.00' }],
+    payments: [{ id: 'sp-5', method: 'cash', method_name: 'Dinheiro', amount: '300.00', status: 'confirmed', status_label: 'Confirmado' }],
+    linked_stock_movement: null, linked_fiscal_document: null, linked_financial_entries: [],
+  },
+}
+
+const CASH_SESSIONS_LIST = [
+  {
+    id: 'cs-1', date: '2026-07-22', branch: 'branch-1', branch_name: 'Centro',
+    operator: 'op-1', operator_name: 'Maria Souza', opened_at: '2026-07-22T08:00:00Z',
+    closed_at: '2026-07-22T18:00:00Z', expected_balance: '2500.00', actual_balance: '2510.00',
+    difference: '10.00', status: 'closed', movements: [],
+  },
+  {
+    id: 'cs-2', date: '2026-07-22', branch: 'branch-2', branch_name: 'Shopping',
+    operator: 'op-1', operator_name: 'Maria Souza', opened_at: '2026-07-22T09:00:00Z',
+    closed_at: '2026-07-22T17:00:00Z', expected_balance: '3089.90', actual_balance: '3075.00',
+    difference: '-14.90', status: 'closed', movements: [],
+  },
+]
+
+const CASH_SESSION_DETAILS: Record<string, unknown> = {
+  'cs-1': {
+    ...CASH_SESSIONS_LIST[0],
+    movements: [
+      { id: 'cm-1', type: 'opening', type_label: 'Abertura', amount: '500.00', description: 'Fundo de caixa', created_at: '2026-07-22T08:00:00Z' },
+      { id: 'cm-2', type: 'sale', type_label: 'Venda', amount: '150.00', description: 'Venda #sale-1', created_at: '2026-07-22T10:30:00Z' },
+      { id: 'cm-3', type: 'withdrawal', type_label: 'Retirada', amount: '-100.00', description: 'Pagamento fornecedor', created_at: '2026-07-22T14:00:00Z' },
+      { id: 'cm-4', type: 'closing', type_label: 'Fechamento', amount: '1960.00', description: 'Fechamento de caixa', created_at: '2026-07-22T18:00:00Z' },
+    ],
+  },
+}
 
 const TEMPLATES_DATA: RecurringTemplate[] = [
   {

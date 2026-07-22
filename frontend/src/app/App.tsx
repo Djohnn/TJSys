@@ -24,6 +24,16 @@ import MovementsPage from '@/inventory/MovementsPage'
 import LotsPage from '@/inventory/LotsPage'
 import SuppliersPage from '@/purchasing/SuppliersPage'
 import PurchaseOrdersPage from '@/purchasing/PurchaseOrdersPage'
+import ReceivablesPage from '@/financial/ReceivablesPage'
+import PayablesPage from '@/financial/PayablesPage'
+import CashflowPage from '@/financial/CashflowPage'
+import ReportsPage from '@/financial/ReportsPage'
+import SalesPage from '@/salesManagement/SalesPage'
+import SaleDetailPage from '@/salesManagement/SaleDetailPage'
+import CashSessionsPage from '@/salesManagement/CashSessionsPage'
+import CashSessionDetailPage from '@/salesManagement/CashSessionDetailPage'
+import PeoplePage from '@/people/PeoplePage'
+import PersonDetailPage from '@/people/PersonDetailPage'
 import PurchaseOrderEditor from '@/purchasing/PurchaseOrderEditor'
 import PurchaseOrderDetailPage from '@/purchasing/PurchaseOrderDetailPage'
 
@@ -57,9 +67,17 @@ export default function App(): ReactNode {
               <Route path="inventory/balances" element={<BalancesPage />} />
               <Route path="inventory/movements" element={<MovementsPage />} />
               <Route path="inventory/lots" element={<LotsPage />} />
-              <Route path="sales" element={<p>Vendas</p>} />
+              <Route path="sales" element={<SalesPage />} />
+              <Route path="sales/:id" element={<SaleDetailPage />} />
               <Route path="financial" element={<p>Financeiro</p>} />
-              <Route path="people" element={<p>Pessoas</p>} />
+              <Route path="financial/receivables" element={<ReceivablesPage />} />
+              <Route path="financial/payables" element={<PayablesPage />} />
+              <Route path="financial/cashflow" element={<CashflowPage />} />
+              <Route path="financial/reports" element={<ReportsPage />} />
+              <Route path="financial/cash-sessions" element={<CashSessionsPage />} />
+              <Route path="financial/cash-sessions/:id" element={<CashSessionDetailPage />} />
+              <Route path="people" element={<PeoplePage />} />
+              <Route path="people/:id" element={<PersonDetailPage />} />
               <Route path="settings" element={<p>Configurações</p>} />
               <Route path="organization/companies" element={<CompaniesPage />} />
               <Route path="organization/branches" element={<BranchesPage />} />
