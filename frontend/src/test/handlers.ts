@@ -357,7 +357,15 @@ export const handlers = [
   }),
 
   http.get(`${BASE}/purchasing/orders/`, () =>
-    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'order-1', number: 'PO-001', supplier: 's1', supplier_name: 'Fornecedor A', branch: 'b1', branch_name: 'Centro', status: 'approved', total: '100.00', items: [], created_at: '2026-07-20T00:00:00Z', created_by_name: 'Admin' },
+        { id: 'order-2', number: 'PO-002', supplier: 's2', supplier_name: 'Fornecedor B', branch: 'b2', branch_name: 'Shopping', status: 'draft', total: '200.00', items: [], created_at: '2026-07-21T00:00:00Z', created_by_name: 'Admin' },
+      ],
+    }),
   ),
 
   http.post(`${BASE}/purchasing/orders/`, async ({ request }) => {
@@ -387,8 +395,17 @@ export const handlers = [
     )
   }),
 
-  http.get(`${BASE}/purchasing/orders/:id/`, ({ params }) =>
-    HttpResponse.json({
+  http.get(`${BASE}/purchasing/orders/:id/`, ({ params }) => {
+    const orderItems: Record<string, { id: string; product: string; product_name: string; quantity: string; unit_price: string; total: string }[]> = {
+      'order-1': [
+        { id: 'item-1', product: 'prod-1', product_name: 'Produto A', quantity: '10', unit_price: '10.00', total: '100.00' },
+        { id: 'item-2', product: 'prod-2', product_name: 'Produto B', quantity: '5', unit_price: '20.00', total: '100.00' },
+      ],
+    }
+    const items = orderItems[params.id as string] ?? [
+      { id: 'item-1', product: 'prod-1', product_name: 'Produto 1', quantity: '2', unit_price: '50.00', total: '100.00' },
+    ]
+    return HttpResponse.json({
       id: params.id,
       number: 'PO-001',
       supplier: 's1',
@@ -397,13 +414,11 @@ export const handlers = [
       branch_name: 'Filial Padrão',
       status: 'draft',
       total: '100.00',
-      items: [
-        { id: 'item-1', product: 'prod-1', product_name: 'Produto 1', quantity: '2', unit_price: '50.00', total: '100.00' },
-      ],
+      items,
       created_at: '2026-07-22T00:00:00Z',
       created_by_name: 'Admin',
-    }),
-  ),
+    })
+  }),
 
   http.patch(`${BASE}/purchasing/orders/:id/`, async ({ request, params }) => {
     const body = await request.json() as { supplier?: string }
@@ -437,4 +452,253 @@ export const handlers = [
       created_by_name: 'Admin',
     }),
   ),
+
+  // Purchasing — Receipts
+  http.get(`${BASE}/purchasing/receipts/`, ({ request }) => {
+    const url = new URL(request.url)
+    const status = url.searchParams.get('status')
+    const order = url.searchParams.get('order')
+    let results = RECEIPTS_DATA
+    if (status) results = results.filter((r) => r.status === status)
+    if (order) results = results.filter((r) => r.order === order)
+    return HttpResponse.json({ count: results.length, next: null, previous: null, results })
+  }),
+
+  http.post(`${BASE}/purchasing/receipts/`, async ({ request }) => {
+    const body = await request.json() as { order?: string; items?: { product: string; received_quantity: string }[] }
+    if (!body.order) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { order: ['Este campo é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    if (body.items?.some((i) => Number.parseFloat(i.received_quantity) > 10)) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Quantidade recebida excede a quantidade pedida.', code: 'over_receipt' },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(
+      {
+        id: 'receipt-new',
+        order: body.order,
+        order_number: 'PO-001',
+        supplier_name: 'Fornecedor A',
+        branch_name: 'Centro',
+        status: 'completed',
+        items: (body.items ?? []).map((item, i) => ({
+          id: `ri-new-${i}`,
+          product: item.product,
+          product_name: `Produto ${i + 1}`,
+          ordered_quantity: '10',
+          received_quantity: item.received_quantity,
+          unit_name: 'UN',
+        })),
+        created_at: '2026-07-22T10:00:00Z',
+        created_by_name: 'Admin',
+        linked_stock_movement: 'sm-001',
+        linked_payable: 'pay-001',
+        linked_fiscal_document: 'fd-001',
+      },
+      { status: 201 },
+    )
+  }),
+
+  http.get(`${BASE}/purchasing/receipts/:id/`, ({ params }) => {
+    const receipt = RECEIPTS_DATA.find((r) => r.id === params.id)
+    if (!receipt) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Recebimento não encontrado.' },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json(receipt)
+  }),
+
+  http.post(`${BASE}/purchasing/receipts/:id/cancel/`, ({ params }) => {
+    if (params.id === 'receipt-fail-cancel') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Recebimento não pode ser cancelado.', code: 'cannot_cancel' },
+        { status: 409 },
+      )
+    }
+    return HttpResponse.json({ detail: 'Recebimento cancelado com sucesso.' })
+  }),
+
+  // Purchasing — Returns
+  http.get(`${BASE}/purchasing/returns/`, ({ request }) => {
+    const url = new URL(request.url)
+    const supplier = url.searchParams.get('supplier')
+    let results = RETURNS_DATA
+    if (supplier) results = results.filter((r) => r.supplier_name === supplier)
+    return HttpResponse.json({ count: results.length, next: null, previous: null, results })
+  }),
+
+  http.post(`${BASE}/purchasing/returns/`, async ({ request }) => {
+    const body = await request.json() as { order?: string; reason?: string; items?: { product: string; quantity: string }[] }
+    if (!body.order || !body.reason) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { order: ['Este campo é obrigatório.'], reason: ['Este campo é obrigatório.'] } },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(
+      {
+        id: 'return-new',
+        supplier_name: 'Fornecedor A',
+        order_number: 'PO-001',
+        total: '50.00',
+        reason: body.reason,
+        status: 'pending',
+        created_at: '2026-07-22T10:00:00Z',
+      },
+      { status: 201 },
+    )
+  }),
+
+  // Purchasing — Recurring Templates
+  http.get(`${BASE}/purchasing/recurring-templates/`, () =>
+    HttpResponse.json({
+      count: TEMPLATES_DATA.length,
+      next: null,
+      previous: null,
+      results: TEMPLATES_DATA,
+    }),
+  ),
+
+  http.patch(`${BASE}/purchasing/recurring-templates/:id/`, async ({ request, params }) => {
+    const body = await request.json() as { is_active?: boolean }
+    const template = TEMPLATES_DATA.find((t) => t.id === params.id)
+    if (!template) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Template não encontrado.' },
+        { status: 404 },
+      )
+    }
+    return HttpResponse.json({ ...template, is_active: body.is_active ?? template.is_active })
+  }),
+]
+
+interface PurchaseReceipt {
+  id: string
+  order: string
+  order_number: string
+  supplier_name: string
+  branch_name: string
+  status: string
+  items: { id: string; product: string; product_name: string; ordered_quantity: string; received_quantity: string; unit_name: string }[]
+  created_at: string
+  created_by_name: string
+  linked_stock_movement: string | null
+  linked_payable: string | null
+  linked_fiscal_document: string | null
+}
+
+interface SupplierReturn {
+  id: string
+  supplier_name: string
+  order_number: string
+  total: string
+  reason: string
+  status: string
+  created_at: string
+}
+
+interface RecurringTemplate {
+  id: string
+  name: string
+  supplier_name: string
+  frequency: string
+  next_date: string
+  is_active: boolean
+}
+
+const RECEIPTS_DATA: PurchaseReceipt[] = [
+  {
+    id: 'receipt-1',
+    order: 'order-1',
+    order_number: 'PO-001',
+    supplier_name: 'Fornecedor A',
+    branch_name: 'Centro',
+    status: 'completed',
+    items: [
+      { id: 'ri-1', product: 'prod-1', product_name: 'Produto A', ordered_quantity: '10', received_quantity: '10', unit_name: 'UN' },
+      { id: 'ri-2', product: 'prod-2', product_name: 'Produto B', ordered_quantity: '5', received_quantity: '5', unit_name: 'CX' },
+    ],
+    created_at: '2026-07-20T10:00:00Z',
+    created_by_name: 'Admin',
+    linked_stock_movement: 'sm-001',
+    linked_payable: 'pay-001',
+    linked_fiscal_document: 'fd-001',
+  },
+  {
+    id: 'receipt-2',
+    order: 'order-2',
+    order_number: 'PO-002',
+    supplier_name: 'Fornecedor B',
+    branch_name: 'Shopping',
+    status: 'draft',
+    items: [
+      { id: 'ri-3', product: 'prod-3', product_name: 'Produto C', ordered_quantity: '20', received_quantity: '0', unit_name: 'KG' },
+    ],
+    created_at: '2026-07-21T14:00:00Z',
+    created_by_name: 'Admin',
+    linked_stock_movement: null,
+    linked_payable: null,
+    linked_fiscal_document: null,
+  },
+  {
+    id: 'receipt-3',
+    order: 'order-3',
+    order_number: 'PO-003',
+    supplier_name: 'Fornecedor A',
+    branch_name: 'Centro',
+    status: 'cancelled',
+    items: [],
+    created_at: '2026-07-19T08:00:00Z',
+    created_by_name: 'Admin',
+    linked_stock_movement: null,
+    linked_payable: null,
+    linked_fiscal_document: null,
+  },
+]
+
+const RETURNS_DATA: SupplierReturn[] = [
+  {
+    id: 'return-1',
+    supplier_name: 'Fornecedor A',
+    order_number: 'PO-001',
+    total: '150.00',
+    reason: 'Produto com defeito',
+    status: 'pending',
+    created_at: '2026-07-21T10:00:00Z',
+  },
+  {
+    id: 'return-2',
+    supplier_name: 'Fornecedor B',
+    order_number: 'PO-002',
+    total: '75.50',
+    reason: 'Quantidade excedente',
+    status: 'approved',
+    created_at: '2026-07-20T08:00:00Z',
+  },
+]
+
+const TEMPLATES_DATA: RecurringTemplate[] = [
+  {
+    id: 'tmpl-1',
+    name: 'Pedido Semanal Insumos',
+    supplier_name: 'Fornecedor A',
+    frequency: 'weekly',
+    next_date: '2026-07-28',
+    is_active: true,
+  },
+  {
+    id: 'tmpl-2',
+    name: 'Pedido Mensal Matéria-Prima',
+    supplier_name: 'Fornecedor B',
+    frequency: 'monthly',
+    next_date: '2026-08-01',
+    is_active: false,
+  },
 ]

@@ -9,6 +9,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Catálogo', to: '/catalog' },
+  { label: 'Compras', to: '/purchasing/orders' },
   { label: 'Estoque', to: '/inventory' },
   { label: 'Vendas', to: '/sales' },
   { label: 'Financeiro', to: '/financial' },
@@ -17,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
 const ADMIN_ITEMS: NavItem[] = [
   { label: 'Empresas', to: '/organization/companies' },
   { label: 'Filiais', to: '/organization/branches' },
+  { label: 'Fornecedores', to: '/purchasing/suppliers' },
   { label: 'Membros', to: '/access/members' },
   { label: 'Convites', to: '/access/invitations' },
   { label: 'Segurança', to: '/security/mfa' },

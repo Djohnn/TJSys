@@ -16,6 +16,10 @@ import MembersPage from '@/access/MembersPage'
 import InvitationsPage from '@/access/InvitationsPage'
 import MfaPolicyPage from '@/security/MfaPolicyPage'
 import DevicesPage from '@/devices/DevicesPage'
+import SuppliersPage from '@/purchasing/SuppliersPage'
+import PurchaseOrdersPage from '@/purchasing/PurchaseOrdersPage'
+import PurchaseOrderEditor from '@/purchasing/PurchaseOrderEditor'
+import PurchaseOrderDetailPage from '@/purchasing/PurchaseOrderDetailPage'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
@@ -51,6 +55,11 @@ export default function App(): ReactNode {
               <Route path="access/invitations" element={<InvitationsPage />} />
               <Route path="security/mfa" element={<MfaPolicyPage />} />
               <Route path="devices" element={<DevicesPage />} />
+              <Route path="purchasing/suppliers" element={<SuppliersPage />} />
+              <Route path="purchasing/orders" element={<PurchaseOrdersPage />} />
+              <Route path="purchasing/orders/new" element={<PurchaseOrderEditor />} />
+              <Route path="purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
+              <Route path="purchasing/orders/:id/edit" element={<PurchaseOrderEditor />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
