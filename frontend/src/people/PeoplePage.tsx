@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
@@ -204,7 +204,7 @@ export default function PeoplePage({ hasPiiPermission = true }: PeoplePageProps)
           <tbody>
             {people.map((person) => (
               <tr key={person.id} data-testid="person-row">
-                <td>{person.name}</td>
+                <td><Link to={`/people/${person.id}`}>{person.name}</Link></td>
                 <td>{hasPiiPermission ? person.document : maskDocument(person.document)}</td>
                 <td>{person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</td>
                 <td>{ROLE_LABELS[person.role] ?? person.role}</td>

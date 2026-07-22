@@ -1068,31 +1068,31 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 18 — Catálogo, Estoque e Compras Web
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** disponibilizar jornadas web de catálogo, estoque, fornecedores, pedidos e recebimentos.
 
 **Especificação:** [Design da Sprint 18](superpowers/specs/2026-07-21-sprint-18-catalog-inventory-purchasing-web-design.md)
 
 **Plano:** [Plano de implementação da Sprint 18](superpowers/plans/2026-07-21-sprint-18-catalog-inventory-purchasing-web-implementation-plan.md)
 
-- [ ] Implementar catálogo e preços.
-- [ ] Implementar saldos, lotes e movimentações de estoque.
-- [ ] Implementar fornecedores, pedidos, recebimentos e devoluções.
-- [ ] Validar jornada vertical produto → compra → recebimento.
+- [x] Implementar catálogo e preços.
+- [x] Implementar saldos, lotes e movimentações de estoque.
+- [x] Implementar fornecedores, pedidos, recebimentos e devoluções.
+- [x] Validar jornada vertical produto → compra → recebimento.
 
 ### Sprint 19 — Gestão de PDV, Pessoas e Financeiro Web
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** supervisionar operações do PDV Electron e seus efeitos sem criar um segundo ponto de venda.
 
 **Especificação:** [Design da Sprint 19](superpowers/specs/2026-07-21-sprint-19-pdv-management-people-financial-design.md)
 
 **Plano:** [Plano de implementação da Sprint 19](superpowers/plans/2026-07-21-sprint-19-pdv-management-people-financial-implementation-plan.md)
 
-- [ ] Consultar vendas, caixas, operadores e dispositivos do PDV.
-- [ ] Executar devoluções, cancelamentos e estornos autorizados.
-- [ ] Gerenciar pessoas com controles de PII.
-- [ ] Gerenciar obrigações, liquidações, fluxo de caixa e relatórios.
+- [x] Consultar vendas, caixas, operadores e dispositivos do PDV.
+- [x] Executar devoluções, cancelamentos e estornos autorizados.
+- [x] Gerenciar pessoas com controles de PII.
+- [x] Gerenciar obrigações, liquidações, fluxo de caixa e relatórios.
 
 ### Sprint 20 — Fiscal, Pagamentos, Observabilidade e Aceite E2E
 
