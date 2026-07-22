@@ -196,4 +196,245 @@ export const handlers = [
   http.post(`${BASE}/devices/:id/revoke/`, () =>
     HttpResponse.json({ detail: 'Dispositivo revogado com sucesso.' }),
   ),
+
+  http.get(`${BASE}/inventory/balances/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'bal-1', product: 'prod-1', product_name: 'Parafuso', product_sku: 'PRF-001', branch: 'branch-1', branch_name: 'Centro', location: 'loc-a', location_name: 'Prateleira A', quantity: '100.00', unit_name: 'un', updated_at: '2026-07-22T10:00:00Z' },
+        { id: 'bal-2', product: 'prod-2', product_name: 'Porca', product_sku: 'PRC-001', branch: 'branch-2', branch_name: 'Shopping', location: 'loc-b', location_name: 'Prateleira B', quantity: '50.50', unit_name: 'un', updated_at: '2026-07-22T09:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/inventory/movements/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'mov-1', product: 'prod-1', product_name: 'Parafuso', branch: 'branch-1', branch_name: 'Centro', type: 'in', quantity: '100.00', reason: 'Compra', reference_id: null, created_at: '2026-07-22T10:00:00Z', created_by_name: 'Admin' },
+        { id: 'mov-2', product: 'prod-2', product_name: 'Porca', branch: 'branch-2', branch_name: 'Shopping', type: 'out', quantity: '-10.00', reason: 'Venda', reference_id: null, created_at: '2026-07-22T09:00:00Z', created_by_name: 'Operador' },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/inventory/movements/`, () =>
+    HttpResponse.json(
+      {
+        id: 'mov-new',
+        product: 'prod-1',
+        product_name: 'Parafuso',
+        branch: 'branch-1',
+        branch_name: 'Centro',
+        type: 'in',
+        quantity: '50.00',
+        reason: 'Recebimento',
+        reference_id: null,
+        created_at: '2026-07-22T14:00:00Z',
+        created_by_name: 'Admin',
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.get(`${BASE}/inventory/lots/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'lot-1', product: 'prod-1', product_name: 'Parafuso', product_sku: 'PRF-001', lot_number: 'LOT-001', quantity: '100.00', expiry_date: '2027-01-01', branch: 'branch-1', branch_name: 'Centro', created_at: '2026-06-01T00:00:00Z' },
+        { id: 'lot-2', product: 'prod-2', product_name: 'Porca', product_sku: 'PRC-001', lot_number: 'LOT-002', quantity: '50.00', expiry_date: null, branch: 'branch-2', branch_name: 'Shopping', created_at: '2026-06-15T00:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/catalog/products/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'prod-1', name: 'Parafuso', sku: 'PRF-001', barcode: '789000001', category: 'cat-1', category_name: 'Ferragens', unit: 'unit-1', unit_name: 'un', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        { id: 'prod-2', name: 'Porca', sku: 'PRC-001', barcode: '789000002', category: 'cat-1', category_name: 'Ferragens', unit: 'unit-1', unit_name: 'un', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/catalog/products/`, async ({ request }) =>
+    HttpResponse.json(
+      {
+        id: 'prod-new',
+        name: ((await request.json()) as { name?: string }).name ?? 'New Product',
+        sku: '',
+        barcode: '',
+        category: null,
+        category_name: '',
+        unit: null,
+        unit_name: '',
+        is_active: true,
+        created_at: '2026-07-22T00:00:00Z',
+        updated_at: '2026-07-22T00:00:00Z',
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.patch(`${BASE}/catalog/products/:id/`, async ({ request, params }) =>
+    HttpResponse.json({
+      id: params.id,
+      ...((await request.json()) as Record<string, unknown>),
+      category_name: '',
+      unit_name: '',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-07-22T00:00:00Z',
+    }),
+  ),
+
+  http.get(`${BASE}/catalog/categories/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'cat-1', name: 'Ferragens', is_active: true },
+        { id: 'cat-2', name: 'Hidráulica', is_active: true },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/catalog/categories/`, async ({ request }) =>
+    HttpResponse.json(
+      {
+        id: 'cat-new',
+        name: ((await request.json()) as { name?: string }).name ?? 'New Category',
+        is_active: true,
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.patch(`${BASE}/catalog/categories/:id/`, async ({ request, params }) =>
+    HttpResponse.json({
+      id: params.id,
+      ...((await request.json()) as Record<string, unknown>),
+      is_active: true,
+    }),
+  ),
+
+  http.get(`${BASE}/catalog/units/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'unit-1', name: 'Unidade', abbreviation: 'un' },
+        { id: 'unit-2', name: 'Quilograma', abbreviation: 'kg' },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/purchasing/suppliers/`, () =>
+    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+  ),
+
+  http.post(`${BASE}/purchasing/suppliers/`, async ({ request }) => {
+    const body = await request.json() as { name?: string }
+    return HttpResponse.json(
+      { id: 's-default', name: body.name, cnpj: '', ie: '', is_active: true, created_at: '2026-01-01T00:00:00Z' },
+      { status: 201 },
+    )
+  }),
+
+  http.patch(`${BASE}/purchasing/suppliers/:id/`, async ({ request, params }) => {
+    const body = await request.json() as { name?: string }
+    return HttpResponse.json(
+      { id: params.id, ...body, cnpj: '', ie: '', is_active: true, created_at: '2026-01-01T00:00:00Z' },
+    )
+  }),
+
+  http.get(`${BASE}/purchasing/orders/`, () =>
+    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+  ),
+
+  http.post(`${BASE}/purchasing/orders/`, async ({ request }) => {
+    const body = await request.json() as { supplier?: string; branch?: string; items?: unknown[] }
+    return HttpResponse.json(
+      {
+        id: 'po-default',
+        number: 'PO-001',
+        supplier: body.supplier,
+        supplier_name: 'Default Supplier',
+        branch: body.branch,
+        branch_name: 'Default Branch',
+        status: 'draft',
+        total: '0.00',
+        items: (body.items ?? []).map((_: unknown, i: number) => ({
+          id: `item-${i}`,
+          product: 'prod-default',
+          product_name: 'Default Product',
+          quantity: '1',
+          unit_price: '0.00',
+          total: '0.00',
+        })),
+        created_at: '2026-07-22T00:00:00Z',
+        created_by_name: 'Admin',
+      },
+      { status: 201 },
+    )
+  }),
+
+  http.get(`${BASE}/purchasing/orders/:id/`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      number: 'PO-001',
+      supplier: 's1',
+      supplier_name: 'Fornecedor Padrão',
+      branch: 'b1',
+      branch_name: 'Filial Padrão',
+      status: 'draft',
+      total: '100.00',
+      items: [
+        { id: 'item-1', product: 'prod-1', product_name: 'Produto 1', quantity: '2', unit_price: '50.00', total: '100.00' },
+      ],
+      created_at: '2026-07-22T00:00:00Z',
+      created_by_name: 'Admin',
+    }),
+  ),
+
+  http.patch(`${BASE}/purchasing/orders/:id/`, async ({ request, params }) => {
+    const body = await request.json() as { supplier?: string }
+    return HttpResponse.json({
+      id: params.id,
+      number: 'PO-001',
+      supplier: body.supplier,
+      supplier_name: 'Fornecedor Padrão',
+      branch: 'b1',
+      branch_name: 'Filial Padrão',
+      status: 'draft',
+      total: '100.00',
+      items: [],
+      created_at: '2026-07-22T00:00:00Z',
+      created_by_name: 'Admin',
+    })
+  }),
+
+  http.post(`${BASE}/purchasing/orders/:id/approve/`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      number: 'PO-001',
+      supplier: 's1',
+      supplier_name: 'Fornecedor Padrão',
+      branch: 'b1',
+      branch_name: 'Filial Padrão',
+      status: 'approved',
+      total: '100.00',
+      items: [],
+      created_at: '2026-07-22T00:00:00Z',
+      created_by_name: 'Admin',
+    }),
+  ),
 ]
