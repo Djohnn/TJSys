@@ -56,6 +56,8 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 14 | A detalhar | IA readiness e copiloto somente leitura |
 | 15 | Concluída | SaaS comercial e administração da plataforma |
 | 16 | Concluída | Fundação frontend e contrato da API |
+| 17 | Concluída | Shell administrativo, tenancy e acessos |
+| 18 | Concluída | Catálogo, estoque e compras web |
 
 ---
 
@@ -1122,4 +1124,5 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
 | 17 | 2026-07-22 | `feat: sprint 17 - painel administrativo tenancy` | Backend web_admin_api 9 passed; Frontend 103 Vitest (11 files); 8 cenários E2E Playwright | 10 falhas pré-existentes no backend (paginação não alinhada em payments/people/purchasing/platform_admin) | Aprovado localmente |
+| 18 | 2026-07-22 | `feat: sprint 18 - catalogo estoque compras web` | Frontend 171 Vitest (15 files); 8 cenários E2E Playwright; TypeScript 0 erros | E2E Playwright requer stack completa (backend + frontend) | Aprovado localmente |
 

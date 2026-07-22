@@ -16,6 +16,12 @@ import MembersPage from '@/access/MembersPage'
 import InvitationsPage from '@/access/InvitationsPage'
 import MfaPolicyPage from '@/security/MfaPolicyPage'
 import DevicesPage from '@/devices/DevicesPage'
+import ProductsPage from '@/catalog/ProductsPage'
+import CategoriesPage from '@/catalog/CategoriesPage'
+import UnitsPage from '@/catalog/UnitsPage'
+import BalancesPage from '@/inventory/BalancesPage'
+import MovementsPage from '@/inventory/MovementsPage'
+import LotsPage from '@/inventory/LotsPage'
 import SuppliersPage from '@/purchasing/SuppliersPage'
 import PurchaseOrdersPage from '@/purchasing/PurchaseOrdersPage'
 import PurchaseOrderEditor from '@/purchasing/PurchaseOrderEditor'
@@ -43,8 +49,14 @@ export default function App(): ReactNode {
             >
               <Route index element={<DashboardPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="catalog" element={<p>Catálogo</p>} />
-              <Route path="inventory" element={<p>Estoque</p>} />
+              <Route path="catalog" element={<ProductsPage />} />
+              <Route path="catalog/products" element={<ProductsPage />} />
+              <Route path="catalog/categories" element={<CategoriesPage />} />
+              <Route path="catalog/units" element={<UnitsPage />} />
+              <Route path="inventory" element={<BalancesPage />} />
+              <Route path="inventory/balances" element={<BalancesPage />} />
+              <Route path="inventory/movements" element={<MovementsPage />} />
+              <Route path="inventory/lots" element={<LotsPage />} />
               <Route path="sales" element={<p>Vendas</p>} />
               <Route path="financial" element={<p>Financeiro</p>} />
               <Route path="people" element={<p>Pessoas</p>} />

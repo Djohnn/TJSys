@@ -661,6 +661,22 @@ const RECEIPTS_DATA: PurchaseReceipt[] = [
     linked_payable: null,
     linked_fiscal_document: null,
   },
+  {
+    id: 'receipt-fail-cancel',
+    order: 'order-4',
+    order_number: 'PO-004',
+    supplier_name: 'Fornecedor C',
+    branch_name: 'Centro',
+    status: 'completed',
+    items: [
+      { id: 'ri-4', product: 'prod-4', product_name: 'Produto D', ordered_quantity: '10', received_quantity: '10', unit_name: 'UN' },
+    ],
+    created_at: '2026-07-22T10:00:00Z',
+    created_by_name: 'Admin',
+    linked_stock_movement: null,
+    linked_payable: null,
+    linked_fiscal_document: null,
+  },
 ]
 
 const RETURNS_DATA: SupplierReturn[] = [
