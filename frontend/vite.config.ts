@@ -22,5 +22,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: { modules: { classNameStrategy: 'non-scoped' } },
+    include: ['src/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+    exclude: ['e2e/**', 'node_modules/**'],
   },
 })

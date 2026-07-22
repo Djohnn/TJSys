@@ -54,7 +54,8 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 12 | A detalhar | Pessoas, clientes e parceiros |
 | 13 | A detalhar | Pagamentos integrados e conciliação |
 | 14 | A detalhar | IA readiness e copiloto somente leitura |
-| 15 | A detalhar | SaaS comercial e administração da plataforma |
+| 15 | Concluída | SaaS comercial e administração da plataforma |
+| 16 | Concluída | Fundação frontend e contrato da API |
 
 ---
 
@@ -1037,17 +1038,17 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 16 — Fundação Frontend e Contrato da API
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-21.
 **Objetivo:** criar a aplicação React/Vite/TypeScript e tornar a API segura e tipada para consumo no navegador.
 
 **Especificação:** [Design da Sprint 16](superpowers/specs/2026-07-21-sprint-16-frontend-foundation-api-contract-design.md)
 
 **Plano:** [Plano de implementação da Sprint 16](superpowers/plans/2026-07-21-sprint-16-frontend-foundation-api-contract-implementation-plan.md)
 
-- [ ] Configurar OpenAPI, CORS, CSRF e cliente TypeScript gerado.
-- [ ] Implementar login por sessão, MFA e seleção de tenant.
-- [ ] Criar shell acessível, estados de erro e gates frontend no CI.
-- [ ] Validar autenticação e troca de tenant com Playwright.
+- [x] Configurar OpenAPI, CORS, CSRF e cliente TypeScript gerado.
+- [x] Implementar login por sessão, MFA e seleção de tenant.
+- [x] Criar shell acessível, estados de erro e gates frontend no CI.
+- [x] Validar autenticação e troca de tenant com Playwright.
 
 ### Sprint 17 — Shell Administrativo, Tenancy e Acessos
 
