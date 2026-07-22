@@ -10,6 +10,12 @@ import { OrganizationProvider } from '@/organization/OrganizationProvider'
 import AppShell from '@/layout/AppShell'
 import ErrorState from '@/errors/ErrorState'
 import DashboardPage from '@/dashboard/DashboardPage'
+import CompaniesPage from '@/organization/CompaniesPage'
+import BranchesPage from '@/organization/BranchesPage'
+import MembersPage from '@/access/MembersPage'
+import InvitationsPage from '@/access/InvitationsPage'
+import MfaPolicyPage from '@/security/MfaPolicyPage'
+import DevicesPage from '@/devices/DevicesPage'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
@@ -39,6 +45,12 @@ export default function App(): ReactNode {
               <Route path="financial" element={<p>Financeiro</p>} />
               <Route path="people" element={<p>Pessoas</p>} />
               <Route path="settings" element={<p>Configurações</p>} />
+              <Route path="organization/companies" element={<CompaniesPage />} />
+              <Route path="organization/branches" element={<BranchesPage />} />
+              <Route path="access/members" element={<MembersPage />} />
+              <Route path="access/invitations" element={<InvitationsPage />} />
+              <Route path="security/mfa" element={<MfaPolicyPage />} />
+              <Route path="devices" element={<DevicesPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

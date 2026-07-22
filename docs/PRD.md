@@ -1052,17 +1052,17 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 17 — Shell Administrativo, Tenancy e Acessos
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** entregar painel administrativo para empresas, filiais, membros, convites, MFA e dispositivos PDV.
 
 **Especificação:** [Design da Sprint 17](superpowers/specs/2026-07-21-sprint-17-admin-shell-tenancy-design.md)
 
 **Plano:** [Plano de implementação da Sprint 17](superpowers/plans/2026-07-21-sprint-17-admin-shell-tenancy-implementation-plan.md)
 
-- [ ] Criar dashboard e contexto de empresa/filial.
-- [ ] Gerenciar empresas, filiais, membros e convites.
-- [ ] Gerenciar política MFA e dispositivos.
-- [ ] Validar papéis e isolamento cross-tenant nos três browsers.
+- [x] Criar dashboard e contexto de empresa/filial.
+- [x] Gerenciar empresas, filiais, membros e convites.
+- [x] Gerenciar política MFA e dispositivos.
+- [x] Validar papéis e isolamento cross-tenant nos três browsers.
 
 ### Sprint 18 — Catálogo, Estoque e Compras Web
 
@@ -1121,4 +1121,5 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
+| 17 | 2026-07-22 | `feat: sprint 17 - painel administrativo tenancy` | Backend web_admin_api 9 passed; Frontend 103 Vitest (11 files); 8 cenários E2E Playwright | 10 falhas pré-existentes no backend (paginação não alinhada em payments/people/purchasing/platform_admin) | Aprovado localmente |
 
