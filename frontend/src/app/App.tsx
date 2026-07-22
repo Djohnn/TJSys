@@ -6,7 +6,12 @@ import LoginPage from '@/auth/LoginPage'
 import MfaPage from '@/auth/MfaPage'
 import ProtectedRoute from '@/auth/ProtectedRoute'
 import { TenantProvider } from '@/tenant/TenantProvider'
-import TenantSelector from '@/tenant/TenantSelector'
+import AppShell from '@/layout/AppShell'
+import ErrorState from '@/errors/ErrorState'
+
+function NotFoundPage(): ReactNode {
+  return <ErrorState status={404} />
+}
 
 export default function App(): ReactNode {
   return (
@@ -19,28 +24,21 @@ export default function App(): ReactNode {
             path="/"
             element={
               <ProtectedRoute>
-                <Shell />
+                <AppShell />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<p>Bem-vindo ao Zyrp ERP.</p>} />
+            <Route path="catalog" element={<p>Catálogo</p>} />
+            <Route path="inventory" element={<p>Estoque</p>} />
+            <Route path="sales" element={<p>Vendas</p>} />
+            <Route path="financial" element={<p>Financeiro</p>} />
+            <Route path="people" element={<p>Pessoas</p>} />
+            <Route path="settings" element={<p>Configurações</p>} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Routes>
       </TenantProvider>
     </AuthProvider>
-  )
-}
-
-function Shell() {
-  return (
-    <>
-      <header>
-        <h1>Zyrp ERP</h1>
-      </header>
-      <nav>
-        <TenantSelector />
-      </nav>
-      <main>
-        <p>Bem-vindo ao Zyrp ERP.</p>
-      </main>
-    </>
   )
 }

@@ -56,7 +56,7 @@ describe('ProtectedRoute', () => {
   test('renders children when authenticated', () => {
     mockUseAuth.mockReturnValue({
       state: 'authenticated',
-      user: { email: 'test@test.com' },
+      user: { id: 1, email: 'test@test.com', name: 'Test', is_active: true, is_mfa_enabled: false },
       memberships: [],
       login: vi.fn(),
       challengeMfa: vi.fn(),
