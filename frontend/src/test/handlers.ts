@@ -134,4 +134,66 @@ export const handlers = [
       updated_at: '2026-01-01T00:00:00Z',
     }),
   ),
+
+  http.get(`${BASE}/memberships/`, () =>
+    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+  ),
+
+  http.patch(`${BASE}/memberships/:id/`, ({ params }) =>
+    HttpResponse.json({
+      id: Number(params.id),
+      user: { id: 1, email: 'admin@zyrp.local', name: 'Admin' },
+      role: 'admin',
+      is_active: true,
+      branch_ids: [],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-07-01T00:00:00Z',
+    }),
+  ),
+
+  http.get(`${BASE}/invitations/`, () =>
+    HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+  ),
+
+  http.post(`${BASE}/invitations/`, () =>
+    HttpResponse.json(
+      { id: 1, email: 'test@zyrp.local', role: 'operator', status: 'pending', expires_at: '2026-08-01T00:00:00Z', created_at: '2026-07-22T00:00:00Z' },
+      { status: 201 },
+    ),
+  ),
+
+  http.post(`${BASE}/invitations/:id/resend/`, () =>
+    HttpResponse.json({ detail: 'Convite reenviado.' }),
+  ),
+
+  http.get(`${BASE}/memberships/mfa-policy/`, () =>
+    HttpResponse.json({ allow_totp: true, allow_email: true }),
+  ),
+
+  http.patch(`${BASE}/memberships/mfa-policy/`, async ({ request }) => {
+    const body = await request.json() as { allow_totp?: boolean; allow_email?: boolean }
+    if (body.allow_totp === false && body.allow_email === false) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Pelo menos um método MFA deve estar ativo.', code: 'validation_error' },
+        { status: 422 },
+      )
+    }
+    return HttpResponse.json(body)
+  }),
+
+  http.get(`${BASE}/devices/list/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'dev-1', name: 'iPhone 15', device_id: 'abc12345xyz', platform: 'iOS', app_version: '2.1.0', os_version: '18.0', last_seen_at: '2026-07-20T10:00:00Z', status: 'active', branch_name: 'Centro', registered_at: '2026-06-01T00:00:00Z' },
+        { id: 'dev-2', name: 'Samsung Galaxy S24', device_id: 'def67890uvw', platform: 'Android', app_version: '2.1.0', os_version: '14.0', last_seen_at: '2026-07-19T08:00:00Z', status: 'active', branch_name: 'Shopping', registered_at: '2026-05-15T00:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/devices/:id/revoke/`, () =>
+    HttpResponse.json({ detail: 'Dispositivo revogado com sucesso.' }),
+  ),
 ]
