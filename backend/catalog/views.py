@@ -1,3 +1,4 @@
+from django.db import models
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.pagination import CursorPagination
@@ -114,9 +115,17 @@ class CatalogViewSetBase(viewsets.ModelViewSet):
         search = self.request.query_params.get('search')
         if search and hasattr(qs.model, 'name'):
             qs = qs.filter(name__icontains=search)
+        q = self.request.query_params.get('q')
+        if q:
+            qs = self._apply_q_filter(qs, q)
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() == 'true')
+        return qs
+
+    def _apply_q_filter(self, qs, q):
+        if hasattr(qs.model, 'name'):
+            return qs.filter(name__icontains=q)
         return qs
 
     def perform_create(self, serializer):
@@ -182,6 +191,11 @@ class CategoryViewSet(CatalogViewSetBase):
 class ProductViewSet(CatalogViewSetBase):
     queryset = Product.objects.select_related('category', 'base_unit')
     serializer_class = ProductSerializer
+
+    def _apply_q_filter(self, qs, q):
+        return qs.filter(
+            models.Q(name__icontains=q) | models.Q(sku__icontains=q)
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()

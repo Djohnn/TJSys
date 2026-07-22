@@ -388,13 +388,23 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     ]
 
     def get_queryset(self):
-        return StockMovement.objects.select_related(
+        qs = StockMovement.objects.select_related(
             'operation',
             'product',
             'location',
             'lot',
             'unit',
         ).filter(tenant=self.request.tenant)
+        date_from = self.request.query_params.get('date_from')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        date_to = self.request.query_params.get('date_to')
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
+        movement_type = self.request.query_params.get('type')
+        if movement_type:
+            qs = qs.filter(direction=movement_type)
+        return qs
 
 
 class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
