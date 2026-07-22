@@ -1,7 +1,11 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from fiscal.views import (
     FiscalConfigView,
+    FiscalDocumentViewSet,
+    FiscalEmitterViewSet,
+    FiscalProductConfigViewSet,
     FiscalStatusView,
     OCRNFeView,
     ReceiptFiscalValidateView,
@@ -10,6 +14,11 @@ from fiscal.views import (
 from fiscal.webhook import fiscal_webhook
 
 app_name = 'fiscal'
+
+router = DefaultRouter()
+router.register('fiscal/emitters', FiscalEmitterViewSet, basename='fiscal-emitter')
+router.register('fiscal/documents', FiscalDocumentViewSet, basename='fiscal-document')
+router.register('fiscal/product-configs', FiscalProductConfigViewSet, basename='fiscal-product-config')
 
 urlpatterns = [
     path(
@@ -30,4 +39,4 @@ urlpatterns = [
         ReceiptFiscalValidateView.as_view(),
         name='receipt-validate-fiscal',
     ),
-]
+] + router.urls

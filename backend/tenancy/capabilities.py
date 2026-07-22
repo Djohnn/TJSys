@@ -7,6 +7,9 @@ ROLE_CAPABILITIES = {
         'sales.view', 'sales.sell', 'sales.cash.manage',
         'purchasing.view', 'purchasing.manage',
         'financial.view', 'financial.manage',
+        'fiscal.view', 'fiscal.manage',
+        'payments.view', 'payments.manage',
+        'monitoring.view',
     }),
     'manager': frozenset({
         'organization.read', 'users.read',
@@ -16,6 +19,9 @@ ROLE_CAPABILITIES = {
         'sales.view', 'sales.sell', 'sales.cash.manage',
         'purchasing.view', 'purchasing.manage',
         'financial.view', 'financial.manage',
+        'fiscal.view', 'fiscal.manage',
+        'payments.view', 'payments.manage',
+        'monitoring.view',
     }),
     'operator': frozenset({
         'catalog.view', 'pricing.view',
@@ -23,6 +29,7 @@ ROLE_CAPABILITIES = {
         'sales.view', 'sales.sell', 'sales.cash.manage',
     }),
 }
+
 
 
 def role_allows(role, capability):
