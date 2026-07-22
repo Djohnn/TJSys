@@ -994,7 +994,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 15 — SaaS Comercial e Administração da Plataforma
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-18.
+**Estado:** Concluída em 2026-07-21; aceite técnico e funcional registrado no relatório final.
 **Objetivo:** preparar operação comercial SaaS com planos, assinaturas, entitlements, suspensão, suporte e feature flags.
 **Entregável:** administração de plataforma separada dos dados operacionais do cliente.
 
@@ -1004,30 +1004,30 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 #### 15.1 Núcleo comercial SaaS
 
-- [ ] Criar ou consolidar app `platform`.
-- [ ] Criar plano, assinatura, entitlement e feature flag.
-- [ ] Definir política de tenant ativo, suspenso e cancelado.
-- [ ] Separar cobrança externa de capacidades internas.
+- [x] Criar ou consolidar app `platform_admin` (nome seguro, sem conflito com a biblioteca padrão `platform`).
+- [x] Criar plano, assinatura, entitlement e feature flag.
+- [x] Definir política de tenant ativo, suspenso e cancelado.
+- [x] Separar cobrança externa de capacidades internas.
 
 #### 15.2 Entitlements, flags e suporte
 
-- [ ] Implementar consulta de capacidade e limite por tenant.
-- [ ] Implementar feature flags tenant-scoped.
-- [ ] Implementar solicitação de acesso de suporte temporário.
-- [ ] Auditar toda ação administrativa.
+- [x] Implementar consulta de capacidade e limite por tenant.
+- [x] Implementar feature flags tenant-scoped.
+- [x] Implementar solicitação de acesso de suporte temporário.
+- [x] Auditar toda ação administrativa.
 
 #### 15.3 API administrativa
 
-- [ ] Expor endpoints admin-only para planos, assinaturas, entitlements, flags e suporte.
-- [ ] Bloquear usuário comum e cross-tenant.
-- [ ] Retornar Problem Details para permissão, suspensão e conflitos.
+- [x] Expor endpoints administrativos para planos, assinaturas, entitlements, flags e suporte.
+- [x] Bloquear usuário comum e cross-tenant.
+- [x] Retornar Problem Details para permissão, validação e conflitos.
 
 #### 15.4 Qualidade e aceite
 
-- [ ] Criar testes de models, services e API administrativa.
-- [ ] Documentar modelo operacional SaaS.
-- [ ] Registrar evidências no relatório final da Sprint 15.
-- [ ] Criar commit final `feat: sprint 15 - saas comercial admin`.
+- [x] Criar testes de models, services e API administrativa.
+- [x] Documentar modelo operacional SaaS.
+- [x] Registrar evidências no relatório final da Sprint 15.
+- [x] Criar commit final `feat: sprint 15 - saas comercial admin`.
 
 #### Protocolo de execução das Sprints 16–20
 

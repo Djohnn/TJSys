@@ -19,5 +19,6 @@ urlpatterns = [
     path('api/v1/', include('fiscal.urls')),
     path('api/v1/', include('people.urls')),
     path('api/v1/', include('payments.urls')),
+    path('api/v1/', include('platform_admin.urls')),
     path('admin/', admin.site.urls),
 ]

@@ -41,7 +41,7 @@ package-dir = {"" = "."}
 [tool.pytest.ini_options]
 pythonpath = ["."]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-addopts = "-ra --strict-markers --tb=short --cov=accounts --cov=tenancy --cov=audit --cov=outbox --cov=config --cov=catalog --cov=inventory --cov=fiscal --cov=people --cov=payments --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
+addopts = "-ra --strict-markers --tb=short --cov=accounts --cov=tenancy --cov=audit --cov=outbox --cov=config --cov=catalog --cov=inventory --cov=fiscal --cov=people --cov=payments --cov=platform_admin --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
 testpaths = ["tests"]
 cache_dir = ".test-cache"
 
@@ -84,7 +84,7 @@ warn_unused_ignores = true
 exclude = ["migrations", "\\.venv"]
 
 [[tool.mypy.overrides]]
-module = ["accounts.models", "outbox.models", "tenancy.models", "audit.models", "catalog.models", "inventory.models", "sales.models", "fiscal.models", "financial.models", "purchasing.models", "people.models", "payments.models"]
+module = ["accounts.models", "outbox.models", "tenancy.models", "audit.models", "catalog.models", "inventory.models", "sales.models", "fiscal.models", "financial.models", "purchasing.models", "people.models", "payments.models", "platform_admin.models"]
 disable_error_code = ["var-annotated"]
 
 [[tool.mypy.overrides]]
