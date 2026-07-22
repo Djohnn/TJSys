@@ -1,9 +1,39 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework.permissions import BasePermission
+
 from .views import health, readiness
 
+
+class _SchemaAccessPermission(BasePermission):
+    """Allow unauthenticated access in DEBUG; require auth otherwise."""
+
+    def has_permission(self, request, view):
+        if settings.DEBUG:
+            return True
+        return request.user.is_authenticated
+
+
 urlpatterns = [
+    path(
+        'api/v1/schema/',
+        SpectacularAPIView.as_view(
+            api_version='1.0.0',
+            permission_classes=[_SchemaAccessPermission],
+        ),
+        name='schema',
+    ),
+    path(
+        'api/v1/docs/',
+        SpectacularSwaggerView.as_view(
+            url_name='schema',
+            permission_classes=[_SchemaAccessPermission],
+        ),
+        name='docs',
+    ),
     path('health/', health, name='health'),
     path('readiness/', readiness, name='readiness'),
     path('api/v1/health/', health, name='api-health'),
