@@ -1096,17 +1096,17 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 20 — Fiscal, Pagamentos, Observabilidade e Aceite E2E
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** concluir o painel web e validar o release administrativo de ponta a ponta.
 
 **Especificação:** [Design da Sprint 20](superpowers/specs/2026-07-21-sprint-20-fiscal-payments-observability-e2e-design.md)
 
 **Plano:** [Plano de implementação da Sprint 20](superpowers/plans/2026-07-21-sprint-20-fiscal-payments-observability-e2e-implementation-plan.md)
 
-- [ ] Implementar gestão fiscal e downloads autorizados.
-- [ ] Implementar transações e conciliação de pagamentos.
-- [ ] Implementar painel de observabilidade operacional.
-- [ ] Aprovar E2E, acessibilidade, segurança e orçamento de bundle.
+- [x] Implementar gestão fiscal e downloads autorizados.
+- [x] Implementar transações e conciliação de pagamentos.
+- [x] Implementar painel de observabilidade operacional.
+- [x] Aprovar E2E, acessibilidade, segurança e orçamento de bundle.
 
 ---
 
