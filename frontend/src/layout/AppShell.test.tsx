@@ -68,8 +68,12 @@ describe('AppShell', () => {
     expect(linkTexts).toContain('Estoque')
     expect(linkTexts).toContain('Vendas')
     expect(linkTexts).toContain('Financeiro')
-    expect(linkTexts).toContain('Pessoas')
-    expect(linkTexts).toContain('Configurações')
+    expect(linkTexts).toContain('Empresas')
+    expect(linkTexts).toContain('Filiais')
+    expect(linkTexts).toContain('Membros')
+    expect(linkTexts).toContain('Convites')
+    expect(linkTexts).toContain('Segurança')
+    expect(linkTexts).toContain('Dispositivos')
   })
 
   it('highlights active route', async () => {

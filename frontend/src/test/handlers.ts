@@ -92,4 +92,46 @@ export const handlers = [
       { status: 200, headers: { 'X-Correlation-ID': 'corr-123' } },
     ),
   ),
+
+  http.get(`${BASE}/health/`, () =>
+    HttpResponse.json({ status: 'ok' }),
+  ),
+
+  http.get(`${BASE}/companies/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'comp-1', name: 'Matriz', cnpj: '', ie: '', address_json: {}, is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        { id: 'comp-2', name: 'Filial Ltda', cnpj: '', ie: '', address_json: {}, is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/branches/`, () =>
+    HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'branch-1', company: 'comp-1', company_name: 'Matriz', name: 'Centro', is_active: true, ie: '', address_json: {}, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        { id: 'branch-2', company: 'comp-1', company_name: 'Matriz', name: 'Shopping', is_active: true, ie: '', address_json: {}, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/branches/:id/`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      company: 'comp-1',
+      company_name: 'Matriz',
+      name: 'Centro',
+      is_active: true,
+      ie: '',
+      address_json: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    }),
+  ),
 ]

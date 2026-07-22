@@ -7,14 +7,28 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: '/' },
+  { label: 'Dashboard', to: '/dashboard' },
   { label: 'Catálogo', to: '/catalog' },
   { label: 'Estoque', to: '/inventory' },
   { label: 'Vendas', to: '/sales' },
   { label: 'Financeiro', to: '/financial' },
-  { label: 'Pessoas', to: '/people' },
-  { label: 'Configurações', to: '/settings' },
 ]
+
+const ADMIN_ITEMS: NavItem[] = [
+  { label: 'Empresas', to: '/organization/companies' },
+  { label: 'Filiais', to: '/organization/branches' },
+  { label: 'Membros', to: '/access/members' },
+  { label: 'Convites', to: '/access/invitations' },
+  { label: 'Segurança', to: '/security/mfa' },
+  { label: 'Dispositivos', to: '/devices' },
+]
+
+function isActivePath(currentPath: string, itemPath: string): boolean {
+  if (itemPath === '/dashboard') {
+    return currentPath === '/dashboard'
+  }
+  return currentPath.startsWith(itemPath)
+}
 
 export default function Navigation(): ReactNode {
   const location = useLocation()
@@ -22,23 +36,34 @@ export default function Navigation(): ReactNode {
   return (
     <nav data-testid="main-navigation" aria-label="Navegação principal">
       <ul role="list">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.to === '/'
-              ? location.pathname === '/'
-              : location.pathname.startsWith(item.to)
+        {NAV_ITEMS.map((item) => (
+          <li key={item.to}>
+            <NavLink
+              to={item.to}
+              aria-current={isActivePath(location.pathname, item.to) ? 'page' : undefined}
+            >
+              {item.label}
+            </NavLink>
+          </li>
+        ))}
+      </ul>
 
-          return (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                {item.label}
-              </NavLink>
-            </li>
-          )
-        })}
+      <hr />
+
+      <span id="admin-heading" style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>
+        Administração
+      </span>
+      <ul role="list" aria-labelledby="admin-heading">
+        {ADMIN_ITEMS.map((item) => (
+          <li key={item.to}>
+            <NavLink
+              to={item.to}
+              aria-current={isActivePath(location.pathname, item.to) ? 'page' : undefined}
+            >
+              {item.label}
+            </NavLink>
+          </li>
+        ))}
       </ul>
     </nav>
   )
