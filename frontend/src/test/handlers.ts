@@ -5,11 +5,16 @@ const BASE = '/api/v1'
 export const handlers = [
   http.get(`${BASE}/auth/me/`, () =>
     HttpResponse.json({
-      id: 1,
-      email: 'admin@zyrp.local',
-      name: 'Admin',
-      is_active: true,
-      is_mfa_enabled: false,
+      user: {
+        id: 1,
+        email: 'admin@zyrp.local',
+        name: 'Admin',
+        is_active: true,
+        is_mfa_enabled: false,
+      },
+      memberships: [
+        { id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' },
+      ],
     }),
   ),
 
@@ -24,6 +29,17 @@ export const handlers = [
     return HttpResponse.json(
       { access: 'access_token', refresh: 'refresh_token' },
       { status: 200 },
+    )
+  }),
+
+  http.post(`${BASE}/auth/mfa/challenge/`, async ({ request }) => {
+    const body = (await request.json()) as { mfa_session?: string; code?: string }
+    if (body.code === '123456') {
+      return HttpResponse.json({ access: 'access_token', refresh: 'refresh_token' }, { status: 200 })
+    }
+    return HttpResponse.json(
+      { type: 'about:blank', title: 'Invalid code', status: 400, detail: 'Invalid MFA code' },
+      { status: 400 },
     )
   }),
 

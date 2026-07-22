@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 
@@ -20,10 +20,12 @@ function renderApp() {
 }
 
 describe('App shell', () => {
-  it('renders semantic landmarks', () => {
+  it('renders semantic landmarks after auth resolves', async () => {
     renderApp()
 
-    expect(screen.getByRole('banner')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('banner')).toBeInTheDocument()
+    })
     expect(screen.getByRole('navigation')).toBeInTheDocument()
     expect(screen.getByRole('main')).toBeInTheDocument()
   })
