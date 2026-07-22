@@ -13,6 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Estoque', to: '/inventory' },
   { label: 'Vendas', to: '/sales' },
   { label: 'Financeiro', to: '/financial' },
+  { label: 'Fiscal', to: '/fiscal/documents' },
 ]
 
 const ADMIN_ITEMS: NavItem[] = [

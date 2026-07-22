@@ -4,7 +4,7 @@ import type { ApiProblem } from './problem'
 export interface RequestOptions {
   method?: string
   body?: unknown
-  tenantId?: string
+  tenantId?: string | number
   headers?: Record<string, string>
   signal?: AbortSignal
 }
@@ -77,8 +77,8 @@ export async function apiRequest<T>(
     }
   }
 
-  if (options.tenantId) {
-    headers['X-Tenant-ID'] = options.tenantId
+  if (options.tenantId != null) {
+    headers['X-Tenant-ID'] = String(options.tenantId)
   }
 
   const doFetch = (): Promise<Response> =>

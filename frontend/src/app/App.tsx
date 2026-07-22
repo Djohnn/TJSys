@@ -36,6 +36,11 @@ import PeoplePage from '@/people/PeoplePage'
 import PersonDetailPage from '@/people/PersonDetailPage'
 import PurchaseOrderEditor from '@/purchasing/PurchaseOrderEditor'
 import PurchaseOrderDetailPage from '@/purchasing/PurchaseOrderDetailPage'
+import FiscalConfigPage from '@/fiscal/FiscalConfigPage'
+import FiscalDocumentsPage from '@/fiscal/FiscalDocumentsPage'
+import FiscalDocumentDetailPage from '@/fiscal/FiscalDocumentDetailPage'
+import PurchaseFiscalReconciliationPage from '@/fiscal/PurchaseFiscalReconciliationPage'
+import ProductConfigPage from '@/fiscal/ProductConfigPage'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
@@ -90,6 +95,11 @@ export default function App(): ReactNode {
               <Route path="purchasing/orders/new" element={<PurchaseOrderEditor />} />
               <Route path="purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
               <Route path="purchasing/orders/:id/edit" element={<PurchaseOrderEditor />} />
+              <Route path="fiscal/emitters" element={<FiscalConfigPage />} />
+              <Route path="fiscal/documents" element={<FiscalDocumentsPage />} />
+              <Route path="fiscal/documents/:id" element={<FiscalDocumentDetailPage />} />
+              <Route path="fiscal/reconciliation" element={<PurchaseFiscalReconciliationPage />} />
+              <Route path="fiscal/product-configs" element={<ProductConfigPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>
