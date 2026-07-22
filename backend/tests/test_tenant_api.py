@@ -62,7 +62,7 @@ class TenantCompanyAPITest(TestCase):
             '/api/v1/companies/', HTTP_X_TENANT_ID=str(self.tenant_a.id),
         )
         self.assertEqual(response.status_code, 200)
-        ids = {item['id'] for item in response.json()}
+        ids = {item['id'] for item in response.json()['results']}
         self.assertEqual(ids, {str(self.company_a.id)})
 
     def test_cross_tenant_detail_returns_404(self):

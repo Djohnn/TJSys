@@ -64,6 +64,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 25,
+    'MAX_PAGE_SIZE': 100,
     'DEFAULT_THROTTLE_RATES': {
         'auth_register': '5/hour',
         'auth_login': '10/minute',

@@ -1,6 +1,7 @@
 import hashlib
 
 from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,10 +9,13 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from audit.services import create_audit_record
-from tenancy.models import Company, Device
+from tenancy.capabilities import role_allows
+from tenancy.models import Branch, Company, Device, TenantMembership
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
 from tenancy.serializers import (
+    BranchSerializer,
     CompanySerializer,
+    DeviceListSerializer,
     DeviceRegisterSerializer,
     DeviceValidateSerializer,
 )
@@ -168,3 +172,70 @@ class DeviceRefreshView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
                 content_type='application/problem+json'
             )
+
+
+class BranchListCreateView(generics.ListCreateAPIView):
+    serializer_class = BranchSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA]
+
+    def get_queryset(self):
+        return Branch.objects.filter(tenant=self.request.tenant).select_related('company')
+
+    def perform_create(self, serializer):
+        branch = serializer.save(tenant=self.request.tenant)
+        create_audit_record(
+            actor=self.request.user,
+            action='branch.created',
+            resource_type='Branch',
+            resource_id=branch.id,
+            tenant_id=self.request.tenant.id,
+            correlation_id=getattr(self.request, 'correlation_id', ''),
+            detail={'name': branch.name},
+        )
+
+
+class BranchDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = BranchSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA]
+    http_method_names = ['get', 'patch']
+
+    def get_queryset(self):
+        return Branch.objects.filter(tenant=self.request.tenant).select_related('company')
+
+
+class DeviceListView(generics.ListAPIView):
+    serializer_class = DeviceListSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA]
+
+    def get_queryset(self):
+        return Device.objects.filter(tenant=self.request.tenant).select_related('branch')
+
+
+class DeviceRevokeView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA]
+
+    def post(self, request, pk):
+        membership = TenantMembership.objects.get(
+            user=request.user, tenant=request.tenant, is_active=True,
+        )
+        if not role_allows(membership.role, 'organization.manage'):
+            raise PermissionDenied('Capability organization.manage is required.')
+        device = Device.objects.filter(pk=pk, tenant=request.tenant).first()
+        if device is None:
+            return Response(
+                {'detail': 'Device not found.', 'code': 'device_not_found'},
+                status=status.HTTP_404_NOT_FOUND,
+                content_type='application/problem+json',
+            )
+        device.status = 'inactive'
+        device.save(update_fields=['status'])
+        create_audit_record(
+            actor=self.request.user,
+            action='device.revoked',
+            resource_type='Device',
+            resource_id=device.id,
+            tenant_id=self.request.tenant.id,
+            correlation_id=getattr(self.request, 'correlation_id', ''),
+            detail={'name': device.name, 'device_id': device.device_id},
+        )
+        return Response({'detail': 'Device revoked successfully.'})
