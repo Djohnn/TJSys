@@ -33,6 +33,14 @@ class PersonViewSet(viewsets.ModelViewSet):
         if document:
             from .models import digits_only
             queryset = queryset.filter(documents__value=digits_only(document))
+        q = self.request.query_params.get('q')
+        if q:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(name__icontains=q)
+                | Q(trade_name__icontains=q)
+                | Q(documents__value__icontains=q)
+            )
         return queryset.distinct()
 
     def perform_update(self, serializer):

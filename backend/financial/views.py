@@ -8,9 +8,11 @@ from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import viewsets
 
 from financial.models import Payable, Receivable
 from financial.permissions import FinancialReportingPermission
+from financial.serializers import PayableSerializer, ReceivableSerializer
 from financial.services import cashflow_projection
 from tenancy.models import Branch
 from tenancy.permissions import HasActiveTenant
@@ -192,3 +194,45 @@ class PendingOperationsReportView(ReportView):
             'fiscal': list(fiscal),
             'offline_or_outbox': list(outbox),
         })
+
+
+class PayableViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = PayableSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, FinancialReportingPermission]
+
+    def get_queryset(self):
+        queryset = Payable.all_objects.filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        branch_id = self.request.query_params.get('branch')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if status:
+            queryset = queryset.filter(status=status)
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if date_from:
+            queryset = queryset.filter(due_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(due_date__lte=date_to)
+        return queryset.order_by('-created_at')
+
+
+class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ReceivableSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, FinancialReportingPermission]
+
+    def get_queryset(self):
+        queryset = Receivable.all_objects.filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        branch_id = self.request.query_params.get('branch')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if status:
+            queryset = queryset.filter(status=status)
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if date_from:
+            queryset = queryset.filter(due_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(due_date__lte=date_to)
+        return queryset.order_by('-created_at')
