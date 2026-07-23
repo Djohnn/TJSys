@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Compras', to: '/purchasing/orders' },
   { label: 'Estoque', to: '/inventory' },
   { label: 'Vendas', to: '/sales' },
+  { label: 'Pessoas', to: '/people' },
   { label: 'Financeiro', to: '/financial' },
   { label: 'Fiscal', to: '/fiscal/documents' },
   { label: 'Pagamentos', to: '/payments/transactions' },
