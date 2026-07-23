@@ -13,7 +13,7 @@ from purchasing.views import (
 
 router = DefaultRouter()
 router.register('suppliers', SupplierViewSet, basename='supplier')
-router.register('purchase-orders', PurchaseOrderViewSet, basename='purchaseorder')
+router.register('orders', PurchaseOrderViewSet, basename='purchaseorder')
 router.register('purchase-order-items', PurchaseOrderItemViewSet, basename='purchaseorderitem')
 router.register('purchase-receipts', PurchaseReceiptViewSet, basename='purchasereceipt')
 router.register(
