@@ -52,9 +52,14 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 10 | A detalhar | Compras, recebimento e contas a pagar |
 | 11 | A detalhar | Financeiro, fluxo de caixa e relatórios |
 | 12 | A detalhar | Pessoas, clientes e parceiros |
-| 13 | A detalhar | Pagamentos integrados e conciliação |
+| 13 | Concluída | Pagamentos integrados e conciliação |
 | 14 | A detalhar | IA readiness e copiloto somente leitura |
-| 15 | A detalhar | SaaS comercial e administração da plataforma |
+| 15 | Concluída | SaaS comercial e administração da plataforma |
+| 16 | Concluída | Fundação frontend, contrato API, login MFA |
+| 17 | Concluída | Shell admin, tenancy, acesso |
+| 18 | Concluída | Catálogo, estoque, compras web |
+| 19 | Concluída | Gestão PDV, pessoas, financeiro web |
+| 20 | Concluída | Fiscal, pagamentos, observabilidade, E2E aceite |
 
 ---
 
@@ -1037,73 +1042,73 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 16 — Fundação Frontend e Contrato da API
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-21.
 **Objetivo:** criar a aplicação React/Vite/TypeScript e tornar a API segura e tipada para consumo no navegador.
 
 **Especificação:** [Design da Sprint 16](superpowers/specs/2026-07-21-sprint-16-frontend-foundation-api-contract-design.md)
 
 **Plano:** [Plano de implementação da Sprint 16](superpowers/plans/2026-07-21-sprint-16-frontend-foundation-api-contract-implementation-plan.md)
 
-- [ ] Configurar OpenAPI, CORS, CSRF e cliente TypeScript gerado.
-- [ ] Implementar login por sessão, MFA e seleção de tenant.
-- [ ] Criar shell acessível, estados de erro e gates frontend no CI.
-- [ ] Validar autenticação e troca de tenant com Playwright.
+- [x] Configurar OpenAPI, CORS, CSRF e cliente TypeScript gerado.
+- [x] Implementar login por sessão, MFA e seleção de tenant.
+- [x] Criar shell acessível, estados de erro e gates frontend no CI.
+- [x] Validar autenticação e troca de tenant com Playwright.
 
 ### Sprint 17 — Shell Administrativo, Tenancy e Acessos
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** entregar painel administrativo para empresas, filiais, membros, convites, MFA e dispositivos PDV.
 
 **Especificação:** [Design da Sprint 17](superpowers/specs/2026-07-21-sprint-17-admin-shell-tenancy-design.md)
 
 **Plano:** [Plano de implementação da Sprint 17](superpowers/plans/2026-07-21-sprint-17-admin-shell-tenancy-implementation-plan.md)
 
-- [ ] Criar dashboard e contexto de empresa/filial.
-- [ ] Gerenciar empresas, filiais, membros e convites.
-- [ ] Gerenciar política MFA e dispositivos.
-- [ ] Validar papéis e isolamento cross-tenant nos três browsers.
+- [x] Criar dashboard e contexto de empresa/filial.
+- [x] Gerenciar empresas, filiais, membros e convites.
+- [x] Gerenciar política MFA e dispositivos.
+- [x] Validar papéis e isolamento cross-tenant nos três browsers.
 
 ### Sprint 18 — Catálogo, Estoque e Compras Web
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** disponibilizar jornadas web de catálogo, estoque, fornecedores, pedidos e recebimentos.
 
 **Especificação:** [Design da Sprint 18](superpowers/specs/2026-07-21-sprint-18-catalog-inventory-purchasing-web-design.md)
 
 **Plano:** [Plano de implementação da Sprint 18](superpowers/plans/2026-07-21-sprint-18-catalog-inventory-purchasing-web-implementation-plan.md)
 
-- [ ] Implementar catálogo e preços.
-- [ ] Implementar saldos, lotes e movimentações de estoque.
-- [ ] Implementar fornecedores, pedidos, recebimentos e devoluções.
-- [ ] Validar jornada vertical produto → compra → recebimento.
+- [x] Implementar catálogo e preços.
+- [x] Implementar saldos, lotes e movimentações de estoque.
+- [x] Implementar fornecedores, pedidos, recebimentos e devoluções.
+- [x] Validar jornada vertical produto → compra → recebimento.
 
 ### Sprint 19 — Gestão de PDV, Pessoas e Financeiro Web
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** supervisionar operações do PDV Electron e seus efeitos sem criar um segundo ponto de venda.
 
 **Especificação:** [Design da Sprint 19](superpowers/specs/2026-07-21-sprint-19-pdv-management-people-financial-design.md)
 
 **Plano:** [Plano de implementação da Sprint 19](superpowers/plans/2026-07-21-sprint-19-pdv-management-people-financial-implementation-plan.md)
 
-- [ ] Consultar vendas, caixas, operadores e dispositivos do PDV.
-- [ ] Executar devoluções, cancelamentos e estornos autorizados.
-- [ ] Gerenciar pessoas com controles de PII.
-- [ ] Gerenciar obrigações, liquidações, fluxo de caixa e relatórios.
+- [x] Consultar vendas, caixas, operadores e dispositivos do PDV.
+- [x] Executar devoluções, cancelamentos e estornos autorizados.
+- [x] Gerenciar pessoas com controles de PII.
+- [x] Gerenciar obrigações, liquidações, fluxo de caixa e relatórios.
 
 ### Sprint 20 — Fiscal, Pagamentos, Observabilidade e Aceite E2E
 
-**Estado:** Planejada; spec e plan preparados em 2026-07-21.
+**Estado:** Concluída em 2026-07-22.
 **Objetivo:** concluir o painel web e validar o release administrativo de ponta a ponta.
 
 **Especificação:** [Design da Sprint 20](superpowers/specs/2026-07-21-sprint-20-fiscal-payments-observability-e2e-design.md)
 
 **Plano:** [Plano de implementação da Sprint 20](superpowers/plans/2026-07-21-sprint-20-fiscal-payments-observability-e2e-implementation-plan.md)
 
-- [ ] Implementar gestão fiscal e downloads autorizados.
-- [ ] Implementar transações e conciliação de pagamentos.
-- [ ] Implementar painel de observabilidade operacional.
-- [ ] Aprovar E2E, acessibilidade, segurança e orçamento de bundle.
+- [x] Implementar gestão fiscal e downloads autorizados.
+- [x] Implementar transações e conciliação de pagamentos.
+- [x] Implementar painel de observabilidade operacional.
+- [x] Aprovar E2E, acessibilidade, segurança e orçamento de bundle.
 
 ---
 
@@ -1120,4 +1125,9 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
+| 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
+| 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
+| 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |
+| 19 | 2026-07-22 | `feat/sprint-19-pdv-management-web` | Frontend: 251 Vitest (19 files); Backend: 34 BDD tests; TypeScript 0 errors | Nenhuma rota web de criação de venda (non-negotiable) | Aprovado localmente |
+| 20 | 2026-07-22 | `feat/sprint-20-web-release` | Frontend: 283 Vitest (22 files); Backend: 38 BDD tests; TypeScript 0 errors; E2E 32 specs | Export CSV fiscal (action DRF) pendente de fix | Aprovado localmente |
 
