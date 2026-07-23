@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from fiscal.export import FiscalDocumentExportView
 from fiscal.views import (
     FiscalConfigView,
     FiscalDocumentViewSet,
@@ -38,5 +39,10 @@ urlpatterns = [
         'receipts/<uuid:receipt_id>/validate-fiscal/',
         ReceiptFiscalValidateView.as_view(),
         name='receipt-validate-fiscal',
+    ),
+    path(
+        'fiscal/documents/export/',
+        FiscalDocumentExportView.as_view(),
+        name='fiscal-document-export',
     ),
 ] + router.urls

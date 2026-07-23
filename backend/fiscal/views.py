@@ -288,23 +288,6 @@ class FiscalDocumentViewSet(viewsets.ReadOnlyModelViewSet):
             content_type='application/pdf',
         )
 
-    @action(detail=False, methods=['get'], url_path='export')
-    def export(self, request, *args, **kwargs):
-        import csv
-        import io
-
-        from rest_framework.response import Response
-
-        qs = self.get_queryset()[:1000]
-        buf = io.StringIO()
-        writer = csv.writer(buf)
-        writer.writerow(['id', 'sale', 'status', 'attempt', 'direction'])
-        for doc in qs:
-            writer.writerow([str(doc.id), str(doc.sale_id), doc.status, doc.attempt_number, doc.direction])
-        resp = HttpResponse(buf.getvalue(), content_type='text/csv')
-        resp['Content-Disposition'] = 'attachment; filename=fiscal-documents.csv'
-        return resp
-
 
 class FiscalProductConfigViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, HasCapability]

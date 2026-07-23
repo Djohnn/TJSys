@@ -149,6 +149,75 @@ class Command(BaseCommand):
                         ],
                     )
 
+            # ── Sale + fiscal + payment E2E seed data ────────────────────────
+            token_sale = set_current_tenant_id(tenant.id)
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT set_config('app.current_tenant_id', %s, false)",
+                        [str(tenant.id)],
+                    )
+
+                from sales.models import Sale
+                from sales.services import create_counter_sale, open_cash_session
+
+                cs = open_cash_session(
+                    tenant=tenant, branch=branch, operator=admin_user,
+                    opening_amount=Decimal('100.00'),
+                    idempotency_key='e2e-cash-seed',
+                )
+                e2e_sale = create_counter_sale(
+                    tenant=tenant, branch=branch, operator=admin_user,
+                    stock_location=location,
+                    items=[{'product': product, 'unit': unit, 'quantity': Decimal('1'), 'factor': Decimal('1')}],
+                    payments=[{'method': 'cash', 'amount': Decimal('49.90')}],
+                    idempotency_key='e2e-sale-seed',
+                )
+
+                from fiscal.models import FiscalDocument, FiscalProductConfig
+
+                FiscalDocument.all_objects.create(
+                    tenant=tenant, sale=e2e_sale, direction=FiscalDocument.DIRECTION_OUTPUT,
+                    status=FiscalDocument.STATUS_CONCLUDED, attempt_number=1,
+                    protocol='e2e-proto', xml_key='s3://e2e/key.xml', pdf_key='s3://e2e/key.pdf',
+                )
+                FiscalProductConfig.all_objects.create(
+                    tenant=tenant, product=product,
+                    cst_icms='000', aliquota_icms=Decimal('18.00'),
+                )
+
+                from payments.models import (
+                    PaymentIntent, PaymentProviderConfig,
+                    PaymentReconciliationBatch, PaymentReconciliationItem, PaymentTransaction,
+                )
+
+                ppc = PaymentProviderConfig.all_objects.create(
+                    tenant=tenant, provider='stripe', secret='sk_e2e_secret', is_active=True,
+                )
+                pi = PaymentIntent.all_objects.create(
+                    tenant=tenant, provider_config=ppc, sale=e2e_sale,
+                    amount=Decimal('49.90'), currency='BRL', status='captured',
+                    idempotency_key='e2e-intent', provider_reference='pi_e2e',
+                )
+                PaymentTransaction.all_objects.create(
+                    tenant=tenant, intent=pi, transaction_type='capture',
+                    status='succeeded', gross_amount=Decimal('49.90'),
+                    fee_amount=Decimal('1.00'), net_amount=Decimal('48.90'),
+                    provider_reference='ch_e2e',
+                )
+                batch = PaymentReconciliationBatch.all_objects.create(
+                    tenant=tenant, provider='stripe', status='draft',
+                )
+                txn = PaymentTransaction.all_objects.filter(tenant=tenant).first()
+                PaymentReconciliationItem.all_objects.create(
+                    tenant=tenant, batch=batch, transaction=txn,
+                    provider_reference='ch_e2e',
+                    gross_amount=Decimal('49.90'), fee_amount=Decimal('1.00'),
+                    settled_amount=Decimal('48.90'), status='matched',
+                )
+            finally:
+                reset_current_tenant_id(token_sale)
+
             # ── Web admin (multi-tenant, sem PDV) ──────────────────────────────
             web_admin, created = User.objects.get_or_create(email='web-admin@zyrp.local')
             if created:

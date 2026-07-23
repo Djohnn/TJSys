@@ -798,9 +798,10 @@ def test_cross_tenant_provider_config_404(sprint20_context):
 def test_fiscal_document_export_csv_bounded(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/fiscal/documents/export/?format=csv',
+        '/api/v1/fiscal/documents/export/',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
+    print('EXPORT DEBUG:', response.status_code, response.get('Content-Type'), response.content[:200])
     assert response.status_code == 200
     assert response['Content-Type'] == 'text/csv'
     reader = csv.reader(io.StringIO(response.content.decode('utf-8')))

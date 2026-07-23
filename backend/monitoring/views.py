@@ -58,7 +58,7 @@ class HealthCheckView(View):
         return JsonResponse(
             {
                 'status': 'healthy' if overall else 'unhealthy',
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'checks': {
                     'database': 'ok' if db_ok else 'down',
                     'cache': 'ok' if redis_ok else 'down',
@@ -127,7 +127,7 @@ class ReadinessView(View):
 
         return JsonResponse({
             'status': 'ready',
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'services': {
                 'database': 'ok' if db_ok else 'down',
                 'cache': 'ok' if redis_ok else 'down',

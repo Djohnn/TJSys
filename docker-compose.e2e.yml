@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: zyrp
+      POSTGRES_USER: zyrp
+      POSTGRES_PASSWORD: zyrp
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zyrp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgres://zyrp:zyrp@db:5432/zyrp
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: e2e-secret-key-not-for-production
+      DEBUG: "true"
+      MONITORING_ENABLED: "true"
+    command: >
+      sh -c "python manage.py migrate --noinput && python manage.py seed_e2e && python manage.py runserver 0.0.0.0:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: /api/v1
+    command: npx vite --host 0.0.0.0 --port 5173
