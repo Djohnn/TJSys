@@ -1,4 +1,7 @@
+import csv
+
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -74,9 +77,22 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
     ]
 
     def get_queryset(self):
-        return CashSession.objects.select_related('branch', 'operator').filter(
+        queryset = CashSession.objects.select_related('branch', 'operator').filter(
             tenant=self.request.tenant,
         ).prefetch_related('movements')
+        branch_id = self.request.query_params.get('branch')
+        operator_id = self.request.query_params.get('operator')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if date_from:
+            queryset = queryset.filter(opened_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(opened_at__date__lte=date_to)
+        return queryset
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
@@ -156,6 +172,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         HasActiveTenant,
         SalesCapabilityPermission,
     ]
+    MAX_EXPORT_ROWS = 1000
 
     def get_queryset(self):
         queryset = Sale.objects.select_related(
@@ -165,10 +182,25 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         ).filter(tenant=self.request.tenant).prefetch_related('items', 'payments')
         branch_id = self.request.query_params.get('branch')
         cash_session_id = self.request.query_params.get('cash_session')
+        operator_id = self.request.query_params.get('operator')
+        customer_id = self.request.query_params.get('customer')
+        status = self.request.query_params.get('status')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
         if branch_id:
             queryset = queryset.filter(branch_id=branch_id)
         if cash_session_id:
             queryset = queryset.filter(cash_session_id=cash_session_id)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         return queryset
 
     def get_permissions(self):
@@ -299,6 +331,37 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 cancellation, context=self.get_serializer_context()
             ).data,
         )
+
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        queryset = self.get_queryset()
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+        branch_id = request.query_params.get('branch')
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        queryset = queryset.order_by('-created_at')[:self.MAX_EXPORT_ROWS]
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="sales-export.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'id', 'created_at', 'branch', 'operator', 'customer',
+            'status', 'gross_total', 'discount_total', 'net_total',
+            'items_count', 'payment_methods',
+        ])
+        for sale in queryset:
+            writer.writerow([
+                sale.id, sale.created_at, sale.branch_id, sale.operator_id,
+                sale.customer_id or '', sale.status,
+                sale.gross_total, sale.discount_total, sale.net_total,
+                sale.items.count(),
+                ', '.join(sale.payments.values_list('method', flat=True).distinct()),
+            ])
+        return response
 
 
 def _route_batch_operation(request, op):

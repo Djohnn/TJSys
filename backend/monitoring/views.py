@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -9,8 +9,13 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from config.observability import system_metrics
 from monitoring.middleware import get_error_metrics, get_request_metrics, reset_metrics
+from tenancy.permissions import HasActiveTenant, HasCapability
 
 logger = logging.getLogger(__name__)
 
@@ -195,3 +200,63 @@ class MetricsResetView(View):
     def post(self, request):
         reset_metrics()
         return JsonResponse({'status': 'reset'})
+
+
+# Sprint 20 — authorized operations aggregate
+
+class OperationsView(APIView):
+    """Authorized monitoring aggregate for web dashboards."""
+
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'monitoring.view'
+
+    def get(self, request):
+        db_ok = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT 1')
+            db_ok = True
+        except Exception:
+            pass
+
+        redis_ok = False
+        try:
+            cache_settings = settings.CACHES.get('default', {})
+            location = cache_settings.get('LOCATION', '')
+            if not location or 'LocMem' in cache_settings.get('BACKEND', ''):
+                redis_ok = True
+            elif location.startswith('redis://'):
+                from redis import Redis
+                from urllib.parse import urlparse
+                parsed = urlparse(location)
+                r = Redis(host=parsed.hostname, port=parsed.port or 6379, socket_connect_timeout=2)
+                redis_ok = r.ping()
+            else:
+                redis_ok = True
+        except Exception:
+            pass
+
+        return Response({
+            'health': {
+                'status': 'healthy' if (db_ok and redis_ok) else 'unhealthy',
+                'checks': {
+                    'database': 'ok' if db_ok else 'down',
+                    'cache': 'ok' if redis_ok else 'down',
+                },
+                'timestamp': datetime.now(tz=timezone.utc).isoformat(),
+            },
+            'readiness': {
+                'status': 'ready' if db_ok else 'not_ready',
+                'services': {
+                    'database': 'ok' if db_ok else 'down',
+                    'cache': 'ok' if redis_ok else 'down',
+                },
+            },
+            'system_metrics': system_metrics(),
+            'runbook_links': [
+                {'id': 'db-down', 'label': 'Database outage', 'url': 'https://docs.zyrp.local/runbooks/db-down'},
+                {'id': 'cache-down', 'label': 'Cache outage', 'url': 'https://docs.zyrp.local/runbooks/cache-down'},
+                {'id': 'fiscal-rejected', 'label': 'Fiscal rejection guidance', 'url': 'https://docs.zyrp.local/runbooks/fiscal-rejected'},
+                {'id': 'outbox-backlog', 'label': 'Outbox backlog guidance', 'url': 'https://docs.zyrp.local/runbooks/outbox-backlog'},
+            ],
+        })

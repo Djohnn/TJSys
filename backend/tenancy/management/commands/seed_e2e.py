@@ -149,13 +149,60 @@ class Command(BaseCommand):
                         ],
                     )
 
+            # ── Web admin (multi-tenant, sem PDV) ──────────────────────────────
+            web_admin, created = User.objects.get_or_create(email='web-admin@zyrp.local')
+            if created:
+                web_admin.is_staff = True
+            web_admin.set_password(password)
+            web_admin.save()
+
+            for tid in (tenant.id,):
+                TenantMembership.objects.get_or_create(
+                    user=web_admin, tenant_id=tid,
+                    defaults={'role': 'admin', 'is_active': True},
+                )
+                TenantMembership.objects.filter(
+                    user=web_admin, tenant_id=tid,
+                ).update(role='admin', is_active=True)
+
+            # ── Segundo tenant e2e-beta ───────────────────────────────────────
+            beta_tenant, _ = Tenant.objects.get_or_create(
+                slug='e2e-beta', defaults={'name': 'E2E Beta'},
+            )
+            _token2 = set_current_tenant_id(beta_tenant.id)
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT set_config('app.current_tenant_id', %s, false)",
+                        [str(beta_tenant.id)],
+                    )
+
+                TenantMembership.objects.get_or_create(
+                    user=web_admin, tenant=beta_tenant,
+                    defaults={'role': 'admin', 'is_active': True},
+                )
+                TenantMembership.objects.filter(
+                    user=web_admin, tenant=beta_tenant,
+                ).update(role='admin', is_active=True)
+
+                beta_company, _ = Company.objects.get_or_create(
+                    tenant=beta_tenant, name='E2E Beta Company',
+                    defaults={'is_active': True},
+                )
+                Branch.objects.get_or_create(
+                    company=beta_company, tenant=beta_tenant,
+                    name='E2E Beta Branch',
+                )
+            reset_current_tenant_id(_token2)
+
             self.stdout.write(self.style.SUCCESS(
                 f'Dados E2E criados:\n'
-                f'  Tenant: {tenant.slug}\n'
-                f'  Branch: {branch.id}\n'
+                f'  Tenant: {tenant.slug}, Branch: {branch.id}\n'
+                f'  Tenant: {beta_tenant.slug}\n'
                 f'  Device: {device.id} (API key: {E2E_API_KEY})\n'
                 f'  Produto: {product.sku} (R$ 49,90)\n'
-                f'  Local estoque: {location.code}'
+                f'  Local estoque: {location.code}\n'
+                f'  Web admin: web-admin@zyrp.local (membro de {tenant.slug} e {beta_tenant.slug})'
             ))
         finally:
             reset_current_tenant_id(token)

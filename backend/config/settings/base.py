@@ -30,6 +30,9 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'django_filters',
+    'corsheaders',
+    'drf_spectacular',
 ]
 
 LOCAL_APPS = [
@@ -61,6 +64,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 25,
+    'MAX_PAGE_SIZE': 100,
     'DEFAULT_THROTTLE_RATES': {
         'auth_register': '5/hour',
         'auth_login': '10/minute',
@@ -72,6 +83,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'config.middleware.CorrelationIDMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -82,6 +94,21 @@ MIDDLEWARE = [
     'config.log_context.RequestContextLogMiddleware',
     'monitoring.middleware.MetricsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        'CORS_ALLOWED_ORIGINS',
+        default='http://localhost:5173,http://127.0.0.1:5173',
+    ).split(',')
+    if origin.strip()
+]
+CORS_ALLOW_CREDENTIALS = True
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Zyrp API',
+    'VERSION': '1.0.0',
+}
 
 CSRF_FAILURE_VIEW = 'config.views.csrf_failure'
 

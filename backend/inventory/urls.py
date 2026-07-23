@@ -12,10 +12,10 @@ from inventory.views import (
 
 router = DefaultRouter()
 router.register('stock-locations', StockLocationViewSet, basename='stocklocation')
-router.register('stock-lots', StockLotViewSet, basename='stocklot')
+router.register('lots', StockLotViewSet, basename='lot')
 router.register('stock-operations', StockOperationViewSet, basename='stockoperation')
-router.register('stock-movements', StockMovementViewSet, basename='stockmovement')
-router.register('stock-balances', StockBalanceViewSet, basename='stockbalance')
+router.register('movements', StockMovementViewSet, basename='movement')
+router.register('balances', StockBalanceViewSet, basename='balance')
 router.register(
     'stock-operation-reversals',
     StockOperationReversalViewSet,

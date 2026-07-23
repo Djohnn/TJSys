@@ -106,9 +106,19 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         return PurchaseOrderListSerializer
 
     def get_queryset(self):
-        return PurchaseOrder.objects.select_related(
+        qs = PurchaseOrder.objects.select_related(
             'supplier', 'branch',
         ).filter(tenant=self.request.tenant)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        supplier_id = self.request.query_params.get('supplier')
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+        branch_id = self.request.query_params.get('branch')
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        return qs
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
@@ -240,9 +250,16 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     ]
 
     def get_queryset(self):
-        return PurchaseReceipt.objects.select_related(
+        qs = PurchaseReceipt.objects.select_related(
             'purchase_order', 'purchase_order__supplier',
         ).filter(tenant=self.request.tenant)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        order_id = self.request.query_params.get('order')
+        if order_id:
+            qs = qs.filter(purchase_order_id=order_id)
+        return qs
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]

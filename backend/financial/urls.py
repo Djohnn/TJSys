@@ -1,13 +1,20 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from financial.views import (
     CashClosingReportView,
     CashflowReportView,
     FinancialReportView,
     InventoryReportView,
+    PayableViewSet,
     PendingOperationsReportView,
+    ReceivableViewSet,
     SalesReportView,
 )
+
+router = DefaultRouter()
+router.register('payables', PayableViewSet, basename='payable')
+router.register('receivables', ReceivableViewSet, basename='receivable')
 
 urlpatterns = [
     path('reports/sales/', SalesReportView.as_view(), name='report-sales'),
@@ -20,4 +27,5 @@ urlpatterns = [
         PendingOperationsReportView.as_view(),
         name='report-pending-operations',
     ),
+    path('', include(router.urls)),
 ]

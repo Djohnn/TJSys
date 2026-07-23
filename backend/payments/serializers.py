@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from .models import (
     PaymentIntent,
+    PaymentProviderConfig,
     PaymentReconciliationBatch,
     PaymentReconciliationItem,
     PaymentTransaction,
@@ -79,3 +80,37 @@ class PaymentReconciliationBatchSerializer(serializers.ModelSerializer):
     def get_items(self, obj):
         queryset = PaymentReconciliationItem.all_objects.filter(batch=obj)
         return PaymentReconciliationItemSerializer(queryset, many=True).data
+
+
+# Sprint 20 — management serializers (write-only secret)
+
+class PaymentProviderConfigReadSerializer(serializers.ModelSerializer):
+    """Read view — only `configured` boolean, never the secret."""
+
+    configured = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PaymentProviderConfig
+        fields = ['id', 'provider', 'is_active', 'configured', 'created_at', 'updated_at']
+        read_only_fields = fields
+
+    def get_configured(self, obj):
+        return bool(obj.secret)
+
+
+class PaymentProviderConfigWriteSerializer(serializers.ModelSerializer):
+    """Write view — secret is write-only. Blank secret preserves existing value."""
+
+    class Meta:
+        model = PaymentProviderConfig
+        fields = ['id', 'provider', 'secret', 'is_active']
+        read_only_fields = ['id']
+        extra_kwargs = {
+            'secret': {'write_only': True, 'required': False, 'allow_blank': True},
+        }
+
+    def update(self, instance, validated_data):
+        if not validated_data.get('secret'):
+            validated_data.pop('secret', None)
+        return super().update(instance, validated_data)
+
