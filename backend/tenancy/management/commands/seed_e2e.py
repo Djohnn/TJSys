@@ -5,6 +5,7 @@ from decouple import config
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
+from django.utils import timezone
 
 from catalog.models import Category, Product, ProductPrice, Unit
 from inventory.models import StockLocation
@@ -28,6 +29,7 @@ class Command(BaseCommand):
             admin_user.is_staff = True
             admin_user.is_superuser = True
         admin_user.set_password(password)
+        admin_user.email_verified_at = timezone.now()
         admin_user.save()
 
         tenant, _ = Tenant.objects.get_or_create(slug='e2e', defaults={'name': 'E2E Test'})
@@ -223,7 +225,28 @@ class Command(BaseCommand):
             if created:
                 web_admin.is_staff = True
             web_admin.set_password(password)
+            web_admin.email_verified_at = timezone.now()
             web_admin.save()
+
+            # Set up TOTP MFA device + recovery codes for web-admin
+            from accounts.models import MFADevice
+            from accounts.services.mfa import begin_totp_enrollment, regenerate_recovery_codes
+            totp_device, _ = MFADevice.objects.get_or_create(
+                user=web_admin, tenant=tenant, method='totp',
+            )
+            totp_device.verified_at = timezone.now()
+            totp_device.save(update_fields=['verified_at'])
+            recovery_codes = regenerate_recovery_codes(device=totp_device)
+
+            # Also set up for e2e admin
+            from accounts.services.mfa import begin_totp_enrollment as _bte
+            from accounts.services.mfa import regenerate_recovery_codes as _rrc
+            admin_totp, _ = MFADevice.objects.get_or_create(
+                user=admin_user, tenant=tenant, method='totp',
+            )
+            admin_totp.verified_at = timezone.now()
+            admin_totp.save(update_fields=['verified_at'])
+            _rrc(device=admin_totp)
 
             for tid in (tenant.id,):
                 TenantMembership.objects.get_or_create(

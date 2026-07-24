@@ -9,6 +9,9 @@ import LoadingState from '@/components/LoadingState'
 import AddressesSection from './AddressesSection'
 import ContactsSection from './ContactsSection'
 import ConsentsSection from './ConsentsSection'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 
 const ROLE_LABELS: Record<string, string> = {
   customer: 'Cliente',
@@ -68,66 +71,85 @@ export default function PersonDetailPage({ hasPiiPermission = true }: PersonDeta
 
   return (
     <div data-testid="person-detail-page">
-      <h2>{person.person_type === 'PF' ? person.name : person.company_name}</h2>
+      <Card>
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-neutral-900">
+              {person.person_type === 'PF' ? person.name : person.company_name}
+            </h2>
+            <Badge variant={person.is_active ? 'success' : 'neutral'} className="mt-2">
+              {person.is_active ? 'Ativo' : 'Inativo'}
+            </Badge>
+          </div>
 
-      {deactivateSuccess && (
-        <div data-testid="deactivate-success" style={{ color: 'green' }}>
-          Pessoa desativada com sucesso.
+          {deactivateSuccess && (
+            <div data-testid="deactivate-success" className="p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+              Pessoa desativada com sucesso.
+            </div>
+          )}
+
+          <div data-testid="person-info" className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-1">
+              <p><span className="font-medium text-neutral-700">Tipo:</span> {person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</p>
+              {person.person_type === 'PF' ? (
+                <>
+                  <p><span className="font-medium text-neutral-700">Nome:</span> {person.name}</p>
+                  <p><span className="font-medium text-neutral-700">CPF:</span> {hasPiiPermission ? (person.cpf ?? '-') : maskPII(person.cpf)}</p>
+                  <p><span className="font-medium text-neutral-700">RG:</span> {hasPiiPermission ? (person.rg ?? '-') : maskPII(person.rg)}</p>
+                </>
+              ) : (
+                <>
+                  <p><span className="font-medium text-neutral-700">Razão Social:</span> {person.company_name ?? '-'}</p>
+                  <p><span className="font-medium text-neutral-700">Nome Fantasia:</span> {person.trade_name ?? '-'}</p>
+                  <p><span className="font-medium text-neutral-700">CNPJ:</span> {hasPiiPermission ? (person.cnpj ?? '-') : maskPII(person.cnpj)}</p>
+                  <p><span className="font-medium text-neutral-700">IE:</span> {person.ie ?? '-'}</p>
+                </>
+              )}
+              <p><span className="font-medium text-neutral-700">Função:</span> {ROLE_LABELS[person.role] ?? person.role}</p>
+            </div>
+          </div>
+
+          {deactivateError && (
+            <div data-testid="deactivate-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {deactivateError}
+            </div>
+          )}
+
+          {person.is_active && !confirmDeactivate && (
+            <Button variant="danger" onClick={() => setConfirmDeactivate(true)} type="button" data-testid="deactivate-btn">
+              Desativar Pessoa
+            </Button>
+          )}
+
+          {confirmDeactivate && (
+            <div data-testid="deactivate-confirm" className="p-4 rounded-lg border border-border bg-neutral-50 space-y-3">
+              <p className="text-sm text-neutral-700">Tem certeza que deseja desativar esta pessoa?</p>
+              <div className="flex gap-3">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => deactivateMutation.mutate()}
+                  type="button"
+                  disabled={deactivateMutation.isPending}
+                  loading={deactivateMutation.isPending}
+                  data-testid="confirm-deactivate-btn"
+                >
+                  {deactivateMutation.isPending ? 'Desativando...' : 'Sim, Desativar'}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDeactivate(false)} type="button">
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-border space-y-6">
+            <AddressesSection personId={person.id} addresses={person.addresses} />
+            <ContactsSection personId={person.id} contacts={person.contacts} />
+            <ConsentsSection personId={person.id} consents={person.consents} />
+          </div>
         </div>
-      )}
-
-      <div data-testid="person-info">
-        <p><strong>Tipo:</strong> {person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</p>
-        {person.person_type === 'PF' ? (
-          <>
-            <p><strong>Nome:</strong> {person.name}</p>
-            <p><strong>CPF:</strong> {hasPiiPermission ? (person.cpf ?? '-') : maskPII(person.cpf)}</p>
-            <p><strong>RG:</strong> {hasPiiPermission ? (person.rg ?? '-') : maskPII(person.rg)}</p>
-          </>
-        ) : (
-          <>
-            <p><strong>Razão Social:</strong> {person.company_name ?? '-'}</p>
-            <p><strong>Nome Fantasia:</strong> {person.trade_name ?? '-'}</p>
-            <p><strong>CNPJ:</strong> {hasPiiPermission ? (person.cnpj ?? '-') : maskPII(person.cnpj)}</p>
-            <p><strong>IE:</strong> {person.ie ?? '-'}</p>
-          </>
-        )}
-        <p><strong>Função:</strong> {ROLE_LABELS[person.role] ?? person.role}</p>
-        <p><strong>Status:</strong> {person.is_active ? 'Ativo' : 'Inativo'}</p>
-      </div>
-
-      {deactivateError && (
-        <div data-testid="deactivate-error" style={{ color: 'red' }}>
-          {deactivateError}
-        </div>
-      )}
-
-      {person.is_active && !confirmDeactivate && (
-        <button onClick={() => setConfirmDeactivate(true)} type="button" data-testid="deactivate-btn">
-          Desativar Pessoa
-        </button>
-      )}
-
-      {confirmDeactivate && (
-        <div data-testid="deactivate-confirm">
-          <p>Tem certeza que deseja desativar esta pessoa?</p>
-          <button
-            onClick={() => deactivateMutation.mutate()}
-            type="button"
-            disabled={deactivateMutation.isPending}
-            data-testid="confirm-deactivate-btn"
-          >
-            {deactivateMutation.isPending ? 'Desativando...' : 'Sim, Desativar'}
-          </button>
-          <button onClick={() => setConfirmDeactivate(false)} type="button">
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      <AddressesSection personId={person.id} addresses={person.addresses} />
-      <ContactsSection personId={person.id} contacts={person.contacts} />
-      <ConsentsSection personId={person.id} consents={person.consents} />
+      </Card>
     </div>
   )
 }

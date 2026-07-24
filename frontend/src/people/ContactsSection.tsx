@@ -8,6 +8,8 @@ import { isApiProblemError } from '@/api/problem'
 import { contactFormSchema, type ContactFormData } from './peopleSchemas'
 import { createContact, updateContact } from './peopleApi'
 import type { Contact } from './peopleApi'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 
 interface ContactsSectionProps {
   personId: string
@@ -38,33 +40,37 @@ function ContactFormInline({
     },
   })
 
+  const inputClass = 'block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm'
+  const labelClass = 'block text-sm font-medium text-neutral-700 mb-1'
+  const errorClass = 'text-sm text-red-600 mt-1'
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} data-testid="contact-form">
+    <form onSubmit={handleSubmit(onSubmit)} data-testid="contact-form" className="flex items-end gap-3 p-4 bg-neutral-50 rounded-lg border border-border">
       <div>
-        <label htmlFor="contact-type">Tipo</label>
-        <select id="contact-type" {...register('type')}>
+        <label htmlFor="contact-type" className={labelClass}>Tipo</label>
+        <select id="contact-type" {...register('type')} className={inputClass}>
           <option value="phone">Telefone</option>
           <option value="email">Email</option>
         </select>
       </div>
-      <div>
-        <label htmlFor="contact-value">Valor</label>
-        <input id="contact-value" {...register('value')} />
-        {errors.value && <span role="alert">{errors.value.message}</span>}
+      <div className="flex-1">
+        <label htmlFor="contact-value" className={labelClass}>Valor</label>
+        <input id="contact-value" {...register('value')} className={inputClass} />
+        {errors.value && <p role="alert" className={errorClass}>{errors.value.message}</p>}
       </div>
-      <div>
-        <label>
-          <input type="checkbox" {...register('is_primary')} />
+      <div className="flex items-center pb-1">
+        <label className="flex items-center gap-2 text-sm text-neutral-700 whitespace-nowrap">
+          <input type="checkbox" {...register('is_primary')} className="rounded border-border" />
           Principal
         </label>
       </div>
-      <div>
-        <button type="submit" disabled={isPending}>
+      <div className="flex gap-2 pb-0.5">
+        <Button type="submit" size="sm" disabled={isPending} loading={isPending}>
           {isPending ? 'Salvando...' : 'Salvar'}
-        </button>
-        <button type="button" onClick={onCancel} disabled={isPending}>
+        </Button>
+        <Button variant="secondary" size="sm" type="button" onClick={onCancel} disabled={isPending}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )
@@ -120,46 +126,53 @@ export default function ContactsSection({
 
   return (
     <div data-testid="contacts-section">
-      <h3>Contatos</h3>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      <h3 className="text-lg font-semibold text-neutral-900 mb-3">Contatos</h3>
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 mb-3">{error}</div>
+      )}
 
-      {contacts.map((c) => (
-        <div key={c.id} data-testid="contact-row">
-          {editingId === c.id ? (
-            <ContactFormInline
-              initialData={{
-                type: c.type,
-                value: c.value,
-                is_primary: c.is_primary,
-              }}
-              onSubmit={(data) => updateMutation.mutate({ id: c.id, body: data })}
-              onCancel={() => { setEditingId(null); setError(null) }}
-              isPending={updateMutation.isPending}
-            />
-          ) : (
-            <div>
-              <span>
-                {c.type === 'phone' ? '📞' : '✉️'} {c.value}
-                {c.is_primary ? ' (Principal)' : ''}
-              </span>
-              <button onClick={() => setEditingId(c.id)} type="button">
-                Editar
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+      <div className="space-y-3">
+        {contacts.map((c) => (
+          <div key={c.id} data-testid="contact-row">
+            {editingId === c.id ? (
+              <ContactFormInline
+                initialData={{
+                  type: c.type,
+                  value: c.value,
+                  is_primary: c.is_primary,
+                }}
+                onSubmit={(data) => updateMutation.mutate({ id: c.id, body: data })}
+                onCancel={() => { setEditingId(null); setError(null) }}
+                isPending={updateMutation.isPending}
+              />
+            ) : (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+                <div className="flex items-center gap-3 text-sm text-neutral-700">
+                  <span className="text-neutral-500">{c.type === 'phone' ? '(xx) xxxx-xxxx' : 'email@'}</span>
+                  <span>{c.value}</span>
+                  {c.is_primary && <Badge variant="info">Principal</Badge>}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setEditingId(c.id)} type="button">
+                  Editar
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {addingNew ? (
-        <ContactFormInline
-          onSubmit={(data) => createMutation.mutate(data)}
-          onCancel={() => { setAddingNew(false); setError(null) }}
-          isPending={createMutation.isPending}
-        />
+        <div className="mt-3">
+          <ContactFormInline
+            onSubmit={(data) => createMutation.mutate(data)}
+            onCancel={() => { setAddingNew(false); setError(null) }}
+            isPending={createMutation.isPending}
+          />
+        </div>
       ) : (
-        <button onClick={() => setAddingNew(true)} type="button">
+        <Button variant="secondary" size="sm" onClick={() => setAddingNew(true)} type="button" className="mt-3">
           Adicionar Contato
-        </button>
+        </Button>
       )}
     </div>
   )

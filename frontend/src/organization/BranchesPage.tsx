@@ -7,6 +7,9 @@ import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse, Branch } from './organizationApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import BranchForm from './BranchForm'
 import type { BranchFormData } from './organizationSchemas'
 
@@ -75,101 +78,110 @@ export default function BranchesPage() {
     },
   })
 
-  if (isLoading) return <LoadingState message="Carregando filiais..." />
-  if (isError) return <p data-testid="error-state">Erro ao carregar filiais.</p>
+  if (isLoading) return <LoadingState />
+  if (isError) return <p data-testid="error-state" className="p-4 text-danger">Erro ao carregar filiais.</p>
 
   const branches = data?.results ?? []
   const totalPages = data ? Math.ceil(data.count / 25) : 1
 
   return (
-    <div data-testid="branches-page">
-      <h2>Filiais</h2>
+    <div data-testid="branches-page" className="p-6">
+      <Card
+        title="Filiais"
+        actions={
+          !showForm && branches.length > 0 && (
+            <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+              Nova Filial
+            </Button>
+          )
+        }
+      >
+        {showForm && (
+          <div className="mb-6">
+            <BranchForm
+              onSubmit={(data) => createMutation.mutate(data)}
+              onCancel={() => { setShowForm(false); setSubmitError(null) }}
+              isPending={createMutation.isPending}
+              submitError={submitError}
+              setSubmitError={setSubmitError}
+            />
+          </div>
+        )}
 
-      {!showForm && branches.length > 0 && (
-        <button onClick={() => setShowForm(true)} type="button">
-          Nova Filial
-        </button>
-      )}
+        {branches.length === 0 && !showForm && (
+          <EmptyState
+            title="Nenhuma filial"
+            description="Crie sua primeira filial para começar."
+            action={
+              <Button variant="primary" onClick={() => setShowForm(true)}>
+                Criar Filial
+              </Button>
+            }
+          />
+        )}
 
-      {showForm && (
-        <BranchForm
-          onSubmit={(data) => createMutation.mutate(data)}
-          onCancel={() => { setShowForm(false); setSubmitError(null) }}
-          isPending={createMutation.isPending}
-          submitError={submitError}
-          setSubmitError={setSubmitError}
-        />
-      )}
+        {branches.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="branches-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Nome</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Empresa</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">IE</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {branches.map((branch) => (
+                  <tr key={branch.id} data-testid="branch-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    {editingId === branch.id ? (
+                      <>
+                        <td colSpan={5} className="px-4 py-3">
+                          <BranchForm
+                            initialData={{ company: branch.company, name: branch.name, ie: branch.ie, is_active: branch.is_active }}
+                            onSubmit={(data) => updateMutation.mutate({ id: branch.id, body: data })}
+                            onCancel={() => { setEditingId(null); setSubmitError(null) }}
+                            isPending={updateMutation.isPending}
+                            submitError={submitError}
+                            setSubmitError={setSubmitError}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-neutral-700">{branch.name}</td>
+                        <td className="px-4 py-3 text-neutral-700">{branch.company_name}</td>
+                        <td className="px-4 py-3 text-neutral-700">{branch.ie || '-'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={branch.is_active ? 'success' : 'danger'}>{branch.is_active ? 'Ativo' : 'Inativo'}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button variant="ghost" size="sm" onClick={() => setEditingId(branch.id)}>
+                            Editar
+                          </Button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {branches.length === 0 && !showForm && (
-        <EmptyState
-          title="Nenhuma filial"
-          description="Crie sua primeira filial para começar."
-          action={
-            <button onClick={() => setShowForm(true)} type="button">
-              Criar Filial
-            </button>
-          }
-        />
-      )}
-
-      {branches.length > 0 && (
-        <table data-testid="branches-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Empresa</th>
-              <th>IE</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map((branch) => (
-              <tr key={branch.id} data-testid="branch-row">
-                {editingId === branch.id ? (
-                  <>
-                    <td colSpan={5}>
-                      <BranchForm
-                        initialData={{ company: branch.company, name: branch.name, ie: branch.ie, is_active: branch.is_active }}
-                        onSubmit={(data) => updateMutation.mutate({ id: branch.id, body: data })}
-                        onCancel={() => { setEditingId(null); setSubmitError(null) }}
-                        isPending={updateMutation.isPending}
-                        submitError={submitError}
-                        setSubmitError={setSubmitError}
-                      />
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td>{branch.name}</td>
-                    <td>{branch.company_name}</td>
-                    <td>{branch.ie || '-'}</td>
-                    <td>{branch.is_active ? 'Ativo' : 'Inativo'}</td>
-                    <td>
-                      <button onClick={() => setEditingId(branch.id)} type="button">
-                        Editar
-                      </button>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {totalPages > 1 && (
-        <nav aria-label="Paginação">
-          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} type="button">
-            Anterior
-          </button>
-          <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} type="button">
-            Próxima
-          </button>
-        </nav>
-      )}
+        {totalPages > 1 && (
+          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 mt-6">
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Anterior
+            </Button>
+            <span className="text-sm text-text-muted">Página {page} de {totalPages}</span>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              Próxima
+            </Button>
+          </nav>
+        )}
+      </Card>
     </div>
   )
 }

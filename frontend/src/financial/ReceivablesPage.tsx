@@ -10,6 +10,9 @@ import type { PaginatedResponse, Receivable } from './financialApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import SettlementDialog from './SettlementDialog'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Pendente',
@@ -18,14 +21,11 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelado',
 }
 
-function getStatusStyle(status: string): React.CSSProperties {
-  switch (status) {
-    case 'overdue': return { color: '#dc2626' }
-    case 'pending': return { color: '#ca8a04' }
-    case 'paid': return { color: '#16a34a' }
-    case 'cancelled': return { color: '#6b7280' }
-    default: return {}
-  }
+const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+  pending: 'warning',
+  paid: 'success',
+  overdue: 'danger',
+  cancelled: 'neutral',
 }
 
 function formatCurrency(value: string): string {
@@ -94,94 +94,120 @@ export default function ReceivablesPage() {
 
   return (
     <div data-testid="receivables-page">
-      <h2>Recebíveis</h2>
+      <Card title="Recebíveis">
+        <div data-testid="receivables-filters" className="flex flex-wrap items-end gap-4 mb-6">
+          <div>
+            <label htmlFor="rec-status" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Status</label>
+            <select
+              id="rec-status"
+              value={statusFilter}
+              onChange={(e) => setFilter('status', e.target.value)}
+              aria-label="Filtrar por status"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            >
+              <option value="">Todos os status</option>
+              <option value="pending">Pendente</option>
+              <option value="paid">Pago</option>
+              <option value="overdue">Vencido</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="rec-date-from" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Data inicial</label>
+            <input
+              id="rec-date-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setFilter('date_from', e.target.value)}
+              aria-label="Data inicial"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="rec-date-to" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Data final</label>
+            <input
+              id="rec-date-to"
+              type="date"
+              value={dateTo}
+              onChange={(e) => setFilter('date_to', e.target.value)}
+              aria-label="Data final"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="rec-branch" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Filial</label>
+            <select
+              id="rec-branch"
+              value={branchFilter}
+              onChange={(e) => setFilter('branch', e.target.value)}
+              aria-label="Filtrar por filial"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            >
+              <option value="">Todas as filiais</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      <div data-testid="receivables-filters">
-        <select
-          value={statusFilter}
-          onChange={(e) => setFilter('status', e.target.value)}
-          aria-label="Filtrar por status"
-        >
-          <option value="">Todos os status</option>
-          <option value="pending">Pendente</option>
-          <option value="paid">Pago</option>
-          <option value="overdue">Vencido</option>
-          <option value="cancelled">Cancelado</option>
-        </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setFilter('date_from', e.target.value)}
-          aria-label="Data inicial"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setFilter('date_to', e.target.value)}
-          aria-label="Data final"
-        />
-        <select
-          value={branchFilter}
-          onChange={(e) => setFilter('branch', e.target.value)}
-          aria-label="Filtrar por filial"
-        >
-          <option value="">Todas as filiais</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
-      </div>
+        {receivables.length === 0 && (
+          <EmptyState title="Nenhum recebível encontrado" description="Nenhum recebível registrado." />
+        )}
 
-      {receivables.length === 0 && (
-        <EmptyState title="Nenhum recebível encontrado" description="Nenhum recebível registrado." />
-      )}
+        {receivables.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="receivables-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Descrição</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Vencimento</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Valor</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Recebido</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Saldo</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receivables.map((rec) => (
+                  <tr key={rec.id} data-testid="receivable-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    <td className="px-4 py-3 text-neutral-700">{rec.description}{rec.source_operation ? ` (${rec.source_operation_type ?? '#'}${rec.source_operation})` : ''}</td>
+                    <td className="px-4 py-3 text-neutral-700">{new Date(rec.due_date).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-3 text-neutral-700">R$ {formatCurrency(rec.amount)}</td>
+                    <td className="px-4 py-3 text-neutral-700">R$ {formatCurrency(rec.paid_amount)}</td>
+                    <td className="px-4 py-3 text-neutral-700">R$ {formatCurrency(rec.balance)}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusVariant[rec.status] ?? 'neutral'} testId={`status-badge-${rec.status}`}>
+                        {STATUS_LABELS[rec.status] ?? rec.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {rec.status !== 'paid' && rec.status !== 'cancelled' && (
+                        <Button variant="secondary" size="sm" onClick={() => setSettleTarget(rec)} type="button">
+                          Receber
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {receivables.length > 0 && (
-        <table data-testid="receivables-table">
-          <thead>
-            <tr>
-              <th>Descrição</th>
-              <th>Vencimento</th>
-              <th>Valor</th>
-              <th>Recebido</th>
-              <th>Saldo</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receivables.map((rec) => (
-              <tr key={rec.id} data-testid="receivable-row">
-                <td>{rec.description}{rec.source_operation ? ` (${rec.source_operation_type ?? '#'}${rec.source_operation})` : ''}</td>
-                <td>{new Date(rec.due_date).toLocaleDateString('pt-BR')}</td>
-                <td>R$ {formatCurrency(rec.amount)}</td>
-                <td>R$ {formatCurrency(rec.paid_amount)}</td>
-                <td>R$ {formatCurrency(rec.balance)}</td>
-                <td><span data-testid={`status-badge-${rec.status}`} style={getStatusStyle(rec.status)}>{STATUS_LABELS[rec.status] ?? rec.status}</span></td>
-                <td>
-                  {rec.status !== 'paid' && rec.status !== 'cancelled' && (
-                    <button onClick={() => setSettleTarget(rec)} type="button">
-                      Receber
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {totalPages > 1 && (
-        <nav aria-label="Paginação">
-          <button disabled={page <= 1} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page - 1)); setSearchParams(next) }} type="button">
-            Anterior
-          </button>
-          <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page + 1)); setSearchParams(next) }} type="button">
-            Próxima
-          </button>
-        </nav>
-      )}
+        {totalPages > 1 && (
+          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 mt-6">
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page - 1)); setSearchParams(next) }} type="button">
+              Anterior
+            </Button>
+            <span className="text-sm text-neutral-600">Página {page} de {totalPages}</span>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page + 1)); setSearchParams(next) }} type="button">
+              Próxima
+            </Button>
+          </nav>
+        )}
+      </Card>
 
       {settleTarget && (
         <SettlementDialog

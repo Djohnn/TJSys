@@ -6,6 +6,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { isApiProblemError } from '@/api/problem'
 import { settlePayable, settleReceivable } from './financialApi'
 import type { Payable, Receivable } from './financialApi'
+import Button from '@/components/ui/Button'
 
 interface SettlementDialogProps {
   type: 'payable' | 'receivable'
@@ -93,82 +94,102 @@ export default function SettlementDialog({ type, target, onClose }: SettlementDi
 
   const actionLabel = type === 'payable' ? 'Pagar' : 'Receber'
 
+  const inputClass = 'block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm'
+  const labelClass = 'block text-sm font-medium text-neutral-700 mb-1'
+
   return (
-    <div data-testid="settlement-dialog" role="dialog" aria-modal="true">
-      <h3>{actionLabel} - {target.description}</h3>
+    <div data-testid="settlement-dialog" role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-neutral-900">{actionLabel} - {target.description}</h3>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl leading-none">&times;</button>
+        </div>
 
-      <div>
-        <p>Saldo atual: <strong>R$ {balanceDecimal.toFixed(2)}</strong></p>
-        <p>Vencimento: <strong>{new Date(target.due_date).toLocaleDateString('pt-BR')}</strong></p>
+        <div className="p-6 space-y-4">
+          <div className="flex gap-6 text-sm text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-border">
+            <p>Saldo atual: <strong className="text-neutral-900">R$ {balanceDecimal.toFixed(2)}</strong></p>
+            <p>Vencimento: <strong className="text-neutral-900">{new Date(target.due_date).toLocaleDateString('pt-BR')}</strong></p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="settlement-amount" className={labelClass}>Valor</label>
+              <input
+                id="settlement-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={target.balance}
+                value={amount}
+                onChange={(e) => { setAmount(e.target.value); setValidationError(null) }}
+                data-testid="settlement-amount"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="settlement-method" className={labelClass}>Forma de pagamento</label>
+              <select
+                id="settlement-method"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                data-testid="settlement-method"
+                className={inputClass}
+              >
+                <option value="cash">Dinheiro</option>
+                <option value="bank_transfer">Transferência</option>
+                <option value="credit_card">Cartão de Crédito</option>
+                <option value="debit_card">Cartão de Débito</option>
+                <option value="pix">PIX</option>
+                <option value="check">Cheque</option>
+                <option value="other">Outro</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="settlement-date" className={labelClass}>Data</label>
+              <input
+                id="settlement-date"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                data-testid="settlement-date"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="settlement-notes" className={labelClass}>Observação</label>
+              <textarea
+                id="settlement-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                data-testid="settlement-notes"
+                className={`${inputClass} min-h-[80px]`}
+              />
+            </div>
+
+            {inlineError && (
+              <p data-testid="validation-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{inlineError}</p>
+            )}
+            {validationError && (
+              <p data-testid="validation-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{validationError}</p>
+            )}
+            {error && (
+              <p data-testid="settlement-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="secondary" type="button" onClick={onClose} disabled={settleMutation.isPending}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={settleMutation.isPending || !isValidAmount} loading={settleMutation.isPending} data-testid="settlement-submit">
+                {settleMutation.isPending ? `${actionLabel}...` : actionLabel}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
-
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="settlement-amount">Valor</label>
-          <input
-            id="settlement-amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            max={target.balance}
-            value={amount}
-            onChange={(e) => { setAmount(e.target.value); setValidationError(null) }}
-            data-testid="settlement-amount"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="settlement-method">Forma de pagamento</label>
-          <select
-            id="settlement-method"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            data-testid="settlement-method"
-          >
-            <option value="cash">Dinheiro</option>
-            <option value="bank_transfer">Transferência</option>
-            <option value="credit_card">Cartão de Crédito</option>
-            <option value="debit_card">Cartão de Débito</option>
-            <option value="pix">PIX</option>
-            <option value="check">Cheque</option>
-            <option value="other">Outro</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="settlement-date">Data</label>
-          <input
-            id="settlement-date"
-            type="date"
-            value={paymentDate}
-            onChange={(e) => setPaymentDate(e.target.value)}
-            data-testid="settlement-date"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="settlement-notes">Observação</label>
-          <textarea
-            id="settlement-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            data-testid="settlement-notes"
-          />
-        </div>
-
-        {inlineError && <p data-testid="validation-error" style={{ color: '#dc2626' }}>{inlineError}</p>}
-        {validationError && <p data-testid="validation-error" style={{ color: '#dc2626' }}>{validationError}</p>}
-        {error && <p data-testid="settlement-error" style={{ color: '#dc2626' }}>{error}</p>}
-
-        <div>
-          <button type="button" onClick={onClose} disabled={settleMutation.isPending}>
-            Cancelar
-          </button>
-          <button type="submit" disabled={settleMutation.isPending || !isValidAmount} data-testid="settlement-submit">
-            {settleMutation.isPending ? `${actionLabel}...` : actionLabel}
-          </button>
-        </div>
-      </form>
     </div>
   )
 }

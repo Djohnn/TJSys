@@ -7,6 +7,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import type { PaginatedResponse, Company } from './organizationApi'
 import { branchSchema, type BranchFormData } from './organizationSchemas'
+import Button from '@/components/ui/Button'
 
 interface BranchFormProps {
   initialData?: BranchFormData
@@ -56,16 +57,17 @@ export default function BranchForm({
         onSubmit(data)
       })}
       data-testid="branch-form"
+      className="space-y-4"
     >
       {submitError && (
-        <div data-testid="form-error" role="alert" style={{ color: 'red' }}>
+        <div data-testid="form-error" role="alert" className="p-3 rounded-lg bg-red-50 text-danger text-sm">
           {submitError}
         </div>
       )}
 
       <div>
-        <label htmlFor="branch-company">Empresa</label>
-        <select id="branch-company" {...register('company')}>
+        <label htmlFor="branch-company" className="block text-sm font-medium text-neutral-700 mb-1">Empresa</label>
+        <select id="branch-company" {...register('company')} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
           <option value="">Selecione...</option>
           {companies.map((c) => (
             <option key={c.id} value={c.id}>
@@ -73,34 +75,32 @@ export default function BranchForm({
             </option>
           ))}
         </select>
-        {errors.company && <span role="alert" style={{ color: 'red' }}>{errors.company.message}</span>}
+        {errors.company && <span role="alert" className="text-danger text-xs mt-1">{errors.company.message}</span>}
       </div>
 
       <div>
-        <label htmlFor="branch-name">Nome</label>
-        <input id="branch-name" {...register('name')} />
-        {errors.name && <span role="alert" style={{ color: 'red' }}>{errors.name.message}</span>}
+        <label htmlFor="branch-name" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
+        <input id="branch-name" {...register('name')} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+        {errors.name && <span role="alert" className="text-danger text-xs mt-1">{errors.name.message}</span>}
       </div>
 
       <div>
-        <label htmlFor="branch-ie">Inscrição Estadual</label>
-        <input id="branch-ie" {...register('ie')} />
+        <label htmlFor="branch-ie" className="block text-sm font-medium text-neutral-700 mb-1">Inscrição Estadual</label>
+        <input id="branch-ie" {...register('ie')} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
       </div>
 
-      <div>
-        <label>
-          <input type="checkbox" {...register('is_active')} />
-          Ativo
-        </label>
+      <div className="flex items-center gap-2">
+        <input id="branch-active" type="checkbox" {...register('is_active')} className="w-4 h-4 rounded border-border text-primary-600 focus:ring-primary-500" />
+        <label htmlFor="branch-active" className="text-sm text-neutral-700">Ativo</label>
       </div>
 
-      <div>
-        <button type="submit" disabled={isPending}>
+      <div className="flex items-center gap-3 pt-2">
+        <Button type="submit" loading={isPending}>
           {isPending ? 'Salvando...' : 'Salvar'}
-        </button>
-        <button type="button" onClick={onCancel} disabled={isPending}>
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isPending}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   )

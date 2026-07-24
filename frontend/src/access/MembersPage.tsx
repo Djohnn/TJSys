@@ -7,6 +7,9 @@ import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse } from '@/organization/organizationApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import Card from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
 import type { MemberUpdateFormData } from './accessSchemas'
 
 const ROLE_CAPABILITIES: Record<string, string[]> = {
@@ -85,69 +88,77 @@ export default function MembersPage() {
     },
   })
 
-  if (isLoading) return <LoadingState message="Carregando membros..." />
-  if (isError) return <p data-testid="error-state">Erro ao carregar membros.</p>
+  if (isLoading) return <LoadingState />
+  if (isError) return <p data-testid="error-state" className="p-4 text-danger">Erro ao carregar membros.</p>
 
   const members = data?.results ?? []
 
   return (
-    <div data-testid="members-page">
-      <h2>Membros</h2>
+    <div data-testid="members-page" className="p-6">
+      <Card title="Membros">
+        {members.length === 0 && (
+          <EmptyState
+            title="Nenhum membro"
+            description="Convide usuários para fazer parte da organização."
+          />
+        )}
 
-      {members.length === 0 && (
-        <EmptyState
-          title="Nenhum membro"
-          description="Convide usuários para fazer parte da organização."
-        />
-      )}
-
-      {members.length > 0 && (
-        <table data-testid="members-table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Nome</th>
-              <th>Função</th>
-              <th>Filiais</th>
-              <th>Status</th>
-              {canManage && <th>Ações</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((member) => (
-              <tr key={member.id} data-testid="member-row">
-                {editingId === member.id ? (
-                  <td colSpan={canManage ? 6 : 5}>
-                    <MemberEditForm
-                      member={member}
-                      onSubmit={(data) => updateMutation.mutate({ id: member.id, body: data })}
-                      onCancel={() => { setEditingId(null); setSubmitError(null) }}
-                      isPending={updateMutation.isPending}
-                      submitError={submitError}
-                      setSubmitError={setSubmitError}
-                    />
-                  </td>
-                ) : (
-                  <>
-                    <td>{member.user.email}</td>
-                    <td>{member.user.name}</td>
-                    <td>{ROLE_LABELS[member.role] ?? member.role}</td>
-                    <td>{member.branch_ids.length > 0 ? member.branch_ids.join(', ') : '-'}</td>
-                    <td>{member.is_active ? 'Ativo' : 'Inativo'}</td>
-                    {canManage && (
-                      <td>
-                        <button onClick={() => setEditingId(member.id)} type="button">
-                          Editar
-                        </button>
+        {members.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="members-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Nome</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Função</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Filiais</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Status</th>
+                  {canManage && <th className="px-4 py-3 text-left font-semibold text-neutral-600">Ações</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => (
+                  <tr key={member.id} data-testid="member-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    {editingId === member.id ? (
+                      <td colSpan={canManage ? 6 : 5} className="px-4 py-3">
+                        <MemberEditForm
+                          member={member}
+                          onSubmit={(data) => updateMutation.mutate({ id: member.id, body: data })}
+                          onCancel={() => { setEditingId(null); setSubmitError(null) }}
+                          isPending={updateMutation.isPending}
+                          submitError={submitError}
+                          setSubmitError={setSubmitError}
+                        />
                       </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-neutral-700">{member.user.email}</td>
+                        <td className="px-4 py-3 text-neutral-700">{member.user.name}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={member.role === 'admin' ? 'info' : member.role === 'manager' ? 'warning' : 'neutral'}>
+                            {ROLE_LABELS[member.role] ?? member.role}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-neutral-700">{member.branch_ids.length > 0 ? member.branch_ids.join(', ') : '-'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={member.is_active ? 'success' : 'danger'}>{member.is_active ? 'Ativo' : 'Inativo'}</Badge>
+                        </td>
+                        {canManage && (
+                          <td className="px-4 py-3">
+                            <Button variant="ghost" size="sm" onClick={() => setEditingId(member.id)}>
+                              Editar
+                            </Button>
+                          </td>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

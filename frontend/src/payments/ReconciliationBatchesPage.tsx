@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { listReconciliationBatches, confirmReconciliationBatch } from './paymentsApi'
 import type { PaymentReconciliationBatch, PaginatedResponse } from './paymentsApi'
 import { useTenant } from '@/tenant/TenantProvider'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR')
@@ -36,56 +39,70 @@ export default function ReconciliationBatchesPage() {
   if (isError) return <p data-testid="error-state">Erro ao carregar lotes.</p>
 
   return (
-    <div data-testid="reconciliation-batches-page">
-      <h2>Lotes de Conciliação</h2>
-      {message && <p data-testid="batch-message">{message}</p>}
+    <div data-testid="reconciliation-batches-page" className="p-6">
+      <Card title="Lotes de Conciliação">
+        {message && <p data-testid="batch-message" className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">{message}</p>}
 
-      <table data-testid="batches-table">
-        <thead>
-          <tr><th>Provider</th><th>Status</th><th>Confirmado em</th><th>Ações</th></tr>
-        </thead>
-        <tbody>
-          {data?.results.map(batch => (
-            <tr key={batch.id} data-testid="batch-row">
-              <td>{batch.provider}</td>
-              <td>{batch.status === 'confirmed' ? 'Confirmado' : 'Rascunho'}</td>
-              <td>{batch.confirmed_at ? formatDate(batch.confirmed_at) : '-'}</td>
-              <td>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/payments/reconciliation-batches/${batch.id}`)}
-                  data-testid={`view-batch-${batch.id}`}
-                >
-                  Ver
-                </button>
-                {batch.status === 'draft' && (
-                  <button
-                    type="button"
-                    disabled={confirmMut.isPending}
-                    onClick={() => confirmMut.mutate(batch.id)}
-                    data-testid={`confirm-batch-${batch.id}`}
-                  >
-                    Confirmar
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table data-testid="batches-table" className="w-full text-sm">
+            <thead>
+              <tr className="bg-neutral-50 border-b border-border">
+                <th className="px-4 py-3 text-left font-semibold text-neutral-600">Provider</th>
+                <th className="px-4 py-3 text-left font-semibold text-neutral-600">Status</th>
+                <th className="px-4 py-3 text-left font-semibold text-neutral-600">Confirmado em</th>
+                <th className="px-4 py-3 text-left font-semibold text-neutral-600">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.results.map(batch => (
+                <tr key={batch.id} data-testid="batch-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                  <td className="px-4 py-3 text-neutral-700">{batch.provider}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={batch.status === 'confirmed' ? 'success' : 'warning'}>
+                      {batch.status === 'confirmed' ? 'Confirmado' : 'Rascunho'}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">{batch.confirmed_at ? formatDate(batch.confirmed_at) : '-'}</td>
+                  <td className="px-4 py-3 flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate(`/payments/reconciliation-batches/${batch.id}`)}
+                      data-testid={`view-batch-${batch.id}`}
+                    >
+                      Ver
+                    </Button>
+                    {batch.status === 'draft' && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={confirmMut.isPending}
+                        onClick={() => confirmMut.mutate(batch.id)}
+                        data-testid={`confirm-batch-${batch.id}`}
+                      >
+                        Confirmar
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <div data-testid="pagination">
-        {data?.previous && (
-          <button type="button" onClick={() => setPage(p => p - 1)} data-testid="prev-page">
-            Anterior
-          </button>
-        )}
-        {data?.next && (
-          <button type="button" onClick={() => setPage(p => p + 1)} data-testid="next-page">
-            Próximo
-          </button>
-        )}
-      </div>
+        <div data-testid="pagination" className="mt-4 flex items-center gap-2">
+          {data?.previous && (
+            <Button variant="secondary" size="sm" onClick={() => setPage(p => p - 1)} data-testid="prev-page">
+              Anterior
+            </Button>
+          )}
+          {data?.next && (
+            <Button variant="secondary" size="sm" onClick={() => setPage(p => p + 1)} data-testid="next-page">
+              Próximo
+            </Button>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }
