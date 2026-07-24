@@ -8,6 +8,9 @@ import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse, Product, Category } from './catalogApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import ProductForm from './ProductForm'
 import type { ProductFormData } from './catalogSchemas'
 
@@ -141,51 +144,57 @@ export default function ProductsPage() {
   const totalPages = data ? Math.ceil(data.count / 25) : 1
 
   return (
-    <div data-testid="products-page">
-      <h2>Produtos</h2>
-
-      <form onSubmit={handleSearch}>
-        <input
-          aria-label="Buscar produtos"
-          placeholder="Buscar por nome ou código..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
-        <button type="submit">Buscar</button>
-      </form>
-
-      <div>
-        <label htmlFor="filter-category">Categoria</label>
-        <select
-          id="filter-category"
-          value={category}
-          onChange={(e) => handleCategoryChange(e.target.value)}
-        >
-          <option value="">Todas</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+    <div data-testid="products-page" className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-neutral-900">Produtos</h2>
+        {!showForm && products.length > 0 && (
+          <Button onClick={() => setShowForm(true)} variant="primary">Novo Produto</Button>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="filter-active">Status</label>
-        <select
-          id="filter-active"
-          value={active}
-          onChange={(e) => handleActiveChange(e.target.value)}
-        >
-          <option value="">Todos</option>
-          <option value="true">Ativo</option>
-          <option value="false">Inativo</option>
-        </select>
-      </div>
+      <Card>
+        <div className="flex flex-wrap gap-3">
+          <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[200px]">
+            <input
+              aria-label="Buscar produtos"
+              placeholder="Buscar por nome ou código..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+            />
+            <Button type="submit" size="sm" variant="secondary">Buscar</Button>
+          </form>
 
-      {!showForm && products.length > 0 && (
-        <button onClick={() => setShowForm(true)} type="button">
-          Novo Produto
-        </button>
-      )}
+          <div className="flex items-center gap-2">
+            <label htmlFor="filter-category" className="text-sm text-neutral-600">Categoria</label>
+            <select
+              id="filter-category"
+              value={category}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+            >
+              <option value="">Todas</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="filter-active" className="text-sm text-neutral-600">Status</label>
+            <select
+              id="filter-active"
+              value={active}
+              onChange={(e) => handleActiveChange(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+            >
+              <option value="">Todos</option>
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+        </div>
+      </Card>
 
       {showForm && (
         <ProductForm
@@ -202,85 +211,83 @@ export default function ProductsPage() {
           title="Nenhum produto"
           description="Crie seu primeiro produto para começar."
           action={
-            <button onClick={() => setShowForm(true)} type="button">
-              Criar Produto
-            </button>
+            <Button onClick={() => setShowForm(true)} variant="primary">Criar Produto</Button>
           }
         />
       )}
 
       {products.length > 0 && (
-        <table data-testid="products-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>SKU</th>
-              <th>Categoria</th>
-              <th>Unidade</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <tr key={product.id} data-testid="product-row">
-                {editingId === product.id ? (
-                  <>
-                    <td colSpan={6}>
-                      <ProductForm
-                        initialData={{
-                          name: product.name,
-                          sku: product.sku,
-                          barcode: product.barcode,
-                          category: product.category,
-                          unit: product.unit,
-                          is_active: product.is_active,
-                        }}
-                        onSubmit={(data) => updateMutation.mutate({ id: product.id, body: data })}
-                        onCancel={() => { setEditingId(null); setSubmitError(null) }}
-                        isPending={updateMutation.isPending}
-                        submitError={submitError}
-                        setSubmitError={setSubmitError}
-                      />
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td>{product.name}</td>
-                    <td>{product.sku || '-'}</td>
-                    <td>{product.category_name || '-'}</td>
-                    <td>{product.unit_name || '-'}</td>
-                    <td>{product.is_active ? 'Ativo' : 'Inativo'}</td>
-                    <td>
-                      <button onClick={() => setEditingId(product.id)} type="button">
-                        Editar
-                      </button>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Card>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="products-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Nome</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">SKU</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Categoria</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Unidade</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id} data-testid="product-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    {editingId === product.id ? (
+                      <>
+                        <td colSpan={6} className="p-4">
+                          <ProductForm
+                            initialData={{
+                              name: product.name,
+                              sku: product.sku,
+                              barcode: product.barcode,
+                              category: product.category,
+                              unit: product.unit,
+                              is_active: product.is_active,
+                            }}
+                            onSubmit={(data) => updateMutation.mutate({ id: product.id, body: data })}
+                            onCancel={() => { setEditingId(null); setSubmitError(null) }}
+                            isPending={updateMutation.isPending}
+                            submitError={submitError}
+                            setSubmitError={setSubmitError}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3 text-neutral-700">{product.name}</td>
+                        <td className="px-4 py-3 text-neutral-700">{product.sku || '-'}</td>
+                        <td className="px-4 py-3 text-neutral-700">{product.category_name || '-'}</td>
+                        <td className="px-4 py-3 text-neutral-700">{product.unit_name || '-'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={product.is_active ? 'success' : 'neutral'}>{product.is_active ? 'Ativo' : 'Inativo'}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button onClick={() => setEditingId(product.id)} variant="ghost" size="sm">Editar</Button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {totalPages > 1 && (
-        <nav aria-label="Paginação">
-          <button disabled={page <= 1} onClick={() => {
+        <nav aria-label="Paginação" className="flex items-center justify-center gap-3">
+          <Button disabled={page <= 1} onClick={() => {
             const params = new URLSearchParams(searchParams)
             params.set('page', String(page - 1))
             setSearchParams(params)
-          }} type="button">
-            Anterior
-          </button>
-          <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => {
+          }} variant="secondary" size="sm">Anterior</Button>
+          <span className="text-sm text-neutral-600">Página {page} de {totalPages}</span>
+          <Button disabled={page >= totalPages} onClick={() => {
             const params = new URLSearchParams(searchParams)
             params.set('page', String(page + 1))
             setSearchParams(params)
-          }} type="button">
-            Próxima
-          </button>
+          }} variant="secondary" size="sm">Próxima</Button>
         </nav>
       )}
     </div>

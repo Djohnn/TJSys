@@ -57,42 +57,35 @@ export default function DashboardPage() {
   })
 
   return (
-    <div data-testid="dashboard-page">
-      <h2>Dashboard</h2>
+    <div data-testid="dashboard-page" className="p-6">
+      <h2 className="text-2xl font-bold text-neutral-900 mb-2">Dashboard</h2>
 
       {selectedTenant && (
-        <p data-testid="current-tenant">
-          Tenant ativo: <strong>{selectedTenant.tenant_name}</strong> &mdash; {role}
+        <p data-testid="current-tenant" className="text-sm text-text-muted mb-4">
+          Tenant ativo: <strong className="text-text">{selectedTenant.tenant_name}</strong> &mdash; {role}
         </p>
       )}
 
-      <div data-testid="health-status" aria-live="polite">
+      <div data-testid="health-status" aria-live="polite" className="mb-6">
         {health
-          ? <span style={{ color: 'green' }}>&#9679; Backend online</span>
-          : <span style={{ color: 'orange' }}>&#9679; Verificando...</span>
+          ? <span className="text-success text-sm">&#9679; Backend online</span>
+          : <span className="text-warning text-sm">&#9679; Verificando...</span>
         }
       </div>
 
       <div
         data-testid="module-cards"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         {availableModules.map((mod) => (
           <Link
             key={mod.id}
             to={mod.to}
             data-testid={`card-${mod.id}`}
-            style={{
-              display: 'block',
-              padding: '1.25rem',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: 'inherit',
-            }}
+            className="block p-5 rounded-xl border border-border bg-primary-50 hover:bg-primary-100 hover:border-primary-300 transition-all no-underline"
           >
-            <h3>{mod.label}</h3>
-            <p style={{ fontSize: '0.875rem', color: '#666' }}>{mod.description}</p>
+            <h3 className="text-base font-semibold text-primary-800 mb-1">{mod.label}</h3>
+            <p className="text-sm text-primary-600">{mod.description}</p>
           </Link>
         ))}
       </div>

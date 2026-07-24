@@ -7,6 +7,9 @@ import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse } from '@/organization/organizationApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 import InvitationForm from './InvitationForm'
 import type { InviteFormData } from './accessSchemas'
 
@@ -91,8 +94,8 @@ export default function InvitationsPage() {
     },
   })
 
-  if (isLoading) return <LoadingState message="Carregando convites..." />
-  if (isError) return <p data-testid="error-state">Erro ao carregar convites.</p>
+  if (isLoading) return <LoadingState />
+  if (isError) return <p data-testid="error-state" className="p-4 text-danger">Erro ao carregar convites.</p>
 
   const invitations = data?.results ?? []
   const filtered = statusFilter
@@ -100,81 +103,96 @@ export default function InvitationsPage() {
     : invitations
 
   return (
-    <div data-testid="invitations-page">
-      <h2>Convites</h2>
+    <div data-testid="invitations-page" className="p-6">
+      <Card
+        title="Convites"
+        actions={
+          !showForm && (
+            <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+              Novo Convite
+            </Button>
+          )
+        }
+      >
+        {showForm && (
+          <div className="mb-6">
+            <InvitationForm
+              onSubmit={(data) => createMutation.mutate(data)}
+              onCancel={() => { setShowForm(false); setSubmitError(null) }}
+              isPending={createMutation.isPending}
+              submitError={submitError}
+              setSubmitError={setSubmitError}
+            />
+          </div>
+        )}
 
-      {!showForm && (
-        <button onClick={() => setShowForm(true)} type="button">
-          Novo Convite
-        </button>
-      )}
+        <div className="mb-4 flex items-center gap-2">
+          <label htmlFor="status-filter" className="text-sm font-medium text-neutral-700">Filtrar por status</label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            data-testid="status-filter"
+            className="px-3 py-1.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Todos</option>
+            <option value="pending">Pendente</option>
+            <option value="accepted">Aceito</option>
+            <option value="expired">Expirado</option>
+          </select>
+        </div>
 
-      {showForm && (
-        <InvitationForm
-          onSubmit={(data) => createMutation.mutate(data)}
-          onCancel={() => { setShowForm(false); setSubmitError(null) }}
-          isPending={createMutation.isPending}
-          submitError={submitError}
-          setSubmitError={setSubmitError}
-        />
-      )}
+        {filtered.length === 0 && !showForm && (
+          <EmptyState
+            title="Nenhum convite"
+            description="Convide usuários para fazer parte da organização."
+          />
+        )}
 
-      <div>
-        <label htmlFor="status-filter">Filtrar por status</label>
-        <select
-          id="status-filter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          data-testid="status-filter"
-        >
-          <option value="">Todos</option>
-          <option value="pending">Pendente</option>
-          <option value="accepted">Aceito</option>
-          <option value="expired">Expirado</option>
-        </select>
-      </div>
-
-      {filtered.length === 0 && !showForm && (
-        <EmptyState
-          title="Nenhum convite"
-          description="Convide usuários para fazer parte da organização."
-        />
-      )}
-
-      {filtered.length > 0 && (
-        <table data-testid="invitations-table">
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Função</th>
-              <th>Status</th>
-              <th>Expira em</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((invitation) => (
-              <tr key={invitation.id} data-testid="invitation-row">
-                <td>{invitation.email}</td>
-                <td>{ROLE_LABELS[invitation.role] ?? invitation.role}</td>
-                <td>{STATUS_LABELS[invitation.status] ?? invitation.status}</td>
-                <td>{new Date(invitation.expires_at).toLocaleDateString('pt-BR')}</td>
-                <td>
-                  {invitation.status === 'pending' && (
-                    <button
-                      onClick={() => resendMutation.mutate(invitation.id)}
-                      type="button"
-                      disabled={resendMutation.isPending}
-                    >
-                      Reenviar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+        {filtered.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="invitations-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Função</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Expira em</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((invitation) => (
+                  <tr key={invitation.id} data-testid="invitation-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    <td className="px-4 py-3 text-neutral-700">{invitation.email}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="neutral">{ROLE_LABELS[invitation.role] ?? invitation.role}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={invitation.status === 'accepted' ? 'success' : invitation.status === 'pending' ? 'warning' : 'danger'}>
+                        {STATUS_LABELS[invitation.status] ?? invitation.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-neutral-700">{new Date(invitation.expires_at).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-3">
+                      {invitation.status === 'pending' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => resendMutation.mutate(invitation.id)}
+                          loading={resendMutation.isPending}
+                        >
+                          Reenviar
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

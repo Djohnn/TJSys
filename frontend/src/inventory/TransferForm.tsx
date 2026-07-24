@@ -11,6 +11,8 @@ import { isApiProblemError } from '@/api/problem'
 import { transferSchema, type TransferFormData } from './inventorySchemas'
 import { createMovement } from './inventoryApi'
 import type { PaginatedResponse } from './inventoryApi'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
 
 export default function TransferForm(): ReactNode {
   const { selectedTenant } = useTenant()
@@ -59,63 +61,66 @@ export default function TransferForm(): ReactNode {
   const branches = branchesData?.results ?? []
 
   return (
-    <div data-testid="transfer-form">
-      <h2>Transferência de Estoque</h2>
-      <form
-        onSubmit={handleSubmit((data) => mutation.mutate(data))}
-      >
-        <div>
-          <label htmlFor="transfer-product">Produto</label>
-          <input id="transfer-product" {...register('product')} placeholder="Buscar produto..." />
-          {errors.product && <span role="alert" style={{ color: 'red' }}>{errors.product.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="transfer-source">Filial Origem</label>
-          <select id="transfer-source" {...register('source_branch')}>
-            <option value="">Selecione...</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          {errors.source_branch && <span role="alert" style={{ color: 'red' }}>{errors.source_branch.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="transfer-destination">Filial Destino</label>
-          <select id="transfer-destination" {...register('destination_branch')}>
-            <option value="">Selecione...</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          {errors.destination_branch && <span role="alert" style={{ color: 'red' }}>{errors.destination_branch.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="transfer-quantity">Quantidade</label>
-          <input id="transfer-quantity" {...register('quantity')} />
-          {errors.quantity && <span role="alert" style={{ color: 'red' }}>{errors.quantity.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="transfer-reason">Motivo</label>
-          <input id="transfer-reason" {...register('reason')} />
-          {errors.reason && <span role="alert" style={{ color: 'red' }}>{errors.reason.message}</span>}
-        </div>
-
-        <div>
-          <button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Transferindo...' : 'Realizar Transferência'}
-          </button>
-        </div>
-
-        {mutation.isError && isApiProblemError(mutation.error) && !mutation.error.problem.errors && (
-          <div data-testid="form-error" role="alert" style={{ color: 'red' }}>
-            {mutation.error.problem.detail}
+    <div data-testid="transfer-form" className="p-6 space-y-6">
+      <h2 className="text-2xl font-bold text-neutral-900">Transferência de Estoque</h2>
+      <Card>
+        <form
+          onSubmit={handleSubmit((data) => mutation.mutate(data))}
+          className="space-y-4"
+        >
+          <div>
+            <label htmlFor="transfer-product" className="block text-sm font-medium text-neutral-700 mb-1">Produto</label>
+            <input id="transfer-product" {...register('product')} placeholder="Buscar produto..." className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.product && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.product.message}</span>}
           </div>
-        )}
-      </form>
+
+          <div>
+            <label htmlFor="transfer-source" className="block text-sm font-medium text-neutral-700 mb-1">Filial Origem</label>
+            <select id="transfer-source" {...register('source_branch')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+              <option value="">Selecione...</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            {errors.source_branch && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.source_branch.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="transfer-destination" className="block text-sm font-medium text-neutral-700 mb-1">Filial Destino</label>
+            <select id="transfer-destination" {...register('destination_branch')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+              <option value="">Selecione...</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            {errors.destination_branch && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.destination_branch.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="transfer-quantity" className="block text-sm font-medium text-neutral-700 mb-1">Quantidade</label>
+            <input id="transfer-quantity" {...register('quantity')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.quantity && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.quantity.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="transfer-reason" className="block text-sm font-medium text-neutral-700 mb-1">Motivo</label>
+            <input id="transfer-reason" {...register('reason')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.reason && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.reason.message}</span>}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" disabled={mutation.isPending} loading={mutation.isPending}>
+              {mutation.isPending ? 'Transferindo...' : 'Realizar Transferência'}
+            </Button>
+          </div>
+
+          {mutation.isError && isApiProblemError(mutation.error) && !mutation.error.problem.errors && (
+            <div data-testid="form-error" role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {mutation.error.problem.detail}
+            </div>
+          )}
+        </form>
+      </Card>
     </div>
   )
 }

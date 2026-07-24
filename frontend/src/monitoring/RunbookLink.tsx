@@ -13,7 +13,7 @@ export default function RunbookLink({ label, url, testId }: RunbookLinkProps): R
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="runbook-link"
+      className="inline-flex items-center gap-2 px-4 py-3 bg-surface rounded-xl border border-border text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
     >
       {label}
     </a>

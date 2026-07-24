@@ -11,6 +11,8 @@ import { isApiProblemError } from '@/api/problem'
 import { receiptSchema, type ReceiptFormData } from './inventorySchemas'
 import { createMovement } from './inventoryApi'
 import type { PaginatedResponse } from './inventoryApi'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
 
 export default function ReceiptForm(): ReactNode {
   const { selectedTenant } = useTenant()
@@ -63,57 +65,60 @@ export default function ReceiptForm(): ReactNode {
   const branches = branchesData?.results ?? []
 
   return (
-    <div data-testid="receipt-form">
-      <h2>Entrada de Estoque</h2>
-      <form
-        onSubmit={handleSubmit((data) => mutation.mutate(data))}
-      >
-        <div>
-          <label htmlFor="receipt-product">Produto</label>
-          <input id="receipt-product" {...register('product')} placeholder="Buscar produto..." />
-          {errors.product && <span role="alert" style={{ color: 'red' }}>{errors.product.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="receipt-branch">Filial</label>
-          <select id="receipt-branch" {...register('branch')}>
-            <option value="">Selecione...</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          {errors.branch && <span role="alert" style={{ color: 'red' }}>{errors.branch.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="receipt-location">Localização</label>
-          <input id="receipt-location" {...register('location')} />
-          {errors.location && <span role="alert" style={{ color: 'red' }}>{errors.location.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="receipt-quantity">Quantidade</label>
-          <input id="receipt-quantity" {...register('quantity')} />
-          {errors.quantity && <span role="alert" style={{ color: 'red' }}>{errors.quantity.message}</span>}
-        </div>
-
-        <div>
-          <label htmlFor="receipt-reference">Referência</label>
-          <input id="receipt-reference" {...register('reference')} />
-        </div>
-
-        <div>
-          <button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Registrando...' : 'Registrar Entrada'}
-          </button>
-        </div>
-
-        {mutation.isError && isApiProblemError(mutation.error) && !mutation.error.problem.errors && (
-          <div data-testid="form-error" role="alert" style={{ color: 'red' }}>
-            {mutation.error.problem.detail}
+    <div data-testid="receipt-form" className="p-6 space-y-6">
+      <h2 className="text-2xl font-bold text-neutral-900">Entrada de Estoque</h2>
+      <Card>
+        <form
+          onSubmit={handleSubmit((data) => mutation.mutate(data))}
+          className="space-y-4"
+        >
+          <div>
+            <label htmlFor="receipt-product" className="block text-sm font-medium text-neutral-700 mb-1">Produto</label>
+            <input id="receipt-product" {...register('product')} placeholder="Buscar produto..." className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.product && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.product.message}</span>}
           </div>
-        )}
-      </form>
+
+          <div>
+            <label htmlFor="receipt-branch" className="block text-sm font-medium text-neutral-700 mb-1">Filial</label>
+            <select id="receipt-branch" {...register('branch')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+              <option value="">Selecione...</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            {errors.branch && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.branch.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="receipt-location" className="block text-sm font-medium text-neutral-700 mb-1">Localização</label>
+            <input id="receipt-location" {...register('location')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.location && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.location.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="receipt-quantity" className="block text-sm font-medium text-neutral-700 mb-1">Quantidade</label>
+            <input id="receipt-quantity" {...register('quantity')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            {errors.quantity && <span role="alert" className="text-xs text-red-600 mt-1 block">{errors.quantity.message}</span>}
+          </div>
+
+          <div>
+            <label htmlFor="receipt-reference" className="block text-sm font-medium text-neutral-700 mb-1">Referência</label>
+            <input id="receipt-reference" {...register('reference')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" disabled={mutation.isPending} loading={mutation.isPending}>
+              {mutation.isPending ? 'Registrando...' : 'Registrar Entrada'}
+            </Button>
+          </div>
+
+          {mutation.isError && isApiProblemError(mutation.error) && !mutation.error.problem.errors && (
+            <div data-testid="form-error" role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {mutation.error.problem.detail}
+            </div>
+          )}
+        </form>
+      </Card>
     </div>
   )
 }

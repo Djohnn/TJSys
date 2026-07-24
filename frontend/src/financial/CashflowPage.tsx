@@ -8,6 +8,8 @@ import { fetchCashflow } from './financialApi'
 import type { PaginatedResponse } from './financialApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
 
 function formatCurrency(value: string | null): string {
   if (value === null) return '-'
@@ -70,75 +72,92 @@ export default function CashflowPage() {
 
   return (
     <div data-testid="cashflow-page">
-      <h2>Fluxo de Caixa</h2>
+      <Card title="Fluxo de Caixa">
+        <div data-testid="cashflow-filters" className="flex flex-wrap items-end gap-4 mb-6">
+          <div>
+            <label htmlFor="cf-date-from" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Data inicial</label>
+            <input
+              id="cf-date-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setFilter('date_from', e.target.value)}
+              aria-label="Data inicial"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="cf-date-to" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Data final</label>
+            <input
+              id="cf-date-to"
+              type="date"
+              value={dateTo}
+              onChange={(e) => setFilter('date_to', e.target.value)}
+              aria-label="Data final"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="cf-branch" className="block text-sm font-medium text-neutral-700 mb-1 sr-only">Filial</label>
+            <select
+              id="cf-branch"
+              value={branchFilter}
+              onChange={(e) => setFilter('branch', e.target.value)}
+              aria-label="Filtrar por filial"
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            >
+              <option value="">Todas as filiais</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      <div data-testid="cashflow-filters">
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setFilter('date_from', e.target.value)}
-          aria-label="Data inicial"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setFilter('date_to', e.target.value)}
-          aria-label="Data final"
-        />
-        <select
-          value={branchFilter}
-          onChange={(e) => setFilter('branch', e.target.value)}
-          aria-label="Filtrar por filial"
-        >
-          <option value="">Todas as filiais</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
-      </div>
+        {entries.length === 0 && (
+          <EmptyState title="Nenhum lançamento encontrado" description="Nenhum lançamento de fluxo de caixa." />
+        )}
 
-      {entries.length === 0 && (
-        <EmptyState title="Nenhum lançamento encontrado" description="Nenhum lançamento de fluxo de caixa." />
-      )}
+        {entries.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="cashflow-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Data</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Descrição</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Entrada</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Saída</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Saldo</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Filial</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr key={entry.id} data-testid="cashflow-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    <td className="px-4 py-3 text-neutral-700">{new Date(entry.date).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-3 text-neutral-700">{entry.description}</td>
+                    <td className="px-4 py-3 text-green-700 font-medium">{entry.inflow ? `R$ ${formatCurrency(entry.inflow)}` : '-'}</td>
+                    <td className="px-4 py-3 text-red-700 font-medium">{entry.outflow ? `R$ ${formatCurrency(entry.outflow)}` : '-'}</td>
+                    <td className="px-4 py-3 text-neutral-700">R$ {formatCurrency(entry.balance)}</td>
+                    <td className="px-4 py-3 text-neutral-700">{entry.branch_name ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {entries.length > 0 && (
-        <table data-testid="cashflow-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Descrição</th>
-              <th>Entrada</th>
-              <th>Saída</th>
-              <th>Saldo</th>
-              <th>Filial</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr key={entry.id} data-testid="cashflow-row">
-                <td>{new Date(entry.date).toLocaleDateString('pt-BR')}</td>
-                <td>{entry.description}</td>
-                <td>{entry.inflow ? `R$ ${formatCurrency(entry.inflow)}` : '-'}</td>
-                <td>{entry.outflow ? `R$ ${formatCurrency(entry.outflow)}` : '-'}</td>
-                <td>R$ {formatCurrency(entry.balance)}</td>
-                <td>{entry.branch_name ?? '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {totalPages > 1 && (
-        <nav aria-label="Paginação">
-          <button disabled={page <= 1} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page - 1)); setSearchParams(next) }} type="button">
-            Anterior
-          </button>
-          <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page + 1)); setSearchParams(next) }} type="button">
-            Próxima
-          </button>
-        </nav>
-      )}
+        {totalPages > 1 && (
+          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 mt-6">
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page - 1)); setSearchParams(next) }} type="button">
+              Anterior
+            </Button>
+            <span className="text-sm text-neutral-600">Página {page} de {totalPages}</span>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page + 1)); setSearchParams(next) }} type="button">
+              Próxima
+            </Button>
+          </nav>
+        )}
+      </Card>
     </div>
   )
 }

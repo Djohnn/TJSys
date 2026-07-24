@@ -10,6 +10,9 @@ import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import PersonForm from './PersonForm'
 import type { PersonFormData } from './peopleSchemas'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 
 const ROLE_LABELS: Record<string, string> = {
   customer: 'Cliente',
@@ -123,117 +126,134 @@ export default function PeoplePage({ hasPiiPermission = true }: PeoplePageProps)
 
   return (
     <div data-testid="people-page">
-      <h2>Pessoas</h2>
+      <Card title="Pessoas">
+        <div className="flex flex-wrap items-end gap-4 mb-6">
+          <form onSubmit={handleSearch} className="flex items-end gap-2">
+            <div>
+              <label htmlFor="search-input" className="sr-only">Buscar pessoas</label>
+              <input
+                id="search-input"
+                aria-label="Buscar pessoas"
+                placeholder="Buscar por nome ou documento..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="block w-64 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              />
+            </div>
+            <Button variant="secondary" size="sm" type="submit">Buscar</Button>
+          </form>
 
-      <form onSubmit={handleSearch}>
-        <input
-          aria-label="Buscar pessoas"
-          placeholder="Buscar por nome ou documento..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
-        <button type="submit">Buscar</button>
-      </form>
+          <div>
+            <label htmlFor="filter-role" className="block text-sm font-medium text-neutral-700 mb-1">Função</label>
+            <select
+              id="filter-role"
+              value={role}
+              onChange={(e) => handleRoleChange(e.target.value)}
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            >
+              <option value="">Todas</option>
+              <option value="customer">Cliente</option>
+              <option value="supplier">Fornecedor</option>
+              <option value="employee">Funcionário</option>
+            </select>
+          </div>
 
-      <div>
-        <label htmlFor="filter-role">Função</label>
-        <select
-          id="filter-role"
-          value={role}
-          onChange={(e) => handleRoleChange(e.target.value)}
-        >
-          <option value="">Todas</option>
-          <option value="customer">Cliente</option>
-          <option value="supplier">Fornecedor</option>
-          <option value="employee">Funcionário</option>
-        </select>
-      </div>
+          <div>
+            <label htmlFor="filter-active" className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
+            <select
+              id="filter-active"
+              value={active}
+              onChange={(e) => handleActiveChange(e.target.value)}
+              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            >
+              <option value="">Todos</option>
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
 
-      <div>
-        <label htmlFor="filter-active">Status</label>
-        <select
-          id="filter-active"
-          value={active}
-          onChange={(e) => handleActiveChange(e.target.value)}
-        >
-          <option value="">Todos</option>
-          <option value="true">Ativo</option>
-          <option value="false">Inativo</option>
-        </select>
-      </div>
+          {!showForm && people.length > 0 && (
+            <Button variant="primary" size="sm" onClick={() => setShowForm(true)} type="button">
+              Nova Pessoa
+            </Button>
+          )}
+        </div>
 
-      {!showForm && people.length > 0 && (
-        <button onClick={() => setShowForm(true)} type="button">
-          Nova Pessoa
-        </button>
-      )}
+        {showForm && (
+          <div className="mb-6">
+            <PersonForm
+              onSubmit={(data) => createMutation.mutate(data)}
+              onCancel={() => { setShowForm(false); setSubmitError(null) }}
+              isPending={createMutation.isPending}
+              submitError={submitError}
+              setSubmitError={setSubmitError}
+            />
+          </div>
+        )}
 
-      {showForm && (
-        <PersonForm
-          onSubmit={(data) => createMutation.mutate(data)}
-          onCancel={() => { setShowForm(false); setSubmitError(null) }}
-          isPending={createMutation.isPending}
-          submitError={submitError}
-          setSubmitError={setSubmitError}
-        />
-      )}
+        {people.length === 0 && !showForm && (
+          <EmptyState
+            title="Nenhuma pessoa"
+            description="Cadastre sua primeira pessoa para começar."
+            action={
+              <Button variant="primary" onClick={() => setShowForm(true)} type="button">
+                Criar Pessoa
+              </Button>
+            }
+          />
+        )}
 
-      {people.length === 0 && !showForm && (
-        <EmptyState
-          title="Nenhuma pessoa"
-          description="Cadastre sua primeira pessoa para começar."
-          action={
-            <button onClick={() => setShowForm(true)} type="button">
-              Criar Pessoa
-            </button>
-          }
-        />
-      )}
+        {people.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table data-testid="people-table" className="w-full text-sm">
+              <thead>
+                <tr className="bg-neutral-50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Nome</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Documento</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Tipo</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Função</th>
+                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {people.map((person) => (
+                  <tr key={person.id} data-testid="person-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    <td className="px-4 py-3 text-neutral-700">
+                      <Link to={`/people/${person.id}`} className="text-primary-600 hover:text-primary-700 font-medium">{person.name}</Link>
+                    </td>
+                    <td className="px-4 py-3 text-neutral-700">{hasPiiPermission ? person.document : maskDocument(person.document)}</td>
+                    <td className="px-4 py-3 text-neutral-700">{person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</td>
+                    <td className="px-4 py-3 text-neutral-700">{ROLE_LABELS[person.role] ?? person.role}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={person.is_active ? 'success' : 'neutral'}>{person.is_active ? 'Ativo' : 'Inativo'}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {people.length > 0 && (
-        <table data-testid="people-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Documento</th>
-              <th>Tipo</th>
-              <th>Função</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {people.map((person) => (
-              <tr key={person.id} data-testid="person-row">
-                <td><Link to={`/people/${person.id}`}>{person.name}</Link></td>
-                <td>{hasPiiPermission ? person.document : maskDocument(person.document)}</td>
-                <td>{person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</td>
-                <td>{ROLE_LABELS[person.role] ?? person.role}</td>
-                <td>{person.is_active ? 'Ativo' : 'Inativo'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {totalPages > 1 && (
-        <nav aria-label="Paginação">
-          <button disabled={page <= 1} onClick={() => {
-            const params = new URLSearchParams(searchParams)
-            params.set('page', String(page - 1))
-            setSearchParams(params)
-          }} type="button">
-            Anterior
-          </button>
-          <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => {
-            const params = new URLSearchParams(searchParams)
-            params.set('page', String(page + 1))
-            setSearchParams(params)
-          }} type="button">
-            Próxima
-          </button>
-        </nav>
-      )}
+        {totalPages > 1 && (
+          <nav aria-label="Paginação" className="flex items-center justify-center gap-4 mt-6">
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => {
+              const params = new URLSearchParams(searchParams)
+              params.set('page', String(page - 1))
+              setSearchParams(params)
+            }} type="button">
+              Anterior
+            </Button>
+            <span className="text-sm text-neutral-600">Página {page} de {totalPages}</span>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => {
+              const params = new URLSearchParams(searchParams)
+              params.set('page', String(page + 1))
+              setSearchParams(params)
+            }} type="button">
+              Próxima
+            </Button>
+          </nav>
+        )}
+      </Card>
     </div>
   )
 }
