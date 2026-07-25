@@ -259,6 +259,7 @@ export default function ProductForm({
                   </option>
                 ))}
               </select>
+              {tenantId && (
               <button
                 type="button"
                 onClick={() => setShowCatModal(true)}
@@ -267,6 +268,7 @@ export default function ProductForm({
               >
                 + Nova
               </button>
+              )}
             </div>
           </div>
 
@@ -281,6 +283,7 @@ export default function ProductForm({
                   </option>
                 ))}
               </select>
+              {tenantId && (
               <button
                 type="button"
                 onClick={() => setShowUnitModal(true)}
@@ -289,6 +292,7 @@ export default function ProductForm({
               >
                 + Nova
               </button>
+              )}
             </div>
           </div>
 
