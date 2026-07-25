@@ -148,6 +148,17 @@ export function fetchUnits(
   }) as Promise<PaginatedResponse<Unit>>
 }
 
+export function createUnit(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<Unit> {
+  return apiRequest<Unit>('/catalog/units/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<Unit>
+}
+
 export function fetchProductFiscalData(
   tenantId: string,
   productId: string,
