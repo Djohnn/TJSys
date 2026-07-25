@@ -35,6 +35,7 @@ export default function CategoryQuickCreateModal({ open, tenantId, onClose }: Ca
   })
 
   function handleCreate() {
+    if (!tenantId) return
     setError(null)
     mutation.mutate(name.trim())
   }

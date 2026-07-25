@@ -36,6 +36,7 @@ export default function UnitQuickCreateModal({ open, tenantId, onClose }: UnitQu
   })
 
   function handleCreate() {
+    if (!tenantId) return
     setError(null)
     mutation.mutate({ symbol: symbol.trim().toUpperCase(), name: name.trim() })
   }
