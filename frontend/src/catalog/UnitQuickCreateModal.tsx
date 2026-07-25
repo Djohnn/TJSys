@@ -17,9 +17,9 @@ export default function UnitQuickCreateModal({ open, tenantId, onClose }: UnitQu
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-const mutation = useMutation({
-    mutationFn: (data: { symbol: string; name: string }) => createUnit(tenantId, data),
-    onSuccess: (newUnit) => {
+  const mutation = useMutation({
+    mutationFn: () => createUnit(tenantId, { symbol, name }),
+    onSuccess: (newUnit: unknown) => {
       queryClient.setQueryData(['units', tenantId], (old: unknown) => {
         if (old && typeof old === 'object' && 'results' in old) {
           const data = old as { results: unknown[] }
@@ -29,7 +29,7 @@ const mutation = useMutation({
       })
       setSymbol('')
       setName('')
-      setError('')
+      setError(null)
       onClose()
     },
     onError: (err: unknown) => {
