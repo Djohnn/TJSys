@@ -24,6 +24,8 @@ import {
   type PriceTierFormData,
 } from './catalogSchemas'
 import Button from '@/components/ui/Button'
+import CategoryQuickCreateModal from './CategoryQuickCreateModal'
+import UnitQuickCreateModal from './UnitQuickCreateModal'
 
 const PRODUCT_KIND_OPTIONS = [
   { value: '', label: 'Selecione...' },
@@ -81,6 +83,8 @@ export default function ProductForm({
   const queryClient = useQueryClient()
   const tenantId = selectedTenant?.tenant_id ?? ''
 
+  const [showCatModal, setShowCatModal] = useState(false)
+  const [showUnitModal, setShowUnitModal] = useState(false)
   const [fiscalWarning, setFiscalWarning] = useState<string | null>(null)
 
   const { data: categoriesData } = useQuery({
@@ -246,26 +250,46 @@ export default function ProductForm({
 
           <div>
             <label htmlFor="product-category" className="block text-sm font-medium text-neutral-700 mb-1">Categoria</label>
-            <select id="product-category" {...register('category')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
-              <option value="">Selecione...</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select id="product-category" {...register('category')} className="flex-1 px-3 py-2 border border-border rounded-lg text-sm">
+                <option value="">Selecione...</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowCatModal(true)}
+                className="text-xs text-primary-600 hover:text-primary-800 cursor-pointer whitespace-nowrap"
+                data-testid="quick-create-category-btn"
+              >
+                + Nova
+              </button>
+            </div>
           </div>
 
           <div>
             <label htmlFor="product-unit" className="block text-sm font-medium text-neutral-700 mb-1">Unidade</label>
-            <select id="product-unit" {...register('unit')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
-              <option value="">Selecione...</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select id="product-unit" {...register('unit')} className="flex-1 px-3 py-2 border border-border rounded-lg text-sm">
+                <option value="">Selecione...</option>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowUnitModal(true)}
+                className="text-xs text-primary-600 hover:text-primary-800 cursor-pointer whitespace-nowrap"
+                data-testid="quick-create-unit-btn"
+              >
+                + Nova
+              </button>
+            </div>
           </div>
 
           <div>
@@ -474,6 +498,9 @@ export default function ProductForm({
           </Button>
         </div>
       </div>
+
+      <CategoryQuickCreateModal open={showCatModal} tenantId={tenantId} onClose={() => setShowCatModal(false)} />
+      <UnitQuickCreateModal open={showUnitModal} tenantId={tenantId} onClose={() => setShowUnitModal(false)} />
     </form>
   )
 }

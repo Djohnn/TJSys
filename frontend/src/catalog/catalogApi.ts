@@ -134,6 +134,17 @@ export function updateCategory(
   }) as Promise<Category>
 }
 
+export function createUnit(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<Unit> {
+  return apiRequest<Unit>('/catalog/units/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<Unit>
+}
+
 export function fetchUnits(
   tenantId: string,
   params: { page?: number } = {},

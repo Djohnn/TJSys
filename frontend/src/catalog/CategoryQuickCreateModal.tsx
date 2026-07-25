@@ -1,55 +1,85 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createCategory } from './catalogApi'
 
-interface Props {
+import { createCategory } from './catalogApi'
+import Modal from '@/components/ui/Modal'
+import Button from '@/components/ui/Button'
+
+interface CategoryQuickCreateModalProps {
   open: boolean
   tenantId: string
   onClose: () => void
 }
 
-export default function CategoryQuickCreateModal({ open, tenantId, onClose }: Props): ReactNode {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
+export default function CategoryQuickCreateModal({ open, tenantId, onClose }: CategoryQuickCreateModalProps) {
   const queryClient = useQueryClient()
+  const [name, setName] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (categoryName: string) => createCategory(tenantId, { name: categoryName }),
+    mutationFn: () => createCategory(tenantId, { name }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] })
+      queryClient.invalidateQueries({ queryKey: ['categories', tenantId] })
       setName('')
-      setError('')
+      setError(null)
       onClose()
     },
     onError: (err: unknown) => {
-      setError(err instanceof Error ? err.message : 'Erro ao criar categoria.')
+      const msg = (err as { problem?: { detail?: string } })?.problem?.detail ?? 'Erro ao criar categoria.'
+      setError(msg)
     },
   })
 
-  if (!open) return null
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    mutation.mutate()
+  }
+
+  function handleClose() {
+    setName('')
+    setError(null)
+    mutation.reset()
+    onClose()
+  }
 
   return (
-    <div data-testid="category-quick-create-modal-overlay" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div data-testid="category-quick-create-modal" className="bg-surface rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
-        <h3 className="text-lg font-semibold mb-4">Nova Categoria</h3>
-        <div className="space-y-3">
-          <div>
-            <label htmlFor="quick-cat-name" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
-            <input id="quick-cat-name" value={name} onChange={e => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="Nome da categoria" data-testid="quick-cat-name-input" />
+    <Modal
+      open={open}
+      title="Nova Categoria"
+      onClose={handleClose}
+      actions={
+        <>
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={mutation.isPending}>Cancelar</Button>
+          <Button
+            type="submit"
+            form="quick-create-category-form"
+            disabled={!name.trim() || mutation.isPending}
+            loading={mutation.isPending}
+          >
+            Criar
+          </Button>
+        </>
+      }
+    >
+      <form id="quick-create-category-form" onSubmit={handleSubmit}>
+        {error && (
+          <div role="alert" data-testid="quick-create-category-error" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {error}
           </div>
-          {error && <p className="text-sm text-danger" data-testid="quick-cat-error">{error}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-neutral-50 cursor-pointer" data-testid="quick-cat-cancel">
-              Cancelar
-            </button>
-            <button type="button" onClick={() => mutation.mutate(name)} disabled={mutation.isPending || !name.trim()}
-              className="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50 cursor-pointer" data-testid="quick-cat-submit">
-              {mutation.isPending ? 'Criando...' : 'Criar'}
-            </button>
-          </div>
+        )}
+        <div>
+          <label htmlFor="quick-category-name" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
+          <input
+            id="quick-category-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+            data-testid="quick-create-category-input"
+            autoFocus
+          />
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   )
 }
