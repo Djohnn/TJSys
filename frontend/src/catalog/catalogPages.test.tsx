@@ -22,6 +22,7 @@ const authValue: AuthContextValue = {
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
+  verifyRecovery: vi.fn(),
   logout: async () => {},
 }
 
@@ -36,9 +37,9 @@ const PRODUCTS_ALL = {
   next: null,
   previous: null,
   results: [
-    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-    { id: 'p2', name: 'Produto B', sku: 'SKU-B', barcode: '456', category: 'cat-2', category_name: 'Categoria B', unit: 'unit-2', unit_name: 'Kg', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-    { id: 'p3', name: 'Produto C', sku: 'SKU-C', barcode: '789', category: null, category_name: '', unit: null, unit_name: '', is_active: false, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'revenda', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'p2', name: 'Produto B', sku: 'SKU-B', barcode: '456', category: 'cat-2', category_name: 'Categoria B', unit: 'unit-2', unit_name: 'Kg', is_active: true, product_kind: 'insumo', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'p3', name: 'Produto C', sku: 'SKU-C', barcode: '789', category: null, category_name: '', unit: null, unit_name: '', is_active: false, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   ],
 }
 
@@ -47,7 +48,7 @@ const PRODUCTS_SEARCH = {
   next: null,
   previous: null,
   results: [
-    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'revenda', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   ],
 }
 
@@ -56,7 +57,7 @@ const PRODUCTS_FILTERED_CAT = {
   next: null,
   previous: null,
   results: [
-    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'revenda', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   ],
 }
 
@@ -162,7 +163,7 @@ beforeEach(() => {
         )
       }
       return HttpResponse.json(
-        { id: 'p-new', name: body.name, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
+        { id: 'p-new', name: body.name, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
         { status: 201 },
       )
     }),
@@ -175,7 +176,7 @@ beforeEach(() => {
         )
       }
       return HttpResponse.json(
-        { id: params.id, ...body, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
+        { id: params.id, ...body, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
       )
     }),
     http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
@@ -199,6 +200,55 @@ beforeEach(() => {
       )
     }),
     http.get(`${BASE}/catalog/units/`, () => HttpResponse.json(UNITS)),
+    http.get(`${BASE}/products/:id/fiscal-data/`, ({ params }) => {
+      if (params.id === 'p-no-fiscal') {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
+          { status: 404 },
+        )
+      }
+      return HttpResponse.json({
+        id: `fd-${params.id}`,
+        product: params.id as string,
+        fiscal_type: '00',
+        ncm: '12345678',
+        cest: '',
+        origin_code: '0',
+        fiscal_class: '',
+      })
+    }),
+    http.post(`${BASE}/products/:id/fiscal-data/`, async ({ request, params }) => {
+      const body = await request.json() as Record<string, unknown>
+      return HttpResponse.json({
+        id: `fd-${params.id}`,
+        product: params.id as string,
+        ...body,
+      })
+    }),
+    http.get(`${BASE}/products/:id/price-tiers/`, ({ params }) => {
+      if (params.id === 'p-no-tiers') {
+        return HttpResponse.json([])
+      }
+      return HttpResponse.json([
+        { id: 'pt-1', product: params.id as string, min_quantity: '1', amount: '10.00' },
+        { id: 'pt-2', product: params.id as string, min_quantity: '10', amount: '8.50' },
+      ])
+    }),
+    http.post(`${BASE}/products/:id/price-tiers/`, async ({ request, params }) => {
+      const body = await request.json() as { min_quantity?: string; amount?: string }
+      return HttpResponse.json(
+        {
+          id: `pt-${Date.now()}`,
+          product: params.id as string,
+          min_quantity: body.min_quantity ?? '1',
+          amount: body.amount ?? '0',
+        },
+        { status: 201 },
+      )
+    }),
+    http.delete(`${BASE}/products/:id/price-tiers/:tierId/`, () => {
+      return new HttpResponse(null, { status: 204 })
+    }),
   )
 })
 
@@ -261,7 +311,7 @@ describe('ProductsPage', () => {
     expect(screen.getByTestId('product-form')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText(/nome/i), 'Produto Novo')
-    await user.click(screen.getByRole('button', { name: /salvar/i }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => {
       expect(screen.queryByTestId('product-form')).not.toBeInTheDocument()
@@ -277,7 +327,7 @@ describe('ProductsPage', () => {
     })
 
     await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    await user.click(screen.getByRole('button', { name: /salvar/i }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Nome é obrigatório/i)).toBeInTheDocument()
@@ -294,7 +344,7 @@ describe('ProductsPage', () => {
 
     await user.click(screen.getByRole('button', { name: /novo produto/i }))
     await user.type(screen.getByLabelText(/nome/i), 'Conflito')
-    await user.click(screen.getByRole('button', { name: /salvar/i }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('form-error')).toHaveTextContent(/já existe/i)
@@ -316,7 +366,7 @@ describe('ProductsPage', () => {
     const nameInput = screen.getByLabelText(/nome/i)
     await user.clear(nameInput)
     await user.type(nameInput, 'Produto A Editado')
-    await user.click(screen.getByRole('button', { name: /salvar/i }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() => {
       expect(screen.queryByTestId('product-form')).not.toBeInTheDocument()
@@ -421,6 +471,181 @@ describe('UnitsPage', () => {
     renderUnitsPage()
     await waitFor(() => {
       expect(screen.getByTestId('empty-state')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('Product form – Dados Comerciais', () => {
+  it('shows new fields in create form', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /novo produto/i }))
+    expect(screen.getByTestId('product-form')).toBeInTheDocument()
+
+    expect(screen.getByText('Dados Comerciais')).toBeInTheDocument()
+    expect(screen.getByTestId('product-kind-select')).toBeInTheDocument()
+    expect(screen.getByTestId('product-brand-input')).toBeInTheDocument()
+    expect(screen.getByTestId('product-model-input')).toBeInTheDocument()
+    expect(screen.getByTestId('product-tags-input')).toBeInTheDocument()
+    expect(screen.getByTestId('product-scale-code-input')).toBeInTheDocument()
+    expect(screen.getByTestId('product-tracks-inventory-checkbox')).toBeInTheDocument()
+  })
+
+  it('shows new fields populated when editing', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    expect(screen.getByTestId('product-form')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-brand-input')).toHaveValue('Marca A')
+    })
+    expect(screen.getByTestId('product-model-input')).toHaveValue('Modelo A')
+    expect(screen.getByTestId('product-tags-input')).toHaveValue('tag1, tag2')
+    expect(screen.getByTestId('product-scale-code-input')).toHaveValue('SC001')
+  })
+})
+
+describe('Product form – Dados Fiscais', () => {
+  it('shows fiscal data section when editing', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fiscal-data-section')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('fiscal-type-select')).toBeInTheDocument()
+    expect(screen.getByTestId('fiscal-ncm-input')).toHaveValue('12345678')
+    expect(screen.getByTestId('fiscal-cest-input')).toBeInTheDocument()
+    expect(screen.getByTestId('fiscal-origin-code-select')).toBeInTheDocument()
+    expect(screen.getByTestId('fiscal-class-input')).toBeInTheDocument()
+  })
+
+  it('saves fiscal data and displays success', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fiscal-data-section')).toBeInTheDocument()
+    })
+
+    await user.clear(screen.getByTestId('fiscal-ncm-input'))
+    await user.type(screen.getByTestId('fiscal-ncm-input'), '87654321')
+    await user.clear(screen.getByTestId('fiscal-cest-input'))
+    await user.type(screen.getByTestId('fiscal-cest-input'), '1234567')
+
+    await user.click(screen.getByRole('button', { name: /salvar dados fiscais/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('fiscal-warning')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('Product form – Preços por Quantidade', () => {
+  it('shows price tiers when editing', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('price-tiers-table')).toBeInTheDocument()
+    const rows = screen.getAllByTestId('price-tier-row')
+    expect(rows).toHaveLength(2)
+  })
+
+  it('creates a new price tier', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByTestId('tier-min-quantity-input'), '50')
+    await user.type(screen.getByTestId('tier-amount-input'), '7.50')
+    await user.click(screen.getByTestId('add-tier-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tier-min-quantity-input')).toHaveValue('')
+    })
+  })
+
+  it('deletes a price tier', async () => {
+    let tiers = [
+      { id: 'pt-1', product: 'p1', min_quantity: '1', amount: '10.00' },
+      { id: 'pt-2', product: 'p1', min_quantity: '10', amount: '8.50' },
+    ]
+    server.use(
+      http.get(`${BASE}/products/p1/price-tiers/`, () => HttpResponse.json(tiers)),
+      http.delete(`${BASE}/products/p1/price-tiers/:tierId/`, ({ params }) => {
+        tiers = tiers.filter((t) => t.id !== params.tierId)
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const editButtons = screen.getAllByRole('button', { name: /editar/i })
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
+    })
+
+    const deleteButton = screen.getByTestId('delete-tier-pt-1')
+    await user.click(deleteButton)
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('delete-tier-pt-1')).not.toBeInTheDocument()
     })
   })
 })

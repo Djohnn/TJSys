@@ -17,6 +17,7 @@ function renderProtected(state: AuthContextValue['state']) {
     memberships: [],
     login: vi.fn(),
     challengeMfa: vi.fn(),
+    verifyRecovery: vi.fn(),
     logout: vi.fn(),
   } satisfies AuthContextValue)
 
@@ -60,6 +61,7 @@ describe('ProtectedRoute', () => {
       memberships: [],
       login: vi.fn(),
       challengeMfa: vi.fn(),
+      verifyRecovery: vi.fn(),
       logout: vi.fn(),
     } satisfies AuthContextValue)
 

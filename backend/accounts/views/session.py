@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, logout
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -12,7 +12,7 @@ from accounts.throttles import LoginThrottle
 from audit.services import create_audit_record
 
 
-@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -32,7 +32,9 @@ class LoginView(APIView):
         request.session.flush()
         request.session['pre_mfa_user_id'] = str(user.id)
         request.session.cycle_key()
-        return Response({'detail': 'MFA required.'}, status=status.HTTP_202_ACCEPTED)
+        return Response({
+            'requires_mfa': True,
+        }, status=status.HTTP_202_ACCEPTED)
 
 
 class LogoutView(APIView):

@@ -10,8 +10,31 @@ export interface Product {
   unit: string | null
   unit_name: string
   is_active: boolean
+  product_kind: string
+  tracks_inventory: boolean
+  brand: string
+  model: string
+  tags: string[]
+  scale_code: string
   created_at: string
   updated_at: string
+}
+
+export interface ProductFiscalData {
+  id: string
+  product: string
+  fiscal_type: string
+  ncm: string
+  cest: string
+  origin_code: string
+  fiscal_class: string
+}
+
+export interface ProductPriceTier {
+  id: string
+  product: string
+  min_quantity: string
+  amount: string
 }
 
 export interface Category {
@@ -123,4 +146,57 @@ export function fetchUnits(
     tenantId,
     signal,
   }) as Promise<PaginatedResponse<Unit>>
+}
+
+export function fetchProductFiscalData(
+  tenantId: string,
+  productId: string,
+): Promise<ProductFiscalData> {
+  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+    tenantId,
+  }) as Promise<ProductFiscalData>
+}
+
+export function upsertProductFiscalData(
+  tenantId: string,
+  productId: string,
+  data: Record<string, unknown>,
+): Promise<ProductFiscalData> {
+  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+    method: 'POST',
+    tenantId,
+    body: data,
+  }) as Promise<ProductFiscalData>
+}
+
+export function fetchProductPriceTiers(
+  tenantId: string,
+  productId: string,
+): Promise<ProductPriceTier[]> {
+  return apiRequest<ProductPriceTier[]>(`/products/${productId}/price-tiers/`, {
+    tenantId,
+  }) as Promise<ProductPriceTier[]>
+}
+
+export function createProductPriceTier(
+  tenantId: string,
+  productId: string,
+  data: Record<string, unknown>,
+): Promise<ProductPriceTier> {
+  return apiRequest<ProductPriceTier>(`/products/${productId}/price-tiers/`, {
+    method: 'POST',
+    tenantId,
+    body: data,
+  }) as Promise<ProductPriceTier>
+}
+
+export function deleteProductPriceTier(
+  tenantId: string,
+  productId: string,
+  tierId: string,
+): Promise<void> {
+  return apiRequest<void>(`/products/${productId}/price-tiers/${tierId}/`, {
+    method: 'DELETE',
+    tenantId,
+  }) as Promise<void>
 }

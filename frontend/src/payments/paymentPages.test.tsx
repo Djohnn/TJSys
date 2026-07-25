@@ -25,6 +25,7 @@ const authValue: AuthContextValue = {
   login: async () => ({ requiresMfa: false }),
   logout: async () => {},
   challengeMfa: async () => {},
+  verifyRecovery: vi.fn(),
 } as AuthContextValue
 
 const tenantValue: TenantContextValue = {

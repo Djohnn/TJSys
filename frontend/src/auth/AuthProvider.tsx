@@ -14,6 +14,7 @@ import {
   fetchMe,
   loginApi,
   challengeMfaApi,
+  verifyRecoveryApi,
   logoutApi,
 } from './authApi'
 import type { User, Membership } from './authApi'
@@ -31,6 +32,7 @@ export interface AuthContextValue {
   memberships: Membership[]
   login: (email: string, password: string) => Promise<LoginResult>
   challengeMfa: (temporaryToken: string, code: string) => Promise<void>
+  verifyRecovery: (tenantId: string, code: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -105,6 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const verifyRecovery = useCallback(
+    async (tenantId: string, code: string): Promise<void> => {
+      await verifyRecoveryApi(tenantId, code)
+      const me = await fetchMe()
+      setUser(me.user ?? null)
+      setMemberships(me.memberships ?? [])
+      setState('authenticated')
+    },
+    [],
+  )
+
   const logout = useCallback(async (): Promise<void> => {
     try {
       await logoutApi()
@@ -118,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ state, user, memberships, login, challengeMfa, logout }}
+      value={{ state, user, memberships, login, challengeMfa, verifyRecovery, logout }}
     >
       {children}
     </AuthContext.Provider>

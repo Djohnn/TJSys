@@ -52,6 +52,16 @@ export async function challengeMfaApi(
   })
 }
 
+export async function verifyRecoveryApi(
+  tenantId: string,
+  code: string,
+): Promise<void> {
+  await apiRequest('/auth/mfa/recovery/verify/', {
+    method: 'POST',
+    body: { tenant_id: tenantId, code },
+  })
+}
+
 export async function fetchMe(): Promise<MeResponse> {
   const result = await apiRequest<MeResponse>('/auth/me/')
   return result as MeResponse
