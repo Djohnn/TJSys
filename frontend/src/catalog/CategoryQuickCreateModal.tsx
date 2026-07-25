@@ -16,12 +16,18 @@ export default function CategoryQuickCreateModal({ open, tenantId, onClose }: Ca
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const mutation = useMutation({
-    mutationFn: () => createCategory(tenantId, { name }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', tenantId] })
+const mutation = useMutation({
+    mutationFn: (categoryName: string) => createCategory(tenantId, { name: categoryName }),
+    onSuccess: (newCategory) => {
+      queryClient.setQueryData(['categories', tenantId], (old: unknown) => {
+        if (old && typeof old === 'object' && 'results' in old) {
+          const data = old as { results: unknown[] }
+          return { ...data, results: [newCategory, ...data.results] }
+        }
+        return old
+      })
       setName('')
-      setError(null)
+      setError('')
       onClose()
     },
     onError: (err: unknown) => {
