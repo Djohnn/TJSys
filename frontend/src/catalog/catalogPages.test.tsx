@@ -684,7 +684,7 @@ describe('Product form – quick create modals', () => {
     await user.click(catBtn)
 
     await waitFor(() => {
-      expect(screen.getByTestId('quick-create-category-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-cat-name-input')).toBeInTheDocument()
     })
   })
 
@@ -700,14 +700,14 @@ describe('Product form – quick create modals', () => {
     await user.click(screen.getByTestId('quick-create-category-btn'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('quick-create-category-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-cat-name-input')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByTestId('quick-create-category-input'), 'Nova Cat')
+    await user.type(screen.getByTestId('quick-cat-name-input'), 'Nova Cat')
     await user.click(screen.getByRole('button', { name: 'Criar' }))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('quick-create-category-input')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('quick-cat-name-input')).not.toBeInTheDocument()
     })
   })
 
@@ -728,8 +728,8 @@ describe('Product form – quick create modals', () => {
     await user.click(unitBtn)
 
     await waitFor(() => {
-      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
-      expect(screen.getByTestId('quick-create-unit-name-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-unit-symbol-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-unit-name-input')).toBeInTheDocument()
     })
   })
 
@@ -745,16 +745,16 @@ describe('Product form – quick create modals', () => {
     await user.click(screen.getByTestId('quick-create-unit-btn'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-unit-symbol-input')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByTestId('quick-create-unit-symbol-input'), 'ERR')
-    await user.type(screen.getByTestId('quick-create-unit-name-input'), 'Erro')
+    await user.type(screen.getByTestId('quick-unit-symbol-input'), 'ERR')
+    await user.type(screen.getByTestId('quick-unit-name-input'), 'Erro')
     await user.click(screen.getByRole('button', { name: 'Criar' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('quick-create-unit-error')).toBeInTheDocument()
-      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-unit-error')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-unit-symbol-input')).toBeInTheDocument()
     })
   })
 })
