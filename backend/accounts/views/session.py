@@ -58,7 +58,24 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({'id': str(request.user.id), 'email': request.user.email})
+        from tenancy.models import TenantMembership
+        memberships_qs = TenantMembership.objects.select_related('tenant').filter(
+            user=request.user, is_active=True, tenant__is_active=True,
+        )
+        memberships = [
+            {
+                'id': str(m.id),
+                'tenant_id': str(m.tenant_id),
+                'tenant_name': m.tenant.name,
+                'role': m.role,
+            }
+            for m in memberships_qs
+        ]
+        return Response({
+            'id': str(request.user.id),
+            'email': request.user.email,
+            'memberships': memberships,
+        })
 
 
 class CSRFView(APIView):
