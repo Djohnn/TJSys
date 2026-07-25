@@ -83,6 +83,16 @@ class Category(TimeStampedModel, TenantScopedModel):
                 current = current.parent
 
 
+PRODUCT_KIND_CHOICES = [
+    ('insumo', 'Insumo'),
+    ('revenda', 'Revenda'),
+    ('servico', 'Servico'),
+    ('brinde', 'Brinde'),
+    ('kit', 'Kit'),
+    ('outro', 'Outro'),
+]
+
+
 class Product(TimeStampedModel, TenantScopedModel):
     sku = models.CharField(max_length=64)
     name = models.CharField(max_length=200)
@@ -96,6 +106,17 @@ class Product(TimeStampedModel, TenantScopedModel):
     ncm = models.CharField(max_length=8, blank=True, default='')
     is_active = models.BooleanField(default=True)
     version = models.PositiveIntegerField(default=1)
+    # Sprint 22 — D1: rótulo de classificação (sem composição real).
+    product_kind = models.CharField(
+        max_length=20, choices=PRODUCT_KIND_CHOICES, blank=True, default='',
+    )
+    # Sprint 22 — D4: flag consumido por Inventory.
+    tracks_inventory = models.BooleanField(default=True)
+    # Sprint 22 — D5: campos descritivos simples.
+    brand = models.CharField(max_length=120, blank=True, default='')
+    model = models.CharField(max_length=120, blank=True, default='')
+    tags = models.JSONField(default=list, blank=True)
+    scale_code = models.CharField(max_length=20, blank=True, default='')
 
     objects = TenantManager()
     all_objects = models.Manager()
@@ -369,3 +390,109 @@ class BranchPrice(TimeStampedModel, TenantScopedModel):
                 raise ValidationError(
                     {'valid_from': 'Overlapping price period for this product and branch.'}
                 )
+
+
+# =============================================================================
+# Sprint 22 — D3: ProductFiscalData (cadastro fiscal do produto, 1:1)
+# =============================================================================
+
+FISCAL_TYPE_CHOICES = [
+    ('', 'Nao classificado'),
+    ('revenda', 'Revenda'),
+    ('industrializacao', 'Industrializacao'),
+    ('servico', 'Servico'),
+    ('uso_consumo', 'Uso e Consumo'),
+    ('outro', 'Outro'),
+]
+
+
+class ProductFiscalData(TimeStampedModel, TenantScopedModel):
+    product = models.OneToOneField(
+        Product, on_delete=models.CASCADE, related_name='fiscal_data',
+    )
+    fiscal_type = models.CharField(
+        max_length=30, choices=FISCAL_TYPE_CHOICES, blank=True, default='',
+    )
+    ncm = models.CharField(max_length=8, blank=True, default='')
+    cest = models.CharField(max_length=10, blank=True, default='')
+    origin_code = models.CharField(max_length=1, blank=True, default='')
+    fiscal_class = models.CharField(max_length=10, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['product']
+
+    def __str__(self):
+        return f'FiscalData({self.product.sku}) NCM={self.ncm}'
+
+    def clean(self):
+        super().clean()
+        if self.product_id and self.tenant_id:
+            if self.product.tenant_id != self.tenant_id:
+                raise ValidationError(
+                    {'product': 'Product must belong to the same tenant.'}
+                )
+        if self.origin_code and self.origin_code not in '012345678':
+            raise ValidationError(
+                {'origin_code': 'Origin code must be a digit 0-8.'}
+            )
+
+
+# =============================================================================
+# Sprint 22 — D2: ProductPriceTier (preco por quantidade minima)
+# =============================================================================
+
+
+class ProductPriceTier(TimeStampedModel, TenantScopedModel):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='price_tiers',
+    )
+    price = models.ForeignKey(
+        'ProductPrice', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='tiers',
+    )
+    min_quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    amount = models.DecimalField(max_digits=18, decimal_places=4)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['product', 'min_quantity']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(min_quantity__gt=0),
+                name='productpricetier_min_quantity_positive',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=0),
+                name='productpricetier_amount_nonneg',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'product', 'min_quantity'],
+                condition=models.Q(is_active=True),
+                name='uniq_productpricetier_tenant_product_qty_active',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.product.sku} >= {self.min_quantity} = {self.amount}'
+
+    def clean(self):
+        super().clean()
+        if self.min_quantity <= 0:
+            raise ValidationError(
+                {'min_quantity': 'Minimum quantity must be positive.'}
+            )
+        if self.amount < 0:
+            raise ValidationError({'amount': 'Tier amount must not be negative.'})
+        if self.product_id and not self.product.is_active:
+            raise ValidationError(
+                {'product': 'Cannot add price tiers to an inactive product.'}
+            )
