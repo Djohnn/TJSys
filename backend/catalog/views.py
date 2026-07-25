@@ -11,7 +11,9 @@ from catalog.models import (
     Category,
     Product,
     ProductCode,
+    ProductFiscalData,
     ProductPrice,
+    ProductPriceTier,
     ProductUnit,
     Unit,
 )
@@ -20,7 +22,9 @@ from catalog.serializers import (
     BranchPriceSerializer,
     CategorySerializer,
     ProductCodeSerializer,
+    ProductFiscalDataSerializer,
     ProductPriceSerializer,
+    ProductPriceTierSerializer,
     ProductSerializer,
     ProductUnitSerializer,
     UnitSerializer,
@@ -319,6 +323,106 @@ class BranchPriceViewSet(CatalogViewSetBase):
             request=self.request,
         )
         return instance
+
+
+# =========================================================================
+# Sprint 22 — ProductFiscalData (1:1 nested under product)
+# =========================================================================
+
+
+class ProductFiscalDataView(APIView):
+    permission_classes = [
+        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
+
+    def get(self, request, product_pk):
+        product = get_object_or_404(
+            Product, id=product_pk, tenant=request.tenant,
+        )
+        fd = get_object_or_404(
+            ProductFiscalData, product=product, tenant=request.tenant,
+        )
+        serializer = ProductFiscalDataSerializer(fd)
+        return Response(serializer.data)
+
+    def post(self, request, product_pk):
+        product = get_object_or_404(
+            Product, id=product_pk, tenant=request.tenant,
+        )
+        existing = ProductFiscalData.objects.filter(
+            product=product, tenant=request.tenant,
+        ).first()
+
+        if existing is not None:
+            serializer = ProductFiscalDataSerializer(
+                existing, data=request.data, partial=True,
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(tenant=request.tenant, product=product)
+            emit_catalog_event(
+                action='catalog.productfiscaldata.updated',
+                event_type='catalog.productfiscaldata.updated',
+                instance=existing,
+                request=request,
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        serializer = ProductFiscalDataSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(tenant=request.tenant, product=product)
+        emit_catalog_event(
+            action='catalog.productfiscaldata.created',
+            event_type='catalog.productfiscaldata.created',
+            instance=serializer.instance,
+            request=request,
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# =========================================================================
+# Sprint 22 — ProductPriceTier (collection nested under product)
+# =========================================================================
+
+
+class ProductPriceTierViewSet(CatalogViewSetBase):
+    queryset = ProductPriceTier.objects.select_related('product', 'price')
+    serializer_class = ProductPriceTierSerializer
+    permission_classes = [
+        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        PricingCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            product_id=self.kwargs.get('product_pk'),
+        )
+
+    def perform_create(self, serializer):
+        product = get_object_or_404(
+            Product, id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
+        )
+        instance = serializer.save(
+            tenant=self.request.tenant, product=product,
+        )
+        emit_catalog_event(
+            action='catalog.productpricetier.created',
+            event_type='catalog.productpricetier.created',
+            instance=instance,
+            request=self.request,
+        )
+        return instance
+
+    def perform_destroy(self, instance):
+        emit_catalog_event(
+            action='catalog.productpricetier.deactivated',
+            event_type='catalog.productpricetier.deactivated',
+            instance=instance,
+            request=self.request,
+        )
+        instance.is_active = False
+        instance.save(update_fields=['is_active', 'updated_at'])
 
 
 class EffectivePriceView(APIView):

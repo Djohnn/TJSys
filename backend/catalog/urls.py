@@ -6,6 +6,8 @@ from catalog.views import (
     CategoryViewSet,
     EffectivePriceView,
     ProductCodeViewSet,
+    ProductFiscalDataView,
+    ProductPriceTierViewSet,
     ProductPriceViewSet,
     ProductUnitViewSet,
     ProductViewSet,
@@ -83,5 +85,26 @@ urlpatterns = [
             'patch': 'partial_update', 'delete': 'destroy',
         }),
         name='branch-price-detail',
+    ),
+    # Sprint 22 — ProductFiscalData (1:1)
+    path(
+        'products/<uuid:product_pk>/fiscal-data/',
+        ProductFiscalDataView.as_view(),
+        name='product-fiscal-data',
+    ),
+    # Sprint 22 — ProductPriceTier (collection)
+    path(
+        'products/<uuid:product_pk>/price-tiers/',
+        ProductPriceTierViewSet.as_view({
+            'get': 'list', 'post': 'create',
+        }),
+        name='product-price-tier-list',
+    ),
+    path(
+        'products/<uuid:product_pk>/price-tiers/<uuid:pk>/',
+        ProductPriceTierViewSet.as_view({
+            'get': 'retrieve', 'delete': 'destroy',
+        }),
+        name='product-price-tier-detail',
     ),
 ]
