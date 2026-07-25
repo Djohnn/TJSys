@@ -182,6 +182,12 @@ beforeEach(() => {
     http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
     http.post(`${BASE}/catalog/categories/`, async ({ request }) => {
       const body = (await request.json()) as { name?: string }
+      if (body.name === 'Erro') {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Duplicate', status: 422, detail: 'Nome duplicado.', errors: { name: ['Ja existe.'] } },
+          { status: 422 },
+        )
+      }
       if (!body.name) {
         return HttpResponse.json(
           { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { name: ['Este campo é obrigatório.'] } },
@@ -200,6 +206,16 @@ beforeEach(() => {
       )
     }),
     http.get(`${BASE}/catalog/units/`, () => HttpResponse.json(UNITS)),
+    http.post(`${BASE}/catalog/units/`, async ({ request }) => {
+      const body = (await request.json()) as { symbol?: string; name?: string }
+      if (body.symbol === 'ERR') {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Duplicate', status: 422, detail: 'Simbolo duplicado.' },
+          { status: 422 },
+        )
+      }
+      return HttpResponse.json({ id: 'unit-new', symbol: body.symbol, name: body.name, precision: 0 }, { status: 201 })
+    }),
     http.get(`${BASE}/products/:id/fiscal-data/`, ({ params }) => {
       if (params.id === 'p-no-fiscal') {
         return HttpResponse.json(
@@ -646,6 +662,99 @@ describe('Product form – Preços por Quantidade', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('delete-tier-pt-1')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('Product form – quick create modals', () => {
+  it('quick category create button opens modal', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /novo produto/i }))
+    expect(screen.getByTestId('product-form')).toBeInTheDocument()
+
+    const catBtn = screen.getByTestId('quick-create-category-btn')
+    expect(catBtn).toBeInTheDocument()
+
+    await user.click(catBtn)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-create-category-input')).toBeInTheDocument()
+    })
+  })
+
+  it('quick category create submits and closes', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /novo produto/i }))
+    await user.click(screen.getByTestId('quick-create-category-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-create-category-input')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByTestId('quick-create-category-input'), 'Nova Cat')
+    await user.click(screen.getByRole('button', { name: 'Criar' }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('quick-create-category-input')).not.toBeInTheDocument()
+    })
+  })
+
+  it('quick unit create button opens modal', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /novo produto/i }))
+    expect(screen.getByTestId('product-form')).toBeInTheDocument()
+
+    const unitBtn = screen.getByTestId('quick-create-unit-btn')
+    expect(unitBtn).toBeInTheDocument()
+
+    await user.click(unitBtn)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-create-unit-name-input')).toBeInTheDocument()
+    })
+  })
+
+  it('quick unit create shows error on duplicate', async () => {
+    renderProductsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /novo produto/i }))
+    await user.click(screen.getByTestId('quick-create-unit-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByTestId('quick-create-unit-symbol-input'), 'ERR')
+    await user.type(screen.getByTestId('quick-create-unit-name-input'), 'Erro')
+    await user.click(screen.getByRole('button', { name: 'Criar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-create-unit-error')).toBeInTheDocument()
+      expect(screen.getByTestId('quick-create-unit-symbol-input')).toBeInTheDocument()
     })
   })
 })
