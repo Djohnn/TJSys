@@ -11,7 +11,7 @@ class HasActiveTenant(BasePermission):
 
 
 class HasVerifiedMFA(BasePermission):
-    message = 'Multi-factor authentication is required.'
+    """Multi-factor authentication is required for admin users."""
 
     def has_permission(self, request, view):
         auth = getattr(request, 'auth', None)
@@ -24,13 +24,21 @@ class HasVerifiedMFA(BasePermission):
             user=request.user, tenant=tenant, is_active=True,
         ).first()
         if membership is None:
+            self.message = 'HasVerifiedMFA: membership not found.'
             return False
         if membership.role != 'admin':
             return True
-        return (
-            request.session.get('mfa_tenant_id') == str(tenant.id)
-            and request.session.get('mfa_method') in {'totp', 'email', 'recovery'}
-        )
+        sess_tenant = request.session.get('mfa_tenant_id')
+        sess_method = request.session.get('mfa_method')
+        tenant_match = str(tenant.id) == sess_tenant
+        method_ok = sess_method in {'totp', 'email', 'recovery'}
+        if not tenant_match or not method_ok:
+            self.message = (
+                f'HasVerifiedMFA denied: mfa_tenant_id={sess_tenant} '
+                f'(expected={tenant.id}), mfa_method={sess_method}'
+            )
+            return False
+        return True
 
 
 class HasCapability(BasePermission):
