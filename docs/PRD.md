@@ -61,6 +61,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 19 | Concluída | Gestão PDV, pessoas, financeiro web |
 | 20 | Concluída | Fiscal, pagamentos, observabilidade, E2E aceite |
 | 21 | Concluída | Estilização Tailwind CSS de todo o frontend |
+| 22 | Concluída | Refatoração do catálogo (fiscal-data, price-tiers, novos campos) |
 
 ---
 

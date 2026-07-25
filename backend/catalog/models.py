@@ -496,3 +496,18 @@ class ProductPriceTier(TimeStampedModel, TenantScopedModel):
             raise ValidationError(
                 {'product': 'Cannot add price tiers to an inactive product.'}
             )
+        if self.product_id and self.tenant_id:
+            dup = (
+                self.__class__.all_objects.filter(
+                    tenant_id=self.tenant_id,
+                    product_id=self.product_id,
+                    min_quantity=self.min_quantity,
+                    is_active=True,
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if dup:
+                raise ValidationError(
+                    {'min_quantity': 'A tier with this quantity already exists.'}
+                )
