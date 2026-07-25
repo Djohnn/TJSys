@@ -32,6 +32,7 @@ const authValue = {
   memberships: mockMemberships,
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
+  verifyRecovery: vi.fn(),
   logout: async () => {},
 }
 

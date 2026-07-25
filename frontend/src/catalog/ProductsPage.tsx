@@ -237,6 +237,7 @@ export default function ProductsPage() {
                       <>
                         <td colSpan={6} className="p-4">
                           <ProductForm
+                            productId={product.id}
                             initialData={{
                               name: product.name,
                               sku: product.sku,
@@ -244,6 +245,12 @@ export default function ProductsPage() {
                               category: product.category,
                               unit: product.unit,
                               is_active: product.is_active,
+                              product_kind: product.product_kind ?? '',
+                              brand: product.brand ?? '',
+                              model: product.model ?? '',
+                              tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
+                              scale_code: product.scale_code ?? '',
+                              tracks_inventory: product.tracks_inventory ?? false,
                             }}
                             onSubmit={(data) => updateMutation.mutate({ id: product.id, body: data })}
                             onCancel={() => { setEditingId(null); setSubmitError(null) }}

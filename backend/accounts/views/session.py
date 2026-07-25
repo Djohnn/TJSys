@@ -31,8 +31,9 @@ class LoginView(APIView):
             return Response({'detail': 'Account is not available.'}, status=403)
         request.session.flush()
         request.session['pre_mfa_user_id'] = str(user.id)
+        request.session.create()
+        mfa_session = request.session.session_key
         request.session.cycle_key()
-        mfa_session = request.session.session_key or request.session.create()
         return Response({
             'detail': 'MFA required.',
             'requires_mfa': True,

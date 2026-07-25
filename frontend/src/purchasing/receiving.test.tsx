@@ -24,6 +24,7 @@ const authValue: AuthContextValue = {
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
+  verifyRecovery: vi.fn(),
   logout: async () => {},
 }
 

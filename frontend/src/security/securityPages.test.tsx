@@ -20,6 +20,7 @@ const authValue: AuthContextValue = {
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
+  verifyRecovery: vi.fn(),
   logout: async () => {},
 }
 
@@ -139,6 +140,7 @@ describe('MfaPolicyPage', () => {
       memberships: [{ id: 2, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'viewer' }],
       login: async () => ({ requiresMfa: false }),
       challengeMfa: async () => {},
+      verifyRecovery: async () => {},
       logout: async () => {},
     }
 
