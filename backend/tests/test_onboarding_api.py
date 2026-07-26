@@ -53,10 +53,14 @@ def test_confirmation_token_is_single_use(client):
     token = re.search(r'token=([^\s]+)', mail.outbox[0].body).group(1)
 
     first = client.post(
-        '/api/v1/auth/email/confirm/', {'token': token}, content_type='application/json',
+        '/api/v1/auth/email/confirm/',
+        {'token': token},
+        content_type='application/json',
     )
     second = client.post(
-        '/api/v1/auth/email/confirm/', {'token': token}, content_type='application/json',
+        '/api/v1/auth/email/confirm/',
+        {'token': token},
+        content_type='application/json',
     )
 
     assert first.status_code == 204

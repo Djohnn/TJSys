@@ -31,30 +31,48 @@ def receipt_context():
     def _create():
         company = Company.all_objects.create(tenant=tenant, name='Empresa RCT Fiscal')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial RCT Fiscal',
+            tenant=tenant,
+            company=company,
+            name='Filial RCT Fiscal',
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='RCT-FIS', name='RCT Fiscal',
+            tenant=tenant,
+            branch=branch,
+            code='RCT-FIS',
+            name='RCT Fiscal',
             is_primary=True,
         )
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         product = Product.all_objects.create(
-            tenant=tenant, sku='RCT-FIS', name='Produto RCT Fiscal',
-            base_unit=unit, ncm='12345678',
+            tenant=tenant,
+            sku='RCT-FIS',
+            name='Produto RCT Fiscal',
+            base_unit=unit,
+            ncm='12345678',
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='Fornecedor Fiscal', cnpj='00.000.000/0001-00',
+            tenant=tenant,
+            name='Fornecedor Fiscal',
+            cnpj='00.000.000/0001-00',
         )
         po = PurchaseOrder.all_objects.create(
-            tenant=tenant, supplier=supplier, branch=branch,
+            tenant=tenant,
+            supplier=supplier,
+            branch=branch,
         )
         item = PurchaseOrderItem.all_objects.create(
-            tenant=tenant, purchase_order=po, product=product, unit=unit,
-            quantity=Decimal('10'), unit_cost=Decimal('5.00'), factor=Decimal('1'),
+            tenant=tenant,
+            purchase_order=po,
+            product=product,
+            unit=unit,
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5.00'),
+            factor=Decimal('1'),
         )
         approve_purchase_order(tenant=tenant, purchase_order=po, idempotency_key='fiscal-rct')
         receipt = receive_purchase_order(
-            tenant=tenant, purchase_order=po,
+            tenant=tenant,
+            purchase_order=po,
             items=[{'purchase_order_item_id': item.id, 'quantity_received': Decimal('10')}],
             idempotency_key='fiscal-rct-recv',
         )
@@ -79,6 +97,7 @@ def _validate(receipt):
 
 def _reconcile(receipt, tenant, cfop=None):
     from fiscal.services import reconcile_receipt_fiscal
+
     return _run_in_tenant(tenant, lambda: reconcile_receipt_fiscal(receipt, tenant, cfop=cfop))
 
 
@@ -97,8 +116,10 @@ def test_validate_missing_supplier_cnpj(receipt_context):
     ctx['supplier'].save()
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -114,8 +135,10 @@ def test_validate_missing_ncm_returns_error(receipt_context):
     ctx['product'].save()
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -129,8 +152,10 @@ def test_validate_missing_fiscal_product_config_warns(receipt_context):
     ctx = receipt_context
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -144,13 +169,18 @@ def test_validate_clean_config_returns_no_errors(receipt_context):
     ctx = receipt_context
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
     FiscalProductConfig.all_objects.create(
-        tenant=ctx['tenant'], product=ctx['product'],
-        cst_icms='00', cst_pis='99', cst_cofins='07',
+        tenant=ctx['tenant'],
+        product=ctx['product'],
+        cst_icms='00',
+        cst_pis='99',
+        cst_cofins='07',
     )
 
     issues = _validate(ctx['receipt'])
@@ -163,8 +193,10 @@ def test_reconcile_creates_fiscal_document(receipt_context):
     ctx = receipt_context
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -181,8 +213,10 @@ def test_reconcile_idempotent(receipt_context):
     ctx = receipt_context
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -208,16 +242,22 @@ def test_api_validate_endpoint_returns_issues(client, receipt_context):
 
     ctx['client'] = client
     ctx['client'].force_login(
-        __import__('django.contrib.auth').contrib.auth.get_user_model().objects.get(
+        __import__('django.contrib.auth')
+        .contrib.auth.get_user_model()
+        .objects.get(
             email='purchasing-api@test.local',
         ),
     ) if False else None
 
     user = get_user_model().objects.create_user(
-        email='fiscal-rct-test@test.local', password='pass123',
+        email='fiscal-rct-test@test.local',
+        password='pass123',
     )
     TenantMembership.objects.create(
-        user=user, tenant=ctx['tenant'], role='admin', is_active=True,
+        user=user,
+        tenant=ctx['tenant'],
+        role='admin',
+        is_active=True,
     )
     client.force_login(user)
     session = client.session
@@ -226,8 +266,10 @@ def test_api_validate_endpoint_returns_issues(client, receipt_context):
     session.save()
 
     FiscalEmitter.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        provider='plugnotas', cpf_cnpj='12345678000199',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        provider='plugnotas',
+        cpf_cnpj='12345678000199',
         registered_at_provider=True,
     )
 
@@ -252,10 +294,14 @@ def test_api_validate_404_for_nonexistent_receipt(client, receipt_context):
     ctx = receipt_context
 
     user = get_user_model().objects.create_user(
-        email='fiscal-rct-404@test.local', password='pass123',
+        email='fiscal-rct-404@test.local',
+        password='pass123',
     )
     TenantMembership.objects.create(
-        user=user, tenant=ctx['tenant'], role='admin', is_active=True,
+        user=user,
+        tenant=ctx['tenant'],
+        role='admin',
+        is_active=True,
     )
     client.force_login(user)
     session = client.session

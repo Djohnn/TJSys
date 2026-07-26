@@ -130,12 +130,14 @@ def test_counter_sale_requires_open_cash_session(sales_context):
                 branch=ctx['branch'],
                 operator=ctx['user'],
                 stock_location=ctx['location'],
-                items=[{
-                    'product': ctx['product'],
-                    'unit': ctx['unit'],
-                    'quantity': Decimal('1'),
-                    'factor': Decimal('1'),
-                }],
+                items=[
+                    {
+                        'product': ctx['product'],
+                        'unit': ctx['unit'],
+                        'quantity': Decimal('1'),
+                        'factor': Decimal('1'),
+                    }
+                ],
                 payments=[{'method': 'cash', 'amount': Decimal('10.00')}],
                 idempotency_key='sale-without-cash',
             )
@@ -164,12 +166,14 @@ def test_counter_sale_records_payment_and_deducts_stock(sales_context):
             branch=ctx['branch'],
             operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{
-                'product': ctx['product'],
-                'unit': ctx['unit'],
-                'quantity': Decimal('2'),
-                'factor': Decimal('1'),
-            }],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('20.00')}],
             idempotency_key='counter-sale-1',
         )
@@ -215,12 +219,14 @@ def test_counter_sale_replay_returns_same_sale_and_changed_payload_conflicts(sal
             'branch': ctx['branch'],
             'operator': ctx['user'],
             'stock_location': ctx['location'],
-            'items': [{
-                'product': ctx['product'],
-                'unit': ctx['unit'],
-                'quantity': Decimal('1'),
-                'factor': Decimal('1'),
-            }],
+            'items': [
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': Decimal('10.00')}],
             'idempotency_key': 'counter-sale-idem',
         }

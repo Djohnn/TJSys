@@ -17,7 +17,8 @@ def upsert_product_fiscal_data(*, tenant, product, **fields):
     If fiscal_data already exists, update the record. Otherwise create.
     """
     existing = ProductFiscalData.all_objects.filter(
-        tenant=tenant, product=product,
+        tenant=tenant,
+        product=product,
     ).first()
 
     if existing is not None:
@@ -40,9 +41,7 @@ def add_product_price_tier(*, tenant, product, min_quantity, amount, price=None)
     Raises ValidationError if the product is inactive or min_quantity <= 0.
     """
     if not product.is_active:
-        raise ValidationError(
-            {'product': 'Cannot add price tiers to an inactive product.'}
-        )
+        raise ValidationError({'product': 'Cannot add price tiers to an inactive product.'})
 
     tier = ProductPriceTier(
         tenant=tenant,

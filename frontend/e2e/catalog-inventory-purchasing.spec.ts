@@ -47,7 +47,7 @@ test.describe('Catálogo, Estoque e Compras', () => {
     const page = authenticatedPage
     await page.goto('/purchasing/suppliers')
     await expect(page.getByTestId('suppliers-page')).toBeVisible()
-    await page.getByRole('button', { name: 'Novo Fornecedor' }).click()
+    await page.getByRole('button', { name: /fornecedor/i }).click()
     await expect(page.getByTestId('supplier-form')).toBeVisible()
   })
 
@@ -62,25 +62,10 @@ test.describe('Catálogo, Estoque e Compras', () => {
     await page.goto('/dashboard')
     await expect(page.getByTestId('main-navigation')).toBeVisible()
 
-    const moduleLinks = ['Catálogo', 'Estoque', 'Compras']
-    for (const label of moduleLinks) {
-      await expect(page.getByRole('link', { name: label })).toBeVisible()
+    for (const label of ['Catálogo', 'Estoque', 'Compras']) {
+      await expect(
+        page.getByTestId('main-navigation').getByRole('link', { name: label }),
+      ).toBeVisible()
     }
   })
 })
-
-Now let me check the catalog routes in App.tsx - I see there's no `/catalog/products` or `/catalog/categories` route yet. Let me check what routes exist:
-
-Looking at App.tsx, I see:
-- `/catalog` → `<p>Catálogo</p>` (placeholder)
-- No `/catalog/products` or `/catalog/categories` routes
-- `/inventory` → `<p>Estoque</p>` (placeholder)
-- No `/inventory/balances` or `/inventory/movements` routes
-
-I need to add these routes. Let me also check the existing catalog and inventory pages to see if they have test IDs:
-
-Now let me also check the existing test files to understand the test count:
-
-<｜DSML｜tool_calls>
-<｜DSML｜invoke name="bash">
-<｜DSML｜parameter name="command" string="true">cd "C:\ERP\.worktrees\feat-sprint-18-operations-web\frontend" && npx vitest run 2>&1 | Select-String -Pattern "Tests|Test Files|Duration"

@@ -18,6 +18,7 @@ class TenantMiddleware:
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             from tenancy.authentication import DeviceJWTAuthentication
+
             try:
                 result = DeviceJWTAuthentication().authenticate(request)
                 if result:

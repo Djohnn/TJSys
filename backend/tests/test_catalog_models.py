@@ -18,10 +18,7 @@ def pg_tenant_context(tenant):
     token = set_current_tenant_id(tenant.id)
     with transaction.atomic():
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT set_config('app.current_tenant_id', %s, true)",
-                [str(tenant.id)]
-            )
+            cursor.execute("SELECT set_config('app.current_tenant_id', %s, true)", [str(tenant.id)])
         try:
             yield
         finally:
@@ -33,15 +30,24 @@ def test_product_sku_is_normalized_and_unique_per_tenant():
     tenant = Tenant.objects.create(name='Loja', slug='loja-catalog')
     with pg_tenant_context(tenant):
         unit = Unit.all_objects.create(
-            tenant=tenant, symbol='kg', name='Quilograma', precision=3,
+            tenant=tenant,
+            symbol='kg',
+            name='Quilograma',
+            precision=3,
         )
         first = Product.all_objects.create(
-            tenant=tenant, sku=' racao-01 ', name='Ração', base_unit=unit,
+            tenant=tenant,
+            sku=' racao-01 ',
+            name='Ração',
+            base_unit=unit,
         )
         assert first.sku == 'RACAO-01'
         with pytest.raises(Exception):
             Product.all_objects.create(
-                tenant=tenant, sku='racao-01', name='Outra', base_unit=unit,
+                tenant=tenant,
+                sku='racao-01',
+                name='Outra',
+                base_unit=unit,
             )
 
 
@@ -80,11 +86,17 @@ def test_product_requires_unit_of_same_tenant():
     tenant_b = Tenant.objects.create(name='B', slug='tenant-b-cat')
     with pg_tenant_context(tenant_b):
         unit_b = Unit.all_objects.create(
-            tenant=tenant_b, symbol='kg', name='Kg', precision=3,
+            tenant=tenant_b,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         )
     with pg_tenant_context(tenant_a):
         product = Product.all_objects.create(
-            tenant=tenant_a, sku='P-1', name='P1', base_unit=unit_b,
+            tenant=tenant_a,
+            sku='P-1',
+            name='P1',
+            base_unit=unit_b,
         )
     with pytest.raises(ValidationError):
         product.full_clean()
@@ -96,7 +108,10 @@ def test_product_inactivation_preserves_record():
     with pg_tenant_context(tenant):
         unit = Unit.all_objects.create(tenant=tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
-            tenant=tenant, sku='P-INAT', name='Produto', base_unit=unit,
+            tenant=tenant,
+            sku='P-INAT',
+            name='Produto',
+            base_unit=unit,
         )
         product.is_active = False
         product.save()

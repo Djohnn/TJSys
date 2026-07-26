@@ -16,8 +16,7 @@ class DuplicateIdempotencyKey(ValueError):
     def __init__(self, existing):
         self.existing = existing
         super().__init__(
-            f'Idempotency key "{existing.idempotency_key}" '
-            f'already used with a different payload.'
+            f'Idempotency key "{existing.idempotency_key}" already used with a different payload.'
         )
 
 
@@ -44,7 +43,11 @@ def _build_approve_payload(purchase_order):
 
 @transaction.atomic
 def approve_purchase_order(
-    *, tenant, purchase_order, idempotency_key='', actor=None,
+    *,
+    tenant,
+    purchase_order,
+    idempotency_key='',
+    actor=None,
 ):
     from purchasing.models import PurchaseOrder, PurchaseOrderItem
 
@@ -64,16 +67,19 @@ def approve_purchase_order(
         )
 
     if not PurchaseOrderItem.all_objects.filter(purchase_order=purchase_order).exists():
-        raise InvalidPurchaseOrderStatus(
-            'Cannot approve a purchase order with no items.'
-        )
+        raise InvalidPurchaseOrderStatus('Cannot approve a purchase order with no items.')
 
     fingerprint = _payload_hash(_build_approve_payload(purchase_order))
 
     if idempotency_key:
-        existing = PurchaseOrder.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
-        ).exclude(pk=purchase_order.pk).first()
+        existing = (
+            PurchaseOrder.all_objects.filter(
+                tenant=tenant,
+                idempotency_key=idempotency_key,
+            )
+            .exclude(pk=purchase_order.pk)
+            .first()
+        )
         if existing:
             if existing.payload_hash != fingerprint:
                 raise DuplicateIdempotencyKey(existing)
@@ -129,8 +135,13 @@ def _compute_pending_quantities(purchase_order):
 
 @transaction.atomic
 def receive_purchase_order(
-    *, tenant, purchase_order, items, notes='',
-    idempotency_key='', actor=None,
+    *,
+    tenant,
+    purchase_order,
+    items,
+    notes='',
+    idempotency_key='',
+    actor=None,
 ):
     from django.db.models import Sum
 
@@ -147,7 +158,8 @@ def receive_purchase_order(
 
     if idempotency_key:
         existing = PurchaseReceipt.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             return existing
@@ -159,12 +171,12 @@ def receive_purchase_order(
         )
 
     location = StockLocation.all_objects.filter(
-        tenant=tenant, branch=purchase_order.branch, is_primary=True,
+        tenant=tenant,
+        branch=purchase_order.branch,
+        is_primary=True,
     ).first()
     if not location:
-        raise ValueError(
-            f'No primary stock location found for branch {purchase_order.branch_id}.'
-        )
+        raise ValueError(f'No primary stock location found for branch {purchase_order.branch_id}.')
 
     pending = _compute_pending_quantities(purchase_order)
     receipt_items_data = []
@@ -174,7 +186,8 @@ def receive_purchase_order(
         unit_cost = entry.get('unit_cost')
 
         po_item = PurchaseOrderItem.all_objects.filter(
-            pk=po_item_id, purchase_order=purchase_order,
+            pk=po_item_id,
+            purchase_order=purchase_order,
         ).first()
         if not po_item:
             raise ValueError(f'PurchaseOrderItem {po_item_id} not found in order.')
@@ -182,16 +195,17 @@ def receive_purchase_order(
         pending_qty = pending.get(po_item.id, 0)
         if qty > pending_qty:
             raise OverReceiptError(
-                f'Cannot receive {qty} of item {po_item_id}. '
-                f'Only {pending_qty} pending.'
+                f'Cannot receive {qty} of item {po_item_id}. Only {pending_qty} pending.'
             )
 
         effective_cost = unit_cost if unit_cost is not None else po_item.unit_cost
-        receipt_items_data.append({
-            'purchase_order_item': po_item,
-            'quantity_received': qty,
-            'unit_cost': effective_cost,
-        })
+        receipt_items_data.append(
+            {
+                'purchase_order_item': po_item,
+                'quantity_received': qty,
+                'unit_cost': effective_cost,
+            }
+        )
 
     payload = {
         'purchase_order_id': str(purchase_order.id),
@@ -208,7 +222,8 @@ def receive_purchase_order(
 
     if idempotency_key:
         existing = PurchaseReceipt.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             if existing.payload_hash != fingerprint:
@@ -263,18 +278,13 @@ def receive_purchase_order(
         )
         total_received[po_item.id] = received
 
-    all_fully_received = all(
-        total_received[item.id] >= item.quantity
-        for item in all_po_items
-    )
+    all_fully_received = all(total_received[item.id] >= item.quantity for item in all_po_items)
     purchase_order.status = 'received' if all_fully_received else 'partially_received'
     purchase_order.save()
 
-    total_amount = sum(
-        d['quantity_received'] * d['unit_cost']
-        for d in receipt_items_data
-    )
+    total_amount = sum(d['quantity_received'] * d['unit_cost'] for d in receipt_items_data)
     from financial.services import create_payable
+
     create_payable(
         tenant=tenant,
         supplier_name=purchase_order.supplier.name,
@@ -325,7 +335,12 @@ class DuplicateCancellationIdempotencyKey(ValueError):
 
 @transaction.atomic
 def cancel_purchase_order(
-    *, tenant, purchase_order, reason, idempotency_key='', actor=None,
+    *,
+    tenant,
+    purchase_order,
+    reason,
+    idempotency_key='',
+    actor=None,
 ):
     from purchasing.models import PurchaseOrderCancellation
 
@@ -334,7 +349,8 @@ def cancel_purchase_order(
 
     if idempotency_key:
         existing = PurchaseOrderCancellation.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             return existing
@@ -359,6 +375,7 @@ def cancel_purchase_order(
     )
 
     from financial.models import Payable
+
     payables = Payable.all_objects.filter(
         tenant=tenant,
         status='pending',
@@ -396,7 +413,12 @@ def cancel_purchase_order(
 
 @transaction.atomic
 def cancel_receipt(
-    *, tenant, receipt, reason, idempotency_key='', actor=None,
+    *,
+    tenant,
+    receipt,
+    reason,
+    idempotency_key='',
+    actor=None,
 ):
     from inventory.models import StockLocation
     from inventory.services import create_issue
@@ -411,7 +433,8 @@ def cancel_receipt(
 
     if idempotency_key:
         existing = PurchaseReceiptCancellation.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             return existing
@@ -420,9 +443,7 @@ def cancel_receipt(
         raise AlreadyCancelled('Receipt is already cancelled.')
 
     if receipt.status != 'confirmed':
-        raise CannotCancelPurchaseOrder(
-            f'Cannot cancel receipt with status "{receipt.status}".'
-        )
+        raise CannotCancelPurchaseOrder(f'Cannot cancel receipt with status "{receipt.status}".')
 
     if receipt.cancellations.exists():
         raise AlreadyCancelled('Receipt already has a cancellation.')
@@ -439,7 +460,9 @@ def cancel_receipt(
     )
 
     location = StockLocation.all_objects.filter(
-        tenant=tenant, branch=receipt.purchase_order.branch, is_primary=True,
+        tenant=tenant,
+        branch=receipt.purchase_order.branch,
+        is_primary=True,
     ).first()
     if not location:
         raise ValueError(
@@ -463,9 +486,12 @@ def cancel_receipt(
         )
 
     from financial.models import Payable
+
     suffix = f'{receipt.idempotency_key}:payable'
     payable = Payable.all_objects.filter(
-        tenant=tenant, idempotency_key=suffix, status='pending',
+        tenant=tenant,
+        idempotency_key=suffix,
+        status='pending',
     ).first()
     if payable:
         payable.status = 'cancelled'
@@ -481,19 +507,19 @@ def cancel_receipt(
     po_items = PurchaseOrderItem.all_objects.filter(purchase_order=receipt.purchase_order)
     all_received = {}
     for po_item in po_items:
-        received = PurchaseReceiptItem.all_objects.filter(
-            purchase_order_item=po_item,
-            receipt__status='confirmed',
-        ).aggregate(total=Sum('quantity_received'))['total'] or 0
+        received = (
+            PurchaseReceiptItem.all_objects.filter(
+                purchase_order_item=po_item,
+                receipt__status='confirmed',
+            ).aggregate(total=Sum('quantity_received'))['total']
+            or 0
+        )
         all_received[po_item.id] = received
 
     total_received_anywhere = sum(all_received.values())
     if total_received_anywhere <= 0:
         receipt.purchase_order.status = 'approved'
-    elif all(
-        all_received[item.id] >= item.quantity
-        for item in po_items
-    ):
+    elif all(all_received[item.id] >= item.quantity for item in po_items):
         receipt.purchase_order.status = 'received'
     else:
         receipt.purchase_order.status = 'partially_received'
@@ -537,7 +563,13 @@ def _build_supplier_return_payload(receipt, items_data, reason):
 
 @transaction.atomic
 def create_supplier_return(
-    *, tenant, receipt, items, reason, idempotency_key='', actor=None,
+    *,
+    tenant,
+    receipt,
+    items,
+    reason,
+    idempotency_key='',
+    actor=None,
 ):
     from inventory.models import StockLocation
     from inventory.services import create_issue
@@ -548,7 +580,8 @@ def create_supplier_return(
 
     if idempotency_key:
         existing = SupplierReturn.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             return existing
@@ -570,23 +603,27 @@ def create_supplier_return(
         if not rct_item:
             raise ValueError(f'Receipt item for PO item {po_item_id} not found in receipt.')
 
-        already_returned = SupplierReturnItem.all_objects.filter(
-            purchase_order_item_id=po_item_id,
-            supplier_return__receipt=receipt,
-            supplier_return__status='completed',
-        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+        already_returned = (
+            SupplierReturnItem.all_objects.filter(
+                purchase_order_item_id=po_item_id,
+                supplier_return__receipt=receipt,
+                supplier_return__status='completed',
+            ).aggregate(total=models.Sum('quantity'))['total']
+            or 0
+        )
         returnable = rct_item.quantity_received - already_returned
         if qty > returnable:
             raise OverReceiptError(
-                f'Cannot return {qty} of item {po_item_id}. '
-                f'Only {returnable} returnable.'
+                f'Cannot return {qty} of item {po_item_id}. Only {returnable} returnable.'
             )
 
-        items_data.append({
-            'po_item': rct_item.purchase_order_item,
-            'quantity': qty,
-            'unit_cost': rct_item.unit_cost,
-        })
+        items_data.append(
+            {
+                'po_item': rct_item.purchase_order_item,
+                'quantity': qty,
+                'unit_cost': rct_item.unit_cost,
+            }
+        )
 
     payload = _build_supplier_return_payload(receipt, items_data, reason)
     fingerprint = _payload_hash(payload)
@@ -600,7 +637,9 @@ def create_supplier_return(
     )
 
     location = StockLocation.all_objects.filter(
-        tenant=tenant, branch=receipt.purchase_order.branch, is_primary=True,
+        tenant=tenant,
+        branch=receipt.purchase_order.branch,
+        is_primary=True,
     ).first()
     if not location:
         raise ValueError(
@@ -637,9 +676,12 @@ def create_supplier_return(
         total_credit += qty * unit_cost
 
     from financial.models import Payable
+
     suffix = f'{receipt.idempotency_key}:payable'
     payable = Payable.all_objects.filter(
-        tenant=tenant, idempotency_key=suffix, status='pending',
+        tenant=tenant,
+        idempotency_key=suffix,
+        status='pending',
     ).first()
     if payable:
         remaining = payable.amount - total_credit
@@ -683,12 +725,20 @@ def purchasing_summary(*, tenant):
     from financial.models import Payable
     from purchasing.models import PurchaseOrder, PurchaseReceipt
 
-    po_counts = PurchaseOrder.all_objects.filter(tenant=tenant).values('status').annotate(
-        count=Count('id'),
+    po_counts = (
+        PurchaseOrder.all_objects.filter(tenant=tenant)
+        .values('status')
+        .annotate(
+            count=Count('id'),
+        )
     )
-    receipt_counts = PurchaseReceipt.all_objects.filter(
-        tenant=tenant,
-    ).values('status').annotate(count=Count('id'))
+    receipt_counts = (
+        PurchaseReceipt.all_objects.filter(
+            tenant=tenant,
+        )
+        .values('status')
+        .annotate(count=Count('id'))
+    )
     payable_info = Payable.all_objects.filter(tenant=tenant).aggregate(
         total_pending=Sum('amount', filter=models.Q(status='pending')) or 0,
         total_paid=Sum('amount', filter=models.Q(status='paid')) or 0,

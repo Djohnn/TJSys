@@ -105,9 +105,7 @@ class CashMovement(VersionedSalesModel):
             and self.tenant_id
             and self.cash_session.tenant_id != self.tenant_id
         ):
-            raise ValidationError(
-                {'cash_session': 'Cash session must belong to the same tenant.'}
-            )
+            raise ValidationError({'cash_session': 'Cash session must belong to the same tenant.'})
 
 
 class Sale(VersionedSalesModel):
@@ -132,7 +130,10 @@ class Sale(VersionedSalesModel):
         related_name='sales',
     )
     customer = models.ForeignKey(
-        'people.Person', on_delete=models.PROTECT, null=True, blank=True,
+        'people.Person',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='sales',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='confirmed')
@@ -164,9 +165,7 @@ class Sale(VersionedSalesModel):
             and self.tenant_id
             and self.cash_session.tenant_id != self.tenant_id
         ):
-            raise ValidationError(
-                {'cash_session': 'Cash session must belong to the same tenant.'}
-            )
+            raise ValidationError({'cash_session': 'Cash session must belong to the same tenant.'})
         if self.customer_id and self.customer.tenant_id != self.tenant_id:
             raise ValidationError({'customer': 'Customer must belong to the same tenant.'})
 
@@ -272,12 +271,8 @@ class SaleReturn(VersionedSalesModel):
 
 
 class SaleReturnItem(VersionedSalesModel):
-    sale_return = models.ForeignKey(
-        SaleReturn, on_delete=models.PROTECT, related_name='items'
-    )
-    sale_item = models.ForeignKey(
-        SaleItem, on_delete=models.PROTECT, related_name='return_items'
-    )
+    sale_return = models.ForeignKey(SaleReturn, on_delete=models.PROTECT, related_name='items')
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.PROTECT, related_name='return_items')
     quantity = models.DecimalField(max_digits=18, decimal_places=6)
     factor = models.DecimalField(max_digits=18, decimal_places=6, default=1)
 
@@ -293,14 +288,8 @@ class SaleReturnItem(VersionedSalesModel):
             raise ValidationError({'quantity': 'Quantity must be positive.'})
         if self.factor <= 0:
             raise ValidationError({'factor': 'Factor must be positive.'})
-        if (
-            self.sale_return_id
-            and self.tenant_id
-            and self.sale_return.tenant_id != self.tenant_id
-        ):
-            raise ValidationError(
-                {'sale_return': 'Sale return must belong to the same tenant.'}
-            )
+        if self.sale_return_id and self.tenant_id and self.sale_return.tenant_id != self.tenant_id:
+            raise ValidationError({'sale_return': 'Sale return must belong to the same tenant.'})
 
 
 class SaleRefund(VersionedSalesModel):

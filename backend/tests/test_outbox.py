@@ -58,6 +58,7 @@ class TestOutboxAtomicity:
 class TestOutboxIdempotency:
     def test_process_same_message_twice_does_not_duplicate(self):
         """Reprocessamento da mesma mensagem não duplica o efeito."""
+
         @register_handler('idempotent.test')
         def persist_test_effect(message):
             return {'processed_aggregate': message.aggregate_id}
@@ -87,7 +88,9 @@ class TestOutboxIdempotency:
 
     def test_stale_message_is_reported_without_payload(self, caplog):
         msg = create_outbox_message(
-            event_type='stale.test', aggregate_type='Test', aggregate_id='202',
+            event_type='stale.test',
+            aggregate_type='Test',
+            aggregate_id='202',
             payload={'secret': 'must-not-appear'},
         )
         OutboxMessage.objects.filter(id=msg.id).update(
@@ -105,6 +108,7 @@ class TestOutboxIdempotency:
 class TestAuditBasic:
     def test_audit_record_created(self):
         from audit.models import AuditRecord
+
         record = AuditRecord.objects.create(
             action='test.action',
             resource_type='Test',

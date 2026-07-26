@@ -18,13 +18,19 @@ def test_create_customer_with_fiscal_address_emits_redacted_events(tenant_alpha,
         roles=['customer'],
         documents=[{'document_type': 'CPF', 'value': '123.456.789-09'}],
         contacts=[{'contact_type': 'email', 'value': 'maria@example.com'}],
-        addresses=[{
-            'address_type': 'fiscal', 'street': 'Rua A', 'city': 'São Paulo',
-            'state': 'SP', 'postal_code': '01001-000',
-        }],
+        addresses=[
+            {
+                'address_type': 'fiscal',
+                'street': 'Rua A',
+                'city': 'São Paulo',
+                'state': 'SP',
+                'postal_code': '01001-000',
+            }
+        ],
     )
 
     from people.models import PersonAddress
+
     assert PersonAddress.all_objects.get(person=person).postal_code == '01001000'
     audit = AuditRecord.objects.get(resource_id=str(person.id))
     event = OutboxMessage.objects.get(aggregate_id=str(person.id))

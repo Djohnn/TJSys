@@ -1,4 +1,3 @@
-
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -35,7 +34,10 @@ def obs_unit(obs_tenant):
     return _run_in_tenant(
         obs_tenant,
         lambda: Unit.all_objects.create(
-            tenant=obs_tenant, symbol='kg', name='Kg', precision=3,
+            tenant=obs_tenant,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         ),
     )
 
@@ -48,7 +50,8 @@ def manager_user(obs_tenant):
 @pytest.fixture
 def manager_client(client, manager_user, obs_tenant):
     TenantMembership.objects.update_or_create(
-        user=manager_user, tenant=obs_tenant,
+        user=manager_user,
+        tenant=obs_tenant,
         defaults={'role': 'manager', 'is_active': True},
     )
     client.force_login(manager_user)
@@ -61,7 +64,9 @@ def manager_client(client, manager_user, obs_tenant):
 
 @pytest.mark.django_db
 def test_product_creation_persists_audit_and_outbox(
-    manager_client, obs_tenant, obs_unit,
+    manager_client,
+    obs_tenant,
+    obs_unit,
 ):
     from audit.models import AuditRecord
     from outbox.models import OutboxMessage
@@ -80,16 +85,20 @@ def test_product_creation_persists_audit_and_outbox(
     product_id = response.json()['id']
 
     assert AuditRecord.objects.filter(
-        action='catalog.product.created', resource_id=product_id,
+        action='catalog.product.created',
+        resource_id=product_id,
     ).exists()
     assert OutboxMessage.objects.filter(
-        event_type='catalog.product.created', aggregate_id=product_id,
+        event_type='catalog.product.created',
+        aggregate_id=product_id,
     ).exists()
 
 
 @pytest.mark.django_db
 def test_product_update_persists_audit_and_outbox(
-    manager_client, obs_tenant, obs_unit,
+    manager_client,
+    obs_tenant,
+    obs_unit,
 ):
     from audit.models import AuditRecord
     from outbox.models import OutboxMessage
@@ -116,16 +125,20 @@ def test_product_update_persists_audit_and_outbox(
     assert update_resp.status_code == 200
 
     assert AuditRecord.objects.filter(
-        action='catalog.product.updated', resource_id=product_id,
+        action='catalog.product.updated',
+        resource_id=product_id,
     ).exists()
     assert OutboxMessage.objects.filter(
-        event_type='catalog.product.updated', aggregate_id=product_id,
+        event_type='catalog.product.updated',
+        aggregate_id=product_id,
     ).exists()
 
 
 @pytest.mark.django_db
 def test_product_deactivation_persists_audit_and_outbox(
-    manager_client, obs_tenant, obs_unit,
+    manager_client,
+    obs_tenant,
+    obs_unit,
 ):
     from audit.models import AuditRecord
     from outbox.models import OutboxMessage
@@ -148,16 +161,20 @@ def test_product_deactivation_persists_audit_and_outbox(
     )
 
     assert AuditRecord.objects.filter(
-        action='catalog.product.deactivated', resource_id=product_id,
+        action='catalog.product.deactivated',
+        resource_id=product_id,
     ).exists()
     assert OutboxMessage.objects.filter(
-        event_type='catalog.product.deactivated', aggregate_id=product_id,
+        event_type='catalog.product.deactivated',
+        aggregate_id=product_id,
     ).exists()
 
 
 @pytest.mark.django_db
 def test_outbox_event_has_no_sensitive_payload(
-    manager_client, obs_tenant, obs_unit,
+    manager_client,
+    obs_tenant,
+    obs_unit,
 ):
     from outbox.models import OutboxMessage
 

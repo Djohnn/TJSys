@@ -12,16 +12,15 @@ const ROLE_LABELS: Record<string, string> = {
 
 interface Member {
   id: number
-  user: {
+  email?: string
+  user?: {
     id: number
     email: string
     name: string
   }
   role: string
   is_active: boolean
-  branch_ids: string[]
-  created_at: string
-  updated_at: string
+  branch_ids?: string[]
 }
 
 interface MemberEditFormProps {
@@ -47,7 +46,11 @@ export default function MemberEditForm({
     formState: { errors },
   } = useForm<MemberUpdateFormData>({
     resolver: zodResolver(memberUpdateSchema),
-    defaultValues: { role: member.role as 'admin' | 'manager' | 'operator', is_active: member.is_active, branch_ids: member.branch_ids },
+    defaultValues: {
+      role: member.role as 'admin' | 'manager' | 'operator',
+      is_active: member.is_active,
+      branch_ids: member.branch_ids ?? [],
+    },
   })
 
   return (

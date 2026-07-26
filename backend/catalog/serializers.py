@@ -67,10 +67,23 @@ class ProductSerializer(FullCleanModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'sku', 'name', 'description', 'category', 'base_unit',
-            'requires_lot', 'requires_expiry', 'is_active', 'version', 'price',
+            'id',
+            'sku',
+            'name',
+            'description',
+            'category',
+            'base_unit',
+            'requires_lot',
+            'requires_expiry',
+            'is_active',
+            'version',
+            'price',
             # Sprint 22 fields
-            'product_kind', 'tracks_inventory', 'brand', 'model', 'tags',
+            'product_kind',
+            'tracks_inventory',
+            'brand',
+            'model',
+            'tags',
             'scale_code',
         ]
         read_only_fields = ['id', 'version', 'price']
@@ -95,7 +108,12 @@ class ProductUnitSerializer(FullCleanModelSerializer):
     class Meta:
         model = ProductUnit
         fields = [
-            'id', 'product', 'unit', 'factor', 'is_active', 'version',
+            'id',
+            'product',
+            'unit',
+            'factor',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'product', 'version']
 
@@ -104,8 +122,13 @@ class ProductCodeSerializer(FullCleanModelSerializer):
     class Meta:
         model = ProductCode
         fields = [
-            'id', 'product', 'code_type', 'value', 'is_principal',
-            'is_active', 'version',
+            'id',
+            'product',
+            'code_type',
+            'value',
+            'is_principal',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'product', 'version']
 
@@ -114,8 +137,13 @@ class ProductPriceSerializer(FullCleanModelSerializer):
     class Meta:
         model = ProductPrice
         fields = [
-            'id', 'product', 'amount', 'valid_from', 'valid_to',
-            'is_active', 'version',
+            'id',
+            'product',
+            'amount',
+            'valid_from',
+            'valid_to',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'product', 'version', 'is_active']
 
@@ -124,20 +152,34 @@ class BranchPriceSerializer(FullCleanModelSerializer):
     class Meta:
         model = BranchPrice
         fields = [
-            'id', 'product', 'branch', 'amount', 'valid_from', 'valid_to',
-            'is_active', 'version',
+            'id',
+            'product',
+            'branch',
+            'amount',
+            'valid_from',
+            'valid_to',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'product', 'version']
 
 
 # Sprint 22 serializers
 
+
 class ProductFiscalDataSerializer(FullCleanModelSerializer):
     class Meta:
         model = ProductFiscalData
         fields = [
-            'id', 'product', 'fiscal_type', 'ncm', 'cest',
-            'origin_code', 'fiscal_class', 'is_active', 'version',
+            'id',
+            'product',
+            'fiscal_type',
+            'ncm',
+            'cest',
+            'origin_code',
+            'fiscal_class',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'version']
 
@@ -146,7 +188,12 @@ class ProductPriceTierSerializer(FullCleanModelSerializer):
     class Meta:
         model = ProductPriceTier
         fields = [
-            'id', 'product', 'price', 'min_quantity', 'amount',
-            'is_active', 'version',
+            'id',
+            'product',
+            'price',
+            'min_quantity',
+            'amount',
+            'is_active',
+            'version',
         ]
         read_only_fields = ['id', 'version']

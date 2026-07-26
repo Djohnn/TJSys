@@ -74,7 +74,9 @@ def _resolve_effective_price_response(request, product):
         at_dt = timezone.now()
     try:
         price = resolve_effective_price(
-            product=product, branch=branch, at=at_dt,
+            product=product,
+            branch=branch,
+            at=at_dt,
         )
     except PriceNotAvailable:
         return Response(
@@ -110,7 +112,9 @@ class CatalogCursorPagination(CursorPagination):
 class CatalogViewSetBase(viewsets.ModelViewSet):
     pagination_class = CatalogCursorPagination
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         CatalogCapabilityPermission,
     ]
 
@@ -197,9 +201,7 @@ class ProductViewSet(CatalogViewSetBase):
     serializer_class = ProductSerializer
 
     def _apply_q_filter(self, qs, q):
-        return qs.filter(
-            models.Q(name__icontains=q) | models.Q(sku__icontains=q)
-        )
+        return qs.filter(models.Q(name__icontains=q) | models.Q(sku__icontains=q))
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -218,7 +220,9 @@ class ProductUnitViewSet(CatalogViewSetBase):
 
     def perform_create(self, serializer):
         product = get_object_or_404(
-            Product, id=self.kwargs.get('product_pk'), tenant=self.request.tenant,
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
         )
         instance = serializer.save(tenant=self.request.tenant, product=product)
         emit_catalog_event(
@@ -239,7 +243,9 @@ class ProductCodeViewSet(CatalogViewSetBase):
 
     def perform_create(self, serializer):
         product = get_object_or_404(
-            Product, id=self.kwargs.get('product_pk'), tenant=self.request.tenant,
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
         )
         instance = serializer.save(tenant=self.request.tenant, product=product)
         emit_catalog_event(
@@ -255,7 +261,9 @@ class ProductPriceViewSet(CatalogViewSetBase):
     queryset = ProductPrice.objects.select_related('product')
     serializer_class = ProductPriceSerializer
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         PricingCapabilityPermission,
     ]
 
@@ -264,7 +272,9 @@ class ProductPriceViewSet(CatalogViewSetBase):
 
     def perform_create(self, serializer):
         product = get_object_or_404(
-            Product, id=self.kwargs.get('product_pk'), tenant=self.request.tenant,
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
         )
         instance = serializer.save(tenant=self.request.tenant, product=product)
         emit_catalog_event(
@@ -292,7 +302,9 @@ class BranchPriceViewSet(CatalogViewSetBase):
     queryset = BranchPrice.objects.select_related('product', 'branch')
     serializer_class = BranchPriceSerializer
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         PricingCapabilityPermission,
     ]
 
@@ -301,7 +313,9 @@ class BranchPriceViewSet(CatalogViewSetBase):
 
     def perform_create(self, serializer):
         product = get_object_or_404(
-            Product, id=self.kwargs.get('product_pk'), tenant=self.request.tenant,
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
         )
         instance = serializer.save(tenant=self.request.tenant, product=product)
         emit_catalog_event(
@@ -332,31 +346,42 @@ class BranchPriceViewSet(CatalogViewSetBase):
 
 class ProductFiscalDataView(APIView):
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         CatalogCapabilityPermission,
     ]
 
     def get(self, request, product_pk):
         product = get_object_or_404(
-            Product, id=product_pk, tenant=request.tenant,
+            Product,
+            id=product_pk,
+            tenant=request.tenant,
         )
         fd = get_object_or_404(
-            ProductFiscalData, product=product, tenant=request.tenant,
+            ProductFiscalData,
+            product=product,
+            tenant=request.tenant,
         )
         serializer = ProductFiscalDataSerializer(fd)
         return Response(serializer.data)
 
     def post(self, request, product_pk):
         product = get_object_or_404(
-            Product, id=product_pk, tenant=request.tenant,
+            Product,
+            id=product_pk,
+            tenant=request.tenant,
         )
         existing = ProductFiscalData.objects.filter(
-            product=product, tenant=request.tenant,
+            product=product,
+            tenant=request.tenant,
         ).first()
 
         if existing is not None:
             serializer = ProductFiscalDataSerializer(
-                existing, data=request.data, partial=True,
+                existing,
+                data=request.data,
+                partial=True,
             )
             serializer.is_valid(raise_exception=True)
             serializer.save(tenant=request.tenant, product=product)
@@ -389,22 +414,30 @@ class ProductPriceTierViewSet(CatalogViewSetBase):
     queryset = ProductPriceTier.objects.select_related('product', 'price')
     serializer_class = ProductPriceTierSerializer
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         PricingCapabilityPermission,
     ]
 
     def get_queryset(self):
-        return super().get_queryset().filter(
-            product_id=self.kwargs.get('product_pk'),
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                product_id=self.kwargs.get('product_pk'),
+            )
         )
 
     def perform_create(self, serializer):
         product = get_object_or_404(
-            Product, id=self.kwargs.get('product_pk'),
+            Product,
+            id=self.kwargs.get('product_pk'),
             tenant=self.request.tenant,
         )
         instance = serializer.save(
-            tenant=self.request.tenant, product=product,
+            tenant=self.request.tenant,
+            product=product,
         )
         emit_catalog_event(
             action='catalog.productpricetier.created',
@@ -427,12 +460,16 @@ class ProductPriceTierViewSet(CatalogViewSetBase):
 
 class EffectivePriceView(APIView):
     permission_classes = [
-        IsAuthenticated, HasActiveTenant, HasVerifiedMFA,
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
         PricingCapabilityPermission,
     ]
 
     def get(self, request, product_id):
         product = get_object_or_404(
-            Product, id=product_id, tenant=request.tenant,
+            Product,
+            id=product_id,
+            tenant=request.tenant,
         )
         return _resolve_effective_price_response(request, product)

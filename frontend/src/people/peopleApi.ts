@@ -57,6 +57,36 @@ export interface PersonDetail {
   consents: Consent[]
 }
 
+interface CanonicalPerson extends Partial<PersonDetail> {
+  trade_name?: string
+  role_values?: string[]
+  documents?: Array<{ document_type: string; value: string }>
+}
+
+function normalizePerson(raw: CanonicalPerson): PersonDetail {
+  const document = (type: string) =>
+    raw.documents?.find((item) => item.document_type === type)?.value ?? null
+
+  return {
+    id: raw.id ?? '',
+    person_type: raw.person_type ?? 'PF',
+    name: raw.name ?? '',
+    cpf: raw.cpf ?? document('CPF'),
+    rg: raw.rg ?? null,
+    company_name: raw.company_name ?? (raw.person_type === 'PJ' ? (raw.name ?? '') : null),
+    trade_name: raw.trade_name || null,
+    cnpj: raw.cnpj ?? document('CNPJ'),
+    ie: raw.ie ?? document('IE'),
+    role: raw.role ?? (raw.role_values?.[0] as PersonDetail['role']) ?? 'customer',
+    is_active: raw.is_active ?? true,
+    created_at: raw.created_at ?? '',
+    updated_at: raw.updated_at ?? '',
+    addresses: raw.addresses ?? [],
+    contacts: raw.contacts ?? [],
+    consents: raw.consents ?? [],
+  }
+}
+
 export interface PersonListParams {
   page?: number
   q?: string
@@ -97,10 +127,10 @@ export function fetchPerson(
   id: string,
   signal?: AbortSignal,
 ): Promise<PersonDetail> {
-  return apiRequest<PersonDetail>(`/people/${id}/`, {
+  return (apiRequest<CanonicalPerson>(`/people/${id}/`, {
     tenantId,
     signal,
-  }) as Promise<PersonDetail>
+  }) as Promise<CanonicalPerson>).then(normalizePerson)
 }
 
 export function updatePerson(

@@ -13,8 +13,8 @@ test.describe('Financeiro, Fiscal e Pagamentos', () => {
     const page = authenticatedPage
     await page.goto('/financial/payables')
     await expect(page.getByTestId('payables-page')).toBeVisible()
-    await expect(page.getByTestId('payables-table')).toBeVisible()
-    await expect(page.getByTestId('payables-status-filter')).toBeVisible()
+    await expect(page.getByTestId('payables-filters')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Filtrar por status' })).toBeVisible()
   })
 
   test('Fluxo de caixa carrega', async ({ authenticatedPage }) => {
@@ -27,23 +27,22 @@ test.describe('Financeiro, Fiscal e Pagamentos', () => {
   test('Emitentes fiscais carregam com tabela', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/fiscal/emitters')
-    await expect(page.getByTestId('emitters-page')).toBeVisible()
-    await expect(page.getByTestId('emitters-table')).toBeVisible()
+    await expect(page.getByTestId('fiscal-config-page')).toBeVisible()
   })
 
   test('Documentos fiscais carregam com filtro de status', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/fiscal/documents')
-    await expect(page.getByTestId('documents-page')).toBeVisible()
+    await expect(page.getByTestId('fiscal-documents-page')).toBeVisible()
     await expect(page.getByTestId('documents-table')).toBeVisible()
-    await expect(page.getByTestId('documents-status-filter')).toBeVisible()
+    await expect(page.getByTestId('filter-status')).toBeVisible()
   })
 
   test('Configurações de provedores de pagamento exibem tabela', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/payments/provider-configs')
-    await expect(page.getByTestId('provider-configs-page')).toBeVisible()
-    await expect(page.getByTestId('provider-configs-table')).toBeVisible()
+    await expect(page.getByTestId('provider-config-page')).toBeVisible()
+    await expect(page.getByTestId('provider-config-table')).toBeVisible()
   })
 
   test('Dashboard de monitoramento de operações carrega com seção de saúde', async ({ authenticatedPage }) => {

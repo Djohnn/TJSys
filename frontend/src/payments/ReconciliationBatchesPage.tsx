@@ -14,7 +14,7 @@ function formatDate(iso: string): string {
 
 export default function ReconciliationBatchesPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)

@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test } from '../fixtures'
+import { authenticatePage, test } from '../fixtures'
 
 test.describe('Autenticação e Tenancy', () => {
   test('Login bem-sucedido redireciona para o dashboard', async ({ authenticatedPage }) => {
@@ -39,7 +39,9 @@ test.describe('Autenticação e Tenancy', () => {
       'Monitoramento',
     ]
     for (const label of moduleLinks) {
-      await expect(page.getByRole('link', { name: label })).toBeVisible()
+      await expect(
+        page.getByTestId('main-navigation').getByRole('link', { name: label }),
+      ).toBeVisible()
     }
   })
 
@@ -47,21 +49,14 @@ test.describe('Autenticação e Tenancy', () => {
     await page.goto('/financial/receivables')
     await expect(page).toHaveURL(/\/login/)
 
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
 
     await page.goto('/financial/receivables')
     await expect(page.getByTestId('receivables-page')).toBeVisible()
   })
 
   test('Negação de papel — operador não pode acessar páginas somente-admin', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'operator@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page, 'operator@zyrp.local')
 
     await page.goto('/fiscal/emitters')
     await expect(page.getByTestId('forbidden-page').or(page.getByRole('alert'))).toBeVisible()

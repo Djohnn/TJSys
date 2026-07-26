@@ -123,9 +123,7 @@ def open_cash_session(*, tenant, branch, operator, opening_amount, idempotency_k
     ).first()
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
     if _open_cash_session_for(tenant, branch, operator):
         raise OpenCashSessionExists('There is already an open cash session.')
@@ -284,9 +282,7 @@ def create_counter_sale(
     ).first()
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
     cash_session = _open_cash_session_for(tenant, branch, operator)
@@ -414,6 +410,7 @@ def _already_returned_quantity(sale_item):
     from django.db.models import Sum as ModelSum
 
     from sales.models import SaleReturnItem
+
     agg = SaleReturnItem.all_objects.filter(
         sale_item=sale_item,
         sale_return__status__in=['draft', 'completed'],
@@ -453,9 +450,7 @@ def create_sale_return(
     ).first()
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
     normalized_items = []
@@ -463,9 +458,15 @@ def create_sale_return(
         sale_item_id = item['sale_item_id']
         quantity = Decimal(str(item['quantity']))
 
-        sale_item = SaleItem.all_objects.filter(
-            tenant=tenant, id=sale_item_id, sale=sale,
-        ).select_related('product', 'unit').first()
+        sale_item = (
+            SaleItem.all_objects.filter(
+                tenant=tenant,
+                id=sale_item_id,
+                sale=sale,
+            )
+            .select_related('product', 'unit')
+            .first()
+        )
         if sale_item is None:
             raise ValueError(f'SaleItem {sale_item_id} not found in sale.')
 
@@ -473,16 +474,17 @@ def create_sale_return(
         remaining = sale_item.quantity - already_returned
         if quantity > remaining:
             raise InsufficientReturnableQuantity(
-                f'Cannot return {quantity} of item {sale_item_id}. '
-                f'Only {remaining} returnable.'
+                f'Cannot return {quantity} of item {sale_item_id}. Only {remaining} returnable.'
             )
-        normalized_items.append({
-            'sale_item': sale_item,
-            'product': sale_item.product,
-            'unit': sale_item.unit,
-            'quantity': quantity,
-            'factor': sale_item.factor,
-        })
+        normalized_items.append(
+            {
+                'sale_item': sale_item,
+                'product': sale_item.product,
+                'unit': sale_item.unit,
+                'quantity': quantity,
+                'factor': sale_item.factor,
+            }
+        )
 
     sale_return = SaleReturn.all_objects.create(
         tenant=tenant,
@@ -501,7 +503,9 @@ def create_sale_return(
                 location = movement.location
         if location is None:
             location = StockLocation.all_objects.filter(
-                tenant=tenant, branch=sale.branch, is_primary=True,
+                tenant=tenant,
+                branch=sale.branch,
+                is_primary=True,
             ).first()
         create_receipt(
             tenant,
@@ -559,9 +563,7 @@ def create_sale_refund(
     ).first()
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
     refund = SaleRefund.all_objects.create(
@@ -578,9 +580,7 @@ def create_sale_refund(
     if method == 'cash':
         cash_session = _open_cash_session_for(tenant, sale.branch, sale.operator)
         if cash_session is None:
-            raise CashSessionRequired(
-                'An open cash session is required for cash refunds.'
-            )
+            raise CashSessionRequired('An open cash session is required for cash refunds.')
         CashMovement.all_objects.create(
             tenant=tenant,
             cash_session=cash_session,
@@ -648,9 +648,7 @@ def cancel_sale(
     ).first()
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
     if sale.status == 'cancelled':
@@ -678,7 +676,9 @@ def cancel_sale(
                 location = movement.location
         if location is None:
             location = StockLocation.all_objects.filter(
-                tenant=tenant, branch=sale.branch, is_primary=True,
+                tenant=tenant,
+                branch=sale.branch,
+                is_primary=True,
             ).first()
         create_receipt(
             tenant,
@@ -715,13 +715,9 @@ def cancel_sale(
                     reference=str(sale.id),
                     notes=f'Auto refund for cancellation {cancellation.id}',
                 )
-                cash_session.expected_amount = _money(
-                    cash_session.expected_amount - payment.amount
-                )
+                cash_session.expected_amount = _money(cash_session.expected_amount - payment.amount)
                 cash_session.version += 1
-                cash_session.save(
-                    update_fields=['expected_amount', 'version', 'updated_at']
-                )
+                cash_session.save(update_fields=['expected_amount', 'version', 'updated_at'])
         else:
             SaleRefund.all_objects.create(
                 tenant=tenant,

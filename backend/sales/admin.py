@@ -7,8 +7,13 @@ class SaleItemInline(admin.TabularInline):
     model = SaleItem
     extra = 0
     readonly_fields = [
-        'product', 'unit', 'quantity', 'factor', 'unit_price',
-        'discount_amount', 'line_total',
+        'product',
+        'unit',
+        'quantity',
+        'factor',
+        'unit_price',
+        'discount_amount',
+        'line_total',
     ]
     can_delete = False
 
@@ -47,16 +52,33 @@ class SalePaymentInline(admin.TabularInline):
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'tenant', 'branch', 'cash_session', 'operator',
-        'status', 'gross_total', 'discount_total', 'net_total',
+        'id',
+        'tenant',
+        'branch',
+        'cash_session',
+        'operator',
+        'status',
+        'gross_total',
+        'discount_total',
+        'net_total',
         'created_at',
     ]
     list_filter = ['status', 'tenant', 'branch', 'created_at']
     search_fields = ['id', 'branch__name', 'operator__email']
     readonly_fields = [
-        'id', 'tenant', 'branch', 'cash_session', 'operator',
-        'status', 'gross_total', 'discount_total', 'net_total',
-        'idempotency_key', 'payload_hash', 'created_at', 'updated_at',
+        'id',
+        'tenant',
+        'branch',
+        'cash_session',
+        'operator',
+        'status',
+        'gross_total',
+        'discount_total',
+        'net_total',
+        'idempotency_key',
+        'payload_hash',
+        'created_at',
+        'updated_at',
     ]
     inlines = [SaleItemInline, SalePaymentInline]
 

@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card'
 
 export default function ProductConfigPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
 
   const { data, isLoading, isError } = useQuery<PaginatedResponse<FiscalProductConfig>>({
     queryKey: ['fiscal-product-configs', tenantId],

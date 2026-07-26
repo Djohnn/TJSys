@@ -20,7 +20,10 @@ class FinancialAccount(VersionedFinancialModel):
     ]
 
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.PROTECT, null=True, blank=True,
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='financial_accounts',
     )
     name = models.CharField(max_length=120)
@@ -34,7 +37,8 @@ class FinancialAccount(VersionedFinancialModel):
         ordering = ['name']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'name'], name='uniq_financial_account_name_tenant',
+                fields=['tenant', 'name'],
+                name='uniq_financial_account_name_tenant',
             ),
         ]
 
@@ -48,7 +52,10 @@ class FinancialObligation(VersionedFinancialModel):
     ]
 
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.PROTECT, null=True, blank=True,
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='+',
     )
     description = models.TextField(blank=True, default='')
@@ -81,7 +88,8 @@ class Receivable(FinancialObligation):
         ordering = ['due_date', '-created_at']
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=0), name='financial_receivable_amount_positive',
+                condition=models.Q(amount__gt=0),
+                name='financial_receivable_amount_positive',
             ),
             models.UniqueConstraint(
                 fields=['tenant', 'idempotency_key'],
@@ -103,7 +111,10 @@ class Payable(VersionedFinancialModel):
 
     supplier_name = models.CharField(max_length=200)
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.PROTECT, null=True, blank=True,
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='payables',
     )
     description = models.TextField(blank=True, default='')
@@ -121,7 +132,8 @@ class Payable(VersionedFinancialModel):
         ordering = ['-created_at']
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=0), name='financial_payable_amount_positive',
+                condition=models.Q(amount__gt=0),
+                name='financial_payable_amount_positive',
             ),
             models.UniqueConstraint(
                 fields=['tenant', 'idempotency_key'],
@@ -143,15 +155,24 @@ class Payable(VersionedFinancialModel):
 
 class Settlement(VersionedFinancialModel):
     account = models.ForeignKey(
-        FinancialAccount, on_delete=models.PROTECT, null=True, blank=True,
+        FinancialAccount,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='settlements',
     )
     payable = models.ForeignKey(
-        Payable, on_delete=models.PROTECT, null=True, blank=True,
+        Payable,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='settlements',
     )
     receivable = models.ForeignKey(
-        Receivable, on_delete=models.PROTECT, null=True, blank=True,
+        Receivable,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='settlements',
     )
     amount = models.DecimalField(max_digits=18, decimal_places=2)
@@ -167,7 +188,8 @@ class Settlement(VersionedFinancialModel):
         ordering = ['-settled_on', '-created_at']
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=0), name='financial_settlement_amount_positive',
+                condition=models.Q(amount__gt=0),
+                name='financial_settlement_amount_positive',
             ),
             models.CheckConstraint(
                 condition=(
@@ -197,11 +219,17 @@ class CashflowEntry(VersionedFinancialModel):
     STATUS_CHOICES = [('forecast', 'Previsto'), ('realized', 'Realizado')]
 
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.PROTECT, null=True, blank=True,
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='cashflow_entries',
     )
     account = models.ForeignKey(
-        FinancialAccount, on_delete=models.PROTECT, null=True, blank=True,
+        FinancialAccount,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='cashflow_entries',
     )
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
@@ -220,7 +248,8 @@ class CashflowEntry(VersionedFinancialModel):
         ordering = ['effective_date', 'created_at']
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=0), name='financial_cashflow_amount_positive',
+                condition=models.Q(amount__gt=0),
+                name='financial_cashflow_amount_positive',
             ),
             models.UniqueConstraint(
                 fields=['tenant', 'idempotency_key'],

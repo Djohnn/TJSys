@@ -9,7 +9,7 @@ import Badge from '@/components/ui/Badge'
 
 export default function PurchaseFiscalReconciliationPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const [receiptId, setReceiptId] = useState('')
   const [cfop, setCfop] = useState('')
   const [result, setResult] = useState<ValidateFiscalResult | null>(null)

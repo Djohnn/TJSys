@@ -25,7 +25,7 @@ function formatDate(iso: string): string {
 
 export default function TransactionsPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const [page, setPage] = useState(1)
   const [intentFilter, setIntentFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')

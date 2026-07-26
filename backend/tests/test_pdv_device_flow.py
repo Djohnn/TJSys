@@ -145,12 +145,14 @@ def test_pdv_device_can_confirm_counter_sale_without_csrf(pdv_device_context):
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{
-                'product': str(ctx['product'].id),
-                'unit': str(ctx['unit'].id),
-                'quantity': '1.000000',
-                'factor': '1.000000',
-            }],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '12.50'}],
         },
         format='json',

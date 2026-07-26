@@ -29,7 +29,11 @@ class TestApplicationIsolation:
         assert Company.objects.count() == 0
 
     def test_default_manager_uses_current_tenant(
-        self, tenant_alpha, tenant_beta, company_alpha, company_beta,
+        self,
+        tenant_alpha,
+        tenant_beta,
+        company_alpha,
+        company_beta,
     ):
         with TenantContext(tenant_alpha.id):
             assert list(Company.objects.all()) == [company_alpha]
@@ -68,7 +72,11 @@ class TestRLSIsolation:
             assert cursor.fetchone()[0] == 0
 
     def test_rls_filters_cross_tenant_reads(
-        self, tenant_alpha, tenant_beta, company_alpha, company_beta,
+        self,
+        tenant_alpha,
+        tenant_beta,
+        company_alpha,
+        company_beta,
     ):
         with connection.cursor() as cursor:
             cursor.execute('SET app.current_tenant_id = %s', [str(tenant_alpha.id)])

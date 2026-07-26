@@ -44,24 +44,34 @@ class PersonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = [
-            'id', 'person_type', 'name', 'trade_name', 'is_active',
-            'roles', 'role_values', 'documents', 'created_at', 'updated_at',
+            'id',
+            'person_type',
+            'name',
+            'trade_name',
+            'is_active',
+            'roles',
+            'role_values',
+            'documents',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
 
     def get_role_values(self, obj):
         from .models import PersonRole
-        return list(
-            PersonRole.all_objects.filter(person=obj).values_list('role', flat=True)
-        )
+
+        return list(PersonRole.all_objects.filter(person=obj).values_list('role', flat=True))
 
     def create(self, validated_data):
         roles = validated_data.pop('roles', [])
         documents = validated_data.pop('documents', [])
         request = self.context['request']
         return create_person(
-            tenant=request.tenant, actor=request.user, roles=roles,
-            documents=documents, **validated_data,
+            tenant=request.tenant,
+            actor=request.user,
+            roles=roles,
+            documents=documents,
+            **validated_data,
         )
 
     def update(self, instance, validated_data):

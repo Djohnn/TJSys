@@ -1,4 +1,4 @@
-from django.urls import include, path
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from fiscal.export import FiscalDocumentExportView
@@ -19,7 +19,9 @@ app_name = 'fiscal'
 router = DefaultRouter()
 router.register('fiscal/emitters', FiscalEmitterViewSet, basename='fiscal-emitter')
 router.register('fiscal/documents', FiscalDocumentViewSet, basename='fiscal-document')
-router.register('fiscal/product-configs', FiscalProductConfigViewSet, basename='fiscal-product-config')
+router.register(
+    'fiscal/product-configs', FiscalProductConfigViewSet, basename='fiscal-product-config'
+)
 
 urlpatterns = [
     path(

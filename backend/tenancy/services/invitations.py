@@ -14,8 +14,12 @@ def create_invitation(*, tenant, invited_by, email, role, branches=()):
     secret = secrets.token_urlsafe(32)
     with transaction.atomic():
         invitation = Invitation.objects.create(
-            tenant=tenant, invited_by=invited_by, email=email, role=role,
-            token_digest=digest_value(secret), expires_at=timezone.now() + timedelta(days=7),
+            tenant=tenant,
+            invited_by=invited_by,
+            email=email,
+            role=role,
+            token_digest=digest_value(secret),
+            expires_at=timezone.now() + timedelta(days=7),
         )
         if branches:
             invitation.branches.set(branches)
@@ -42,7 +46,8 @@ def accept_invitation(*, raw, user):
         ):
             return None
         membership, _ = TenantMembership.objects.update_or_create(
-            user=user, tenant=invitation.tenant,
+            user=user,
+            tenant=invitation.tenant,
             defaults={'role': invitation.role, 'is_active': True},
         )
         invitation.accepted_at = timezone.now()

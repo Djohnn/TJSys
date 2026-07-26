@@ -77,9 +77,13 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
     ]
 
     def get_queryset(self):
-        queryset = CashSession.objects.select_related('branch', 'operator').filter(
-            tenant=self.request.tenant,
-        ).prefetch_related('movements')
+        queryset = (
+            CashSession.objects.select_related('branch', 'operator')
+            .filter(
+                tenant=self.request.tenant,
+            )
+            .prefetch_related('movements')
+        )
         branch_id = self.request.query_params.get('branch')
         operator_id = self.request.query_params.get('operator')
         date_from = self.request.query_params.get('date_from')
@@ -137,16 +141,18 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
         branch_id = request.query_params.get('branch')
         if not branch_id:
             return _problem('branch query parameter is required.')
-        session = self.get_queryset().filter(
-            branch_id=branch_id,
-            operator=request.user,
-            status='open',
-        ).first()
+        session = (
+            self.get_queryset()
+            .filter(
+                branch_id=branch_id,
+                operator=request.user,
+                status='open',
+            )
+            .first()
+        )
         if session is None:
             return _problem('Open cash session not found.', 'not_found', 404)
-        return Response(
-            CashSessionSerializer(session, context=self.get_serializer_context()).data
-        )
+        return Response(CashSessionSerializer(session, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=['post'])
     def close(self, request, pk=None):
@@ -160,9 +166,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except Exception as exc:
             return self._handle_sales_error(exc)
-        return Response(
-            CashSessionSerializer(session, context=self.get_serializer_context()).data
-        )
+        return Response(CashSessionSerializer(session, context=self.get_serializer_context()).data)
 
 
 class SaleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -175,11 +179,15 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     MAX_EXPORT_ROWS = 1000
 
     def get_queryset(self):
-        queryset = Sale.objects.select_related(
-            'branch',
-            'cash_session',
-            'operator',
-        ).filter(tenant=self.request.tenant).prefetch_related('items', 'payments')
+        queryset = (
+            Sale.objects.select_related(
+                'branch',
+                'cash_session',
+                'operator',
+            )
+            .filter(tenant=self.request.tenant)
+            .prefetch_related('items', 'payments')
+        )
         branch_id = self.request.query_params.get('branch')
         cash_session_id = self.request.query_params.get('cash_session')
         operator_id = self.request.query_params.get('operator')
@@ -259,7 +267,8 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 idempotency_key=_idempotency_key(request),
                 customer=(
                     _tenant_get(Person, request.tenant, data['customer'])
-                    if data.get('customer') else None
+                    if data.get('customer')
+                    else None
                 ),
             )
         except Exception as exc:
@@ -304,7 +313,8 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as exc:
             return self._handle_sales_error(exc)
         returns_queryset = SaleReturn.all_objects.filter(
-            tenant=request.tenant, sale=sale,
+            tenant=request.tenant,
+            sale=sale,
         ).prefetch_related('items')
         return Response(
             SaleReturnSerializer(returns_queryset, many=True).data,
@@ -327,9 +337,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as exc:
             return self._handle_sales_error(exc)
         return Response(
-            SaleCancellationSerializer(
-                cancellation, context=self.get_serializer_context()
-            ).data,
+            SaleCancellationSerializer(cancellation, context=self.get_serializer_context()).data,
         )
 
     @action(detail=False, methods=['get'])
@@ -344,23 +352,41 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(created_at__date__lte=date_to)
         if branch_id:
             queryset = queryset.filter(branch_id=branch_id)
-        queryset = queryset.order_by('-created_at')[:self.MAX_EXPORT_ROWS]
+        queryset = queryset.order_by('-created_at')[: self.MAX_EXPORT_ROWS]
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="sales-export.csv"'
         writer = csv.writer(response)
-        writer.writerow([
-            'id', 'created_at', 'branch', 'operator', 'customer',
-            'status', 'gross_total', 'discount_total', 'net_total',
-            'items_count', 'payment_methods',
-        ])
+        writer.writerow(
+            [
+                'id',
+                'created_at',
+                'branch',
+                'operator',
+                'customer',
+                'status',
+                'gross_total',
+                'discount_total',
+                'net_total',
+                'items_count',
+                'payment_methods',
+            ]
+        )
         for sale in queryset:
-            writer.writerow([
-                sale.id, sale.created_at, sale.branch_id, sale.operator_id,
-                sale.customer_id or '', sale.status,
-                sale.gross_total, sale.discount_total, sale.net_total,
-                sale.items.count(),
-                ', '.join(sale.payments.values_list('method', flat=True).distinct()),
-            ])
+            writer.writerow(
+                [
+                    sale.id,
+                    sale.created_at,
+                    sale.branch_id,
+                    sale.operator_id,
+                    sale.customer_id or '',
+                    sale.status,
+                    sale.gross_total,
+                    sale.discount_total,
+                    sale.net_total,
+                    sale.items.count(),
+                    ', '.join(sale.payments.values_list('method', flat=True).distinct()),
+                ]
+            )
         return response
 
 
@@ -378,13 +404,16 @@ def _route_batch_operation(request, op):
             branch=branch,
             operator=request.user,
             stock_location=_tenant_get(StockLocation, request.tenant, data['stock_location']),
-            items=[{
-                'product': _tenant_get(Product, request.tenant, item['product']),
-                'unit': _tenant_get(Unit, request.tenant, item['unit']),
-                'quantity': item['quantity'],
-                'factor': item['factor'],
-                'discount_amount': item.get('discount_amount', 0),
-            } for item in data['items']],
+            items=[
+                {
+                    'product': _tenant_get(Product, request.tenant, item['product']),
+                    'unit': _tenant_get(Unit, request.tenant, item['unit']),
+                    'quantity': item['quantity'],
+                    'factor': item['factor'],
+                    'discount_amount': item.get('discount_amount', 0),
+                }
+                for item in data['items']
+            ],
             payments=data['payments'],
             idempotency_key=op['idempotency_key'],
         )
@@ -432,32 +461,40 @@ class SyncBatchView(APIView):
         for op in operations:
             try:
                 data, _ = _route_batch_operation(request, op)
-                results.append({
-                    'idempotency_key': op['idempotency_key'],
-                    'type': op['type'],
-                    'status': 'synced',
-                    'data': data,
-                })
+                results.append(
+                    {
+                        'idempotency_key': op['idempotency_key'],
+                        'type': op['type'],
+                        'status': 'synced',
+                        'data': data,
+                    }
+                )
             except DuplicateIdempotencyKey:
-                results.append({
-                    'idempotency_key': op['idempotency_key'],
-                    'type': op['type'],
-                    'status': 'conflict',
-                    'error': 'Idempotency key already used with a different payload.',
-                })
+                results.append(
+                    {
+                        'idempotency_key': op['idempotency_key'],
+                        'type': op['type'],
+                        'status': 'conflict',
+                        'error': 'Idempotency key already used with a different payload.',
+                    }
+                )
             except (CashSessionRequired, OpenCashSessionExists) as exc:
-                results.append({
-                    'idempotency_key': op['idempotency_key'],
-                    'type': op['type'],
-                    'status': 'conflict',
-                    'error': str(exc),
-                })
+                results.append(
+                    {
+                        'idempotency_key': op['idempotency_key'],
+                        'type': op['type'],
+                        'status': 'conflict',
+                        'error': str(exc),
+                    }
+                )
             except (ValueError, ObjectDoesNotExist) as exc:
-                results.append({
-                    'idempotency_key': op['idempotency_key'],
-                    'type': op['type'],
-                    'status': 'failed',
-                    'error': str(exc),
-                })
+                results.append(
+                    {
+                        'idempotency_key': op['idempotency_key'],
+                        'type': op['type'],
+                        'status': 'failed',
+                        'error': str(exc),
+                    }
+                )
 
         return Response({'results': results})

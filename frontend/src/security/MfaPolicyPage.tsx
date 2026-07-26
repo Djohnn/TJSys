@@ -28,7 +28,7 @@ export default function MfaPolicyPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['mfa-policy', tenantId],
     queryFn: ({ signal }) =>
-      apiRequest<MFAPolicy>(`/memberships/mfa-policy/`, {
+      apiRequest<MFAPolicy>('/security/mfa-policy/', {
         tenantId,
         signal,
       }) as Promise<MFAPolicy>,
@@ -37,7 +37,7 @@ export default function MfaPolicyPage() {
 
   const updateMutation = useMutation({
     mutationFn: (body: MFAPolicy) =>
-      apiRequest<MFAPolicy>(`/memberships/mfa-policy/`, {
+      apiRequest<MFAPolicy>('/security/mfa-policy/', {
         method: 'PATCH',
         tenantId,
         body,

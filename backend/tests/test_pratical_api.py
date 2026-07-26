@@ -6,9 +6,10 @@ isolamento cross-tenant, autenticação e monitoring.
 
 import pytest
 from django.contrib.auth import get_user_model
-from tenancy.models import Tenant, TenantMembership
-from tenancy.context import set_current_tenant_id, reset_current_tenant_id
 from django.db import connection
+
+from tenancy.context import reset_current_tenant_id, set_current_tenant_id
+from tenancy.models import Tenant, TenantMembership
 
 User = get_user_model()
 
@@ -99,11 +100,14 @@ class TestWriteOnlySecrets:
     def test_fiscal_secret_not_returned(self, client):
         """Given admin, when create emitter, then secret never in response."""
         from tenancy.models import Branch, Company
+
         user, tenant = _setup(client)
         # Create Branch inside tenant context
         token = set_current_tenant_id(tenant.id)
         with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant.id)])
+            cursor.execute(
+                "SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant.id)]
+            )
         company = Company.all_objects.create(tenant=tenant, name='Co')
         branch = Branch.all_objects.create(tenant=tenant, company=company, name='Br')
         reset_current_tenant_id(token)
@@ -130,6 +134,7 @@ class TestOperatorDenied:
     def test_operator_cannot_create_emitter(self, client):
         """Given operator role, when POST emitter, then 403."""
         from tenancy.models import Branch, Company
+
         user = User.objects.create_user(email='op@test.local', password='pass123')
         tenant = Tenant.objects.create(name='Op Test', slug='op-test')
         TenantMembership.objects.create(user=user, tenant=tenant, role='operator', is_active=True)
@@ -140,7 +145,9 @@ class TestOperatorDenied:
         session.save()
         token = set_current_tenant_id(tenant.id)
         with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant.id)])
+            cursor.execute(
+                "SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant.id)]
+            )
         company = Company.all_objects.create(tenant=tenant, name='Op Co')
         branch = Branch.all_objects.create(tenant=tenant, company=company, name='Op Br')
         reset_current_tenant_id(token)

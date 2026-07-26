@@ -25,7 +25,7 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'danger' | 'info' 
 
 export default function FiscalDocumentsPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [directionFilter, setDirectionFilter] = useState('')

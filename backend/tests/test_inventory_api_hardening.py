@@ -28,10 +28,10 @@ def test_inventory_views_import_without_missing_permissions():
     'url_name',
     [
         'stocklocation-list',
-        'stocklot-list',
+        'lot-list',
         'stockoperation-list',
-        'stockmovement-list',
-        'stockbalance-list',
+        'movement-list',
+        'balance-list',
     ],
 )
 def test_inventory_routes_are_registered(url_name):

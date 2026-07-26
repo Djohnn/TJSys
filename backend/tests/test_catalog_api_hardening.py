@@ -28,7 +28,9 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='manager'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant, defaults={'role': role, 'is_active': True},
+        user=user,
+        tenant=tenant,
+        defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
     session = client.session
@@ -81,7 +83,9 @@ def hardening_product(hardening_tenant, hardening_unit):
 
 @pytest.mark.django_db
 def test_catalog_search_does_not_crash(
-    hardening_client, hardening_tenant, hardening_product,
+    hardening_client,
+    hardening_tenant,
+    hardening_product,
 ):
     response = hardening_client.get(
         '/api/v1/products/',
@@ -97,7 +101,8 @@ def test_catalog_search_does_not_crash(
 
 @pytest.mark.django_db
 def test_product_api_rejects_base_unit_from_other_tenant(
-    hardening_client, hardening_tenant,
+    hardening_client,
+    hardening_tenant,
 ):
     other_tenant = Tenant.objects.create(name='Other', slug='other-hardening')
     other_unit = _run_in_tenant(
@@ -130,7 +135,10 @@ def test_product_api_rejects_base_unit_from_other_tenant(
 
 @pytest.mark.django_db
 def test_nested_product_code_uses_product_from_url(
-    hardening_client, hardening_tenant, hardening_unit, hardening_product,
+    hardening_client,
+    hardening_tenant,
+    hardening_unit,
+    hardening_product,
 ):
     other_product = _run_in_tenant(
         hardening_tenant,
@@ -159,7 +167,9 @@ def test_nested_product_code_uses_product_from_url(
 
 @pytest.mark.django_db
 def test_product_price_api_rejects_overlapping_period(
-    hardening_client, hardening_tenant, hardening_product,
+    hardening_client,
+    hardening_tenant,
+    hardening_product,
 ):
     now = timezone.now()
     _run_in_tenant(
@@ -190,7 +200,9 @@ def test_product_price_api_rejects_overlapping_period(
 
 @pytest.mark.django_db
 def test_branch_price_api_rejects_branch_from_other_tenant(
-    hardening_client, hardening_tenant, hardening_product,
+    hardening_client,
+    hardening_tenant,
+    hardening_product,
 ):
     other_tenant = Tenant.objects.create(name='Branch Other', slug='branch-other-hardening')
     company = _run_in_tenant(

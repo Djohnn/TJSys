@@ -62,7 +62,9 @@ test.describe('Painel administrativo de tenancy', () => {
 
     const adminLinks = ['Empresas', 'Filiais', 'Membros', 'Convites', 'Segurança', 'Dispositivos']
     for (const label of adminLinks) {
-      await expect(page.getByRole('link', { name: label })).toBeVisible()
+      await expect(
+        page.getByTestId('main-navigation').getByRole('link', { name: label }),
+      ).toBeVisible()
     }
   })
 })

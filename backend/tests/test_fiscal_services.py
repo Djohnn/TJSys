@@ -83,12 +83,14 @@ def fiscal_sale_context(django_user_model):
             branch=branch,
             operator=user,
             stock_location=location,
-            items=[{
-                'product': product,
-                'unit': unit,
-                'quantity': Decimal('1'),
-                'factor': Decimal('1'),
-            }],
+            items=[
+                {
+                    'product': product,
+                    'unit': unit,
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('10.00')}],
             idempotency_key='fiscal-sale',
         )

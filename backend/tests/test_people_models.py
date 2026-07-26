@@ -47,9 +47,7 @@ def test_active_document_is_unique_only_inside_tenant(tenant_alpha, tenant_beta)
     PersonDocument.all_objects.create(
         tenant=tenant_beta, person=beta, document_type='CPF', value='123.456.789-09'
     )
-    duplicate = Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='Duplicate'
-    )
+    duplicate = Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='Duplicate')
 
     with pytest.raises(IntegrityError), transaction.atomic():
         PersonDocument.all_objects.create(
@@ -69,6 +67,7 @@ def test_person_accepts_multiple_distinct_roles(tenant_alpha):
     PersonRole.all_objects.create(tenant=tenant_alpha, person=person, role='customer')
     PersonRole.all_objects.create(tenant=tenant_alpha, person=person, role='supplier')
 
-    assert set(
-        PersonRole.all_objects.filter(person=person).values_list('role', flat=True)
-    ) == {'customer', 'supplier'}
+    assert set(PersonRole.all_objects.filter(person=person).values_list('role', flat=True)) == {
+        'customer',
+        'supplier',
+    }

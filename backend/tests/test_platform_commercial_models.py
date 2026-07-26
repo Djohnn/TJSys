@@ -8,7 +8,8 @@ from platform_admin.models import FeatureFlag, Plan, Subscription
 class TestPlanModel:
     def test_create_plan(self):
         plan = Plan.objects.create(
-            code='test-plan', name='Test Plan',
+            code='test-plan',
+            name='Test Plan',
             capabilities={'purchasing': True, 'sales': True},
             limits={'max_users': 5},
         )
@@ -37,7 +38,9 @@ class TestSubscriptionModel:
     def test_create_subscription(self, tenant_alpha):
         plan = Plan.objects.create(code='starter', name='Starter')
         sub = Subscription.objects.create(
-            tenant=tenant_alpha, plan=plan, start_date='2026-07-01',
+            tenant=tenant_alpha,
+            plan=plan,
+            start_date='2026-07-01',
         )
         assert sub.status == 'active'
         assert sub.is_active is True
@@ -45,11 +48,15 @@ class TestSubscriptionModel:
     def test_unique_active_per_tenant(self, tenant_alpha):
         plan = Plan.objects.create(code='pro', name='Pro')
         Subscription.objects.create(
-            tenant=tenant_alpha, plan=plan, start_date='2026-07-01',
+            tenant=tenant_alpha,
+            plan=plan,
+            start_date='2026-07-01',
         )
         with pytest.raises(Exception):
             Subscription.objects.create(
-                tenant=tenant_alpha, plan=plan, start_date='2026-07-15',
+                tenant=tenant_alpha,
+                plan=plan,
+                start_date='2026-07-15',
             )
 
     def test_inactive_plan_raises(self, tenant_alpha):
@@ -61,7 +68,9 @@ class TestSubscriptionModel:
     def test_subscription_str(self, tenant_alpha):
         plan = Plan.objects.create(code='enterprise', name='Enterprise')
         sub = Subscription.objects.create(
-            tenant=tenant_alpha, plan=plan, start_date='2026-07-01',
+            tenant=tenant_alpha,
+            plan=plan,
+            start_date='2026-07-01',
         )
         assert str(tenant_alpha.slug) in str(sub)
         assert 'enterprise' in str(sub)
@@ -79,13 +88,15 @@ class TestFeatureFlagModel:
 
     def test_rollout_percentage_100(self):
         flag = FeatureFlag.objects.create(
-            code='test-flag', rollout_percentage=100,
+            code='test-flag',
+            rollout_percentage=100,
         )
         assert flag.is_enabled_for('any-tenant') is True
 
     def test_tenant_override_enabled(self):
         flag = FeatureFlag.objects.create(
-            code='test-flag', is_globally_enabled=False,
+            code='test-flag',
+            is_globally_enabled=False,
             tenant_overrides={'tenant-abc': True},
         )
         assert flag.is_enabled_for('tenant-abc') is True
@@ -93,7 +104,8 @@ class TestFeatureFlagModel:
 
     def test_tenant_override_disabled(self):
         flag = FeatureFlag.objects.create(
-            code='test-flag', is_globally_enabled=True,
+            code='test-flag',
+            is_globally_enabled=True,
             tenant_overrides={'tenant-abc': False},
         )
         assert flag.is_enabled_for('tenant-abc') is False

@@ -140,10 +140,14 @@ def test_settlement_targets_exactly_one_obligation(financial_context):
     """A settlement cannot target both a payable and a receivable."""
     ctx = financial_context
     payable = Payable.all_objects.create(
-        tenant=ctx['tenant'], supplier_name='Fornecedor', amount=Decimal('10.00'),
+        tenant=ctx['tenant'],
+        supplier_name='Fornecedor',
+        amount=Decimal('10.00'),
     )
     receivable = Receivable.all_objects.create(
-        tenant=ctx['tenant'], description='Cliente', amount=Decimal('10.00'),
+        tenant=ctx['tenant'],
+        description='Cliente',
+        amount=Decimal('10.00'),
     )
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -161,7 +165,9 @@ def test_confirmed_settlement_is_immutable(financial_context):
     """When a settlement is confirmed, corrections require a new adjustment record."""
     ctx = financial_context
     receivable = Receivable.all_objects.create(
-        tenant=ctx['tenant'], description='Cliente', amount=Decimal('10.00'),
+        tenant=ctx['tenant'],
+        description='Cliente',
+        amount=Decimal('10.00'),
     )
     settlement = Settlement.all_objects.create(
         tenant=ctx['tenant'],

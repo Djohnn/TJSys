@@ -1,13 +1,9 @@
 import { expect } from '@playwright/test'
-import { test } from './fixtures'
+import { authenticatePage, test } from './fixtures'
 
 test.describe('Autenticação e troca de tenant', () => {
   test('Login com credenciais válidas redireciona para o dashboard', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(/^\/(?!login)/)
+    await authenticatePage(page)
     await expect(page.getByTestId('app-shell')).toBeVisible()
   })
 
@@ -20,21 +16,14 @@ test.describe('Autenticação e troca de tenant', () => {
   })
 
   test('Seletor de tenant aparece quando há múltiplos tenants', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
     await expect(page.getByTestId('tenant-selector')).toBeVisible()
   })
 
   test('Troca de tenant exibe novo tenant no seletor', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
 
+    await expect(page.getByTestId('tenant-selector')).toBeVisible()
     const tenantButtons = page.getByTestId('tenant-selector').getByRole('button')
     const count = await tenantButtons.count()
     expect(count).toBeGreaterThanOrEqual(2)
@@ -45,22 +34,14 @@ test.describe('Autenticação e troca de tenant', () => {
   })
 
   test('Logout redireciona para página de login', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
 
     await page.getByRole('button', { name: 'Sair' }).click()
     await expect(page).toHaveURL(/\/login/)
   })
 
   test('Após logout, navegação ao dashboard retorna ao login', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
 
     await page.getByRole('button', { name: 'Sair' }).click()
     await page.waitForURL(/\/login/)
@@ -74,8 +55,8 @@ test.describe('Autenticação e troca de tenant', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 
-  test('Página MFA carrega quando acessada diretamente', async ({ page }) => {
+  test('Página MFA sem pré-sessão retorna ao login', async ({ page }) => {
     await page.goto('/mfa')
-    await expect(page.getByTestId('mfa-page')).toBeVisible()
+    await expect(page).toHaveURL(/\/login/)
   })
 })

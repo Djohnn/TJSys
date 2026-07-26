@@ -90,6 +90,62 @@ export interface CashSessionsQuery {
   operator?: string
 }
 
+interface CanonicalSaleItem extends Partial<SaleItem> {
+  product?: string
+  line_total?: string
+}
+
+interface CanonicalSalePayment extends Partial<SalePayment> {
+  method?: string
+  amount?: string
+}
+
+interface CanonicalSale extends Omit<Partial<Sale>, 'items' | 'payments'> {
+  gross_total?: string
+  net_total?: string
+  items?: CanonicalSaleItem[]
+  payments?: CanonicalSalePayment[]
+}
+
+function normalizeSale(raw: CanonicalSale): Sale {
+  const status = raw.status === 'confirmed' ? 'completed' : (raw.status ?? '')
+  return {
+    id: raw.id ?? '',
+    created_at: raw.created_at ?? '',
+    customer: raw.customer ?? '',
+    customer_name: raw.customer_name ?? 'Consumidor não identificado',
+    operator: raw.operator ?? '',
+    operator_name: raw.operator_name ?? raw.operator ?? '-',
+    branch: raw.branch ?? '',
+    branch_name: raw.branch_name ?? raw.branch ?? '-',
+    device: raw.device ?? '',
+    device_name: raw.device_name ?? '-',
+    total: raw.total ?? raw.net_total ?? raw.gross_total ?? '0.00',
+    status,
+    status_label:
+      raw.status_label ?? (status === 'completed' ? 'Concluída' : status),
+    items: (raw.items ?? []).map((item) => ({
+      id: item.id ?? '',
+      product: item.product ?? '',
+      product_name: item.product_name ?? item.product ?? '-',
+      quantity: item.quantity ?? '0',
+      unit_price: item.unit_price ?? '0.00',
+      total: item.total ?? item.line_total ?? '0.00',
+    })),
+    payments: (raw.payments ?? []).map((payment) => ({
+      id: payment.id ?? '',
+      method: payment.method ?? '',
+      method_name: payment.method_name ?? payment.method ?? '-',
+      amount: payment.amount ?? '0.00',
+      status: payment.status ?? 'completed',
+      status_label: payment.status_label ?? 'Concluído',
+    })),
+    linked_stock_movement: raw.linked_stock_movement ?? null,
+    linked_fiscal_document: raw.linked_fiscal_document ?? null,
+    linked_financial_entries: raw.linked_financial_entries ?? [],
+  }
+}
+
 function buildSearchParams(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -118,10 +174,10 @@ export function fetchSale(
   id: string,
   signal?: AbortSignal,
 ): Promise<Sale> {
-  return apiRequest<Sale>(`/sales/${id}/`, {
+  return (apiRequest<CanonicalSale>(`/sales/${id}/`, {
     tenantId,
     signal,
-  }) as Promise<Sale>
+  }) as Promise<CanonicalSale>).then(normalizeSale)
 }
 
 export function fetchCashSessions(

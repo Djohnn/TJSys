@@ -196,6 +196,7 @@ def test_request_fiscal_returns_existing_document(client, fiscal_sale_context):
 @pytest.mark.django_db
 def test_request_fiscal_404_for_nonexistent_sale(client, fiscal_sale_context):
     import uuid
+
     ctx = fiscal_sale_context
     client.force_login(ctx['user'])
     session = client.session

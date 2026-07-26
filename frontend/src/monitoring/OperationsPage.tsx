@@ -22,8 +22,8 @@ export default function OperationsPage(): ReactNode {
   const refetchInterval = useVisibilityRefetch(30_000)
 
   const { isLoading, error, data } = useQuery<OperationsData>({
-    queryKey: ['monitoring', 'operations', selectedTenant?.id],
-    queryFn: () => fetchOperations(selectedTenant?.id),
+    queryKey: ['monitoring', 'operations', selectedTenant?.tenant_id],
+    queryFn: () => fetchOperations(selectedTenant?.tenant_id),
     refetchInterval,
     enabled: !!selectedTenant,
   })

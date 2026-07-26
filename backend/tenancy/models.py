@@ -24,7 +24,9 @@ class TimeStampedModel(models.Model):
 
 class TenantScopedModel(models.Model):
     tenant = models.ForeignKey(
-        'tenancy.Tenant', on_delete=models.CASCADE, editable=False,
+        'tenancy.Tenant',
+        on_delete=models.CASCADE,
+        editable=False,
     )
 
     class Meta:
@@ -64,7 +66,9 @@ class Company(TimeStampedModel, TenantScopedModel):
 
 class Branch(TimeStampedModel, TenantScopedModel):
     company = models.ForeignKey(
-        Company, on_delete=models.CASCADE, related_name='branches',
+        Company,
+        on_delete=models.CASCADE,
+        related_name='branches',
     )
     name = models.CharField(max_length=200)
     is_active = models.BooleanField(default=True)
@@ -91,11 +95,14 @@ class Branch(TimeStampedModel, TenantScopedModel):
 
 class TenantMembership(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name='tenant_memberships',
     )
     tenant = models.ForeignKey(
-        Tenant, on_delete=models.CASCADE, related_name='memberships',
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='memberships',
     )
     role = models.CharField(
         max_length=20,
@@ -115,7 +122,9 @@ class TenantMembership(models.Model):
 
 class TenantMFAPolicy(models.Model):
     tenant = models.OneToOneField(
-        Tenant, on_delete=models.CASCADE, related_name='mfa_policy',
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name='mfa_policy',
     )
     allow_totp = models.BooleanField(default=True)
     allow_email = models.BooleanField(default=True)
@@ -135,11 +144,14 @@ class TenantMFAPolicy(models.Model):
 
 class UserBranch(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name='user_branches',
     )
     branch = models.ForeignKey(
-        Branch, on_delete=models.CASCADE, related_name='user_branches',
+        Branch,
+        on_delete=models.CASCADE,
+        related_name='user_branches',
     )
     is_active = models.BooleanField(default=True)
 
@@ -175,7 +187,9 @@ class Invitation(models.Model):
     expires_at = models.DateTimeField()
     accepted_at = models.DateTimeField(null=True, blank=True)
     invited_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='sent_invitations',
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='sent_invitations',
     )
     branches = models.ManyToManyField(Branch, blank=True, related_name='invitations')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -198,7 +212,10 @@ class Device(TimeStampedModel, TenantScopedModel):
     device_id = models.CharField(max_length=100)
     key_hash = models.CharField(max_length=128)
     branch = models.ForeignKey(
-        Branch, on_delete=models.SET_NULL, null=True, blank=True,
+        Branch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='devices',
     )
     platform = models.CharField(max_length=50, blank=True, default='')
@@ -207,8 +224,11 @@ class Device(TimeStampedModel, TenantScopedModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     last_seen_at = models.DateTimeField(null=True, blank=True)
     registered_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='registered_devices',
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registered_devices',
     )
 
     objects = TenantManager()
@@ -218,7 +238,8 @@ class Device(TimeStampedModel, TenantScopedModel):
         ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'device_id'], name='uniq_device_tenant_deviceid',
+                fields=['tenant', 'device_id'],
+                name='uniq_device_tenant_deviceid',
             ),
         ]
 

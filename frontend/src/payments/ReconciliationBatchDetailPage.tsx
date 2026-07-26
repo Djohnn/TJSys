@@ -14,7 +14,7 @@ function formatBRL(value: string): string {
 
 export default function ReconciliationBatchDetailPage() {
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const { id } = useParams<{ id: string }>()
 
   const { data, isLoading, isError } = useQuery<PaymentReconciliationBatch>({

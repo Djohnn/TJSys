@@ -5,17 +5,36 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 from django.http import HttpResponse
 from django.utils import timezone
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import viewsets
 
-from financial.models import Payable, Receivable
+from financial.models import CashflowEntry, Payable, Receivable
 from financial.permissions import FinancialReportingPermission
-from financial.serializers import PayableSerializer, ReceivableSerializer
+from financial.serializers import CashflowEntrySerializer, PayableSerializer, ReceivableSerializer
 from financial.services import cashflow_projection
 from tenancy.models import Branch
-from tenancy.permissions import HasActiveTenant
+from tenancy.permissions import HasActiveTenant, HasCapability
+
+
+class CashflowEntryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CashflowEntrySerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        queryset = CashflowEntry.all_objects.filter(tenant=self.request.tenant).select_related(
+            'branch'
+        )
+        if date_from := self.request.query_params.get('date_from'):
+            queryset = queryset.filter(effective_date__gte=date_from)
+        if date_to := self.request.query_params.get('date_to'):
+            queryset = queryset.filter(effective_date__lte=date_to)
+        if branch := self.request.query_params.get('branch'):
+            queryset = queryset.filter(branch_id=branch)
+        return queryset.order_by('effective_date', 'created_at')
+
 
 MAX_EXPORT_ROWS = 1000
 
@@ -72,10 +91,12 @@ class SalesReportView(ReportView):
         if branch:
             queryset = queryset.filter(branch=branch)
         totals = queryset.aggregate(count=Count('id'), net_total=Sum('net_total'))
-        return Response({
-            'count': totals['count'],
-            'net_total': totals['net_total'] or Decimal('0.00'),
-        })
+        return Response(
+            {
+                'count': totals['count'],
+                'net_total': totals['net_total'] or Decimal('0.00'),
+            }
+        )
 
 
 class CashClosingReportView(ReportView):
@@ -90,15 +111,19 @@ class CashClosingReportView(ReportView):
         branch = self.branch(request)
         if branch:
             queryset = queryset.filter(branch=branch)
-        return Response({'sessions': [
+        return Response(
             {
-                'id': str(session.id),
-                'status': session.status,
-                'expected_amount': session.expected_amount,
-                'closing_amount': session.closing_amount,
+                'sessions': [
+                    {
+                        'id': str(session.id),
+                        'status': session.status,
+                        'expected_amount': session.expected_amount,
+                        'closing_amount': session.closing_amount,
+                    }
+                    for session in queryset[:MAX_EXPORT_ROWS]
+                ]
             }
-            for session in queryset[:MAX_EXPORT_ROWS]
-        ]})
+        )
 
 
 class InventoryReportView(ReportView):
@@ -111,18 +136,22 @@ class InventoryReportView(ReportView):
         branch = self.branch(request)
         if branch:
             queryset = queryset.filter(location__branch=branch)
-        return Response({'items': [
+        return Response(
             {
-                'product_id': str(balance.product_id),
-                'sku': balance.product.sku,
-                'location_id': str(balance.location_id),
-                'quantity': balance.quantity,
-                'reserved': balance.reserved,
-                'available': balance.available,
-                'critical': balance.available <= 0,
+                'items': [
+                    {
+                        'product_id': str(balance.product_id),
+                        'sku': balance.product.sku,
+                        'location_id': str(balance.location_id),
+                        'quantity': balance.quantity,
+                        'reserved': balance.reserved,
+                        'available': balance.available,
+                        'critical': balance.available <= 0,
+                    }
+                    for balance in queryset[:MAX_EXPORT_ROWS]
+                ]
             }
-            for balance in queryset[:MAX_EXPORT_ROWS]
-        ]})
+        )
 
 
 class FinancialReportView(ReportView):
@@ -159,22 +188,30 @@ class FinancialReportView(ReportView):
         writer.writerow(['kind', 'id', 'description', 'amount', 'status', 'due_date'])
         for kind, rows in [('payable', payables), ('receivable', receivables)]:
             for row in rows:
-                writer.writerow([
-                    kind, row['id'], row['description'], row['amount'],
-                    row['status'], row['due_date'] or '',
-                ])
+                writer.writerow(
+                    [
+                        kind,
+                        row['id'],
+                        row['description'],
+                        row['amount'],
+                        row['status'],
+                        row['due_date'] or '',
+                    ]
+                )
         return response
 
 
 class CashflowReportView(ReportView):
     def get(self, request):
         date_from, date_to = self.period(request)
-        return Response(cashflow_projection(
-            tenant=request.tenant,
-            branch=self.branch(request),
-            date_from=date_from,
-            date_to=date_to,
-        ))
+        return Response(
+            cashflow_projection(
+                tenant=request.tenant,
+                branch=self.branch(request),
+                date_from=date_from,
+                date_to=date_to,
+            )
+        )
 
 
 class PendingOperationsReportView(ReportView):
@@ -182,18 +219,30 @@ class PendingOperationsReportView(ReportView):
         from fiscal.models import FiscalDocument
         from outbox.models import OutboxMessage
 
-        fiscal = FiscalDocument.all_objects.filter(
-            tenant=request.tenant,
-            status__in=['PENDING', 'PROCESSING', 'REJECTED', 'FAILED'],
-        ).values('status').annotate(count=Count('id')).order_by('status')
-        outbox = OutboxMessage.objects.filter(
-            tenant_id=str(request.tenant.id),
-            status__in=['PENDING', 'FAILED'],
-        ).values('status').annotate(count=Count('id')).order_by('status')
-        return Response({
-            'fiscal': list(fiscal),
-            'offline_or_outbox': list(outbox),
-        })
+        fiscal = (
+            FiscalDocument.all_objects.filter(
+                tenant=request.tenant,
+                status__in=['PENDING', 'PROCESSING', 'REJECTED', 'FAILED'],
+            )
+            .values('status')
+            .annotate(count=Count('id'))
+            .order_by('status')
+        )
+        outbox = (
+            OutboxMessage.objects.filter(
+                tenant_id=str(request.tenant.id),
+                status__in=['PENDING', 'FAILED'],
+            )
+            .values('status')
+            .annotate(count=Count('id'))
+            .order_by('status')
+        )
+        return Response(
+            {
+                'fiscal': list(fiscal),
+                'offline_or_outbox': list(outbox),
+            }
+        )
 
 
 class PayableViewSet(viewsets.ReadOnlyModelViewSet):

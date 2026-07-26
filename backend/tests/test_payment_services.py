@@ -16,8 +16,11 @@ def test_create_intent_from_sale_and_capture(sale_context):
         tenant=ctx['tenant'], provider='fake', secret='restricted-secret'
     )
     intent = create_payment_intent(
-        tenant=ctx['tenant'], sale=ctx['sale'], provider_config=config,
-        idempotency_key='sale-payment-1', actor=ctx['user'],
+        tenant=ctx['tenant'],
+        sale=ctx['sale'],
+        provider_config=config,
+        idempotency_key='sale-payment-1',
+        actor=ctx['user'],
     )
     transaction = capture_payment(intent=intent, actor=ctx['user'])
 
@@ -69,7 +72,9 @@ def test_webhook_rejects_invalid_signature(sale_context):
     )
     with pytest.raises(InvalidWebhookSignature):
         process_webhook(
-            tenant=ctx['tenant'], provider='fake', payload=b'{"id":"evt-2"}',
+            tenant=ctx['tenant'],
+            provider='fake',
+            payload=b'{"id":"evt-2"}',
             signature='invalid',
         )
     assert not PaymentWebhookEvent.all_objects.filter(tenant=ctx['tenant']).exists()

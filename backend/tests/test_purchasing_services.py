@@ -13,6 +13,7 @@ def _run_in_tenant(tenant, callback):
     from django.db import connection
 
     from tenancy.context import reset_current_tenant_id, set_current_tenant_id
+
     token = set_current_tenant_id(tenant.id)
     try:
         with connection.cursor() as cursor:
@@ -29,21 +30,35 @@ def po_with_items_context():
     def _create():
         company = Company.all_objects.create(tenant=tenant, name='Empresa PO')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial PO',
+            tenant=tenant,
+            company=company,
+            name='Filial PO',
         )
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         product = Product.all_objects.create(
-            tenant=tenant, sku='PO-SVC', name='Produto PO', base_unit=unit,
+            tenant=tenant,
+            sku='PO-SVC',
+            name='Produto PO',
+            base_unit=unit,
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='Fornecedor PO', cnpj='00.000.000/0001-00',
+            tenant=tenant,
+            name='Fornecedor PO',
+            cnpj='00.000.000/0001-00',
         )
         po = PurchaseOrder.all_objects.create(
-            tenant=tenant, supplier=supplier, branch=branch,
+            tenant=tenant,
+            supplier=supplier,
+            branch=branch,
         )
         item = PurchaseOrderItem.all_objects.create(
-            tenant=tenant, purchase_order=po, product=product, unit=unit,
-            quantity=Decimal('10'), unit_cost=Decimal('5.00'), factor=Decimal('1'),
+            tenant=tenant,
+            purchase_order=po,
+            product=product,
+            unit=unit,
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5.00'),
+            factor=Decimal('1'),
         )
         return {
             'tenant': tenant,
@@ -74,7 +89,9 @@ class TestApprovePurchaseOrder:
     def test_approve_without_items_raises(self, po_with_items_context):
         ctx = po_with_items_context
         empty_po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         with pytest.raises(InvalidPurchaseOrderStatus):
             approve_purchase_order(

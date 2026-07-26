@@ -43,22 +43,26 @@ def django_db_setup(django_db_blocker):
         connect_timeout=5,
     )
     if not (database['NAME'].startswith('test_') or database['NAME'].endswith('_test')):
-        raise RuntimeError(
-            f"Refusing to reset non-test database schema: {database['NAME']}"
-        )
+        raise RuntimeError(f'Refusing to reset non-test database schema: {database["NAME"]}')
 
     with conn.cursor() as cursor:
         cursor.execute('DROP SCHEMA IF EXISTS public CASCADE')
         cursor.execute('CREATE SCHEMA public')
-        cursor.execute(sql.SQL('GRANT USAGE, CREATE ON SCHEMA public TO {}').format(
-            sql.Identifier(runtime_user),
-        ))
-        cursor.execute(sql.SQL(
-            'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {}'
-        ).format(sql.Identifier(runtime_user)))
-        cursor.execute(sql.SQL(
-            'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {}'
-        ).format(sql.Identifier(runtime_user)))
+        cursor.execute(
+            sql.SQL('GRANT USAGE, CREATE ON SCHEMA public TO {}').format(
+                sql.Identifier(runtime_user),
+            )
+        )
+        cursor.execute(
+            sql.SQL('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {}').format(
+                sql.Identifier(runtime_user)
+            )
+        )
+        cursor.execute(
+            sql.SQL('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {}').format(
+                sql.Identifier(runtime_user)
+            )
+        )
     conn.commit()
     conn.close()
     with django_db_blocker.unblock():
@@ -78,7 +82,8 @@ def _run_in_tenant(tenant, callback):
 @pytest.fixture
 def tenant_alpha():
     t, _ = Tenant.objects.get_or_create(
-        slug='test-alpha', defaults={'name': 'Test Alpha'},
+        slug='test-alpha',
+        defaults={'name': 'Test Alpha'},
     )
     return t
 
@@ -86,7 +91,8 @@ def tenant_alpha():
 @pytest.fixture
 def tenant_beta():
     t, _ = Tenant.objects.get_or_create(
-        slug='test-beta', defaults={'name': 'Test Beta'},
+        slug='test-beta',
+        defaults={'name': 'Test Beta'},
     )
     return t
 
@@ -97,7 +103,9 @@ def user_alpha(tenant_alpha):
     u.set_password('pass123')
     u.save()
     TenantMembership.objects.get_or_create(
-        user=u, tenant=tenant_alpha, defaults={'role': 'admin'},
+        user=u,
+        tenant=tenant_alpha,
+        defaults={'role': 'admin'},
     )
     return u
 
@@ -108,7 +116,9 @@ def user_beta(tenant_beta):
     u.set_password('pass123')
     u.save()
     TenantMembership.objects.get_or_create(
-        user=u, tenant=tenant_beta, defaults={'role': 'admin'},
+        user=u,
+        tenant=tenant_beta,
+        defaults={'role': 'admin'},
     )
     return u
 
@@ -118,7 +128,8 @@ def company_alpha(tenant_alpha):
     return _run_in_tenant(
         tenant_alpha,
         lambda: Company.objects.get_or_create(
-            tenant=tenant_alpha, name='Alpha Company',
+            tenant=tenant_alpha,
+            name='Alpha Company',
         )[0],
     )
 
@@ -128,7 +139,8 @@ def company_beta(tenant_beta):
     return _run_in_tenant(
         tenant_beta,
         lambda: Company.objects.get_or_create(
-            tenant=tenant_beta, name='Beta Company',
+            tenant=tenant_beta,
+            name='Beta Company',
         )[0],
     )
 
@@ -138,7 +150,9 @@ def branch_alpha(company_alpha, tenant_alpha):
     return _run_in_tenant(
         tenant_alpha,
         lambda: Branch.objects.get_or_create(
-            company=company_alpha, tenant=tenant_alpha, name='Alpha Branch',
+            company=company_alpha,
+            tenant=tenant_alpha,
+            name='Alpha Branch',
         )[0],
     )
 
@@ -148,12 +162,15 @@ def branch_beta(company_beta, tenant_beta):
     return _run_in_tenant(
         tenant_beta,
         lambda: Branch.objects.get_or_create(
-            company=company_beta, tenant=tenant_beta, name='Beta Branch',
+            company=company_beta,
+            tenant=tenant_beta,
+            name='Beta Branch',
         )[0],
     )
 
 
 # ==================== INVENTORY FIXTURES ====================
+
 
 @pytest.fixture
 def inv_tenant():
@@ -163,6 +180,7 @@ def inv_tenant():
 @pytest.fixture
 def inv_unit(inv_tenant):
     from catalog.models import Unit
+
     return _run_in_tenant(
         inv_tenant,
         lambda: Unit.all_objects.get_or_create(
@@ -176,6 +194,7 @@ def inv_unit(inv_tenant):
 @pytest.fixture
 def inv_unit_un(inv_tenant):
     from catalog.models import Unit
+
     return _run_in_tenant(
         inv_tenant,
         lambda: Unit.all_objects.get_or_create(
@@ -189,6 +208,7 @@ def inv_unit_un(inv_tenant):
 @pytest.fixture
 def inv_product(inv_tenant, inv_unit):
     from catalog.models import Product
+
     return _run_in_tenant(
         inv_tenant,
         lambda: Product.all_objects.get_or_create(
@@ -293,12 +313,14 @@ def sale_context(django_user_model):
             branch=branch,
             operator=user,
             stock_location=location,
-            items=[{
-                'product': product,
-                'unit': unit,
-                'quantity': Decimal('2'),
-                'factor': Decimal('1'),
-            }],
+            items=[
+                {
+                    'product': product,
+                    'unit': unit,
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('20.00')}],
             idempotency_key='sale-ctx-sale',
         )
@@ -397,12 +419,14 @@ def fiscal_sale_context(django_user_model):
             branch=branch,
             operator=user,
             stock_location=location,
-            items=[{
-                'product': product,
-                'unit': unit,
-                'quantity': Decimal('1'),
-                'factor': Decimal('1'),
-            }],
+            items=[
+                {
+                    'product': product,
+                    'unit': unit,
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('10.00')}],
             idempotency_key='fiscal-shared-sale',
         )

@@ -15,11 +15,15 @@ def test_admin_without_mfa_is_blocked(client):
     tenant = Tenant.objects.create(name='No MFA Tenant', slug='no-mfa-tenant')
     TenantMembership.objects.create(user=admin, tenant=tenant, role='admin')
     MFADevice.objects.create(
-        user=admin, tenant=tenant, method='totp', verified_at=timezone.now(),
+        user=admin,
+        tenant=tenant,
+        method='totp',
+        verified_at=timezone.now(),
     )
     client.force_login(admin)
     response = client.get(
-        '/api/v1/memberships/', HTTP_X_TENANT_ID=str(tenant.id),
+        '/api/v1/memberships/',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
     assert response.status_code == 403
 
@@ -31,7 +35,10 @@ def test_admin_updates_membership_and_policy(client):
     tenant = Tenant.objects.create(name='Access Tenant', slug='access-tenant')
     TenantMembership.objects.create(user=admin, tenant=tenant, role='admin')
     MFADevice.objects.create(
-        user=admin, tenant=tenant, method='totp', verified_at=timezone.now(),
+        user=admin,
+        tenant=tenant,
+        method='totp',
+        verified_at=timezone.now(),
     )
     membership = TenantMembership.objects.create(user=member, tenant=tenant, role='operator')
     client.force_login(admin)
@@ -41,12 +48,16 @@ def test_admin_updates_membership_and_policy(client):
     session.save()
 
     changed = client.patch(
-        f'/api/v1/memberships/{membership.id}/', {'role': 'manager'},
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        f'/api/v1/memberships/{membership.id}/',
+        {'role': 'manager'},
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
     policy = client.patch(
-        '/api/v1/security/mfa-policy/', {'allow_totp': True, 'allow_email': False},
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        '/api/v1/security/mfa-policy/',
+        {'allow_totp': True, 'allow_email': False},
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert changed.status_code == 200
@@ -69,8 +80,10 @@ def test_other_tenant_membership_returns_404(client):
     session['mfa_method'] = 'totp'
     session.save()
     response = client.patch(
-        f'/api/v1/memberships/{target.id}/', {'role': 'manager'},
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant_a.id),
+        f'/api/v1/memberships/{target.id}/',
+        {'role': 'manager'},
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant_a.id),
     )
     assert response.status_code == 404
 
@@ -91,7 +104,9 @@ def test_invalid_branch_scope_does_not_partially_update_membership(client):
             )
         other_company = Company.all_objects.create(tenant=other_tenant, name='Other Company')
         other_branch = Branch.all_objects.create(
-            tenant=other_tenant, company=other_company, name='Other Branch',
+            tenant=other_tenant,
+            company=other_company,
+            name='Other Branch',
         )
     client.force_login(admin)
     session = client.session
@@ -102,7 +117,8 @@ def test_invalid_branch_scope_does_not_partially_update_membership(client):
     response = client.patch(
         f'/api/v1/memberships/{membership.id}/',
         {'role': 'manager', 'branch_ids': [str(other_branch.id)]},
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     membership.refresh_from_db()

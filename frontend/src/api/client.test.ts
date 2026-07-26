@@ -73,7 +73,7 @@ describe('apiRequest', () => {
   })
 
   it('sends X-CSRFToken header on unsafe methods', async () => {
-    let capturedHeaders: Record<string, string> = {}
+    const capturedHeaders: Record<string, string> = {}
     server.use(
       http.post(`${BASE}/test/echo`, async ({ request }) => {
         request.headers.forEach((value, key) => {

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -8,7 +8,6 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,6 +38,7 @@ class HealthCheckView(View):
             location = cache_settings.get('LOCATION', '')
             if location and 'LocMem' not in cache_settings.get('BACKEND', ''):
                 from redis import Redis
+
                 parsed = urlparse(location)
                 redis = Redis(
                     host=parsed.hostname,
@@ -58,7 +58,7 @@ class HealthCheckView(View):
         return JsonResponse(
             {
                 'status': 'healthy' if overall else 'unhealthy',
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
                 'checks': {
                     'database': 'ok' if db_ok else 'down',
                     'cache': 'ok' if redis_ok else 'down',
@@ -87,6 +87,7 @@ class ReadinessView(View):
             if not location or 'LocMem' in cache_settings.get('BACKEND', ''):
                 return True
             from redis import Redis
+
             parsed = urlparse(location)
             redis = Redis(
                 host=parsed.hostname,
@@ -107,8 +108,7 @@ class ReadinessView(View):
             return JsonResponse(
                 {
                     'status': 'not_ready',
-                    'reason': 'database unavailable' if not db_ok
-                              else 'cache unavailable',
+                    'reason': 'database unavailable' if not db_ok else 'cache unavailable',
                 },
                 status=503,
             )
@@ -125,20 +125,22 @@ class ReadinessView(View):
                 status=503,
             )
 
-        return JsonResponse({
-            'status': 'ready',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'services': {
-                'database': 'ok' if db_ok else 'down',
-                'cache': 'ok' if redis_ok else 'down',
-            },
-            'outbox': {
-                'total_pending': sm['outbox']['pending'],
-                'oldest_pending': sm['outbox']['oldest_pending_at'],
-                'failed_count': sm['outbox']['failed'],
-                'status': 'ok',
-            },
-        })
+        return JsonResponse(
+            {
+                'status': 'ready',
+                'timestamp': datetime.now(UTC).isoformat(),
+                'services': {
+                    'database': 'ok' if db_ok else 'down',
+                    'cache': 'ok' if redis_ok else 'down',
+                },
+                'outbox': {
+                    'total_pending': sm['outbox']['pending'],
+                    'oldest_pending': sm['outbox']['oldest_pending_at'],
+                    'failed_count': sm['outbox']['failed'],
+                    'status': 'ok',
+                },
+            }
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -171,6 +173,7 @@ class MetricsView(View):
                 from urllib.parse import urlparse
 
                 from redis import Redis
+
                 parsed = urlparse(location)
                 redis = Redis(
                     host=parsed.hostname,
@@ -184,13 +187,15 @@ class MetricsView(View):
         except Exception:
             logger.warning('Metrics cache probe failed', exc_info=True)
 
-        return JsonResponse({
-            'database': 'ok' if db_ok else 'down',
-            'cache': 'ok' if redis_ok else 'down',
-            'request_metrics': metrics,
-            'error_metrics': errors,
-            'system_metrics': system_metrics(),
-        })
+        return JsonResponse(
+            {
+                'database': 'ok' if db_ok else 'down',
+                'cache': 'ok' if redis_ok else 'down',
+                'request_metrics': metrics,
+                'error_metrics': errors,
+                'system_metrics': system_metrics(),
+            }
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -203,6 +208,7 @@ class MetricsResetView(View):
 
 
 # Sprint 20 — authorized operations aggregate
+
 
 class OperationsView(APIView):
     """Authorized monitoring aggregate for web dashboards."""
@@ -217,7 +223,7 @@ class OperationsView(APIView):
                 cursor.execute('SELECT 1')
             db_ok = True
         except Exception:
-            pass
+            logger.warning('Operations database probe failed', exc_info=True)
 
         redis_ok = False
         try:
@@ -226,37 +232,57 @@ class OperationsView(APIView):
             if not location or 'LocMem' in cache_settings.get('BACKEND', ''):
                 redis_ok = True
             elif location.startswith('redis://'):
-                from redis import Redis
                 from urllib.parse import urlparse
+
+                from redis import Redis
+
                 parsed = urlparse(location)
                 r = Redis(host=parsed.hostname, port=parsed.port or 6379, socket_connect_timeout=2)
                 redis_ok = r.ping()
             else:
                 redis_ok = True
         except Exception:
-            pass
+            logger.warning('Operations cache probe failed', exc_info=True)
 
-        return Response({
-            'health': {
-                'status': 'healthy' if (db_ok and redis_ok) else 'unhealthy',
-                'checks': {
-                    'database': 'ok' if db_ok else 'down',
-                    'cache': 'ok' if redis_ok else 'down',
+        return Response(
+            {
+                'health': {
+                    'status': 'healthy' if (db_ok and redis_ok) else 'unhealthy',
+                    'checks': {
+                        'database': 'ok' if db_ok else 'down',
+                        'cache': 'ok' if redis_ok else 'down',
+                    },
+                    'timestamp': datetime.now(tz=UTC).isoformat(),
                 },
-                'timestamp': datetime.now(tz=timezone.utc).isoformat(),
-            },
-            'readiness': {
-                'status': 'ready' if db_ok else 'not_ready',
-                'services': {
-                    'database': 'ok' if db_ok else 'down',
-                    'cache': 'ok' if redis_ok else 'down',
+                'readiness': {
+                    'status': 'ready' if db_ok else 'not_ready',
+                    'services': {
+                        'database': 'ok' if db_ok else 'down',
+                        'cache': 'ok' if redis_ok else 'down',
+                    },
                 },
-            },
-            'system_metrics': system_metrics(),
-            'runbook_links': [
-                {'id': 'db-down', 'label': 'Database outage', 'url': 'https://docs.zyrp.local/runbooks/db-down'},
-                {'id': 'cache-down', 'label': 'Cache outage', 'url': 'https://docs.zyrp.local/runbooks/cache-down'},
-                {'id': 'fiscal-rejected', 'label': 'Fiscal rejection guidance', 'url': 'https://docs.zyrp.local/runbooks/fiscal-rejected'},
-                {'id': 'outbox-backlog', 'label': 'Outbox backlog guidance', 'url': 'https://docs.zyrp.local/runbooks/outbox-backlog'},
-            ],
-        })
+                'system_metrics': system_metrics(),
+                'runbook_links': [
+                    {
+                        'id': 'db-down',
+                        'label': 'Database outage',
+                        'url': 'https://docs.zyrp.local/runbooks/db-down',
+                    },
+                    {
+                        'id': 'cache-down',
+                        'label': 'Cache outage',
+                        'url': 'https://docs.zyrp.local/runbooks/cache-down',
+                    },
+                    {
+                        'id': 'fiscal-rejected',
+                        'label': 'Fiscal rejection guidance',
+                        'url': 'https://docs.zyrp.local/runbooks/fiscal-rejected',
+                    },
+                    {
+                        'id': 'outbox-backlog',
+                        'label': 'Outbox backlog guidance',
+                        'url': 'https://docs.zyrp.local/runbooks/outbox-backlog',
+                    },
+                ],
+            }
+        )

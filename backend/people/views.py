@@ -32,14 +32,14 @@ class PersonViewSet(viewsets.ModelViewSet):
         document = self.request.query_params.get('document')
         if document:
             from .models import digits_only
+
             queryset = queryset.filter(documents__value=digits_only(document))
         q = self.request.query_params.get('q')
         if q:
             from django.db.models import Q
+
             queryset = queryset.filter(
-                Q(name__icontains=q)
-                | Q(trade_name__icontains=q)
-                | Q(documents__value__icontains=q)
+                Q(name__icontains=q) | Q(trade_name__icontains=q) | Q(documents__value__icontains=q)
             )
         return queryset.distinct()
 
@@ -47,12 +47,19 @@ class PersonViewSet(viewsets.ModelViewSet):
         person = serializer.save()
         payload = {'person_id': str(person.id), 'changed_fields': sorted(serializer.validated_data)}
         create_audit_record(
-            action='people.person.updated', resource_type='Person', resource_id=person.id,
-            detail=payload, actor=self.request.user, tenant_id=person.tenant_id,
+            action='people.person.updated',
+            resource_type='Person',
+            resource_id=person.id,
+            detail=payload,
+            actor=self.request.user,
+            tenant_id=person.tenant_id,
         )
         create_outbox_message(
-            event_type='people.person.updated', aggregate_type='Person',
-            aggregate_id=person.id, payload=payload, tenant_id=str(person.tenant_id),
+            event_type='people.person.updated',
+            aggregate_type='Person',
+            aggregate_id=person.id,
+            payload=payload,
+            tenant_id=str(person.tenant_id),
         )
 
     @action(detail=True, methods=['post'])

@@ -166,11 +166,11 @@ export const handlers = [
     HttpResponse.json({ detail: 'Convite reenviado.' }),
   ),
 
-  http.get(`${BASE}/memberships/mfa-policy/`, () =>
+  http.get(`${BASE}/security/mfa-policy/`, () =>
     HttpResponse.json({ allow_totp: true, allow_email: true }),
   ),
 
-  http.patch(`${BASE}/memberships/mfa-policy/`, async ({ request }) => {
+  http.patch(`${BASE}/security/mfa-policy/`, async ({ request }) => {
     const body = await request.json() as { allow_totp?: boolean; allow_email?: boolean }
     if (body.allow_totp === false && body.allow_email === false) {
       return HttpResponse.json(

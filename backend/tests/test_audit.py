@@ -37,7 +37,10 @@ class TestAuditImmutability:
 
     def test_persisted_record_cannot_be_saved_again(self):
         record = create_audit_record(
-            action='created', resource_type='Test', resource_id='1', detail={},
+            action='created',
+            resource_type='Test',
+            resource_id='1',
+            detail={},
         )
         record.action = 'tampered'
         with pytest.raises(ValidationError):
@@ -45,14 +48,20 @@ class TestAuditImmutability:
 
     def test_persisted_record_cannot_be_deleted(self):
         record = create_audit_record(
-            action='created', resource_type='Test', resource_id='1', detail={},
+            action='created',
+            resource_type='Test',
+            resource_id='1',
+            detail={},
         )
         with pytest.raises(ValidationError):
             record.delete()
 
     def test_database_blocks_bulk_update(self):
         record = create_audit_record(
-            action='created', resource_type='Test', resource_id='1', detail={},
+            action='created',
+            resource_type='Test',
+            resource_id='1',
+            detail={},
         )
         with pytest.raises(DatabaseError), transaction.atomic():
             AuditRecord.objects.filter(pk=record.pk).update(action='tampered')

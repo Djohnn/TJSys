@@ -87,7 +87,9 @@ class SupplierViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
             return Response({'detail': 'CNPJ is required.'}, status=400)
         name = request.data.get('name', '')
         supplier = auto_onboard_supplier(
-            tenant=request.tenant, cnpj=cnpj, name=name,
+            tenant=request.tenant,
+            cnpj=cnpj,
+            name=name,
         )
         serializer = self.get_serializer(supplier)
         return Response(serializer.data, status=201)
@@ -107,7 +109,8 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = PurchaseOrder.objects.select_related(
-            'supplier', 'branch',
+            'supplier',
+            'branch',
         ).filter(tenant=self.request.tenant)
         status_filter = self.request.query_params.get('status')
         if status_filter:
@@ -123,8 +126,13 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
         write_actions = {
-            'create', 'update', 'partial_update', 'destroy',
-            'approve', 'receive', 'cancel',
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'approve',
+            'receive',
+            'cancel',
         }
         if self.action in write_actions:
             permissions.append(HasVerifiedMFA())
@@ -164,11 +172,15 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         items_data = request.data.get('items', [])
         items = []
         for entry in items_data:
-            items.append({
-                'purchase_order_item_id': entry.get('purchase_order_item_id'),
-                'quantity_received': Decimal(str(entry.get('quantity_received', 0))),
-                'unit_cost': Decimal(str(entry['unit_cost'])) if entry.get('unit_cost') else None,
-            })
+            items.append(
+                {
+                    'purchase_order_item_id': entry.get('purchase_order_item_id'),
+                    'quantity_received': Decimal(str(entry.get('quantity_received', 0))),
+                    'unit_cost': Decimal(str(entry['unit_cost']))
+                    if entry.get('unit_cost')
+                    else None,
+                }
+            )
         notes = request.data.get('notes', '')
         try:
             key = _idempotency_key(request)
@@ -181,15 +193,26 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
                 actor=request.user,
             )
         except (
-            DuplicateIdempotencyKey, OverReceiptError,
-            ReceiptWithoutApprovedOrder, ValueError,
+            DuplicateIdempotencyKey,
+            OverReceiptError,
+            ReceiptWithoutApprovedOrder,
+            ValueError,
         ) as exc:
-            status_code = 409 if isinstance(exc, (
-                DuplicateIdempotencyKey, OverReceiptError,
-            )) else 400
+            status_code = (
+                409
+                if isinstance(
+                    exc,
+                    (
+                        DuplicateIdempotencyKey,
+                        OverReceiptError,
+                    ),
+                )
+                else 400
+            )
             return self._problem(exc, status_code=status_code)
         serializer = PurchaseReceiptSerializer(
-            receipt, context=self.get_serializer_context(),
+            receipt,
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -211,7 +234,8 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         except (AlreadyCancelled, CannotCancelPurchaseOrder, ValueError) as exc:
             return self._problem(exc)
         serializer = PurchaseOrderCancellationSerializer(
-            result, context=self.get_serializer_context(),
+            result,
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data)
 
@@ -226,7 +250,9 @@ class PurchaseOrderItemViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = PurchaseOrderItem.objects.select_related(
-            'product', 'unit', 'purchase_order',
+            'product',
+            'unit',
+            'purchase_order',
         ).filter(tenant=self.request.tenant)
         po_id = self.request.query_params.get('purchase_order')
         if po_id:
@@ -251,7 +277,8 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = PurchaseReceipt.objects.select_related(
-            'purchase_order', 'purchase_order__supplier',
+            'purchase_order',
+            'purchase_order__supplier',
         ).filter(tenant=self.request.tenant)
         status_filter = self.request.query_params.get('status')
         if status_filter:
@@ -298,7 +325,8 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
         except (AlreadyCancelled, CannotCancelPurchaseOrder, ValueError) as exc:
             return self._problem(exc)
         serializer = PurchaseReceiptCancellationSerializer(
-            result, context=self.get_serializer_context(),
+            result,
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data)
 
@@ -313,10 +341,12 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
             return self._problem('Items are required.', 'missing_items')
         items = []
         for entry in items_data:
-            items.append({
-                'purchase_order_item_id': entry.get('purchase_order_item_id'),
-                'quantity': Decimal(str(entry.get('quantity', 0))),
-            })
+            items.append(
+                {
+                    'purchase_order_item_id': entry.get('purchase_order_item_id'),
+                    'quantity': Decimal(str(entry.get('quantity', 0))),
+                }
+            )
         try:
             key = _idempotency_key(request)
             result = create_supplier_return(
@@ -330,7 +360,8 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
         except (OverReceiptError, ValueError) as exc:
             return self._problem(exc)
         serializer = SupplierReturnSerializer(
-            result, context=self.get_serializer_context(),
+            result,
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -345,7 +376,8 @@ class PurchaseReceiptItemViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = PurchaseReceiptItem.objects.select_related(
-            'receipt', 'purchase_order_item__product',
+            'receipt',
+            'purchase_order_item__product',
         ).filter(tenant=self.request.tenant)
         receipt_id = self.request.query_params.get('receipt')
         if receipt_id:
@@ -376,7 +408,8 @@ class RecurringPurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelView
 
     def get_queryset(self):
         return RecurringPurchaseOrderTemplate.objects.select_related(
-            'supplier', 'branch',
+            'supplier',
+            'branch',
         ).filter(tenant=self.request.tenant)
 
     @action(detail=True, methods=['post'])
@@ -385,11 +418,14 @@ class RecurringPurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelView
 
         template = self.get_object()
         po = generate_po_from_template(
-            template, request.tenant,
+            template,
+            request.tenant,
             idempotency_key_prefix=f'recurring-{template.id}',
         )
         from purchasing.serializers import PurchaseOrderDetailSerializer
+
         serializer = PurchaseOrderDetailSerializer(
-            po, context=self.get_serializer_context(),
+            po,
+            context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=201)

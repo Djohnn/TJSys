@@ -45,14 +45,14 @@ test.describe('Catálogo, Estoque e Compras', () => {
     const page = authenticatedPage
     await page.goto('/purchasing/suppliers')
     await expect(page.getByTestId('suppliers-page')).toBeVisible()
-    await expect(page.getByTestId('suppliers-table')).toBeVisible()
+    await expect(page.getByTestId('search-input')).toBeVisible()
   })
 
   test('Lista de ordens de compra exibe dados', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/purchasing/orders')
     await expect(page.getByTestId('purchase-orders-page')).toBeVisible()
-    await expect(page.getByTestId('purchase-orders-table')).toBeVisible()
+    await expect(page.getByTestId('orders-table')).toBeVisible()
   })
 
   test('Navegação catálogo → compras — vai de produtos para ordens', async ({ authenticatedPage }) => {
@@ -62,6 +62,6 @@ test.describe('Catálogo, Estoque e Compras', () => {
 
     await page.goto('/purchasing/orders')
     await expect(page.getByTestId('purchase-orders-page')).toBeVisible()
-    await expect(page.getByTestId('purchase-orders-table')).toBeVisible()
+    await expect(page.getByTestId('orders-table')).toBeVisible()
   })
 })

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from financial.views import (
     CashClosingReportView,
+    CashflowEntryViewSet,
     CashflowReportView,
     FinancialReportView,
     InventoryReportView,
@@ -15,6 +16,7 @@ from financial.views import (
 router = DefaultRouter()
 router.register('payables', PayableViewSet, basename='payable')
 router.register('receivables', ReceivableViewSet, basename='receivable')
+router.register('cashflow', CashflowEntryViewSet, basename='cashflow')
 
 urlpatterns = [
     path('reports/sales/', SalesReportView.as_view(), name='report-sales'),

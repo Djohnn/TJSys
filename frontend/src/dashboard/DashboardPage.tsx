@@ -68,7 +68,7 @@ export default function DashboardPage() {
 
       <div data-testid="health-status" aria-live="polite" className="mb-6">
         {health
-          ? <span className="text-success text-sm">&#9679; Backend online</span>
+          ? <span className="text-green-700 text-sm">&#9679; Backend online</span>
           : <span className="text-warning text-sm">&#9679; Verificando...</span>
         }
       </div>
@@ -85,7 +85,7 @@ export default function DashboardPage() {
             className="block p-5 rounded-xl border border-border bg-primary-50 hover:bg-primary-100 hover:border-primary-300 transition-all no-underline"
           >
             <h3 className="text-base font-semibold text-primary-800 mb-1">{mod.label}</h3>
-            <p className="text-sm text-primary-600">{mod.description}</p>
+            <p className="text-sm text-primary-700">{mod.description}</p>
           </Link>
         ))}
       </div>

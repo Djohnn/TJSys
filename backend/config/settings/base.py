@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-not-for-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
+E2E_RECOVERY_CODE = config('E2E_RECOVERY_CODE', default='')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -74,9 +75,9 @@ REST_FRAMEWORK = {
     'MAX_PAGE_SIZE': 100,
     'DEFAULT_THROTTLE_RATES': {
         'auth_register': '5/hour',
-        'auth_login': '10/minute',
+        'auth_login': config('AUTH_LOGIN_RATE', default='10/minute'),
         'auth_password': '5/hour',
-        'auth_mfa': '10/minute',
+        'auth_mfa': config('AUTH_MFA_RATE', default='10/minute'),
     },
 }
 
@@ -148,13 +149,16 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@zyrp.local')
 EMAIL_BACKEND = config(
-    'EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend',
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend',
 )
 AUTH_TOKEN_TTL_MINUTES = config('AUTH_TOKEN_TTL_MINUTES', default=30, cast=int)
 EMAIL_MFA_TTL_MINUTES = config('EMAIL_MFA_TTL_MINUTES', default=10, cast=int)
 EMAIL_MFA_MAX_ATTEMPTS = config('EMAIL_MFA_MAX_ATTEMPTS', default=5, cast=int)
 EMAIL_MFA_RESEND_COOLDOWN_SECONDS = config(
-    'EMAIL_MFA_RESEND_COOLDOWN_SECONDS', default=60, cast=int,
+    'EMAIL_MFA_RESEND_COOLDOWN_SECONDS',
+    default=60,
+    cast=int,
 )
 _DEV_MFA_KEY = base64.urlsafe_b64encode(
     hashlib.sha256(b'zyrp-local-development-only').digest(),

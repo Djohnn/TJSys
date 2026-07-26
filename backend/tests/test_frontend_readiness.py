@@ -53,7 +53,8 @@ class FrontendReadinessTest(TestCase):
         """When a user hits /api/v1/schema/, the response is 200 with
         OpenAPI JSON (contains openapi/info/paths keys)."""
         response = self.client.get(
-            '/api/v1/schema/', HTTP_ACCEPT='application/json',
+            '/api/v1/schema/',
+            HTTP_ACCEPT='application/json',
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn('application/json', response['Content-Type'])

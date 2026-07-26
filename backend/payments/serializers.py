@@ -22,8 +22,14 @@ class PaymentIntentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentIntent
         fields = [
-            'id', 'sale', 'amount', 'currency', 'status', 'provider_reference',
-            'idempotency_key', 'created_at',
+            'id',
+            'sale',
+            'amount',
+            'currency',
+            'status',
+            'provider_reference',
+            'idempotency_key',
+            'created_at',
         ]
         read_only_fields = fields
 
@@ -32,8 +38,15 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentTransaction
         fields = [
-            'id', 'intent', 'transaction_type', 'status', 'gross_amount',
-            'fee_amount', 'net_amount', 'provider_reference', 'created_at',
+            'id',
+            'intent',
+            'transaction_type',
+            'status',
+            'gross_amount',
+            'fee_amount',
+            'net_amount',
+            'provider_reference',
+            'created_at',
         ]
         read_only_fields = fields
 
@@ -48,9 +61,7 @@ class PaymentWebhookEventSerializer(serializers.ModelSerializer):
 class ReconciliationRowSerializer(serializers.Serializer):
     provider_reference = serializers.CharField(max_length=100)
     gross_amount = serializers.DecimalField(max_digits=18, decimal_places=2)
-    fee_amount = serializers.DecimalField(
-        max_digits=18, decimal_places=2, default=Decimal('0.00')
-    )
+    fee_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
     settled_amount = serializers.DecimalField(max_digits=18, decimal_places=2)
 
 
@@ -60,9 +71,7 @@ class ReconciliationBatchInputSerializer(serializers.Serializer):
 
 
 class PaymentReconciliationItemSerializer(serializers.ModelSerializer):
-    difference_amount = serializers.DecimalField(
-        max_digits=18, decimal_places=2, read_only=True
-    )
+    difference_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
 
     class Meta:
         model = PaymentReconciliationItem
@@ -83,6 +92,7 @@ class PaymentReconciliationBatchSerializer(serializers.ModelSerializer):
 
 
 # Sprint 20 — management serializers (write-only secret)
+
 
 class PaymentProviderConfigReadSerializer(serializers.ModelSerializer):
     """Read view — only `configured` boolean, never the secret."""
@@ -113,4 +123,3 @@ class PaymentProviderConfigWriteSerializer(serializers.ModelSerializer):
         if not validated_data.get('secret'):
             validated_data.pop('secret', None)
         return super().update(instance, validated_data)
-

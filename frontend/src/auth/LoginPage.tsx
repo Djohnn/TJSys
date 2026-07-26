@@ -23,7 +23,12 @@ export default function LoginPage() {
     try {
       const result = await auth.login(data.email, data.password)
       if (result.requiresMfa) {
-        navigate('/mfa', { state: { temporaryToken: result.temporaryToken } })
+        navigate('/mfa', {
+          state: {
+            temporaryToken: result.temporaryToken,
+            tenantId: result.tenantId,
+          },
+        })
       } else {
         navigate('/select-tenant')
       }
@@ -53,7 +58,11 @@ export default function LoginPage() {
             {errors.password && <p className="text-xs text-danger mt-1">{errors.password.message}</p>}
           </div>
 
-          {errors.root && <p className="text-sm text-danger text-center">{errors.root.message}</p>}
+          {errors.root && (
+            <p role="alert" className="text-sm text-danger text-center">
+              {errors.root.message}
+            </p>
+          )}
 
           <button type="submit" disabled={isSubmitting} className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer">
             {isSubmitting ? 'Entrando...' : 'Entrar'}

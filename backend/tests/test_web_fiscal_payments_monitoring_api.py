@@ -15,7 +15,6 @@ management. Cross-tenant access returns 404.
 
 import csv
 import io
-from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -29,6 +28,8 @@ from fiscal.models import (
     FiscalEmitter,
     FiscalProductConfig,
 )
+from inventory.models import StockLocation
+from inventory.services import create_receipt
 from payments.models import (
     PaymentIntent,
     PaymentProviderConfig,
@@ -41,15 +42,13 @@ from sales.services import create_counter_sale, open_cash_session
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant, TenantMembership
 
-from inventory.models import StockLocation
-from inventory.services import create_receipt
-
 User = get_user_model()
 
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _run_in_tenant(tenant, callback):
     token = set_current_tenant_id(tenant.id)
@@ -63,7 +62,8 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='admin'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant,
+        user=user,
+        tenant=tenant,
         defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
@@ -90,43 +90,72 @@ def sprint20_context(client):
     def _create():
         company = Company.all_objects.create(tenant=tenant, name='Empresa S20')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial S20',
+            tenant=tenant,
+            company=company,
+            name='Filial S20',
         )
 
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade', precision=0)
         product = Product.all_objects.create(
-            tenant=tenant, sku='S20-PROD', name='Produto S20', base_unit=unit,
-            ncm='84713000', is_active=True,
+            tenant=tenant,
+            sku='S20-PROD',
+            name='Produto S20',
+            base_unit=unit,
+            ncm='84713000',
+            is_active=True,
         )
         ProductPrice.all_objects.create(
-            tenant=tenant, product=product,
-            amount=Decimal('10.00'), valid_from=timezone.now(),
+            tenant=tenant,
+            product=product,
+            amount=Decimal('10.00'),
+            valid_from=timezone.now(),
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='S20-LOC',
-            name='Balcão S20', is_primary=True,
+            tenant=tenant,
+            branch=branch,
+            code='S20-LOC',
+            name='Balcão S20',
+            is_primary=True,
         )
         create_receipt(
-            tenant=tenant, branch=branch, product=product, location=location,
-            quantity=Decimal('100'), unit=unit, factor=Decimal('1'),
-            idempotency_key='s20-stock-seed', actor=admin, reason='seed',
+            tenant=tenant,
+            branch=branch,
+            product=product,
+            location=location,
+            quantity=Decimal('100'),
+            unit=unit,
+            factor=Decimal('1'),
+            idempotency_key='s20-stock-seed',
+            actor=admin,
+            reason='seed',
         )
 
         emitter = FiscalEmitter.all_objects.create(
-            tenant=tenant, branch=branch, provider=FiscalEmitter.PROVIDER_PLUGNOTAS,
-            cpf_cnpj='12345678000199', ie='123456789',
-            registered_at_provider=True, is_active=True,
+            tenant=tenant,
+            branch=branch,
+            provider=FiscalEmitter.PROVIDER_PLUGNOTAS,
+            cpf_cnpj='12345678000199',
+            ie='123456789',
+            registered_at_provider=True,
+            is_active=True,
         )
 
         open_cash_session(
-            tenant=tenant, branch=branch, operator=admin,
-            opening_amount=Decimal('100.00'), idempotency_key='s20-cash-1',
+            tenant=tenant,
+            branch=branch,
+            operator=admin,
+            opening_amount=Decimal('100.00'),
+            idempotency_key='s20-cash-1',
         )
 
         sale = create_counter_sale(
-            tenant=tenant, branch=branch, operator=admin,
+            tenant=tenant,
+            branch=branch,
+            operator=admin,
             stock_location=location,
-            items=[{'product': product, 'unit': unit, 'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {'product': product, 'unit': unit, 'quantity': Decimal('1'), 'factor': Decimal('1')}
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('10.00')}],
             idempotency_key='s20-sale-1',
         )
@@ -134,67 +163,115 @@ def sprint20_context(client):
         sale = Sale.all_objects.select_related('branch').get(pk=sale.pk)
 
         doc_pending = FiscalDocument.all_objects.create(
-            tenant=tenant, sale=sale, direction=FiscalDocument.DIRECTION_OUTPUT,
-            status=FiscalDocument.STATUS_PENDING, attempt_number=1,
+            tenant=tenant,
+            sale=sale,
+            direction=FiscalDocument.DIRECTION_OUTPUT,
+            status=FiscalDocument.STATUS_PENDING,
+            attempt_number=1,
         )
         doc_concluded = FiscalDocument.all_objects.create(
-            tenant=tenant, sale=sale, direction=FiscalDocument.DIRECTION_OUTPUT,
-            status=FiscalDocument.STATUS_CONCLUDED, attempt_number=2,
-            protocol='123456', xml_key='s3://fiscal/doc.xml', pdf_key='s3://fiscal/doc.pdf',
+            tenant=tenant,
+            sale=sale,
+            direction=FiscalDocument.DIRECTION_OUTPUT,
+            status=FiscalDocument.STATUS_CONCLUDED,
+            attempt_number=2,
+            protocol='123456',
+            xml_key='s3://fiscal/doc.xml',
+            pdf_key='s3://fiscal/doc.pdf',
             is_active=False,
         )
         doc_rejected = FiscalDocument.all_objects.create(
-            tenant=tenant, sale=sale, direction=FiscalDocument.DIRECTION_OUTPUT,
-            status=FiscalDocument.STATUS_REJECTED, attempt_number=3,
-            error_detail='Rejeição 999: motivo teste', is_active=False,
+            tenant=tenant,
+            sale=sale,
+            direction=FiscalDocument.DIRECTION_OUTPUT,
+            status=FiscalDocument.STATUS_REJECTED,
+            attempt_number=3,
+            error_detail='Rejeição 999: motivo teste',
+            is_active=False,
         )
         doc_processing = FiscalDocument.all_objects.create(
-            tenant=tenant, sale=sale, direction=FiscalDocument.DIRECTION_OUTPUT,
-            status=FiscalDocument.STATUS_PROCESSING, attempt_number=4,
-            provider_document_id='plug-123', is_active=False,
+            tenant=tenant,
+            sale=sale,
+            direction=FiscalDocument.DIRECTION_OUTPUT,
+            status=FiscalDocument.STATUS_PROCESSING,
+            attempt_number=4,
+            provider_document_id='plug-123',
+            is_active=False,
         )
 
         product_config = FiscalProductConfig.all_objects.create(
-            tenant=tenant, product=product, cst_icms='000', aliquota_icms=Decimal('18.00'),
+            tenant=tenant,
+            product=product,
+            cst_icms='000',
+            aliquota_icms=Decimal('18.00'),
         )
 
         provider_config = PaymentProviderConfig.all_objects.create(
-            tenant=tenant, provider='stripe', secret='sk_test_xxx_secret_value',
+            tenant=tenant,
+            provider='stripe',
+            secret='sk_test_xxx_secret_value',
             is_active=True,
         )
         intent = PaymentIntent.all_objects.create(
-            tenant=tenant, provider_config=provider_config, sale=sale,
-            amount=Decimal('10.00'), currency='BRL', status='captured',
-            idempotency_key='s20-intent-1', provider_reference='pi_test_123',
+            tenant=tenant,
+            provider_config=provider_config,
+            sale=sale,
+            amount=Decimal('10.00'),
+            currency='BRL',
+            status='captured',
+            idempotency_key='s20-intent-1',
+            provider_reference='pi_test_123',
         )
         txn = PaymentTransaction.all_objects.create(
-            tenant=tenant, intent=intent, transaction_type='capture',
-            status='succeeded', gross_amount=Decimal('10.00'),
-            fee_amount=Decimal('0.50'), net_amount=Decimal('9.50'),
+            tenant=tenant,
+            intent=intent,
+            transaction_type='capture',
+            status='succeeded',
+            gross_amount=Decimal('10.00'),
+            fee_amount=Decimal('0.50'),
+            net_amount=Decimal('9.50'),
             provider_reference='ch_test_456',
         )
         webhook = PaymentWebhookEvent.all_objects.create(
-            tenant=tenant, provider='stripe', external_id='evt_1',
+            tenant=tenant,
+            provider='stripe',
+            external_id='evt_1',
             payload={'data': {'object': {'id': 'pi_test_123'}}},
             processed_at=timezone.now(),
         )
         batch_draft = PaymentReconciliationBatch.all_objects.create(
-            tenant=tenant, provider='stripe', status='draft',
+            tenant=tenant,
+            provider='stripe',
+            status='draft',
         )
         batch_confirmed = PaymentReconciliationBatch.all_objects.create(
-            tenant=tenant, provider='stripe', status='confirmed',
+            tenant=tenant,
+            provider='stripe',
+            status='confirmed',
             confirmed_at=timezone.now(),
         )
 
         return {
-            'tenant': tenant, 'client': api_client, 'user': admin, 'operator': operator,
-            'branch': branch, 'product': product, 'location': location, 'emitter': emitter,
+            'tenant': tenant,
+            'client': api_client,
+            'user': admin,
+            'operator': operator,
+            'branch': branch,
+            'product': product,
+            'location': location,
+            'emitter': emitter,
             'sale': sale,
-            'doc_pending': doc_pending, 'doc_concluded': doc_concluded,
-            'doc_rejected': doc_rejected, 'doc_processing': doc_processing,
+            'doc_pending': doc_pending,
+            'doc_concluded': doc_concluded,
+            'doc_rejected': doc_rejected,
+            'doc_processing': doc_processing,
             'product_config': product_config,
-            'provider_config': provider_config, 'intent': intent, 'txn': txn,
-            'webhook': webhook, 'batch_draft': batch_draft, 'batch_confirmed': batch_confirmed,
+            'provider_config': provider_config,
+            'intent': intent,
+            'txn': txn,
+            'webhook': webhook,
+            'batch_draft': batch_draft,
+            'batch_confirmed': batch_confirmed,
         }
 
     return _run_in_tenant(tenant, _create)
@@ -204,11 +281,13 @@ def sprint20_context(client):
 # Fiscal — emitter config (write-only secret)
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_emitter_list(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/fiscal/emitters/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/fiscal/emitters/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -277,11 +356,13 @@ def test_fiscal_emitter_update_blank_secret_keeps_value(sprint20_context):
 # Fiscal — document list/detail
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_document_list_paginated(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/fiscal/documents/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/fiscal/documents/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -318,7 +399,8 @@ def test_fiscal_document_list_no_xml_content(sprint20_context):
     """List must not include raw XML content — keys only."""
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/fiscal/documents/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/fiscal/documents/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     for r in response.json()['results']:
@@ -346,6 +428,7 @@ def test_fiscal_document_detail_with_timeline(sprint20_context):
 # Fiscal — retry / cancel
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_document_retry_for_rejected(sprint20_context):
     ctx = sprint20_context
@@ -358,7 +441,11 @@ def test_fiscal_document_retry_for_rejected(sprint20_context):
     )
     assert response.status_code in (200, 202)
     body = response.json()
-    assert body['status'] in ('PENDING', 'PROCESSING', 'FAILED')  # emit_document sets status after processing
+    assert body['status'] in (
+        'PENDING',
+        'PROCESSING',
+        'FAILED',
+    )  # emit_document sets status after processing
 
 
 @pytest.mark.django_db
@@ -392,9 +479,11 @@ def test_fiscal_document_cancel_conflict_already_cancelled(sprint20_context):
     """Cancelling an already cancelled document returns 409."""
     ctx = sprint20_context
     doc = FiscalDocument.all_objects.create(
-        tenant=ctx['tenant'], sale=ctx['sale'],
+        tenant=ctx['tenant'],
+        sale=ctx['sale'],
         direction=FiscalDocument.DIRECTION_OUTPUT,
-        status=FiscalDocument.STATUS_CANCELLED, attempt_number=5,
+        status=FiscalDocument.STATUS_CANCELLED,
+        attempt_number=5,
         is_active=False,
     )
     response = ctx['client'].post(
@@ -409,6 +498,7 @@ def test_fiscal_document_cancel_conflict_already_cancelled(sprint20_context):
 # =============================================================================
 # Fiscal — downloads (XML/PDF) authorized only when concluded
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_fiscal_document_download_xml_authorized(sprint20_context):
@@ -449,11 +539,13 @@ def test_fiscal_document_download_pdf_forbidden_when_rejected(sprint20_context):
 # Fiscal — product config
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_product_config_list(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/fiscal/product-configs/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/fiscal/product-configs/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     assert response.json()['count'] >= 1
@@ -479,17 +571,23 @@ def test_fiscal_product_config_upsert(sprint20_context):
 # Fiscal — purchase reconciliation
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_purchase_reconciliation(sprint20_context):
     ctx = sprint20_context
     # Create a purchase receipt via service or stub
-    from purchasing.models import PurchaseOrder, Supplier
+    from purchasing.models import PurchaseOrder
     from purchasing.services import auto_onboard_supplier
+
     supplier = auto_onboard_supplier(
-        tenant=ctx['tenant'], cnpj='12345678000199', name='Fornecedor Fiscal S20',
+        tenant=ctx['tenant'],
+        cnpj='12345678000199',
+        name='Fornecedor Fiscal S20',
     )
     po = PurchaseOrder.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'], supplier=supplier,
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        supplier=supplier,
         status='confirmed',
     )
     response = ctx['client'].post(
@@ -506,11 +604,13 @@ def test_fiscal_purchase_reconciliation(sprint20_context):
 # Payments — provider config (write-only secret)
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_payment_provider_config_list_no_secret(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/payments/provider-configs/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payments/provider-configs/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     for r in response.json()['results']:
@@ -556,11 +656,13 @@ def test_payment_provider_config_update_blank_secret_keeps_value(sprint20_contex
 # Payments — intents / transactions lists
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_payment_intent_list(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/payments/intents/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payments/intents/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     assert response.json()['count'] >= 1
@@ -582,7 +684,8 @@ def test_payment_intent_filter_by_sale(sprint20_context):
 def test_payment_transaction_list(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/payments/transactions/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payments/transactions/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     assert response.json()['count'] >= 1
@@ -592,11 +695,13 @@ def test_payment_transaction_list(sprint20_context):
 # Payments — reconciliation batches detail/confirm
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_payment_reconciliation_batch_list(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/payments/reconciliation-batches/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payments/reconciliation-batches/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     assert response.json()['count'] >= 2
@@ -621,19 +726,31 @@ def test_payment_reconciliation_batch_detail_no_webhook_payload(sprint20_context
 def test_payment_reconciliation_confirm_without_divergence(sprint20_context):
     """Creating a batch with matching rows then confirming succeeds."""
     from payments.services import import_reconciliation_batch
+
     ctx = sprint20_context
-    _run_in_tenant(ctx['tenant'], lambda: import_reconciliation_batch(
-        tenant=ctx['tenant'], provider='stripe',
-        rows=[{
-            'provider_reference': 'ch_test_456',
-            'gross_amount': Decimal('10.00'),
-            'fee_amount': Decimal('0.50'),
-            'settled_amount': Decimal('9.50'),
-        }],
-    ))
-    batch = PaymentReconciliationBatch.all_objects.filter(
-        tenant=ctx['tenant'], status='draft',
-    ).exclude(id=ctx['batch_draft'].id).first()
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: import_reconciliation_batch(
+            tenant=ctx['tenant'],
+            provider='stripe',
+            rows=[
+                {
+                    'provider_reference': 'ch_test_456',
+                    'gross_amount': Decimal('10.00'),
+                    'fee_amount': Decimal('0.50'),
+                    'settled_amount': Decimal('9.50'),
+                }
+            ],
+        ),
+    )
+    batch = (
+        PaymentReconciliationBatch.all_objects.filter(
+            tenant=ctx['tenant'],
+            status='draft',
+        )
+        .exclude(id=ctx['batch_draft'].id)
+        .first()
+    )
     assert batch is not None
     response = ctx['client'].post(
         f'/api/v1/payments/reconciliation-batches/{batch.id}/confirm/',
@@ -645,19 +762,31 @@ def test_payment_reconciliation_confirm_without_divergence(sprint20_context):
 @pytest.mark.django_db
 def test_payment_reconciliation_confirm_with_divergence_409(sprint20_context):
     from payments.services import import_reconciliation_batch
+
     ctx = sprint20_context
-    _run_in_tenant(ctx['tenant'], lambda: import_reconciliation_batch(
-        tenant=ctx['tenant'], provider='stripe',
-        rows=[{
-            'provider_reference': 'ch_test_456',
-            'gross_amount': Decimal('10.00'),
-            'fee_amount': Decimal('0.50'),
-            'settled_amount': Decimal('8.00'),  # divergent — expected net 9.50
-        }],
-    ))
-    batch = PaymentReconciliationBatch.all_objects.filter(
-        tenant=ctx['tenant'], status='draft',
-    ).exclude(id=ctx['batch_draft'].id).first()
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: import_reconciliation_batch(
+            tenant=ctx['tenant'],
+            provider='stripe',
+            rows=[
+                {
+                    'provider_reference': 'ch_test_456',
+                    'gross_amount': Decimal('10.00'),
+                    'fee_amount': Decimal('0.50'),
+                    'settled_amount': Decimal('8.00'),  # divergent — expected net 9.50
+                }
+            ],
+        ),
+    )
+    batch = (
+        PaymentReconciliationBatch.all_objects.filter(
+            tenant=ctx['tenant'],
+            status='draft',
+        )
+        .exclude(id=ctx['batch_draft'].id)
+        .first()
+    )
     assert batch is not None
     response = ctx['client'].post(
         f'/api/v1/payments/reconciliation-batches/{batch.id}/confirm/',
@@ -671,11 +800,13 @@ def test_payment_reconciliation_confirm_with_divergence_409(sprint20_context):
 # Monitoring — operations aggregate (authorized)
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_monitoring_operations_authorized(sprint20_context):
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/monitoring/operations/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/monitoring/operations/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     body = response.json()
@@ -690,7 +821,8 @@ def test_monitoring_operations_no_secrets_or_payloads(sprint20_context):
     """Operations aggregate must not include secrets, webhook payloads, XML content."""
     ctx = sprint20_context
     response = ctx['client'].get(
-        '/api/v1/monitoring/operations/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/monitoring/operations/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     body_text = str(response.json())
@@ -711,7 +843,8 @@ def test_monitoring_operations_operator_denied(sprint20_context):
     ctx = sprint20_context
     op_c = _operator_client(ctx['client'].__class__, ctx['operator'], ctx['tenant'])
     response = op_c.get(
-        '/api/v1/monitoring/operations/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/monitoring/operations/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 403
 
@@ -719,6 +852,7 @@ def test_monitoring_operations_operator_denied(sprint20_context):
 # =============================================================================
 # Role denial — operator cannot manage fiscal/payment config
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_operator_denied_create_fiscal_emitter(sprint20_context):
@@ -749,6 +883,7 @@ def test_operator_denied_create_payment_provider(sprint20_context):
 # =============================================================================
 # Cross-tenant 404
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_cross_tenant_fiscal_document_404(sprint20_context):
@@ -794,6 +929,7 @@ def test_cross_tenant_provider_config_404(sprint20_context):
 # Bounded CSV export — fiscal documents
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_fiscal_document_export_csv_bounded(sprint20_context):
     ctx = sprint20_context
@@ -801,7 +937,6 @@ def test_fiscal_document_export_csv_bounded(sprint20_context):
         '/api/v1/fiscal/documents/export/',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
-    print('EXPORT DEBUG:', response.status_code, response.get('Content-Type'), response.content[:200])
     assert response.status_code == 200
     assert response['Content-Type'] == 'text/csv'
     reader = csv.reader(io.StringIO(response.content.decode('utf-8')))

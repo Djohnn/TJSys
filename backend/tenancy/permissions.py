@@ -21,7 +21,9 @@ class HasVerifiedMFA(BasePermission):
         if tenant is None:
             return True
         membership = TenantMembership.objects.filter(
-            user=request.user, tenant=tenant, is_active=True,
+            user=request.user,
+            tenant=tenant,
+            is_active=True,
         ).first()
         if membership is None:
             self.message = 'HasVerifiedMFA: membership not found.'
@@ -52,10 +54,12 @@ class HasCapability(BasePermission):
         if not capability:
             return True
         membership = TenantMembership.objects.filter(
-            user=request.user, tenant=tenant, is_active=True,
+            user=request.user,
+            tenant=tenant,
+            is_active=True,
         ).first()
         if membership is None:
             return False
         from tenancy.capabilities import role_allows
-        return role_allows(membership.role, capability)
 
+        return role_allows(membership.role, capability)

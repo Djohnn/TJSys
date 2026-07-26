@@ -23,8 +23,11 @@ def test_seed_creates_two_tenants_without_printing_password(monkeypatch):
 
     call_command('seed_tenants', stdout=output)
 
-    assert Tenant.objects.filter(
-        slug__in=['casa-de-racao-alpha', 'pet-shop-beta'],
-    ).count() == 2
+    assert (
+        Tenant.objects.filter(
+            slug__in=['casa-de-racao-alpha', 'pet-shop-beta'],
+        ).count()
+        == 2
+    )
     assert password not in output.getvalue()
     assert 'credenciais' in output.getvalue()

@@ -35,18 +35,31 @@ def s13_context():
         branch = Branch.all_objects.create(tenant=tenant, company=company, name='S13 Filial')
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         product = Product.all_objects.create(
-            tenant=tenant, sku='S13-PROD', name='S13 Produto', base_unit=unit,
+            tenant=tenant,
+            sku='S13-PROD',
+            name='S13 Produto',
+            base_unit=unit,
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='S13 Fornecedor', cnpj='00.000.000/0001-00',
+            tenant=tenant,
+            name='S13 Fornecedor',
+            cnpj='00.000.000/0001-00',
         )
         template = RecurringPurchaseOrderTemplate.all_objects.create(
-            tenant=tenant, supplier=supplier, branch=branch,
-            frequency='monthly', next_run='2026-07-01',
+            tenant=tenant,
+            supplier=supplier,
+            branch=branch,
+            frequency='monthly',
+            next_run='2026-07-01',
         )
         tpl_item = RecurringTemplateItem.all_objects.create(
-            tenant=tenant, template=template, product=product, unit=unit,
-            quantity=Decimal('10'), unit_cost=Decimal('5.00'), factor=Decimal('1'),
+            tenant=tenant,
+            template=template,
+            product=product,
+            unit=unit,
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5.00'),
+            factor=Decimal('1'),
         )
         return {
             'tenant': tenant,
@@ -96,13 +109,19 @@ class TestRecurringPurchaseOrderTemplate:
     def test_multiple_items_generated(self, s13_context):
         ctx = s13_context
         product2 = Product.all_objects.create(
-            tenant=ctx['tenant'], sku='S13-PROD2', name='S13 Produto 2',
+            tenant=ctx['tenant'],
+            sku='S13-PROD2',
+            name='S13 Produto 2',
             base_unit=ctx['unit'],
         )
         RecurringTemplateItem.all_objects.create(
-            tenant=ctx['tenant'], template=ctx['template'],
-            product=product2, unit=ctx['unit'],
-            quantity=Decimal('5'), unit_cost=Decimal('3.00'), factor=Decimal('2'),
+            tenant=ctx['tenant'],
+            template=ctx['template'],
+            product=product2,
+            unit=ctx['unit'],
+            quantity=Decimal('5'),
+            unit_cost=Decimal('3.00'),
+            factor=Decimal('2'),
         )
         po = generate_po_from_template(ctx['template'], ctx['tenant'])
         items = PurchaseOrderItem.all_objects.filter(purchase_order=po)
@@ -117,7 +136,9 @@ class TestAutoOnboardSupplier:
 
         ctx = s13_context
         supplier = auto_onboard_supplier(
-            tenant=ctx['tenant'], cnpj='11.111.111/0001-11', name='Novo Fornecedor',
+            tenant=ctx['tenant'],
+            cnpj='11.111.111/0001-11',
+            name='Novo Fornecedor',
         )
         assert supplier.cnpj == '11.111.111/0001-11'
         assert supplier.name == 'Novo Fornecedor'
@@ -134,10 +155,12 @@ class TestAutoOnboardSupplier:
 
         ctx = s13_context
         s1 = auto_onboard_supplier(
-            tenant=ctx['tenant'], cnpj='00.000.000/0001-00',
+            tenant=ctx['tenant'],
+            cnpj='00.000.000/0001-00',
         )
         s2 = auto_onboard_supplier(
-            tenant=ctx['tenant'], cnpj='00.000.000/0001-00',
+            tenant=ctx['tenant'],
+            cnpj='00.000.000/0001-00',
         )
         assert s1.id == s2.id
 
@@ -147,10 +170,14 @@ class TestAutoOnboardAPI:
     def test_auto_onboard_endpoint(self, client, s13_context):
         ctx = s13_context
         user = get_user_model().objects.create_user(
-            email='s13-api@test.local', password='pass123',
+            email='s13-api@test.local',
+            password='pass123',
         )
         TenantMembership.objects.create(
-            user=user, tenant=ctx['tenant'], role='admin', is_active=True,
+            user=user,
+            tenant=ctx['tenant'],
+            role='admin',
+            is_active=True,
         )
         client.force_login(user)
         session = client.session
@@ -171,10 +198,14 @@ class TestAutoOnboardAPI:
     def test_auto_onboard_missing_cnpj(self, client, s13_context):
         ctx = s13_context
         user = get_user_model().objects.create_user(
-            email='s13-api2@test.local', password='pass123',
+            email='s13-api2@test.local',
+            password='pass123',
         )
         TenantMembership.objects.create(
-            user=user, tenant=ctx['tenant'], role='admin', is_active=True,
+            user=user,
+            tenant=ctx['tenant'],
+            role='admin',
+            is_active=True,
         )
         client.force_login(user)
         session = client.session
@@ -242,10 +273,14 @@ class TestOCR:
     def test_ocr_api_endpoint(self, client, s13_context):
         ctx = s13_context
         user = get_user_model().objects.create_user(
-            email='s13-ocr@test.local', password='pass123',
+            email='s13-ocr@test.local',
+            password='pass123',
         )
         TenantMembership.objects.create(
-            user=user, tenant=ctx['tenant'], role='admin', is_active=True,
+            user=user,
+            tenant=ctx['tenant'],
+            role='admin',
+            is_active=True,
         )
         client.force_login(user)
         session = client.session

@@ -12,14 +12,18 @@ from .views import (
 router = DefaultRouter()
 router.register('payments/transactions', PaymentTransactionViewSet, basename='payment-transaction')
 router.register(
-    'payments/intents', PaymentIntentViewSet, basename='payment-intent',
+    'payments/intents',
+    PaymentIntentViewSet,
+    basename='payment-intent',
 )
 router.register(
-    'payments/provider-configs', PaymentProviderConfigViewSet,
+    'payments/provider-configs',
+    PaymentProviderConfigViewSet,
     basename='payment-provider-config',
 )
 router.register(
-    'payments/reconciliation-batches', PaymentReconciliationBatchViewSet,
+    'payments/reconciliation-batches',
+    PaymentReconciliationBatchViewSet,
     basename='payment-reconciliation-batch',
 )
 

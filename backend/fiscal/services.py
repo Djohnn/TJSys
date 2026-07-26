@@ -29,39 +29,55 @@ def _resolve_provider(provider_name: str):
 
 def resolve_emitter(branch):
     from django.db import connection
+
     with connection.cursor() as c:
         c.execute(
-            "SELECT id, tenant_id, branch_id, provider, cpf_cnpj, ie, registered_at_provider, "
-            "registration_source, created_at, updated_at "
-            "FROM fiscal_fiscalemitter WHERE branch_id=%s AND registered_at_provider=true LIMIT 1",
-            [str(branch.id)]
+            'SELECT id, tenant_id, branch_id, provider, cpf_cnpj, ie, registered_at_provider, '
+            'registration_source, created_at, updated_at '
+            'FROM fiscal_fiscalemitter WHERE branch_id=%s AND registered_at_provider=true LIMIT 1',
+            [str(branch.id)],
         )
         row = c.fetchone()
     if not row:
         return None
     return FiscalEmitter(
-        id=row[0], tenant_id=row[1], branch_id=row[2], provider=row[3],
-        cpf_cnpj=row[4], ie=row[5], registered_at_provider=row[6],
-        registration_source=row[7], created_at=row[8], updated_at=row[9],
+        id=row[0],
+        tenant_id=row[1],
+        branch_id=row[2],
+        provider=row[3],
+        cpf_cnpj=row[4],
+        ie=row[5],
+        registered_at_provider=row[6],
+        registration_source=row[7],
+        created_at=row[8],
+        updated_at=row[9],
     )
 
 
 def resolve_product_config(product):
     from django.db import connection
+
     with connection.cursor() as c:
         c.execute(
-            "SELECT id, tenant_id, product_id, cst_icms, cst_pis, cst_cofins, "
-            "aliquota_icms, origem, created_at, updated_at "
-            "FROM fiscal_fiscalproductconfig WHERE product_id=%s LIMIT 1",
-            [str(product.id)]
+            'SELECT id, tenant_id, product_id, cst_icms, cst_pis, cst_cofins, '
+            'aliquota_icms, origem, created_at, updated_at '
+            'FROM fiscal_fiscalproductconfig WHERE product_id=%s LIMIT 1',
+            [str(product.id)],
         )
         row = c.fetchone()
     if not row:
         return None
     return FiscalProductConfig(
-        id=row[0], tenant_id=row[1], product_id=row[2], cst_icms=row[3],
-        cst_pis=row[4], cst_cofins=row[5], aliquota_icms=row[6], origem=row[7],
-        created_at=row[8], updated_at=row[9],
+        id=row[0],
+        tenant_id=row[1],
+        product_id=row[2],
+        cst_icms=row[3],
+        cst_pis=row[4],
+        cst_cofins=row[5],
+        aliquota_icms=row[6],
+        origem=row[7],
+        created_at=row[8],
+        updated_at=row[9],
     )
 
 
@@ -94,23 +110,36 @@ def build_recipient_dict(person):
     if person is None:
         return None
     from people.models import PersonAddress, PersonDocument
+
     document = PersonDocument.all_objects.filter(
-        person=person, is_active=True, document_type__in=['CPF', 'CNPJ'],
+        person=person,
+        is_active=True,
+        document_type__in=['CPF', 'CNPJ'],
     ).first()
-    address = PersonAddress.all_objects.filter(
-        person=person, is_active=True, address_type='fiscal',
-    ).order_by('-is_primary', 'created_at').first()
+    address = (
+        PersonAddress.all_objects.filter(
+            person=person,
+            is_active=True,
+            address_type='fiscal',
+        )
+        .order_by('-is_primary', 'created_at')
+        .first()
+    )
     return {
         'name': person.name,
         'cpf_cnpj': document.value if document else '',
-        'address': ({
-            'street': address.street,
-            'number': address.number,
-            'city': address.city,
-            'state': address.state,
-            'postal_code': address.postal_code,
-            'country': address.country,
-        } if address else None),
+        'address': (
+            {
+                'street': address.street,
+                'number': address.number,
+                'city': address.city,
+                'state': address.state,
+                'postal_code': address.postal_code,
+                'country': address.country,
+            }
+            if address
+            else None
+        ),
     }
 
 
@@ -143,22 +172,28 @@ def validate_fiscal_config_for_receipt(receipt):
 
     emitter = resolve_emitter(branch)
     if emitter is None:
-        issues.append(FiscalValidationIssue(
-            'emitter',
-            'Nenhum emitente fiscal configurado para esta filial.',
-        ))
+        issues.append(
+            FiscalValidationIssue(
+                'emitter',
+                'Nenhum emitente fiscal configurado para esta filial.',
+            )
+        )
     elif not emitter.registered_at_provider:
-        issues.append(FiscalValidationIssue(
-            'emitter',
-            'Emitente fiscal não registrado no provedor.',
-            severity='warning',
-        ))
+        issues.append(
+            FiscalValidationIssue(
+                'emitter',
+                'Emitente fiscal não registrado no provedor.',
+                severity='warning',
+            )
+        )
 
     if not supplier.cnpj:
-        issues.append(FiscalValidationIssue(
-            'supplier',
-            'Fornecedor sem CNPJ cadastrado.',
-        ))
+        issues.append(
+            FiscalValidationIssue(
+                'supplier',
+                'Fornecedor sem CNPJ cadastrado.',
+            )
+        )
 
     items = receipt.items.select_related(
         'purchase_order_item__product',
@@ -168,21 +203,27 @@ def validate_fiscal_config_for_receipt(receipt):
         product = item.purchase_order_item.product
         config = resolve_product_config(product)
         if config is None:
-            issues.append(FiscalValidationIssue(
-                f'item.{product.sku}',
-                f'Produto {product.sku} sem configuração fiscal (CST/ICMS).',
-                severity='warning',
-            ))
+            issues.append(
+                FiscalValidationIssue(
+                    f'item.{product.sku}',
+                    f'Produto {product.sku} sem configuração fiscal (CST/ICMS).',
+                    severity='warning',
+                )
+            )
         elif not config.cst_icms:
-            issues.append(FiscalValidationIssue(
-                f'item.{product.sku}',
-                f'Produto {product.sku} sem CST ICMS.',
-            ))
+            issues.append(
+                FiscalValidationIssue(
+                    f'item.{product.sku}',
+                    f'Produto {product.sku} sem CST ICMS.',
+                )
+            )
         if not product.ncm:
-            issues.append(FiscalValidationIssue(
-                f'item.{product.sku}',
-                f'Produto {product.sku} sem NCM cadastrado.',
-            ))
+            issues.append(
+                FiscalValidationIssue(
+                    f'item.{product.sku}',
+                    f'Produto {product.sku} sem NCM cadastrado.',
+                )
+            )
 
     return issues
 
@@ -327,9 +368,16 @@ def apply_provider_query_result(doc, result):
         doc.xml_key = result.xml_url or ''
         doc.pdf_key = result.pdf_url or ''
         doc.last_polled_at = timezone.now()
-        doc.save(update_fields=[
-            'status', 'protocol', 'xml_key', 'pdf_key', 'last_polled_at', 'updated_at',
-        ])
+        doc.save(
+            update_fields=[
+                'status',
+                'protocol',
+                'xml_key',
+                'pdf_key',
+                'last_polled_at',
+                'updated_at',
+            ]
+        )
         return doc
 
     if result.status == 'REJEITADO':
@@ -337,9 +385,15 @@ def apply_provider_query_result(doc, result):
         doc.is_active = False
         doc.error_detail = result.error_reason or ''
         doc.last_polled_at = timezone.now()
-        doc.save(update_fields=[
-            'status', 'is_active', 'error_detail', 'last_polled_at', 'updated_at',
-        ])
+        doc.save(
+            update_fields=[
+                'status',
+                'is_active',
+                'error_detail',
+                'last_polled_at',
+                'updated_at',
+            ]
+        )
         if doc.attempt_number < MAX_AUTO_REATTEMPTS:
             FiscalDocument.all_objects.create(
                 tenant=doc.tenant,
@@ -354,9 +408,15 @@ def apply_provider_query_result(doc, result):
         doc.is_active = False
         doc.error_detail = result.error_reason or ''
         doc.last_polled_at = timezone.now()
-        doc.save(update_fields=[
-            'status', 'is_active', 'error_detail', 'last_polled_at', 'updated_at',
-        ])
+        doc.save(
+            update_fields=[
+                'status',
+                'is_active',
+                'error_detail',
+                'last_polled_at',
+                'updated_at',
+            ]
+        )
         return doc
 
     doc.last_polled_at = timezone.now()

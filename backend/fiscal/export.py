@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from fiscal.models import FiscalDocument
-from tenancy.permissions import HasActiveTenant, HasVerifiedMFA, HasCapability
+from tenancy.permissions import HasActiveTenant, HasCapability, HasVerifiedMFA
 
 
 class FiscalDocumentExportView(APIView):
@@ -19,7 +19,9 @@ class FiscalDocumentExportView(APIView):
         writer = csv.writer(buf)
         writer.writerow(['id', 'sale', 'status', 'attempt', 'direction'])
         for doc in qs:
-            writer.writerow([str(doc.id), str(doc.sale_id), doc.status, doc.attempt_number, doc.direction])
+            writer.writerow(
+                [str(doc.id), str(doc.sale_id), doc.status, doc.attempt_number, doc.direction]
+            )
         resp = HttpResponse(buf.getvalue(), content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename=fiscal-documents.csv'
         return resp

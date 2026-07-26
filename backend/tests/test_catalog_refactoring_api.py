@@ -15,8 +15,8 @@ from catalog.models import (
     Category,
     Product,
     ProductFiscalData,
-    ProductPriceTier,
     ProductPrice,
+    ProductPriceTier,
     Unit,
 )
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
@@ -37,7 +37,8 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='admin'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant,
+        user=user,
+        tenant=tenant,
         defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
@@ -62,32 +63,47 @@ def catalog_context(client):
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         cat = Category.all_objects.create(tenant=tenant, name='Cat API')
         product = Product.all_objects.create(
-            tenant=tenant, sku='S22-CAT-API', name='Test',
-            base_unit=unit, category=cat,
+            tenant=tenant,
+            sku='S22-CAT-API',
+            name='Test',
+            base_unit=unit,
+            category=cat,
         )
         product2 = Product.all_objects.create(
-            tenant=tenant, sku='S22-CAT-API2', name='Test2',
-            base_unit=unit, category=cat,
+            tenant=tenant,
+            sku='S22-CAT-API2',
+            name='Test2',
+            base_unit=unit,
+            category=cat,
         )
         company = Company.all_objects.create(tenant=tenant, name='Co')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Br',
+            tenant=tenant,
+            company=company,
+            name='Br',
         )
         price = ProductPrice.all_objects.create(
-            tenant=tenant, product=product, amount=Decimal('10.00'),
+            tenant=tenant,
+            product=product,
+            amount=Decimal('10.00'),
             valid_from=timezone.now(),
         )
         return {
-            'tenant': tenant, 'client': api_client,
-            'product': product, 'product2': product2,
-            'branch': branch, 'price': price,
+            'tenant': tenant,
+            'client': api_client,
+            'product': product,
+            'product2': product2,
+            'branch': branch,
+            'price': price,
         }
+
     return _run_in_tenant(tenant, _create)
 
 
 # ---------------------------------------------------------------------------
 # Scenario 1 — PATCH product with new Sprint-22 fields
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_patch_product_new_fields(catalog_context):
@@ -104,6 +120,7 @@ def test_patch_product_new_fields(catalog_context):
         'tracks_inventory': False,
     }
     import json
+
     response = ctx['client'].patch(
         f'/api/v1/products/{ctx["product"].id}/',
         data=json.dumps(payload),
@@ -130,15 +147,19 @@ def test_patch_product_new_fields(catalog_context):
 # Scenario 2 — GET product detail includes new fields
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_product_new_fields_in_detail_response(catalog_context):
     """Given a product with new fields set, when GET detail, then 200 and
     new fields present in response.
     """
     ctx = catalog_context
-    _run_in_tenant(ctx['tenant'], lambda: Product.all_objects.filter(
-        id=ctx['product'].id,
-    ).update(product_kind='servico', brand='B', model='M', scale_code='SC'))
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: Product.all_objects.filter(
+            id=ctx['product'].id,
+        ).update(product_kind='servico', brand='B', model='M', scale_code='SC'),
+    )
 
     response = ctx['client'].get(
         f'/api/v1/products/{ctx["product"].id}/',
@@ -150,13 +171,14 @@ def test_product_new_fields_in_detail_response(catalog_context):
     assert data['brand'] == 'B'
     assert data['model'] == 'M'
     assert data['scale_code'] == 'SC'
-    assert data['tracks_inventory'] is True   # default
-    assert data['tags'] == []                  # default
+    assert data['tracks_inventory'] is True  # default
+    assert data['tags'] == []  # default
 
 
 # ---------------------------------------------------------------------------
 # Scenario 3 — Old product without new fields returns defaults
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_product_old_without_new_fields_still_works(catalog_context):
@@ -181,6 +203,7 @@ def test_product_old_without_new_fields_still_works(catalog_context):
 # ---------------------------------------------------------------------------
 # Scenario 4 — Create fiscal data for a product
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_create_fiscal_data(catalog_context):
@@ -222,6 +245,7 @@ def test_create_fiscal_data(catalog_context):
 # Scenario 5 — Upsert fiscal data (POST twice updates existing)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_upsert_fiscal_data(catalog_context):
     """Given product with existing fiscal data, when POST fiscal-data again,
@@ -237,7 +261,8 @@ def test_upsert_fiscal_data(catalog_context):
     }
     r1 = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/fiscal-data/',
-        payload1, format='json',
+        payload1,
+        format='json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert r1.status_code == 201
@@ -252,7 +277,8 @@ def test_upsert_fiscal_data(catalog_context):
     }
     r2 = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/fiscal-data/',
-        payload2, format='json',
+        payload2,
+        format='json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert r2.status_code == 200
@@ -273,6 +299,7 @@ def test_upsert_fiscal_data(catalog_context):
 # Scenario 6 — GET fiscal data
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_get_fiscal_data(catalog_context):
     """Given product with fiscal data, when GET fiscal-data, then 200 and
@@ -280,10 +307,16 @@ def test_get_fiscal_data(catalog_context):
     """
     ctx = catalog_context
     # Seed fiscal data
-    _run_in_tenant(ctx['tenant'], lambda: ProductFiscalData.all_objects.create(
-        tenant=ctx['tenant'], product=ctx['product'],
-        fiscal_type='revenda', ncm='33333333', origin_code='0',
-    ))
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductFiscalData.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            fiscal_type='revenda',
+            ncm='33333333',
+            origin_code='0',
+        ),
+    )
 
     response = ctx['client'].get(
         f'/api/v1/products/{ctx["product"].id}/fiscal-data/',
@@ -299,6 +332,7 @@ def test_get_fiscal_data(catalog_context):
 # Scenario 7 — Cross-tenant fiscal data returns 404
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_fiscal_data_cross_tenant_404(catalog_context):
     """Given fiscal data in tenant B, when GET from tenant A, then 404."""
@@ -309,14 +343,21 @@ def test_fiscal_data_cross_tenant_404(catalog_context):
         unit = Unit.all_objects.create(tenant=other, symbol='UN', name='U')
         cat = Category.all_objects.create(tenant=other, name='C')
         prod = Product.all_objects.create(
-            tenant=other, sku='OTHER', name='Other',
-            base_unit=unit, category=cat,
+            tenant=other,
+            sku='OTHER',
+            name='Other',
+            base_unit=unit,
+            category=cat,
         )
         ProductFiscalData.all_objects.create(
-            tenant=other, product=prod, fiscal_type='revenda',
-            ncm='99999999', origin_code='0',
+            tenant=other,
+            product=prod,
+            fiscal_type='revenda',
+            ncm='99999999',
+            origin_code='0',
         )
         return prod
+
     other_product = _run_in_tenant(other, _seed_other)
 
     # Try to access other-product's fiscal-data while authenticated in ctx tenant
@@ -330,6 +371,7 @@ def test_fiscal_data_cross_tenant_404(catalog_context):
 # ---------------------------------------------------------------------------
 # Scenario 8 — Create price tier
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_create_price_tier(catalog_context):
@@ -358,7 +400,8 @@ def test_create_price_tier(catalog_context):
     tier = _run_in_tenant(
         ctx['tenant'],
         lambda: ProductPriceTier.all_objects.filter(
-            product=ctx['product'], min_quantity=Decimal('5'),
+            product=ctx['product'],
+            min_quantity=Decimal('5'),
         ).first(),
     )
     assert tier is not None
@@ -369,22 +412,30 @@ def test_create_price_tier(catalog_context):
 # Scenario 9 — List price tiers
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_list_price_tiers(catalog_context):
     """Given product with multiple price tiers, when GET price-tiers,
     then 200 and returns an array.
     """
     ctx = catalog_context
-    _run_in_tenant(ctx['tenant'], lambda: (
-        ProductPriceTier.all_objects.create(
-            tenant=ctx['tenant'], product=ctx['product'],
-            min_quantity=Decimal('10'), amount=Decimal('9.00'),
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: (
+            ProductPriceTier.all_objects.create(
+                tenant=ctx['tenant'],
+                product=ctx['product'],
+                min_quantity=Decimal('10'),
+                amount=Decimal('9.00'),
+            ),
+            ProductPriceTier.all_objects.create(
+                tenant=ctx['tenant'],
+                product=ctx['product'],
+                min_quantity=Decimal('20'),
+                amount=Decimal('7.50'),
+            ),
         ),
-        ProductPriceTier.all_objects.create(
-            tenant=ctx['tenant'], product=ctx['product'],
-            min_quantity=Decimal('20'), amount=Decimal('7.50'),
-        ),
-    ))
+    )
 
     response = ctx['client'].get(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/',
@@ -405,14 +456,20 @@ def test_list_price_tiers(catalog_context):
 # Scenario 10 — Delete price tier
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_delete_price_tier(catalog_context):
     """Given a price tier, when DELETE, then 204 and tier is deactivated."""
     ctx = catalog_context
-    tier = _run_in_tenant(ctx['tenant'], lambda: ProductPriceTier.all_objects.create(
-        tenant=ctx['tenant'], product=ctx['product'],
-        min_quantity=Decimal('3'), amount=Decimal('12.00'),
-    ))
+    tier = _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPriceTier.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            min_quantity=Decimal('3'),
+            amount=Decimal('12.00'),
+        ),
+    )
 
     response = ctx['client'].delete(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/{tier.id}/',
@@ -424,7 +481,8 @@ def test_delete_price_tier(catalog_context):
     still_active = _run_in_tenant(
         ctx['tenant'],
         lambda: ProductPriceTier.all_objects.filter(
-            id=tier.id, is_active=True,
+            id=tier.id,
+            is_active=True,
         ).exists(),
     )
     assert not still_active
@@ -434,16 +492,22 @@ def test_delete_price_tier(catalog_context):
 # Scenario 11 — Price tier with same min_quantity returns error
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_price_tier_min_quantity_unique(catalog_context):
     """Given a tier with min_quantity=5, when POST another tier with same
     min_quantity, then 400 (unique constraint).
     """
     ctx = catalog_context
-    _run_in_tenant(ctx['tenant'], lambda: ProductPriceTier.all_objects.create(
-        tenant=ctx['tenant'], product=ctx['product'],
-        min_quantity=Decimal('5'), amount=Decimal('8.00'),
-    ))
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPriceTier.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            min_quantity=Decimal('5'),
+            amount=Decimal('8.00'),
+        ),
+    )
 
     response = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/',
@@ -462,13 +526,17 @@ def test_price_tier_min_quantity_unique(catalog_context):
 # Scenario 12 — Inactive product rejects price tier creation
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_inactive_product_rejects_tier(catalog_context):
     """Given an inactive product, when POST price-tiers, then 400."""
     ctx = catalog_context
-    _run_in_tenant(ctx['tenant'], lambda: Product.all_objects.filter(
-        id=ctx['product'].id,
-    ).update(is_active=False))
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: Product.all_objects.filter(
+            id=ctx['product'].id,
+        ).update(is_active=False),
+    )
 
     response = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/',

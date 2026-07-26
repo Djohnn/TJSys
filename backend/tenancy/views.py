@@ -83,12 +83,11 @@ class DeviceValidateView(APIView):
         api_key = serializer.validated_data['api_key']
 
         from django.db import connection
+
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT id, tenant_id, branch_id, status "
-                "FROM tenancy_device "
-                "WHERE key_hash = %s",
-                [hashlib.sha256(api_key.encode()).hexdigest()]
+                'SELECT id, tenant_id, branch_id, status FROM tenancy_device WHERE key_hash = %s',
+                [hashlib.sha256(api_key.encode()).hexdigest()],
             )
             row = cursor.fetchone()
 
@@ -96,7 +95,7 @@ class DeviceValidateView(APIView):
             return Response(
                 {'detail': 'Invalid API key', 'code': 'invalid_api_key'},
                 status=status.HTTP_401_UNAUTHORIZED,
-                content_type='application/problem+json'
+                content_type='application/problem+json',
             )
 
         device_id, tenant_id, branch_id, device_status = row
@@ -105,7 +104,7 @@ class DeviceValidateView(APIView):
             return Response(
                 {'detail': 'Device is not active', 'code': 'device_inactive'},
                 status=status.HTTP_403_FORBIDDEN,
-                content_type='application/problem+json'
+                content_type='application/problem+json',
             )
 
         # Generate JWT tokens
@@ -114,13 +113,15 @@ class DeviceValidateView(APIView):
         refresh['branch_id'] = str(branch_id) if branch_id else None
         refresh['tenant_id'] = str(tenant_id)
 
-        return Response({
-            'token': str(refresh.access_token),
-            'refresh_token': str(refresh),
-            'device_id': str(device_id),
-            'branch_id': str(branch_id) if branch_id else None,
-            'tenant_id': str(tenant_id),
-        })
+        return Response(
+            {
+                'token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'device_id': str(device_id),
+                'branch_id': str(branch_id) if branch_id else None,
+                'tenant_id': str(tenant_id),
+            }
+        )
 
 
 class DeviceRefreshView(APIView):
@@ -134,7 +135,7 @@ class DeviceRefreshView(APIView):
             return Response(
                 {'detail': 'Refresh token required', 'code': 'refresh_token_required'},
                 status=status.HTTP_400_BAD_REQUEST,
-                content_type='application/problem+json'
+                content_type='application/problem+json',
             )
 
         try:
@@ -144,15 +145,13 @@ class DeviceRefreshView(APIView):
 
             # Verify device is still active
             device = Device.all_objects.filter(
-                id=device_id,
-                tenant=request.tenant,
-                status='active'
+                id=device_id, tenant=request.tenant, status='active'
             ).first()
             if not device:
                 return Response(
                     {'detail': 'Device not found or inactive', 'code': 'device_not_found'},
                     status=status.HTTP_401_UNAUTHORIZED,
-                    content_type='application/problem+json'
+                    content_type='application/problem+json',
                 )
 
             new_refresh = RefreshToken()
@@ -160,17 +159,19 @@ class DeviceRefreshView(APIView):
             new_refresh['branch_id'] = str(branch_id) if branch_id else None
             new_refresh['tenant_id'] = str(request.tenant.id)
 
-            return Response({
-                'token': str(new_refresh.access_token),
-                'refresh_token': str(new_refresh),
-                'device_id': str(device_id),
-                'branch_id': str(branch_id) if branch_id else None,
-            })
+            return Response(
+                {
+                    'token': str(new_refresh.access_token),
+                    'refresh_token': str(new_refresh),
+                    'device_id': str(device_id),
+                    'branch_id': str(branch_id) if branch_id else None,
+                }
+            )
         except TokenError:
             return Response(
                 {'detail': 'Invalid or expired refresh token', 'code': 'invalid_refresh_token'},
                 status=status.HTTP_401_UNAUTHORIZED,
-                content_type='application/problem+json'
+                content_type='application/problem+json',
             )
 
 
@@ -216,7 +217,9 @@ class DeviceRevokeView(APIView):
 
     def post(self, request, pk):
         membership = TenantMembership.objects.get(
-            user=request.user, tenant=request.tenant, is_active=True,
+            user=request.user,
+            tenant=request.tenant,
+            is_active=True,
         )
         if not role_allows(membership.role, 'organization.manage'):
             raise PermissionDenied('Capability organization.manage is required.')

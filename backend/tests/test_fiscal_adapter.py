@@ -33,19 +33,21 @@ def test_plugnotas_emit_returns_provider_document_id(monkeypatch):
         tenant=None,
         emitter=emitter,
         document=document,
-        items=[{
-            'product': product,
-            'ncm': '12345678',
-            'unidade': 'UN',
-            'quantity': '1',
-            'unit_price': '10.00',
-            'line_total': '10.00',
-            'origem': '0',
-            'cst_icms': '00',
-            'cst_pis': '99',
-            'cst_cofins': '07',
-            'aliquota_icms': '0',
-        }],
+        items=[
+            {
+                'product': product,
+                'ncm': '12345678',
+                'unidade': 'UN',
+                'quantity': '1',
+                'unit_price': '10.00',
+                'line_total': '10.00',
+                'origem': '0',
+                'cst_icms': '00',
+                'cst_pis': '99',
+                'cst_cofins': '07',
+                'aliquota_icms': '0',
+            }
+        ],
         payments=[{'method': 'cash', 'amount': '10.00'}],
     )
 
@@ -60,12 +62,14 @@ def test_plugnotas_query_maps_summary(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         assert url == 'https://api.plugnotas.com.br/nfce/nfce-123/resumo'
-        return FakeResponse({
-            'status': 'CONCLUIDO',
-            'protocolo': '13579',
-            'xml': 'https://xml.example',
-            'pdf': 'https://pdf.example',
-        })
+        return FakeResponse(
+            {
+                'status': 'CONCLUIDO',
+                'protocolo': '13579',
+                'xml': 'https://xml.example',
+                'pdf': 'https://pdf.example',
+            }
+        )
 
     monkeypatch.setattr('fiscal.adapters.plugnotas.requests.get', fake_get)
 

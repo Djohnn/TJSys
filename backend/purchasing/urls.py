@@ -17,14 +17,18 @@ router.register('orders', PurchaseOrderViewSet, basename='purchaseorder')
 router.register('purchase-order-items', PurchaseOrderItemViewSet, basename='purchaseorderitem')
 router.register('purchase-receipts', PurchaseReceiptViewSet, basename='purchasereceipt')
 router.register(
-    'purchase-receipt-items', PurchaseReceiptItemViewSet,
+    'purchase-receipt-items',
+    PurchaseReceiptItemViewSet,
     basename='purchasereceiptitem',
 )
 router.register(
-    'purchasing-summary', PurchasingSummaryViewSet, basename='purchasingsummary',
+    'purchasing-summary',
+    PurchasingSummaryViewSet,
+    basename='purchasingsummary',
 )
 router.register(
-    'recurring-purchase-orders', RecurringPurchaseOrderViewSet,
+    'recurring-purchase-orders',
+    RecurringPurchaseOrderViewSet,
     basename='recurringpurchaseorder',
 )
 

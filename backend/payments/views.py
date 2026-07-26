@@ -34,13 +34,17 @@ from .services import (
 
 
 def _problem(detail, code, status_code):
-    return Response({
-        'type': f'https://docs.zyrp.local/errors/{code}',
-        'title': code.replace('_', ' ').title(),
-        'status': status_code,
-        'detail': str(detail),
-        'code': code,
-    }, status=status_code, content_type='application/problem+json')
+    return Response(
+        {
+            'type': f'https://docs.zyrp.local/errors/{code}',
+            'title': code.replace('_', ' ').title(),
+            'status': status_code,
+            'detail': str(detail),
+            'code': code,
+        },
+        status=status_code,
+        content_type='application/problem+json',
+    )
 
 
 class PaymentIntentCreateView(APIView):
@@ -52,13 +56,18 @@ class PaymentIntentCreateView(APIView):
         data = serializer.validated_data
         sale = Sale.all_objects.filter(tenant=request.tenant, id=data['sale']).first()
         config = PaymentProviderConfig.all_objects.filter(
-            tenant=request.tenant, id=data['provider_config'], is_active=True,
+            tenant=request.tenant,
+            id=data['provider_config'],
+            is_active=True,
         ).first()
         if sale is None or config is None:
             return _problem('Sale or provider config not found.', 'not_found', 404)
         intent = create_payment_intent(
-            tenant=request.tenant, sale=sale, provider_config=config,
-            idempotency_key=data['idempotency_key'], actor=request.user,
+            tenant=request.tenant,
+            sale=sale,
+            provider_config=config,
+            idempotency_key=data['idempotency_key'],
+            actor=request.user,
         )
         return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
 
@@ -70,11 +79,14 @@ class PaymentTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ['intent', 'transaction_type', 'status']
 
     def get_queryset(self):
-        return PaymentTransaction.all_objects.filter(tenant=self.request.tenant)
+        return PaymentTransaction.all_objects.filter(tenant=self.request.tenant).order_by(
+            '-created_at'
+        )
 
 
 class PaymentIntentViewSet(viewsets.ModelViewSet):
     """List, detail and create payment intents. Only create is mutable."""
+
     permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
     required_capability = 'payments.view'
     filterset_fields = ['sale', 'provider_config', 'status']
@@ -93,13 +105,18 @@ class PaymentIntentViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
         sale = Sale.all_objects.filter(tenant=request.tenant, id=data['sale']).first()
         config = PaymentProviderConfig.all_objects.filter(
-            tenant=request.tenant, id=data['provider_config'], is_active=True,
+            tenant=request.tenant,
+            id=data['provider_config'],
+            is_active=True,
         ).first()
         if sale is None or config is None:
             return _problem('Sale or provider config not found.', 'not_found', 404)
         intent = create_payment_intent(
-            tenant=request.tenant, sale=sale, provider_config=config,
-            idempotency_key=data['idempotency_key'], actor=request.user,
+            tenant=request.tenant,
+            sale=sale,
+            provider_config=config,
+            idempotency_key=data['idempotency_key'],
+            actor=request.user,
         )
         return Response(PaymentIntentSerializer(intent).data, status=status.HTTP_201_CREATED)
 
@@ -122,7 +139,9 @@ class PaymentProviderConfigViewSet(viewsets.ModelViewSet):
     filterset_fields = ['provider', 'is_active']
 
     def get_queryset(self):
-        return PaymentProviderConfig.all_objects.filter(tenant=self.request.tenant).order_by('-created_at')
+        return PaymentProviderConfig.all_objects.filter(tenant=self.request.tenant).order_by(
+            '-created_at'
+        )
 
     def get_serializer_class(self):
         if self.action in {'create', 'update', 'partial_update'}:
@@ -155,7 +174,9 @@ class PaymentReconciliationBatchViewSet(viewsets.GenericViewSet):
     filterset_fields = ['provider', 'status']
 
     def get_queryset(self):
-        return PaymentReconciliationBatch.all_objects.filter(tenant=self.request.tenant).order_by('-created_at')
+        return PaymentReconciliationBatch.all_objects.filter(tenant=self.request.tenant).order_by(
+            '-created_at'
+        )
 
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
@@ -175,7 +196,8 @@ class PaymentReconciliationBatchViewSet(viewsets.GenericViewSet):
         serializer = ReconciliationBatchInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         batch = import_reconciliation_batch(
-            tenant=request.tenant, **serializer.validated_data,
+            tenant=request.tenant,
+            **serializer.validated_data,
         )
         return Response(self.get_serializer(batch).data, status=201)
 
@@ -193,7 +215,9 @@ class PaymentReconciliationBatchViewSet(viewsets.GenericViewSet):
 def payment_webhook(request, provider):
     try:
         event = process_webhook(
-            tenant=request.tenant, provider=provider, payload=request.body,
+            tenant=request.tenant,
+            provider=provider,
+            payload=request.body,
             signature=request.headers.get('X-Payment-Signature', ''),
         )
     except InvalidWebhookSignature as exc:

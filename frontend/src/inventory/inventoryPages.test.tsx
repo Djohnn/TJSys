@@ -212,7 +212,7 @@ describe('ReceiptForm', () => {
   })
 
   it('sends Idempotency-Key header', async () => {
-    let capturedHeaders: Record<string, string> = {}
+    const capturedHeaders: Record<string, string> = {}
     server.use(
       http.post(`${BASE}/inventory/movements/`, async ({ request }) => {
         request.headers.forEach((value, key) => {

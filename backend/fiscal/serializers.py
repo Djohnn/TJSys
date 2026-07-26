@@ -41,15 +41,23 @@ class OCRXmlSerializer(serializers.Serializer):
 
 # Sprint 20 — management serializers (write-only secret)
 
+
 class FiscalEmitterSerializer(serializers.ModelSerializer):
     """Read serializer — never exposes secrets/api_key/certificate."""
 
     class Meta:
         model = FiscalEmitter
         fields = [
-            'id', 'branch', 'provider', 'cpf_cnpj', 'ie',
-            'registered_at_provider', 'registration_source',
-            'is_active', 'created_at', 'updated_at',
+            'id',
+            'branch',
+            'provider',
+            'cpf_cnpj',
+            'ie',
+            'registered_at_provider',
+            'registration_source',
+            'is_active',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = fields
 
@@ -58,15 +66,23 @@ class FiscalEmitterWriteSerializer(serializers.ModelSerializer):
     """Write serializer — accepts api_key once (write-only, not persisted)."""
 
     api_key = serializers.CharField(
-        write_only=True, required=False, allow_blank=True,
+        write_only=True,
+        required=False,
+        allow_blank=True,
     )
 
     class Meta:
         model = FiscalEmitter
         fields = [
-            'id', 'branch', 'provider', 'cpf_cnpj', 'ie',
-            'registered_at_provider', 'registration_source',
-            'is_active', 'api_key',
+            'id',
+            'branch',
+            'provider',
+            'cpf_cnpj',
+            'ie',
+            'registered_at_provider',
+            'registration_source',
+            'is_active',
+            'api_key',
         ]
         read_only_fields = ['id']
 
@@ -93,11 +109,23 @@ class FiscalDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = FiscalDocument
         fields = [
-            'id', 'direction', 'sale', 'purchase_order', 'receipt',
-            'status', 'attempt_number', 'provider_document_id', 'cfop',
-            'protocol', 'xml_key', 'pdf_key',
-            'error_detail', 'retry_count', 'is_active',
-            'created_at', 'updated_at',
+            'id',
+            'direction',
+            'sale',
+            'purchase_order',
+            'receipt',
+            'status',
+            'attempt_number',
+            'provider_document_id',
+            'cfop',
+            'protocol',
+            'xml_key',
+            'pdf_key',
+            'error_detail',
+            'retry_count',
+            'is_active',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = fields
 
@@ -112,8 +140,7 @@ class FiscalDocumentDetailSerializer(FiscalDocumentSerializer):
 
     def get_timeline(self, obj):
         history = (
-            FiscalDocument.all_objects
-            .filter(sale_id=obj.sale_id, tenant_id=obj.tenant_id)
+            FiscalDocument.all_objects.filter(sale_id=obj.sale_id, tenant_id=obj.tenant_id)
             .order_by('attempt_number')
             .values('status', 'created_at')
         )
@@ -124,8 +151,15 @@ class FiscalProductConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = FiscalProductConfig
         fields = [
-            'id', 'product', 'cst_icms', 'cst_pis', 'cst_cofins',
-            'aliquota_icms', 'origem', 'is_active', 'created_at', 'updated_at',
+            'id',
+            'product',
+            'cst_icms',
+            'cst_pis',
+            'cst_cofins',
+            'aliquota_icms',
+            'origem',
+            'is_active',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-

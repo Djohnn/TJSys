@@ -164,7 +164,7 @@ def test_api_reconciliation_endpoint_returns_divergences(api_context):
     )
 
     response = ctx['client'].get(
-        '/api/v1/stock-balances/reconcile/',
+        '/api/v1/inventory/balances/reconcile/',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
 

@@ -57,7 +57,8 @@ def test_cash_sale_creates_realized_receivable_and_settlement(sale_context):
     ctx = sale_context
 
     receivable = record_sale_financial_effects(
-        tenant=ctx['tenant'], sale=ctx['sale'],
+        tenant=ctx['tenant'],
+        sale=ctx['sale'],
     )[0]
 
     receivable.refresh_from_db()

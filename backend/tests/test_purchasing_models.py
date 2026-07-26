@@ -29,10 +29,15 @@ def purchasing_context():
         branch = Branch.all_objects.create(tenant=tenant, company=company, name='Filial Compra')
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         product = Product.all_objects.create(
-            tenant=tenant, sku='PURCH', name='Produto Compra', base_unit=unit,
+            tenant=tenant,
+            sku='PURCH',
+            name='Produto Compra',
+            base_unit=unit,
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='Fornecedor Teste', cnpj='00.000.000/0001-00',
+            tenant=tenant,
+            name='Fornecedor Teste',
+            cnpj='00.000.000/0001-00',
         )
         return {
             'tenant': tenant,
@@ -51,7 +56,8 @@ class TestSupplierModel:
     def test_create_supplier_minimal(self, purchasing_context):
         ctx = purchasing_context
         supplier = Supplier.all_objects.create(
-            tenant=ctx['tenant'], name='Fornecedor A',
+            tenant=ctx['tenant'],
+            name='Fornecedor A',
         )
         assert supplier.name == 'Fornecedor A'
         assert supplier.tenant == ctx['tenant']
@@ -71,7 +77,8 @@ class TestSupplierModel:
     def test_supplier_str(self, purchasing_context):
         ctx = purchasing_context
         supplier = Supplier.all_objects.create(
-            tenant=ctx['tenant'], name='Meu Forn',
+            tenant=ctx['tenant'],
+            name='Meu Forn',
         )
         assert str(supplier) == 'Meu Forn'
 
@@ -115,7 +122,9 @@ class TestPurchaseOrderModel:
         other_tenant = Tenant.objects.create(name='Other', slug='other-po')
         supplier = Supplier.all_objects.create(tenant=other_tenant, name='Cross Forn')
         po = PurchaseOrder(
-            tenant=ctx['tenant'], supplier=supplier, branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=supplier,
+            branch=ctx['branch'],
         )
         with pytest.raises(ValidationError):
             po.full_clean()
@@ -155,14 +164,20 @@ class TestPurchaseOrderModel:
         def _seed():
             other_company = Company.all_objects.create(tenant=other_tenant, name='Outra Emp')
             other_supplier = Supplier.all_objects.create(
-                tenant=other_tenant, name='Outro Forn',
+                tenant=other_tenant,
+                name='Outro Forn',
             )
             other_branch = Branch.all_objects.create(
-                tenant=other_tenant, company=other_company, name='Outra Filial',
+                tenant=other_tenant,
+                company=other_company,
+                name='Outra Filial',
             )
             PurchaseOrder.all_objects.create(
-                tenant=other_tenant, supplier=other_supplier, branch=other_branch,
+                tenant=other_tenant,
+                supplier=other_supplier,
+                branch=other_branch,
             )
+
         _run_in_tenant(other_tenant, _seed)
 
         own_pos = PurchaseOrder.all_objects.filter(tenant=ctx['tenant'])
@@ -274,9 +289,12 @@ class TestPurchaseOrderItemModel:
 
         def _seed():
             result['product'] = Product.all_objects.create(
-                tenant=other_tenant, sku='OTHER', name='Outro Prod',
+                tenant=other_tenant,
+                sku='OTHER',
+                name='Outro Prod',
                 base_unit=ctx['unit'],
             )
+
         _run_in_tenant(other_tenant, _seed)
         other_product = result['product']
         po = PurchaseOrder.all_objects.create(

@@ -14,7 +14,10 @@ class VersionedPurchasingModel(TimeStampedModel, TenantScopedModel):
 
 class Supplier(VersionedPurchasingModel):
     person = models.ForeignKey(
-        'people.Person', on_delete=models.PROTECT, null=True, blank=True,
+        'people.Person',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='supplier_profiles',
     )
     name = models.CharField(max_length=200)
@@ -56,11 +59,15 @@ class PurchaseOrder(VersionedPurchasingModel):
         related_name='purchase_orders',
     )
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='draft',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft',
     )
     notes = models.TextField(blank=True, default='')
     items_total = models.DecimalField(
-        max_digits=18, decimal_places=2, default=0,
+        max_digits=18,
+        decimal_places=2,
+        default=0,
     )
     idempotency_key = models.CharField(max_length=100, blank=True, default='')
     payload_hash = models.CharField(max_length=64, blank=True, default='')
@@ -141,7 +148,9 @@ class PurchaseReceipt(VersionedPurchasingModel):
         related_name='receipts',
     )
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='draft',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft',
     )
     notes = models.TextField(blank=True, default='')
     idempotency_key = models.CharField(max_length=100, blank=True, default='')
@@ -328,10 +337,14 @@ class RecurringPurchaseOrderTemplate(VersionedPurchasingModel):
     ]
 
     supplier = models.ForeignKey(
-        Supplier, on_delete=models.PROTECT, related_name='recurring_templates',
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name='recurring_templates',
     )
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.PROTECT, related_name='recurring_templates',
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        related_name='recurring_templates',
     )
     frequency = models.CharField(max_length=20, choices=FREQ_CHOICES, default=FREQ_MONTHLY)
     next_run = models.DateField(null=True, blank=True)
@@ -361,10 +374,14 @@ class RecurringTemplateItem(VersionedPurchasingModel):
         related_name='items',
     )
     product = models.ForeignKey(
-        'catalog.Product', on_delete=models.PROTECT, related_name='recurring_template_items',
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='recurring_template_items',
     )
     unit = models.ForeignKey(
-        'catalog.Unit', on_delete=models.PROTECT, related_name='recurring_template_items',
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='recurring_template_items',
     )
     quantity = models.DecimalField(max_digits=18, decimal_places=6)
     unit_cost = models.DecimalField(max_digits=18, decimal_places=2)

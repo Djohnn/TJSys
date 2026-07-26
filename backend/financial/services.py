@@ -27,8 +27,7 @@ class DuplicateIdempotencyKey(ValueError):
     def __init__(self, existing):
         self.existing = existing
         super().__init__(
-            f'Idempotency key "{existing.idempotency_key}" '
-            f'already used with a different payload.'
+            f'Idempotency key "{existing.idempotency_key}" already used with a different payload.'
         )
 
 
@@ -47,8 +46,14 @@ def _build_payload(*, supplier_name, description, amount, due_date):
 
 @transaction.atomic
 def create_payable(
-    *, tenant, supplier_name, description, amount,
-    due_date=None, idempotency_key='', actor=None,
+    *,
+    tenant,
+    supplier_name,
+    description,
+    amount,
+    due_date=None,
+    idempotency_key='',
+    actor=None,
 ):
     from financial.models import Payable
 
@@ -63,7 +68,8 @@ def create_payable(
 
     if idempotency_key:
         existing = Payable.all_objects.filter(
-            tenant=tenant, idempotency_key=idempotency_key,
+            tenant=tenant,
+            idempotency_key=idempotency_key,
         ).first()
         if existing:
             if existing.payload_hash != fingerprint:
@@ -136,7 +142,14 @@ def _emit_financial_event(*, event_type, instance, amount, actor=None, correlati
 
 
 def _settle_obligation(
-    *, tenant, obligation, amount, settled_on, idempotency_key, actor=None, account=None,
+    *,
+    tenant,
+    obligation,
+    amount,
+    settled_on,
+    idempotency_key,
+    actor=None,
+    account=None,
 ):
     from financial.models import CashflowEntry, Settlement
 
@@ -146,7 +159,8 @@ def _settle_obligation(
     if amount <= 0:
         raise ValueError('Settlement amount must be positive.')
     existing = Settlement.all_objects.filter(
-        tenant=tenant, idempotency_key=idempotency_key,
+        tenant=tenant,
+        idempotency_key=idempotency_key,
     ).first()
     if existing:
         return existing
@@ -156,9 +170,13 @@ def _settle_obligation(
     if amount > remaining:
         raise OverSettlementError('Settlement amount exceeds the remaining balance.')
 
-    target = {'payable': obligation} if obligation._meta.model_name == 'payable' else {
-        'receivable': obligation,
-    }
+    target = (
+        {'payable': obligation}
+        if obligation._meta.model_name == 'payable'
+        else {
+            'receivable': obligation,
+        }
+    )
     settlement = Settlement.all_objects.create(
         tenant=tenant,
         account=account,
@@ -311,14 +329,16 @@ def cashflow_projection(*, tenant, date_from, date_to, branch=None):
     entries = []
     for entry in queryset.order_by('effective_date', 'created_at'):
         totals[f'{entry.status}_{entry.direction}'] += entry.amount
-        entries.append({
-            'id': str(entry.id),
-            'date': entry.effective_date,
-            'direction': entry.direction,
-            'status': entry.status,
-            'amount': entry.amount,
-            'description': entry.description,
-        })
+        entries.append(
+            {
+                'id': str(entry.id),
+                'date': entry.effective_date,
+                'direction': entry.direction,
+                'status': entry.status,
+                'amount': entry.amount,
+                'description': entry.description,
+            }
+        )
     totals['realized_balance'] = totals['realized_inflow'] - totals['realized_outflow']
     totals['forecast_balance'] = totals['forecast_inflow'] - totals['forecast_outflow']
     totals['entries'] = entries

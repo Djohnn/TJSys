@@ -46,9 +46,18 @@ import TransactionsPage from '@/payments/TransactionsPage'
 import ReconciliationBatchesPage from '@/payments/ReconciliationBatchesPage'
 import ReconciliationBatchDetailPage from '@/payments/ReconciliationBatchDetailPage'
 import OperationsPage from '@/monitoring/OperationsPage'
+import { useTenant } from '@/tenant/TenantProvider'
 
 function NotFoundPage(): ReactNode {
   return <ErrorState status={404} />
+}
+
+function AdminOnly({ children }: { children: ReactNode }): ReactNode {
+  const { selectedTenant } = useTenant()
+  if (selectedTenant?.role !== 'admin') {
+    return <ErrorState status={403} />
+  }
+  return children
 }
 
 export default function App(): ReactNode {
@@ -100,7 +109,10 @@ export default function App(): ReactNode {
               <Route path="purchasing/orders/new" element={<PurchaseOrderEditor />} />
               <Route path="purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
               <Route path="purchasing/orders/:id/edit" element={<PurchaseOrderEditor />} />
-              <Route path="fiscal/emitters" element={<FiscalConfigPage />} />
+              <Route
+                path="fiscal/emitters"
+                element={<AdminOnly><FiscalConfigPage /></AdminOnly>}
+              />
               <Route path="fiscal/documents" element={<FiscalDocumentsPage />} />
               <Route path="fiscal/documents/:id" element={<FiscalDocumentDetailPage />} />
               <Route path="fiscal/reconciliation" element={<PurchaseFiscalReconciliationPage />} />

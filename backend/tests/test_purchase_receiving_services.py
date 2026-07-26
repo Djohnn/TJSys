@@ -24,6 +24,7 @@ def _run_in_tenant(tenant, callback):
     from django.db import connection
 
     from tenancy.context import reset_current_tenant_id, set_current_tenant_id
+
     token = set_current_tenant_id(tenant.id)
     try:
         with connection.cursor() as cursor:
@@ -40,25 +41,41 @@ def approved_po_context():
     def _create():
         company = Company.all_objects.create(tenant=tenant, name='Empresa RCT')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial RCT',
+            tenant=tenant,
+            company=company,
+            name='Filial RCT',
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='RECV', name='Recebimento',
+            tenant=tenant,
+            branch=branch,
+            code='RECV',
+            name='Recebimento',
             is_primary=True,
         )
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
         product = Product.all_objects.create(
-            tenant=tenant, sku='RECV', name='Produto RCT', base_unit=unit,
+            tenant=tenant,
+            sku='RECV',
+            name='Produto RCT',
+            base_unit=unit,
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='Fornecedor RCT',
+            tenant=tenant,
+            name='Fornecedor RCT',
         )
         po = PurchaseOrder.all_objects.create(
-            tenant=tenant, supplier=supplier, branch=branch,
+            tenant=tenant,
+            supplier=supplier,
+            branch=branch,
         )
         item = PurchaseOrderItem.all_objects.create(
-            tenant=tenant, purchase_order=po, product=product, unit=unit,
-            quantity=Decimal('10'), unit_cost=Decimal('5.00'), factor=Decimal('1'),
+            tenant=tenant,
+            purchase_order=po,
+            product=product,
+            unit=unit,
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5.00'),
+            factor=Decimal('1'),
         )
         approve_purchase_order(tenant=tenant, purchase_order=po, idempotency_key='recv-approve')
         return {
@@ -130,8 +147,7 @@ class TestReceivePurchaseOrder:
                 tenant=ctx['tenant'],
                 purchase_order=ctx['po'],
                 items=[
-                    {'purchase_order_item_id': ctx['item'].id,
-                     'quantity_received': Decimal('20')},
+                    {'purchase_order_item_id': ctx['item'].id, 'quantity_received': Decimal('20')},
                 ],
                 idempotency_key='recv-over',
             )
@@ -145,7 +161,9 @@ class TestReceivePurchaseOrder:
             idempotency_key='recv-stock',
         )
         balance = StockBalance.all_objects.filter(
-            tenant=ctx['tenant'], product=ctx['product'], location=ctx['location'],
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            location=ctx['location'],
         ).first()
         assert balance is not None
         assert balance.quantity == Decimal('10')
@@ -153,12 +171,18 @@ class TestReceivePurchaseOrder:
     def test_receipt_draft_order_raises(self, approved_po_context):
         ctx = approved_po_context
         draft_po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         PurchaseOrderItem.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=draft_po,
-            product=ctx['product'], unit=ctx['unit'],
-            quantity=Decimal('5'), unit_cost=Decimal('3.00'), factor=Decimal('1'),
+            tenant=ctx['tenant'],
+            purchase_order=draft_po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('5'),
+            unit_cost=Decimal('3.00'),
+            factor=Decimal('1'),
         )
         with pytest.raises(ReceiptWithoutApprovedOrder):
             receive_purchase_order(

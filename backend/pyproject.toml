@@ -22,6 +22,7 @@ dependencies = [
     "django-ratelimit>=4.1,<5",
     "django-cors-headers>=4.4,<5",
     "drf-spectacular>=0.27,<1",
+    "django-filter>=24.2,<26",
 ]
 
 [project.optional-dependencies]
@@ -71,6 +72,7 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "B"]
+"fix_user.py" = ["E402"]
 "config/settings/**" = ["F403"]
 "config/urls.py" = ["F401"]
 "config/settings/migration.py" = ["F403", "F405"]
@@ -83,7 +85,7 @@ quote-style = "single"
 python_version = "3.12"
 ignore_missing_imports = true
 warn_unused_ignores = true
-exclude = ["migrations", "\\.venv"]
+exclude = ["migrations", "\\.venv", "fix_user.py"]
 
 [[tool.mypy.overrides]]
 module = ["accounts.models", "outbox.models", "tenancy.models", "audit.models", "catalog.models", "inventory.models", "sales.models", "fiscal.models", "financial.models", "purchasing.models", "people.models", "payments.models", "platform_admin.models"]

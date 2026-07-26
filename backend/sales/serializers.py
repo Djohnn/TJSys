@@ -24,8 +24,13 @@ class CashMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashMovement
         fields = [
-            'id', 'movement_type', 'amount', 'payment_method', 'reference',
-            'notes', 'created_at',
+            'id',
+            'movement_type',
+            'amount',
+            'payment_method',
+            'reference',
+            'notes',
+            'created_at',
         ]
         read_only_fields = fields
 
@@ -116,12 +121,16 @@ class CashSessionSerializer(serializers.ModelSerializer):
         return f'{avg:.2f}'
 
     def get_payment_methods(self, obj):
-        qs = SalePayment.objects.filter(
-            sale__cash_session=obj,
-            sale__status='confirmed',
-        ).values('method').annotate(
-            total=Sum('amount'),
-            count=Count('id'),
+        qs = (
+            SalePayment.objects.filter(
+                sale__cash_session=obj,
+                sale__status='confirmed',
+            )
+            .values('method')
+            .annotate(
+                total=Sum('amount'),
+                count=Count('id'),
+            )
         )
         result = {}
         for row in qs:
@@ -186,36 +195,40 @@ class CashSessionSerializer(serializers.ModelSerializer):
             SalePayment.objects.filter(
                 sale__cash_session=obj,
                 sale__status='confirmed',
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0'),
+            ).aggregate(total=Sum('amount'))['total']
+            or Decimal('0'),
         )
         cash_ins = _money(
             self._movements_filter(obj, 'cash_in').aggregate(
                 total=Sum('amount'),
-            )['total'] or Decimal('0'),
+            )['total']
+            or Decimal('0'),
         )
         cash_outs = _money(
             self._movements_filter(obj, 'cash_out').aggregate(
                 total=Sum('amount'),
-            )['total'] or Decimal('0'),
+            )['total']
+            or Decimal('0'),
         )
         expenses = _money(
             self._movements_filter(obj, 'expense').aggregate(
                 total=Sum('amount'),
-            )['total'] or Decimal('0'),
+            )['total']
+            or Decimal('0'),
         )
         other_in = _money(
             self._movements_filter(obj, 'other_in').aggregate(
                 total=Sum('amount'),
-            )['total'] or Decimal('0'),
+            )['total']
+            or Decimal('0'),
         )
         other_out = _money(
             self._movements_filter(obj, 'other_out').aggregate(
                 total=Sum('amount'),
-            )['total'] or Decimal('0'),
+            )['total']
+            or Decimal('0'),
         )
-        expected = _money(
-            opening + sales + cash_ins + other_in - cash_outs - expenses - other_out
-        )
+        expected = _money(opening + sales + cash_ins + other_in - cash_outs - expenses - other_out)
         return {
             'opening': f'{opening:.2f}',
             'cash_sales': f'{sales:.2f}',
@@ -240,37 +253,43 @@ class CashSessionSerializer(serializers.ModelSerializer):
         model = CashSession
         fields = [
             # Info basica
-            'id', 'branch', 'operator', 'status',
-            'opened_at', 'closed_at', 'version',
-
+            'id',
+            'branch',
+            'operator',
+            'status',
+            'opened_at',
+            'closed_at',
+            'version',
             # Secao 1 - Abertura
             'opening_amount',
-
             # Secao 2 - Resumo Vendas
-            'sales_count', 'total_sales', 'gross_total', 'discount_total',
-            'surcharge_total', 'net_total', 'average_ticket',
-
+            'sales_count',
+            'total_sales',
+            'gross_total',
+            'discount_total',
+            'surcharge_total',
+            'net_total',
+            'average_ticket',
             # Secao 3 - Formas de Pagamento
             'payment_methods',
-
             # Secao 4 - Movimentacoes
-            'cash_ins', 'cash_outs',
-            'cash_ins_total', 'cash_outs_total',
-
+            'cash_ins',
+            'cash_outs',
+            'cash_ins_total',
+            'cash_outs_total',
             # Devolucoes
             'returns_total',
-
             # Outras movimentacoes
-            'expenses', 'expenses_total',
-            'other_in_total', 'other_out_total',
-
+            'expenses',
+            'expenses_total',
+            'other_in_total',
+            'other_out_total',
             # Secao 6 - Conferencia
             'cash_breakdown',
-            'expected_amount', 'closing_amount',
-
+            'expected_amount',
+            'closing_amount',
             # Diferenca
             'difference',
-
             # Movimentos brutos
             'movements',
         ]
@@ -290,8 +309,15 @@ class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleItem
         fields = [
-            'id', 'product', 'unit', 'stock_operation', 'quantity', 'factor',
-            'unit_price', 'discount_amount', 'line_total',
+            'id',
+            'product',
+            'unit',
+            'stock_operation',
+            'quantity',
+            'factor',
+            'unit_price',
+            'discount_amount',
+            'line_total',
         ]
         read_only_fields = fields
 
@@ -310,9 +336,19 @@ class SaleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sale
         fields = [
-            'id', 'branch', 'cash_session', 'operator', 'customer', 'status',
-            'gross_total', 'discount_total', 'net_total', 'created_at',
-            'version', 'items', 'payments',
+            'id',
+            'branch',
+            'cash_session',
+            'operator',
+            'customer',
+            'status',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'created_at',
+            'version',
+            'items',
+            'payments',
         ]
         read_only_fields = fields
 
@@ -345,11 +381,13 @@ class CounterSaleSerializer(serializers.Serializer):
 
 
 class SyncOperationSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(choices=[
-        'sale:create',
-        'cash-session:open',
-        'cash-session:close',
-    ])
+    type = serializers.ChoiceField(
+        choices=[
+            'sale:create',
+            'cash-session:open',
+            'cash-session:close',
+        ]
+    )
     payload = serializers.JSONField()
     idempotency_key = serializers.CharField(max_length=255)
 

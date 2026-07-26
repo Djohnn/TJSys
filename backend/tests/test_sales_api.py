@@ -170,12 +170,14 @@ def test_api_creates_counter_sale_and_deducts_stock(sales_api_context):
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{
-                'product': str(ctx['product'].id),
-                'unit': str(ctx['unit'].id),
-                'quantity': '2.000000',
-                'factor': '1.000000',
-            }],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '2.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '25.00'}],
         },
         tenant=ctx['tenant'],
@@ -218,12 +220,14 @@ def test_current_cash_session_reports_confirmed_sales_totals(sales_api_context):
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{
-                'product': str(ctx['product'].id),
-                'unit': str(ctx['unit'].id),
-                'quantity': '2.000000',
-                'factor': '1.000000',
-            }],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '2.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '25.00'}],
         },
         tenant=ctx['tenant'],
@@ -259,12 +263,14 @@ def test_api_rejects_counter_sale_payment_mismatch(sales_api_context):
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{
-                'product': str(ctx['product'].id),
-                'unit': str(ctx['unit'].id),
-                'quantity': '1.000000',
-                'factor': '1.000000',
-            }],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '1.00'}],
         },
         tenant=ctx['tenant'],

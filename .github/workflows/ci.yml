@@ -34,6 +34,9 @@ env:
   EMAIL_HOST: localhost
   EMAIL_HOST_USER: ci-user
   EMAIL_HOST_PASSWORD: ci-only-placeholder
+  E2E_RECOVERY_CODE: e2e0000001
+  AUTH_LOGIN_RATE: 1000/minute
+  AUTH_MFA_RATE: 1000/minute
 
 jobs:
   ci:

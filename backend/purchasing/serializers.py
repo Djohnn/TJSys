@@ -61,7 +61,9 @@ class PurchaseOrderItemSerializer(FullCleanModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     unit_symbol = serializers.CharField(source='unit.symbol', read_only=True)
     line_total = serializers.DecimalField(
-        max_digits=18, decimal_places=2, read_only=True,
+        max_digits=18,
+        decimal_places=2,
+        read_only=True,
     )
 
     class Meta:
@@ -136,20 +138,30 @@ class PurchaseOrderDetailSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = [
-            'id', 'status', 'items', 'idempotency_key',
-            'payload_hash', 'created_at', 'updated_at', 'version',
+            'id',
+            'status',
+            'items',
+            'idempotency_key',
+            'payload_hash',
+            'created_at',
+            'updated_at',
+            'version',
         ]
 
 
 class PurchaseReceiptItemSerializer(FullCleanModelSerializer):
     product_name = serializers.CharField(
-        source='purchase_order_item.product.name', read_only=True,
+        source='purchase_order_item.product.name',
+        read_only=True,
     )
     product_sku = serializers.CharField(
-        source='purchase_order_item.product.sku', read_only=True,
+        source='purchase_order_item.product.sku',
+        read_only=True,
     )
     line_total = serializers.DecimalField(
-        max_digits=18, decimal_places=2, read_only=True,
+        max_digits=18,
+        decimal_places=2,
+        read_only=True,
     )
 
     class Meta:
@@ -168,17 +180,25 @@ class PurchaseReceiptItemSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = [
-            'id', 'receipt', 'product_name', 'product_sku',
-            'line_total', 'created_at', 'updated_at', 'version',
+            'id',
+            'receipt',
+            'product_name',
+            'product_sku',
+            'line_total',
+            'created_at',
+            'updated_at',
+            'version',
         ]
 
 
 class PurchaseReceiptSerializer(FullCleanModelSerializer):
     purchase_order_status = serializers.CharField(
-        source='purchase_order.status', read_only=True,
+        source='purchase_order.status',
+        read_only=True,
     )
     supplier_name = serializers.CharField(
-        source='purchase_order.supplier.name', read_only=True,
+        source='purchase_order.supplier.name',
+        read_only=True,
     )
     items = PurchaseReceiptItemSerializer(many=True, read_only=True)
 
@@ -198,8 +218,15 @@ class PurchaseReceiptSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = [
-            'id', 'purchase_order_status', 'supplier_name', 'status',
-            'items', 'idempotency_key', 'created_at', 'updated_at', 'version',
+            'id',
+            'purchase_order_status',
+            'supplier_name',
+            'status',
+            'items',
+            'idempotency_key',
+            'created_at',
+            'updated_at',
+            'version',
         ]
 
 
@@ -237,13 +264,17 @@ class PurchaseReceiptCancellationSerializer(FullCleanModelSerializer):
 
 class SupplierReturnItemSerializer(FullCleanModelSerializer):
     product_name = serializers.CharField(
-        source='purchase_order_item.product.name', read_only=True,
+        source='purchase_order_item.product.name',
+        read_only=True,
     )
     product_sku = serializers.CharField(
-        source='purchase_order_item.product.sku', read_only=True,
+        source='purchase_order_item.product.sku',
+        read_only=True,
     )
     line_total = serializers.DecimalField(
-        max_digits=18, decimal_places=2, read_only=True,
+        max_digits=18,
+        decimal_places=2,
+        read_only=True,
     )
 
     class Meta:
@@ -262,8 +293,14 @@ class SupplierReturnItemSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = [
-            'id', 'supplier_return', 'product_name', 'product_sku',
-            'line_total', 'created_at', 'updated_at', 'version',
+            'id',
+            'supplier_return',
+            'product_name',
+            'product_sku',
+            'line_total',
+            'created_at',
+            'updated_at',
+            'version',
         ]
 
 
@@ -284,8 +321,13 @@ class SupplierReturnSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = [
-            'id', 'status', 'items', 'idempotency_key',
-            'created_at', 'updated_at', 'version',
+            'id',
+            'status',
+            'items',
+            'idempotency_key',
+            'created_at',
+            'updated_at',
+            'version',
         ]
 
 
@@ -298,9 +340,20 @@ class RecurringTemplateItemSerializer(FullCleanModelSerializer):
     class Meta:
         model = RecurringTemplateItem
         fields = [
-            'id', 'template', 'product', 'product_sku', 'product_name',
-            'unit', 'unit_symbol', 'quantity', 'unit_cost', 'factor',
-            'line_total', 'created_at', 'updated_at', 'version',
+            'id',
+            'template',
+            'product',
+            'product_sku',
+            'product_name',
+            'unit',
+            'unit_symbol',
+            'quantity',
+            'unit_cost',
+            'factor',
+            'line_total',
+            'created_at',
+            'updated_at',
+            'version',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'version', 'line_total']
 
@@ -313,8 +366,18 @@ class RecurringPurchaseOrderTemplateSerializer(FullCleanModelSerializer):
     class Meta:
         model = RecurringPurchaseOrderTemplate
         fields = [
-            'id', 'supplier', 'supplier_name', 'branch', 'branch_name',
-            'frequency', 'next_run', 'is_active', 'notes', 'items',
-            'created_at', 'updated_at', 'version',
+            'id',
+            'supplier',
+            'supplier_name',
+            'branch',
+            'branch_name',
+            'frequency',
+            'next_run',
+            'is_active',
+            'notes',
+            'items',
+            'created_at',
+            'updated_at',
+            'version',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'version']

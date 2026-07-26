@@ -24,6 +24,7 @@ export type AuthState = 'loading' | 'anonymous' | 'mfa_required' | 'authenticate
 export interface LoginResult {
   requiresMfa: boolean
   temporaryToken?: string
+  tenantId?: string
 }
 
 export interface AuthContextValue {
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {
           requiresMfa: true,
           temporaryToken: response.mfa_session,
+          tenantId: response.mfa_tenant_id,
         }
       }
 

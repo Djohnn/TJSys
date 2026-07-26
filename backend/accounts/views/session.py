@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, logout
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -10,9 +10,11 @@ from rest_framework.views import APIView
 from accounts.serializers import LoginSerializer
 from accounts.throttles import LoginThrottle
 from audit.services import create_audit_record
+from tenancy.models import TenantMembership
 
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -23,7 +25,9 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email'].strip().casefold()
         user = authenticate(
-            request, username=email, password=serializer.validated_data['password'],
+            request,
+            username=email,
+            password=serializer.validated_data['password'],
         )
         if user is None:
             return Response({'detail': 'Invalid credentials.'}, status=401)
@@ -34,11 +38,23 @@ class LoginView(APIView):
         request.session.create()
         mfa_session = request.session.session_key
         request.session.cycle_key()
-        return Response({
-            'detail': 'MFA required.',
-            'requires_mfa': True,
-            'mfa_session': mfa_session,
-        }, status=status.HTTP_202_ACCEPTED)
+        membership = (
+            TenantMembership.objects.filter(user=user, is_active=True)
+            .order_by(
+                'invited_at',
+                'id',
+            )
+            .first()
+        )
+        return Response(
+            {
+                'detail': 'MFA required.',
+                'requires_mfa': True,
+                'mfa_session': mfa_session,
+                'mfa_tenant_id': str(membership.tenant_id) if membership else None,
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class LogoutView(APIView):
@@ -46,7 +62,9 @@ class LogoutView(APIView):
 
     def post(self, request):
         create_audit_record(
-            actor=request.user, action='auth.logout', resource_type='User',
+            actor=request.user,
+            action='auth.logout',
+            resource_type='User',
             resource_id=request.user.id,
             correlation_id=getattr(request, 'correlation_id', ''),
         )
@@ -59,8 +77,11 @@ class MeView(APIView):
 
     def get(self, request):
         from tenancy.models import TenantMembership
+
         memberships_qs = TenantMembership.objects.select_related('tenant').filter(
-            user=request.user, is_active=True, tenant__is_active=True,
+            user=request.user,
+            is_active=True,
+            tenant__is_active=True,
         )
         memberships = [
             {
@@ -71,11 +92,13 @@ class MeView(APIView):
             }
             for m in memberships_qs
         ]
-        return Response({
-            'id': str(request.user.id),
-            'email': request.user.email,
-            'memberships': memberships,
-        })
+        return Response(
+            {
+                'id': str(request.user.id),
+                'email': request.user.email,
+                'memberships': memberships,
+            }
+        )
 
 
 class CSRFView(APIView):

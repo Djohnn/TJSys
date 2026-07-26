@@ -36,7 +36,9 @@ def test_one_time_token_cannot_be_consumed_twice():
 def test_expired_or_tampered_token_is_rejected():
     user = User.objects.create_user(email='expired@test.local', password='test-password')
     raw, record = issue_token(
-        purpose='password_reset', user=user, ttl=timedelta(minutes=1),
+        purpose='password_reset',
+        user=user,
+        ttl=timedelta(minutes=1),
     )
     type(record).objects.filter(pk=record.pk).update(
         expires_at=timezone.now() - timedelta(seconds=1),

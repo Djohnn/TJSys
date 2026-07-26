@@ -24,10 +24,14 @@ def fiscal_webhook(request):
     if not provider_doc_id:
         return JsonResponse({'error': 'missing idNota'}, status=400)
 
-    doc = FiscalDocument.all_objects.filter(
-        provider_document_id=provider_doc_id,
-        is_active=True,
-    ).select_related('sale__branch', 'tenant').first()
+    doc = (
+        FiscalDocument.all_objects.filter(
+            provider_document_id=provider_doc_id,
+            is_active=True,
+        )
+        .select_related('sale__branch', 'tenant')
+        .first()
+    )
     if doc is None:
         return HttpResponse(status=200)
 

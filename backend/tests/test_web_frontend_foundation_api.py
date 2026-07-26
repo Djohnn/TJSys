@@ -5,10 +5,7 @@ Given/When/Then BDD scenarios for the frontend foundation API layer.
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import override_settings
-from django.urls import reverse
 
-from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Tenant, TenantMembership
 
 User = get_user_model()
@@ -16,7 +13,8 @@ User = get_user_model()
 
 def _auth_client(client, user, tenant, role='admin'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant,
+        user=user,
+        tenant=tenant,
         defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
@@ -31,16 +29,25 @@ def _auth_client(client, user, tenant, role='admin'):
 # Auth — login, session, MFA
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_login_endpoint_exists(client):
-    response = client.post('/api/v1/auth/login/', {'email': 'test@test.local', 'password': 'pass'}, content_type='application/json')
+    response = client.post(
+        '/api/v1/auth/login/',
+        {'email': 'test@test.local', 'password': 'pass'},
+        content_type='application/json',
+    )
     assert response.status_code in (200, 401, 400)
     assert 'application/json' in response['Content-Type']
 
 
 @pytest.mark.django_db
 def test_login_fails_with_invalid_credentials(client):
-    response = client.post('/api/v1/auth/login/', {'email': 'nonexistent@test.local', 'password': 'wrong'}, content_type='application/json')
+    response = client.post(
+        '/api/v1/auth/login/',
+        {'email': 'nonexistent@test.local', 'password': 'wrong'},
+        content_type='application/json',
+    )
     assert response.status_code in (401, 400)
 
 
@@ -48,6 +55,7 @@ def test_login_fails_with_invalid_credentials(client):
 def test_login_returns_mfa_when_enabled(client):
     user = User.objects.create_user(email='mfa-required@test.local', password='pass123')
     from tenancy.models import TenantMFAPolicy
+
     tenant = Tenant.objects.create(name='MFA Tenant', slug='mfa-tenant')
     TenantMembership.objects.create(user=user, tenant=tenant, role='admin', is_active=True)
     TenantMFAPolicy.objects.create(tenant=tenant, allow_totp=True, allow_email=True)
@@ -58,7 +66,9 @@ def test_login_returns_mfa_when_enabled(client):
     )
     # Login may return 200 with MFA requirement, or 403/400 depending on CSRF/auth setup
     acceptable = {200, 400, 403, 401}
-    assert response.status_code in acceptable, f'Expected one of {acceptable}, got {response.status_code}'
+    assert response.status_code in acceptable, (
+        f'Expected one of {acceptable}, got {response.status_code}'
+    )
 
 
 @pytest.mark.django_db
@@ -77,6 +87,7 @@ def test_me_endpoint_returns_user(client):
 # CORS — default headers
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_cors_headers_present_on_api_response(client):
     user = User.objects.create_user(email='cors@test.local', password='pass123')
@@ -90,6 +101,7 @@ def test_cors_headers_present_on_api_response(client):
 # =============================================================================
 # Health — unauthenticated access allowed
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_health_endpoint_unauthenticated(client):
@@ -110,6 +122,7 @@ def test_health_returns_status(client):
 # OpenAPI schema — accessible
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_openapi_schema_accessible(client):
     response = client.get('/api/v1/schema/')
@@ -120,6 +133,7 @@ def test_openapi_schema_accessible(client):
 # =============================================================================
 # Session — login establishes session
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_session_established_after_login(client):
@@ -141,6 +155,7 @@ def test_session_established_after_login(client):
 # Unauthenticated access — 401
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_unauthenticated_access_returns_401(client):
     response = client.get('/api/v1/auth/me/')
@@ -150,6 +165,7 @@ def test_unauthenticated_access_returns_401(client):
 # =============================================================================
 # Pagination — default format
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_pagination_format(client):

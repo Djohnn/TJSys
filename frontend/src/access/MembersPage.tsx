@@ -26,16 +26,15 @@ const ROLE_LABELS: Record<string, string> = {
 
 interface Member {
   id: number
-  user: {
+  email?: string
+  user?: {
     id: number
     email: string
     name: string
   }
   role: string
   is_active: boolean
-  branch_ids: string[]
-  created_at: string
-  updated_at: string
+  branch_ids?: string[]
 }
 
 function hasCapability(role: string, capability: string): boolean {
@@ -132,14 +131,20 @@ export default function MembersPage() {
                       </td>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-neutral-700">{member.user.email}</td>
-                        <td className="px-4 py-3 text-neutral-700">{member.user.name}</td>
+                      <td className="px-4 py-3 text-neutral-700">
+                        {member.email ?? member.user?.email ?? '-'}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-500">
+                        {member.user?.name ?? '—'}
+                      </td>
                         <td className="px-4 py-3">
                           <Badge variant={member.role === 'admin' ? 'info' : member.role === 'manager' ? 'warning' : 'neutral'}>
                             {ROLE_LABELS[member.role] ?? member.role}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-neutral-700">{member.branch_ids.length > 0 ? member.branch_ids.join(', ') : '-'}</td>
+                        <td className="px-4 py-3 text-neutral-700">
+                          {member.branch_ids?.length ? member.branch_ids.join(', ') : '-'}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge variant={member.is_active ? 'success' : 'danger'}>{member.is_active ? 'Ativo' : 'Inativo'}</Badge>
                         </td>

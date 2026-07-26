@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
+import { useAuth } from '@/auth/AuthProvider'
+import TenantSelector from '@/tenant/TenantSelector'
 import Navigation from './Navigation'
 
 export default function AppShell(): ReactNode {
+  const auth = useAuth()
+
   return (
     <div data-testid="app-shell" className="flex min-h-screen">
       <Navigation />
@@ -12,7 +16,12 @@ export default function AppShell(): ReactNode {
             Pular para conteúdo
           </a>
           <span className="text-sm font-semibold text-neutral-700">Administrativo</span>
-          <button type="button" className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors cursor-pointer">
+          <TenantSelector />
+          <button
+            type="button"
+            onClick={() => void auth.logout()}
+            className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors cursor-pointer"
+          >
             Sair
           </button>
         </header>

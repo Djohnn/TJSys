@@ -14,6 +14,7 @@ def _run_in_tenant(tenant, callback):
     from django.db import connection
 
     from tenancy.context import reset_current_tenant_id, set_current_tenant_id
+
     token = set_current_tenant_id(tenant.id)
     try:
         with connection.cursor() as cursor:
@@ -40,6 +41,7 @@ def pg_tenant_context(tenant):
     finally:
         reset_current_tenant_id(token)
 
+
 @pytest.mark.django_db
 def test_stock_lot_creation_and_validation(inv_tenant):
     """Testa criação de lote válido e validações."""
@@ -48,8 +50,12 @@ def test_stock_lot_creation_and_validation(inv_tenant):
     def _test():
         unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
-            tenant=inv_tenant, sku='LOT-PROD', name='Produto com Lote',
-            base_unit=unit, requires_lot=True, requires_expiry=True,
+            tenant=inv_tenant,
+            sku='LOT-PROD',
+            name='Produto com Lote',
+            base_unit=unit,
+            requires_lot=True,
+            requires_expiry=True,
         )
 
         # Criar lote válido
@@ -76,13 +82,18 @@ def test_stock_lot_expired(inv_tenant):
     def _test():
         unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
-            tenant=inv_tenant, sku='EXP', name='Expirado',
-            base_unit=unit, requires_lot=True, requires_expiry=True,
+            tenant=inv_tenant,
+            sku='EXP',
+            name='Expirado',
+            base_unit=unit,
+            requires_lot=True,
+            requires_expiry=True,
         )
 
         # Lote vencido - data no passado
         lot = StockLot.all_objects.create(
-            tenant=inv_tenant, product=product,
+            tenant=inv_tenant,
+            product=product,
             lot_number='EXP-001',
             manufacture_date=date(2020, 1, 1),
             expiry_date=date(2020, 1, 1),
@@ -103,13 +114,18 @@ def test_stock_lot_expiry_validation(inv_tenant):
     def _test():
         unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
-            tenant=inv_tenant, sku='VAL', name='Validade',
-            base_unit=unit, requires_lot=True, requires_expiry=True,
+            tenant=inv_tenant,
+            sku='VAL',
+            name='Validade',
+            base_unit=unit,
+            requires_lot=True,
+            requires_expiry=True,
         )
 
         # Lote com data de fabricação posterior à validade
         lot = StockLot(
-            tenant=inv_tenant, product=product,
+            tenant=inv_tenant,
+            product=product,
             lot_number='INV-001',
             manufacture_date=date(2025, 1, 1),
             expiry_date=date(2024, 1, 1),  # válido antes de fabricar
@@ -128,17 +144,23 @@ def test_stock_lot_duplicate_number_rejected(inv_tenant):
     def _test():
         unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
-            tenant=inv_tenant, sku='DUP', name='Duplicado',
+            tenant=inv_tenant,
+            sku='DUP',
+            name='Duplicado',
             base_unit=unit,
         )
 
         StockLot.all_objects.create(
-            tenant=inv_tenant, product=product, lot_number='LOTE-ABC',
+            tenant=inv_tenant,
+            product=product,
+            lot_number='LOTE-ABC',
         )
 
         with pytest.raises(Exception):
             StockLot.all_objects.create(
-                tenant=inv_tenant, product=product, lot_number='LOTE-ABC',
+                tenant=inv_tenant,
+                product=product,
+                lot_number='LOTE-ABC',
             )
 
     _run_in_tenant(inv_tenant, _test)

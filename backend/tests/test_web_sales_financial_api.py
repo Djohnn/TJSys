@@ -18,7 +18,7 @@ from financial.models import Payable, Receivable
 from inventory.models import StockLocation
 from inventory.services import create_receipt
 from people.models import Person, PersonDocument, PersonRole
-from sales.models import CashSession, CashMovement
+from sales.models import CashMovement, CashSession
 from sales.services import create_counter_sale, open_cash_session
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant, TenantMembership
@@ -38,7 +38,8 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='admin'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant,
+        user=user,
+        tenant=tenant,
         defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
@@ -59,101 +60,181 @@ def web_context(client):
     def _create():
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade', precision=0)
         product = Product.all_objects.create(
-            tenant=tenant, sku='WEB-MGMT', name='Produto Web', base_unit=unit,
+            tenant=tenant,
+            sku='WEB-MGMT',
+            name='Produto Web',
+            base_unit=unit,
         )
         ProductPrice.all_objects.create(
-            tenant=tenant, product=product, amount=Decimal('10.00'),
+            tenant=tenant,
+            product=product,
+            amount=Decimal('10.00'),
             valid_from=timezone.now(),
         )
         company = Company.all_objects.create(tenant=tenant, name='Empresa Web')
         branch = Branch.all_objects.create(tenant=tenant, company=company, name='Filial Web')
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='WEB', name='Balcao Web', is_primary=True,
+            tenant=tenant,
+            branch=branch,
+            code='WEB',
+            name='Balcao Web',
+            is_primary=True,
         )
         create_receipt(
-            tenant, branch, product, location, Decimal('100'), unit, Decimal('1'),
-            idempotency_key='web-mgmt-stock', actor=user, reason='seed',
+            tenant,
+            branch,
+            product,
+            location,
+            Decimal('100'),
+            unit,
+            Decimal('1'),
+            idempotency_key='web-mgmt-stock',
+            actor=user,
+            reason='seed',
         )
 
         open_cash_session(
-            tenant=tenant, branch=branch, operator=user,
-            opening_amount=Decimal('50.00'), idempotency_key='web-mgmt-cash-1',
+            tenant=tenant,
+            branch=branch,
+            operator=user,
+            opening_amount=Decimal('50.00'),
+            idempotency_key='web-mgmt-cash-1',
         )
-        cs_open = CashSession.all_objects.filter(tenant=tenant, operator=user, status='open').first()
+        cs_open = CashSession.all_objects.filter(
+            tenant=tenant, operator=user, status='open'
+        ).first()
 
         sale1 = create_counter_sale(
-            tenant=tenant, branch=branch, operator=user, stock_location=location,
-            items=[{'product': product, 'unit': unit, 'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            tenant=tenant,
+            branch=branch,
+            operator=user,
+            stock_location=location,
+            items=[
+                {'product': product, 'unit': unit, 'quantity': Decimal('2'), 'factor': Decimal('1')}
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('20.00')}],
             idempotency_key='web-mgmt-sale-1',
         )
         sale2 = create_counter_sale(
-            tenant=tenant, branch=branch, operator=user, stock_location=location,
-            items=[{'product': product, 'unit': unit, 'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            tenant=tenant,
+            branch=branch,
+            operator=user,
+            stock_location=location,
+            items=[
+                {'product': product, 'unit': unit, 'quantity': Decimal('1'), 'factor': Decimal('1')}
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('10.00')}],
             idempotency_key='web-mgmt-sale-2',
         )
 
         CashMovement.all_objects.create(
-            tenant=tenant, cash_session=cs_open, movement_type='cash_in',
-            amount=Decimal('30.00'), notes='Reforco',
+            tenant=tenant,
+            cash_session=cs_open,
+            movement_type='cash_in',
+            amount=Decimal('30.00'),
+            notes='Reforco',
         )
         CashMovement.all_objects.create(
-            tenant=tenant, cash_session=cs_open, movement_type='cash_out',
-            amount=Decimal('10.00'), notes='Sangria',
+            tenant=tenant,
+            cash_session=cs_open,
+            movement_type='cash_out',
+            amount=Decimal('10.00'),
+            notes='Sangria',
         )
 
         customer = Person.all_objects.create(
-            tenant=tenant, person_type='PF', name='Cliente Teste', is_active=True,
+            tenant=tenant,
+            person_type='PF',
+            name='Cliente Teste',
+            is_active=True,
         )
         PersonRole.all_objects.create(tenant=tenant, person=customer, role='customer')
         PersonDocument.all_objects.create(
-            tenant=tenant, person=customer, document_type='CPF', value='12345678901',
+            tenant=tenant,
+            person=customer,
+            document_type='CPF',
+            value='12345678901',
         )
 
         supplier = Person.all_objects.create(
-            tenant=tenant, person_type='PJ', name='Fornecedor Ltda', trade_name='Fornecedor',
+            tenant=tenant,
+            person_type='PJ',
+            name='Fornecedor Ltda',
+            trade_name='Fornecedor',
             is_active=True,
         )
         PersonRole.all_objects.create(tenant=tenant, person=supplier, role='supplier')
         PersonDocument.all_objects.create(
-            tenant=tenant, person=supplier, document_type='CNPJ', value='12345678000199',
+            tenant=tenant,
+            person=supplier,
+            document_type='CNPJ',
+            value='12345678000199',
         )
 
         inactive_person = Person.all_objects.create(
-            tenant=tenant, person_type='PF', name='Inativo', is_active=False,
+            tenant=tenant,
+            person_type='PF',
+            name='Inativo',
+            is_active=False,
         )
 
         payable1 = Payable.all_objects.create(
-            tenant=tenant, branch=branch, supplier_name='Fornecedor A',
-            description='Compra de materiais', amount=Decimal('500.00'),
-            status='pending', due_date=date.today() + timedelta(days=30),
+            tenant=tenant,
+            branch=branch,
+            supplier_name='Fornecedor A',
+            description='Compra de materiais',
+            amount=Decimal('500.00'),
+            status='pending',
+            due_date=date.today() + timedelta(days=30),
         )
         payable2 = Payable.all_objects.create(
-            tenant=tenant, branch=branch, supplier_name='Fornecedor B',
-            description='Servico de limpeza', amount=Decimal('200.00'),
-            status='settled', due_date=date.today() - timedelta(days=10),
+            tenant=tenant,
+            branch=branch,
+            supplier_name='Fornecedor B',
+            description='Servico de limpeza',
+            amount=Decimal('200.00'),
+            status='settled',
+            due_date=date.today() - timedelta(days=10),
         )
 
         receivable1 = Receivable.all_objects.create(
-            tenant=tenant, branch=branch, customer_name='Cliente Pagante',
-            description='Fatura mensal', amount=Decimal('300.00'),
-            status='pending', due_date=date.today() + timedelta(days=15),
+            tenant=tenant,
+            branch=branch,
+            customer_name='Cliente Pagante',
+            description='Fatura mensal',
+            amount=Decimal('300.00'),
+            status='pending',
+            due_date=date.today() + timedelta(days=15),
         )
         receivable2 = Receivable.all_objects.create(
-            tenant=tenant, branch=branch, customer_name='Cliente Quite',
-            description='Fatura anterior', amount=Decimal('150.00'),
-            status='settled', due_date=date.today() - timedelta(days=5),
+            tenant=tenant,
+            branch=branch,
+            customer_name='Cliente Quite',
+            description='Fatura anterior',
+            amount=Decimal('150.00'),
+            status='settled',
+            due_date=date.today() - timedelta(days=5),
         )
 
         return {
-            'tenant': tenant, 'client': api_client, 'user': user,
-            'operator': operator, 'unit': unit, 'product': product,
-            'branch': branch, 'location': location, 'cash_session': cs_open,
-            'sale1': sale1, 'sale2': sale2,
-            'customer': customer, 'supplier': supplier, 'inactive_person': inactive_person,
-            'payable1': payable1, 'payable2': payable2,
-            'receivable1': receivable1, 'receivable2': receivable2,
+            'tenant': tenant,
+            'client': api_client,
+            'user': user,
+            'operator': operator,
+            'unit': unit,
+            'product': product,
+            'branch': branch,
+            'location': location,
+            'cash_session': cs_open,
+            'sale1': sale1,
+            'sale2': sale2,
+            'customer': customer,
+            'supplier': supplier,
+            'inactive_person': inactive_person,
+            'payable1': payable1,
+            'payable2': payable2,
+            'receivable1': receivable1,
+            'receivable2': receivable2,
         }
 
     return _run_in_tenant(tenant, _create)
@@ -163,11 +244,13 @@ def web_context(client):
 # Sale list — pagination and filters
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_sale_list_paginated(web_context):
     ctx = web_context
     response = ctx['client'].get(
-        '/api/v1/sales/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/sales/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -241,6 +324,7 @@ def test_sale_list_filters_customer(web_context):
 # Sale detail
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_sale_detail_includes_items_payments_and_operator(web_context):
     ctx = web_context
@@ -262,6 +346,7 @@ def test_sale_detail_includes_items_payments_and_operator(web_context):
 # =============================================================================
 # Cash session list
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_cash_session_list_paginated(web_context):
@@ -304,6 +389,7 @@ def test_cash_session_list_filters_operator(web_context):
 # Cash session detail
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_cash_session_detail_includes_movements_and_closing_difference(web_context):
     ctx = web_context
@@ -322,6 +408,7 @@ def test_cash_session_detail_includes_movements_and_closing_difference(web_conte
 # =============================================================================
 # CSV export
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_sales_csv_export_returns_csv(web_context):
@@ -367,6 +454,7 @@ def test_sales_csv_export_respects_branch_filter(web_context):
 # =============================================================================
 # People filters
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_people_filter_by_q_name(web_context):
@@ -438,11 +526,13 @@ def test_people_filter_active_false(web_context):
 # Financial filters — payables
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_payables_list_paginated(web_context):
     ctx = web_context
     response = ctx['client'].get(
-        '/api/v1/payables/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payables/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -489,11 +579,13 @@ def test_payables_filter_by_branch(web_context):
 # Financial filters — receivables
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_receivables_list_paginated(web_context):
     ctx = web_context
     response = ctx['client'].get(
-        '/api/v1/receivables/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/receivables/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -529,13 +621,15 @@ def test_receivables_filter_by_period(web_context):
 # Role denial — operator cannot view financial data
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_operator_denied_payables(web_context):
     ctx = web_context
     op_client = ctx['client'].__class__()
     op_client = _auth_client(op_client, ctx['operator'], ctx['tenant'], role='operator')
     response = op_client.get(
-        '/api/v1/payables/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/payables/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 403
 
@@ -546,7 +640,8 @@ def test_operator_denied_receivables(web_context):
     op_client = ctx['client'].__class__()
     op_client = _auth_client(op_client, ctx['operator'], ctx['tenant'], role='operator')
     response = op_client.get(
-        '/api/v1/receivables/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/receivables/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 403
 
@@ -557,7 +652,8 @@ def test_operator_can_view_sales(web_context):
     op_client = ctx['client'].__class__()
     op_client = _auth_client(op_client, ctx['operator'], ctx['tenant'], role='operator')
     response = op_client.get(
-        '/api/v1/sales/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/sales/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
 
@@ -565,6 +661,7 @@ def test_operator_can_view_sales(web_context):
 # =============================================================================
 # Cross-tenant 404
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_cross_tenant_sale_404(client, web_context):
@@ -595,6 +692,7 @@ def test_cross_tenant_cash_session_404(client, web_context):
 # =============================================================================
 # No mutation endpoints for sales (web is read-only)
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_sales_no_create_endpoint(web_context):

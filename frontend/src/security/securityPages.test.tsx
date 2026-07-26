@@ -57,10 +57,10 @@ function renderMfaPage() {
 
 beforeEach(() => {
   server.use(
-    http.get(`${BASE}/memberships/mfa-policy/`, () =>
+    http.get(`${BASE}/security/mfa-policy/`, () =>
       HttpResponse.json(DEFAULT_POLICY),
     ),
-    http.patch(`${BASE}/memberships/mfa-policy/`, async ({ request }) => {
+    http.patch(`${BASE}/security/mfa-policy/`, async ({ request }) => {
       const body = (await request.json()) as { allow_totp?: boolean; allow_email?: boolean }
       if (body.allow_totp === false && body.allow_email === false) {
         return HttpResponse.json(
@@ -76,7 +76,7 @@ beforeEach(() => {
 describe('MfaPolicyPage', () => {
   it('shows loading state initially', () => {
     server.use(
-      http.get(`${BASE}/memberships/mfa-policy/`, () => new Promise(() => {})),
+      http.get(`${BASE}/security/mfa-policy/`, () => new Promise(() => {})),
     )
     renderMfaPage()
     expect(screen.getByTestId('loading-state')).toBeInTheDocument()
@@ -175,7 +175,7 @@ describe('MfaPolicyPage', () => {
 
   it('shows error state when fetch fails', async () => {
     server.use(
-      http.get(`${BASE}/memberships/mfa-policy/`, () =>
+      http.get(`${BASE}/security/mfa-policy/`, () =>
         HttpResponse.json(
           { type: 'about:blank', title: 'Server Error', status: 500, detail: 'Internal server error' },
           { status: 500 },

@@ -1,7 +1,6 @@
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,23 +17,27 @@ from fiscal.serializers import (
     FiscalRequestSerializer,
     FiscalStatusSerializer,
 )
-from fiscal.services import emit_nfce, emit_document, reconcile_receipt_fiscal, resolve_emitter
+from fiscal.services import emit_document, emit_nfce, reconcile_receipt_fiscal, resolve_emitter
 from tenancy.permissions import HasActiveTenant, HasCapability, HasVerifiedMFA
-
 
 # =============================================================================
 # Sprint 7 — existing endpoints (unchanged)
 # =============================================================================
+
 
 class FiscalStatusView(RetrieveAPIView):
     permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA]
     serializer_class = FiscalStatusSerializer
 
     def get_object(self):
-        doc = FiscalDocument.all_objects.filter(
-            sale_id=self.kwargs['sale_id'],
-            tenant=self.request.tenant,
-        ).order_by('-attempt_number').first()
+        doc = (
+            FiscalDocument.all_objects.filter(
+                sale_id=self.kwargs['sale_id'],
+                tenant=self.request.tenant,
+            )
+            .order_by('-attempt_number')
+            .first()
+        )
         if doc is None:
             raise Http404('Fiscal document not found.')
         return doc
@@ -88,10 +91,12 @@ class FiscalConfigView(APIView):
             return Response({'detail': 'Branch not found.'}, status=404)
 
         emitter = resolve_emitter(branch)
-        return Response({
-            'has_fiscal_config': emitter is not None,
-            'emitter_id': str(emitter.id) if emitter else None,
-        })
+        return Response(
+            {
+                'has_fiscal_config': emitter is not None,
+                'emitter_id': str(emitter.id) if emitter else None,
+            }
+        )
 
 
 class OCRNFeView(APIView):
@@ -128,20 +133,23 @@ class ReceiptFiscalValidateView(APIView):
         cfop = request.data.get('cfop', '')
         result = reconcile_receipt_fiscal(receipt, request.tenant, cfop=cfop or None)
 
-        return Response({
-            'receipt_id': str(receipt.id),
-            'cfop': result['document'].cfop if result['document'] else (cfop or ''),
-            'issues': result['issues'],
-            'warnings': result['warnings'],
-            'requires_attention': bool(result['issues']),
-            'created': result['document'] is not None,
-            'document_id': str(result['document'].id) if result['document'] else None,
-        })
+        return Response(
+            {
+                'receipt_id': str(receipt.id),
+                'cfop': result['document'].cfop if result['document'] else (cfop or ''),
+                'issues': result['issues'],
+                'warnings': result['warnings'],
+                'requires_attention': bool(result['issues']),
+                'created': result['document'] is not None,
+                'document_id': str(result['document'].id) if result['document'] else None,
+            }
+        )
 
 
 # =============================================================================
 # Sprint 20 — management endpoints (write-only secret, paginated, filters)
 # =============================================================================
+
 
 def _problem(detail, code, status_code):
     return Response(
@@ -251,8 +259,10 @@ class FiscalDocumentViewSet(viewsets.ReadOnlyModelViewSet):
             direction=doc.direction,
             status=FiscalDocument.STATUS_CANCELLED,
             attempt_number=FiscalDocument.all_objects.filter(
-                tenant=request.tenant, sale=doc.sale,
-            ).count() + 1,
+                tenant=request.tenant,
+                sale=doc.sale,
+            ).count()
+            + 1,
             is_active=False,
             error_detail=reason,
         )
@@ -296,7 +306,9 @@ class FiscalProductConfigViewSet(viewsets.ModelViewSet):
     filterset_fields = ['product']
 
     def get_queryset(self):
-        return FiscalProductConfig.all_objects.filter(tenant=self.request.tenant).order_by('-created_at')
+        return FiscalProductConfig.all_objects.filter(tenant=self.request.tenant).order_by(
+            '-created_at'
+        )
 
     def create(self, request, *args, **kwargs):
         # Upsert semantics — if a config exists for the same product, update it.
@@ -304,7 +316,8 @@ class FiscalProductConfigViewSet(viewsets.ModelViewSet):
         existing = None
         if product_id:
             existing = FiscalProductConfig.all_objects.filter(
-                tenant=request.tenant, product_id=product_id,
+                tenant=request.tenant,
+                product_id=product_id,
             ).first()
         if existing is not None:
             serializer = self.get_serializer(existing, data=request.data, partial=True)

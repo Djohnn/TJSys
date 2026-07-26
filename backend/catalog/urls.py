@@ -28,62 +28,90 @@ urlpatterns = [
     ),
     path(
         'products/<uuid:product_pk>/units/',
-        ProductUnitViewSet.as_view({
-            'get': 'list', 'post': 'create',
-        }),
+        ProductUnitViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
         name='product-unit-list',
     ),
     path(
         'products/<uuid:product_pk>/units/<uuid:pk>/',
-        ProductUnitViewSet.as_view({
-            'get': 'retrieve', 'put': 'update',
-            'patch': 'partial_update', 'delete': 'destroy',
-        }),
+        ProductUnitViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'put': 'update',
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
         name='product-unit-detail',
     ),
     path(
         'products/<uuid:product_pk>/codes/',
-        ProductCodeViewSet.as_view({
-            'get': 'list', 'post': 'create',
-        }),
+        ProductCodeViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
         name='product-code-list',
     ),
     path(
         'products/<uuid:product_pk>/codes/<uuid:pk>/',
-        ProductCodeViewSet.as_view({
-            'get': 'retrieve', 'put': 'update',
-            'patch': 'partial_update', 'delete': 'destroy',
-        }),
+        ProductCodeViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'put': 'update',
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
         name='product-code-detail',
     ),
     path(
         'products/<uuid:product_pk>/prices/',
-        ProductPriceViewSet.as_view({
-            'get': 'list', 'post': 'create',
-        }),
+        ProductPriceViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
         name='product-price-list',
     ),
     path(
         'products/<uuid:product_pk>/prices/<uuid:pk>/',
-        ProductPriceViewSet.as_view({
-            'get': 'retrieve', 'put': 'update',
-            'patch': 'partial_update', 'delete': 'destroy',
-        }),
+        ProductPriceViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'put': 'update',
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
         name='product-price-detail',
     ),
     path(
         'products/<uuid:product_pk>/branch-prices/',
-        BranchPriceViewSet.as_view({
-            'get': 'list', 'post': 'create',
-        }),
+        BranchPriceViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
         name='branch-price-list',
     ),
     path(
         'products/<uuid:product_pk>/branch-prices/<uuid:pk>/',
-        BranchPriceViewSet.as_view({
-            'get': 'retrieve', 'put': 'update',
-            'patch': 'partial_update', 'delete': 'destroy',
-        }),
+        BranchPriceViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'put': 'update',
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
         name='branch-price-detail',
     ),
     # Sprint 22 — ProductFiscalData (1:1)
@@ -95,16 +123,22 @@ urlpatterns = [
     # Sprint 22 — ProductPriceTier (collection)
     path(
         'products/<uuid:product_pk>/price-tiers/',
-        ProductPriceTierViewSet.as_view({
-            'get': 'list', 'post': 'create',
-        }),
+        ProductPriceTierViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
         name='product-price-tier-list',
     ),
     path(
         'products/<uuid:product_pk>/price-tiers/<uuid:pk>/',
-        ProductPriceTierViewSet.as_view({
-            'get': 'retrieve', 'delete': 'destroy',
-        }),
+        ProductPriceTierViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'delete': 'destroy',
+            }
+        ),
         name='product-price-tier-detail',
     ),
 ]

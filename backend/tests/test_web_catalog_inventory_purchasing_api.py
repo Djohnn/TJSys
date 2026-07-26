@@ -3,9 +3,6 @@
 Given/When/Then BDD scenarios for web-based catalog, inventory and purchasing management.
 """
 
-import csv
-import io
-from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -14,11 +11,8 @@ from django.db import connection
 from django.utils import timezone
 
 from catalog.models import Category, Product, ProductPrice, Unit
-from financial.models import Payable
 from inventory.models import StockLocation
 from inventory.services import create_receipt
-from people.models import Person, PersonRole
-from purchasing.models import Supplier
 from purchasing.services import auto_onboard_supplier
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant, TenantMembership
@@ -38,7 +32,8 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='admin'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant,
+        user=user,
+        tenant=tenant,
         defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
@@ -61,35 +56,64 @@ def web_catalog_context(client):
         unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade', precision=0)
         cat = Category.all_objects.create(tenant=tenant, name='Categoria Teste')
         product = Product.all_objects.create(
-            tenant=tenant, sku='CAT-PROD', name='Produto Catálogo',
-            base_unit=unit, category=cat, ncm='84713000', is_active=True,
+            tenant=tenant,
+            sku='CAT-PROD',
+            name='Produto Catálogo',
+            base_unit=unit,
+            category=cat,
+            ncm='84713000',
+            is_active=True,
         )
         ProductPrice.all_objects.create(
-            tenant=tenant, product=product,
-            amount=Decimal('15.50'), valid_from=timezone.now(),
+            tenant=tenant,
+            product=product,
+            amount=Decimal('15.50'),
+            valid_from=timezone.now(),
         )
         product2 = Product.all_objects.create(
-            tenant=tenant, sku='CAT-PROD-2', name='Segundo Produto',
-            base_unit=unit, ncm='84713000', is_active=True,
+            tenant=tenant,
+            sku='CAT-PROD-2',
+            name='Segundo Produto',
+            base_unit=unit,
+            ncm='84713000',
+            is_active=True,
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='CAT-LOC',
-            name='Local Catálogo', is_primary=True,
+            tenant=tenant,
+            branch=branch,
+            code='CAT-LOC',
+            name='Local Catálogo',
+            is_primary=True,
         )
         create_receipt(
-            tenant=tenant, branch=branch, product=product, location=location,
-            quantity=Decimal('50'), unit=unit, factor=Decimal('1'),
-            idempotency_key='catalog-stock', actor=user, reason='seed',
+            tenant=tenant,
+            branch=branch,
+            product=product,
+            location=location,
+            quantity=Decimal('50'),
+            unit=unit,
+            factor=Decimal('1'),
+            idempotency_key='catalog-stock',
+            actor=user,
+            reason='seed',
         )
         supplier = auto_onboard_supplier(
-            tenant=tenant, cnpj='12345678000199', name='Fornecedor Catálogo',
+            tenant=tenant,
+            cnpj='12345678000199',
+            name='Fornecedor Catálogo',
         )
 
         return {
-            'tenant': tenant, 'client': api_client, 'user': user,
-            'branch': branch, 'unit': unit, 'category': cat,
-            'product': product, 'product2': product2,
-            'location': location, 'supplier': supplier,
+            'tenant': tenant,
+            'client': api_client,
+            'user': user,
+            'branch': branch,
+            'unit': unit,
+            'category': cat,
+            'product': product,
+            'product2': product2,
+            'location': location,
+            'supplier': supplier,
         }
 
     return _run_in_tenant(tenant, _create)
@@ -99,11 +123,13 @@ def web_catalog_context(client):
 # Catalog — products
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_catalog_product_list_paginated(web_catalog_context):
     ctx = web_catalog_context
     response = ctx['client'].get(
-        '/api/v1/catalog/products/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/catalog/products/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -139,11 +165,13 @@ def test_catalog_product_search(web_catalog_context):
 # Catalog — categories
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_catalog_category_list(web_catalog_context):
     ctx = web_catalog_context
     response = ctx['client'].get(
-        '/api/v1/catalog/categories/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/catalog/categories/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -168,11 +196,13 @@ def test_catalog_category_create(web_catalog_context):
 # Catalog — units
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_catalog_unit_list(web_catalog_context):
     ctx = web_catalog_context
     response = ctx['client'].get(
-        '/api/v1/catalog/units/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/catalog/units/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -183,6 +213,7 @@ def test_catalog_unit_list(web_catalog_context):
 # =============================================================================
 # Inventory — balances
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_inventory_balance_list(web_catalog_context):
@@ -212,11 +243,13 @@ def test_inventory_movements_list(web_catalog_context):
 # Purchasing — suppliers
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_purchasing_supplier_list(web_catalog_context):
     ctx = web_catalog_context
     response = ctx['client'].get(
-        '/api/v1/purchasing/suppliers/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/purchasing/suppliers/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -239,11 +272,13 @@ def test_purchasing_supplier_create(web_catalog_context):
 # Purchasing — purchase orders
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_purchasing_order_list(web_catalog_context):
     ctx = web_catalog_context
     response = ctx['client'].get(
-        '/api/v1/purchasing/orders/', HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        '/api/v1/purchasing/orders/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     assert response.status_code == 200
     data = response.json()
@@ -253,12 +288,6 @@ def test_purchasing_order_list(web_catalog_context):
 @pytest.mark.django_db
 def test_purchasing_order_create(web_catalog_context):
     ctx = web_catalog_context
-    from purchasing.models import PurchaseOrder
-    po = PurchaseOrder.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        supplier=ctx['supplier'], status='draft',
-    )
-    from purchasing.serializers import PurchaseOrderListSerializer
     response = ctx['client'].post(
         '/api/v1/purchasing/orders/',
         {
@@ -276,6 +305,7 @@ def test_purchasing_order_create(web_catalog_context):
 # Cross-tenant 404
 # =============================================================================
 
+
 @pytest.mark.django_db
 def test_cross_tenant_product_404(client, web_catalog_context):
     ctx = web_catalog_context
@@ -292,6 +322,7 @@ def test_cross_tenant_product_404(client, web_catalog_context):
 # =============================================================================
 # Role denial — operator cannot manage catalog
 # =============================================================================
+
 
 @pytest.mark.django_db
 def test_operator_cannot_create_category(web_catalog_context):

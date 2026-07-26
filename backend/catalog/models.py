@@ -19,7 +19,8 @@ class Unit(TimeStampedModel, TenantScopedModel):
         ordering = ['symbol']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'symbol'], name='uniq_unit_tenant_symbol',
+                fields=['tenant', 'symbol'],
+                name='uniq_unit_tenant_symbol',
             ),
             models.CheckConstraint(
                 condition=models.Q(precision__lte=6),
@@ -44,7 +45,10 @@ class Category(TimeStampedModel, TenantScopedModel):
     name = models.CharField(max_length=120)
     code = models.CharField(max_length=40, blank=True, default='')
     parent = models.ForeignKey(
-        'self', null=True, blank=True, on_delete=models.PROTECT,
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
     )
     is_active = models.BooleanField(default=True)
     version = models.PositiveIntegerField(default=1)
@@ -98,7 +102,10 @@ class Product(TimeStampedModel, TenantScopedModel):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     category = models.ForeignKey(
-        Category, null=True, blank=True, on_delete=models.PROTECT,
+        Category,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
     )
     base_unit = models.ForeignKey(Unit, on_delete=models.PROTECT)
     requires_lot = models.BooleanField(default=False)
@@ -108,7 +115,10 @@ class Product(TimeStampedModel, TenantScopedModel):
     version = models.PositiveIntegerField(default=1)
     # Sprint 22 — D1: rótulo de classificação (sem composição real).
     product_kind = models.CharField(
-        max_length=20, choices=PRODUCT_KIND_CHOICES, blank=True, default='',
+        max_length=20,
+        choices=PRODUCT_KIND_CHOICES,
+        blank=True,
+        default='',
     )
     # Sprint 22 — D4: flag consumido por Inventory.
     tracks_inventory = models.BooleanField(default=True)
@@ -125,7 +135,8 @@ class Product(TimeStampedModel, TenantScopedModel):
         ordering = ['sku']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'sku'], name='uniq_product_tenant_sku',
+                fields=['tenant', 'sku'],
+                name='uniq_product_tenant_sku',
             ),
         ]
 
@@ -140,19 +151,17 @@ class Product(TimeStampedModel, TenantScopedModel):
         super().clean()
         if self.base_unit_id and self.tenant_id:
             if self.base_unit.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'base_unit': 'Base unit must belong to the same tenant.'}
-                )
+                raise ValidationError({'base_unit': 'Base unit must belong to the same tenant.'})
         if self.category_id and self.tenant_id:
             if self.category.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'category': 'Category must belong to the same tenant.'}
-                )
+                raise ValidationError({'category': 'Category must belong to the same tenant.'})
 
 
 class ProductUnit(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='commercial_units',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='commercial_units',
     )
     unit = models.ForeignKey(Unit, on_delete=models.PROTECT)
     factor = models.DecimalField(max_digits=18, decimal_places=6)
@@ -184,14 +193,10 @@ class ProductUnit(TimeStampedModel, TenantScopedModel):
             raise ValidationError({'factor': 'Conversion factor must be positive.'})
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'product': 'Product must belong to the same tenant.'}
-                )
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})
         if self.unit_id and self.tenant_id:
             if self.unit.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'unit': 'Unit must belong to the same tenant.'}
-                )
+                raise ValidationError({'unit': 'Unit must belong to the same tenant.'})
 
 
 CODE_TYPE_CHOICES = [
@@ -204,7 +209,9 @@ CODE_TYPE_CHOICES = [
 
 class ProductCode(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='codes',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='codes',
     )
     code_type = models.CharField(max_length=20, choices=CODE_TYPE_CHOICES)
     value = models.CharField(max_length=64)
@@ -241,21 +248,19 @@ class ProductCode(TimeStampedModel, TenantScopedModel):
         super().clean()
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'product': 'Product must belong to the same tenant.'}
-                )
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})
         if self.code_type in ('ean', 'gtin'):
             from catalog.services.codes import validate_gtin
 
             if not validate_gtin(self.value):
-                raise ValidationError(
-                    {'value': f'Invalid {self.code_type.upper()} check digit.'}
-                )
+                raise ValidationError({'value': f'Invalid {self.code_type.upper()} check digit.'})
 
 
 class ProductPrice(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='prices',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='prices',
     )
     amount = models.DecimalField(max_digits=18, decimal_places=4)
     valid_from = models.DateTimeField()
@@ -275,8 +280,7 @@ class ProductPrice(TimeStampedModel, TenantScopedModel):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(valid_to__isnull=True)
-                    | models.Q(valid_to__gt=models.F('valid_from'))
+                    models.Q(valid_to__isnull=True) | models.Q(valid_to__gt=models.F('valid_from'))
                 ),
                 name='productprice_valid_to_after_valid_from',
             ),
@@ -293,9 +297,7 @@ class ProductPrice(TimeStampedModel, TenantScopedModel):
             raise ValidationError({'valid_to': 'valid_to must be after valid_from.'})
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'product': 'Product must belong to the same tenant.'}
-                )
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})
         if self.is_active and self.product_id and self.tenant_id:
             overlapping = ProductPrice.all_objects.filter(
                 tenant_id=self.tenant_id,
@@ -313,17 +315,19 @@ class ProductPrice(TimeStampedModel, TenantScopedModel):
                     models.Q(valid_to__isnull=True) | models.Q(valid_to__gt=self.valid_from),
                 )
             if overlapping.exists():
-                raise ValidationError(
-                    {'valid_from': 'Overlapping price period for this product.'}
-                )
+                raise ValidationError({'valid_from': 'Overlapping price period for this product.'})
 
 
 class BranchPrice(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='branch_prices',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='branch_prices',
     )
     branch = models.ForeignKey(
-        'tenancy.Branch', on_delete=models.CASCADE, related_name='prices',
+        'tenancy.Branch',
+        on_delete=models.CASCADE,
+        related_name='prices',
     )
     amount = models.DecimalField(max_digits=18, decimal_places=4)
     valid_from = models.DateTimeField()
@@ -343,8 +347,7 @@ class BranchPrice(TimeStampedModel, TenantScopedModel):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(valid_to__isnull=True)
-                    | models.Q(valid_to__gt=models.F('valid_from'))
+                    models.Q(valid_to__isnull=True) | models.Q(valid_to__gt=models.F('valid_from'))
                 ),
                 name='branchprice_valid_to_after_valid_from',
             ),
@@ -361,14 +364,10 @@ class BranchPrice(TimeStampedModel, TenantScopedModel):
             raise ValidationError({'valid_to': 'valid_to must be after valid_from.'})
         if self.branch_id and self.tenant_id:
             if self.branch.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'branch': 'Branch must belong to the same tenant.'}
-                )
+                raise ValidationError({'branch': 'Branch must belong to the same tenant.'})
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'product': 'Product must belong to the same tenant.'}
-                )
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})
         if self.is_active and self.product_id and self.tenant_id and self.branch_id:
             overlapping = BranchPrice.all_objects.filter(
                 tenant_id=self.tenant_id,
@@ -408,10 +407,15 @@ FISCAL_TYPE_CHOICES = [
 
 class ProductFiscalData(TimeStampedModel, TenantScopedModel):
     product = models.OneToOneField(
-        Product, on_delete=models.CASCADE, related_name='fiscal_data',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='fiscal_data',
     )
     fiscal_type = models.CharField(
-        max_length=30, choices=FISCAL_TYPE_CHOICES, blank=True, default='',
+        max_length=30,
+        choices=FISCAL_TYPE_CHOICES,
+        blank=True,
+        default='',
     )
     ncm = models.CharField(max_length=8, blank=True, default='')
     cest = models.CharField(max_length=10, blank=True, default='')
@@ -433,13 +437,9 @@ class ProductFiscalData(TimeStampedModel, TenantScopedModel):
         super().clean()
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
-                raise ValidationError(
-                    {'product': 'Product must belong to the same tenant.'}
-                )
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})
         if self.origin_code and self.origin_code not in '012345678':
-            raise ValidationError(
-                {'origin_code': 'Origin code must be a digit 0-8.'}
-            )
+            raise ValidationError({'origin_code': 'Origin code must be a digit 0-8.'})
 
 
 # =============================================================================
@@ -449,10 +449,15 @@ class ProductFiscalData(TimeStampedModel, TenantScopedModel):
 
 class ProductPriceTier(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name='price_tiers',
+        Product,
+        on_delete=models.CASCADE,
+        related_name='price_tiers',
     )
     price = models.ForeignKey(
-        'ProductPrice', null=True, blank=True, on_delete=models.SET_NULL,
+        'ProductPrice',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name='tiers',
     )
     min_quantity = models.DecimalField(max_digits=18, decimal_places=6)
@@ -487,15 +492,11 @@ class ProductPriceTier(TimeStampedModel, TenantScopedModel):
     def clean(self):
         super().clean()
         if self.min_quantity <= 0:
-            raise ValidationError(
-                {'min_quantity': 'Minimum quantity must be positive.'}
-            )
+            raise ValidationError({'min_quantity': 'Minimum quantity must be positive.'})
         if self.amount < 0:
             raise ValidationError({'amount': 'Tier amount must not be negative.'})
         if self.product_id and not self.product.is_active:
-            raise ValidationError(
-                {'product': 'Cannot add price tiers to an inactive product.'}
-            )
+            raise ValidationError({'product': 'Cannot add price tiers to an inactive product.'})
         if self.product_id and self.tenant_id:
             dup = (
                 self.__class__.all_objects.filter(
@@ -508,6 +509,4 @@ class ProductPriceTier(TimeStampedModel, TenantScopedModel):
                 .exists()
             )
             if dup:
-                raise ValidationError(
-                    {'min_quantity': 'A tier with this quantity already exists.'}
-                )
+                raise ValidationError({'min_quantity': 'A tier with this quantity already exists.'})

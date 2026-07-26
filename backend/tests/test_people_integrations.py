@@ -13,9 +13,7 @@ def test_sale_supports_identified_customer_without_breaking_counter_sale(sale_co
     customer = Person.all_objects.create(
         tenant=ctx['tenant'], person_type='PF', name='Cliente Identificado'
     )
-    PersonRole.all_objects.create(
-        tenant=ctx['tenant'], person=customer, role='customer'
-    )
+    PersonRole.all_objects.create(tenant=ctx['tenant'], person=customer, role='customer')
     sale = ctx['sale']
     assert sale.customer is None
     sale.customer = customer
@@ -50,8 +48,14 @@ def test_fiscal_recipient_is_loaded_from_person(tenant_alpha):
         tenant=tenant_alpha, person=person, document_type='CPF', value='123.456.789-09'
     )
     PersonAddress.all_objects.create(
-        tenant=tenant_alpha, person=person, address_type='fiscal', street='Rua A',
-        city='São Paulo', state='sp', postal_code='01001-000', is_primary=True,
+        tenant=tenant_alpha,
+        person=person,
+        address_type='fiscal',
+        street='Rua A',
+        city='São Paulo',
+        state='sp',
+        postal_code='01001-000',
+        is_primary=True,
     )
 
     recipient = build_recipient_dict(person)

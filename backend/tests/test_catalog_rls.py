@@ -34,10 +34,16 @@ def _setup_tenant(slug):
 
 def _create_catalog(tenant, sku='PA', symbol='kg'):
     unit = Unit.all_objects.create(
-        tenant=tenant, symbol=symbol, name=symbol.title(), precision=3,
+        tenant=tenant,
+        symbol=symbol,
+        name=symbol.title(),
+        precision=3,
     )
     product = Product.all_objects.create(
-        tenant=tenant, sku=sku, name=sku, base_unit=unit,
+        tenant=tenant,
+        sku=sku,
+        name=sku,
+        base_unit=unit,
     )
     return unit, product
 
@@ -104,7 +110,10 @@ def test_rls_hides_unit_from_other_tenant(tenant_a, tenant_b):
     token = _set_ctx(tenant_a)
     try:
         unit = Unit.all_objects.create(
-            tenant=tenant_a, symbol='kg', name='Kg', precision=3,
+            tenant=tenant_a,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         )
     finally:
         _clear_ctx(token)
@@ -122,8 +131,11 @@ def test_rls_hides_product_code_from_other_tenant(tenant_a, tenant_b):
     try:
         _, product = _create_catalog(tenant_a)
         code = ProductCode.all_objects.create(
-            tenant=tenant_a, product=product, code_type='internal',
-            value='COD-A', is_active=True,
+            tenant=tenant_a,
+            product=product,
+            code_type='internal',
+            value='COD-A',
+            is_active=True,
         )
     finally:
         _clear_ctx(token)
@@ -141,8 +153,10 @@ def test_rls_hides_price_from_other_tenant(tenant_a, tenant_b):
     try:
         _, product = _create_catalog(tenant_a)
         price = ProductPrice.all_objects.create(
-            tenant=tenant_a, product=product,
-            amount=Decimal('10.00'), valid_from=timezone.now(),
+            tenant=tenant_a,
+            product=product,
+            amount=Decimal('10.00'),
+            valid_from=timezone.now(),
         )
     finally:
         _clear_ctx(token)
@@ -160,7 +174,10 @@ def test_rls_blocks_cross_tenant_insert(tenant_a, tenant_b):
     try:
         with pytest.raises(Exception):
             Unit.all_objects.create(
-                tenant=tenant_a, symbol='cx', name='Caixa', precision=0,
+                tenant=tenant_a,
+                symbol='cx',
+                name='Caixa',
+                precision=0,
             )
     finally:
         _clear_ctx(token)
@@ -171,7 +188,10 @@ def test_tenant_manager_denies_without_context(tenant_a):
     token = _set_ctx(tenant_a)
     try:
         Unit.all_objects.create(
-            tenant=tenant_a, symbol='kg', name='Kg', precision=3,
+            tenant=tenant_a,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         )
     finally:
         _clear_ctx(token)

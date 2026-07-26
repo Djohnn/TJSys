@@ -19,7 +19,10 @@ def set_context(tenant_id):
 @pytest.mark.django_db(transaction=True)
 class TestTenantOrganizationIntegrity:
     def test_branch_rejects_tenant_different_from_company(
-        self, tenant_alpha, tenant_beta, company_alpha,
+        self,
+        tenant_alpha,
+        tenant_beta,
+        company_alpha,
     ):
         token = set_context(tenant_alpha.id)
         try:
@@ -33,7 +36,10 @@ class TestTenantOrganizationIntegrity:
             reset_current_tenant_id(token)
 
     def test_database_trigger_rejects_inconsistent_branch(
-        self, tenant_alpha, tenant_beta, company_alpha,
+        self,
+        tenant_alpha,
+        tenant_beta,
+        company_alpha,
     ):
         token = set_context(tenant_beta.id)
         try:
@@ -51,10 +57,15 @@ class TestTenantOrganizationIntegrity:
             reset_current_tenant_id(token)
 
     def test_user_branch_requires_active_membership(
-        self, tenant_alpha, tenant_beta, branch_alpha,
+        self,
+        tenant_alpha,
+        tenant_beta,
+        branch_alpha,
     ):
         user_b = User.objects.create_user(
-            username='integrity-b', email='integrity-b@test.local', password='pass123',
+            username='integrity-b',
+            email='integrity-b@test.local',
+            password='pass123',
         )
         TenantMembership.objects.create(user=user_b, tenant=tenant_beta, role='operator')
 
@@ -62,7 +73,9 @@ class TestTenantOrganizationIntegrity:
             UserBranch.objects.create(user=user_b, branch=branch_alpha)
 
     def test_user_branch_accepts_matching_membership(
-        self, user_alpha, branch_alpha,
+        self,
+        user_alpha,
+        branch_alpha,
     ):
         link = UserBranch.objects.create(user=user_alpha, branch=branch_alpha)
         assert link.pk is not None

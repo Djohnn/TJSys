@@ -26,7 +26,7 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'danger' | 'info' 
 export default function FiscalDocumentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { selectedTenant } = useTenant()
-  const tenantId = selectedTenant?.id
+  const tenantId = selectedTenant?.tenant_id
   const queryClient = useQueryClient()
   const [showRetry, setShowRetry] = useState(false)
   const [showCancel, setShowCancel] = useState(false)

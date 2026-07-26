@@ -24,7 +24,9 @@ def _run_in_tenant(tenant, callback):
 
 def _auth_client(client, user, tenant, role='manager'):
     TenantMembership.objects.update_or_create(
-        user=user, tenant=tenant, defaults={'role': role, 'is_active': True},
+        user=user,
+        tenant=tenant,
+        defaults={'role': role, 'is_active': True},
     )
     client.force_login(user)
     session = client.session
@@ -55,7 +57,10 @@ def catalog_unit(catalog_tenant):
     return _run_in_tenant(
         catalog_tenant,
         lambda: Unit.all_objects.create(
-            tenant=catalog_tenant, symbol='kg', name='Kg', precision=3,
+            tenant=catalog_tenant,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         ),
     )
 
@@ -116,7 +121,10 @@ def test_operator_can_list_products(operator_client, catalog_tenant, catalog_uni
     _run_in_tenant(
         catalog_tenant,
         lambda: Product.all_objects.create(
-            tenant=catalog_tenant, sku='LIST', name='List', base_unit=catalog_unit,
+            tenant=catalog_tenant,
+            sku='LIST',
+            name='List',
+            base_unit=catalog_unit,
         ),
     )
     response = operator_client.get(
@@ -163,7 +171,10 @@ def test_product_from_other_tenant_not_visible(manager_client, catalog_tenant, c
     _run_in_tenant(
         other_tenant,
         lambda: Product.all_objects.create(
-            tenant=other_tenant, sku='OTHER', name='Other', base_unit=catalog_unit,
+            tenant=other_tenant,
+            sku='OTHER',
+            name='Other',
+            base_unit=catalog_unit,
         ),
     )
     response = manager_client.get(
@@ -228,14 +239,19 @@ def test_effective_price_endpoint(manager_client, catalog_tenant, catalog_unit):
     product = _run_in_tenant(
         catalog_tenant,
         lambda: Product.all_objects.create(
-            tenant=catalog_tenant, sku='EP', name='EP', base_unit=catalog_unit,
+            tenant=catalog_tenant,
+            sku='EP',
+            name='EP',
+            base_unit=catalog_unit,
         ),
     )
     _run_in_tenant(
         catalog_tenant,
         lambda: ProductPrice.all_objects.create(
-            tenant=catalog_tenant, product=product,
-            amount=Decimal('15.90'), valid_from=timezone.now(),
+            tenant=catalog_tenant,
+            product=product,
+            amount=Decimal('15.90'),
+            valid_from=timezone.now(),
         ),
     )
     company = _run_in_tenant(
@@ -245,7 +261,9 @@ def test_effective_price_endpoint(manager_client, catalog_tenant, catalog_unit):
     branch = _run_in_tenant(
         catalog_tenant,
         lambda: Branch.objects.create(
-            company=company, tenant=catalog_tenant, name='Br',
+            company=company,
+            tenant=catalog_tenant,
+            name='Br',
         ),
     )
     response = manager_client.get(

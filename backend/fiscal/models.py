@@ -112,7 +112,9 @@ class FiscalDocument(TenantScopedModel, TimeStampedModel):
     ]
 
     direction = models.CharField(
-        max_length=10, choices=DIRECTION_CHOICES, default=DIRECTION_OUTPUT,
+        max_length=10,
+        choices=DIRECTION_CHOICES,
+        default=DIRECTION_OUTPUT,
     )
     sale = models.ForeignKey(
         'sales.Sale',

@@ -23,6 +23,7 @@ export interface MeResponse {
 export interface LoginResponse {
   requires_mfa?: boolean
   mfa_session?: string
+  mfa_tenant_id?: string
   access?: string
   refresh?: string
 }

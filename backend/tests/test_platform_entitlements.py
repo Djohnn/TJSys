@@ -29,12 +29,15 @@ def _run_in_tenant(tenant, callback):
 def plan_and_sub(tenant_alpha):
     def _create():
         plan = Plan.objects.create(
-            code='pro', name='Professional',
+            code='pro',
+            name='Professional',
             capabilities={'purchasing': True, 'sales': True, 'reports': False},
             limits={'max_users': 10, 'max_storage_gb': 50},
         )
         sub = Subscription.objects.create(
-            tenant=tenant_alpha, plan=plan, start_date='2026-07-01',
+            tenant=tenant_alpha,
+            plan=plan,
+            start_date='2026-07-01',
         )
         return {'tenant': tenant_alpha, 'plan': plan, 'sub': sub}
 
@@ -58,7 +61,9 @@ class TestTenantHasCapability:
     def test_entitlement_overrides_plan(self, plan_and_sub):
         ctx = plan_and_sub
         TenantEntitlement.objects.create(
-            tenant=ctx['tenant'], capability='reports', is_enabled=True,
+            tenant=ctx['tenant'],
+            capability='reports',
+            is_enabled=True,
         )
         assert tenant_has_capability(ctx['tenant'], 'reports') is True
 
@@ -81,8 +86,10 @@ class TestTenantLimitFor:
     def test_entitlement_overrides_limit(self, plan_and_sub):
         ctx = plan_and_sub
         TenantEntitlement.objects.create(
-            tenant=ctx['tenant'], capability='max_users',
-            is_enabled=True, limit_value=25,
+            tenant=ctx['tenant'],
+            capability='max_users',
+            is_enabled=True,
+            limit_value=25,
         )
         assert tenant_limit_for(ctx['tenant'], 'max_users') == 25
 
@@ -140,7 +147,8 @@ class TestFeatureFlagService:
         from platform_admin.models import PlatformAdminAudit
 
         user = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123',
+            email='admin@test.local',
+            password='pass123',
         )
         set_feature_flag('test-flag', globally_enabled=True, actor=user)
         assert PlatformAdminAudit.objects.filter(action='feature_flag.updated').exists()
@@ -165,10 +173,12 @@ class TestSupportAccess:
         from platform_admin.services import request_support_access
 
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         req = request_support_access(
-            requester=user, target_tenant=tenant_alpha,
+            requester=user,
+            target_tenant=tenant_alpha,
             reason='Need to investigate issue',
         )
         assert req.status == 'pending'
@@ -179,13 +189,18 @@ class TestSupportAccess:
         from platform_admin.services import approve_support_access, request_support_access
 
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
-            requester=user, target_tenant=tenant_alpha, reason='Test',
+            requester=user,
+            target_tenant=tenant_alpha,
+            reason='Test',
         )
         approve_support_access(req.id, admin)
         req.refresh_from_db()
@@ -197,13 +212,17 @@ class TestSupportAccess:
         from platform_admin.services import approve_support_access, request_support_access
 
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
-            requester=user, target_tenant=tenant_alpha,
+            requester=user,
+            target_tenant=tenant_alpha,
             reason='Test',
             expires_at=timezone.now() - timezone.timedelta(hours=1),
         )
@@ -218,13 +237,18 @@ class TestSupportAccess:
         )
 
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
-            requester=user, target_tenant=tenant_alpha, reason='Test',
+            requester=user,
+            target_tenant=tenant_alpha,
+            reason='Test',
         )
         approve_support_access(req.id, admin)
         revoke_support_access(req.id, admin)

@@ -19,8 +19,7 @@ def pg_tenant_context(tenant):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT set_config('app.current_tenant_id', %s, true)",
-                    [str(tenant.id)]
+                    "SELECT set_config('app.current_tenant_id', %s, true)", [str(tenant.id)]
                 )
             yield
     finally:
@@ -47,7 +46,10 @@ def pricing_unit(pricing_tenant):
     return _run_in_tenant(
         pricing_tenant,
         lambda: Unit.all_objects.create(
-            tenant=pricing_tenant, symbol='kg', name='Kg', precision=3,
+            tenant=pricing_tenant,
+            symbol='kg',
+            name='Kg',
+            precision=3,
         ),
     )
 
@@ -57,7 +59,9 @@ def pricing_product(pricing_tenant, pricing_unit):
     return _run_in_tenant(
         pricing_tenant,
         lambda: Product.all_objects.create(
-            tenant=pricing_tenant, sku='P-PRICE', name='PPrice',
+            tenant=pricing_tenant,
+            sku='P-PRICE',
+            name='PPrice',
             base_unit=pricing_unit,
         ),
     )
@@ -76,7 +80,9 @@ def pricing_branch(pricing_company, pricing_tenant):
     return _run_in_tenant(
         pricing_tenant,
         lambda: Branch.objects.create(
-            company=pricing_company, tenant=pricing_tenant, name='PriceBranch',
+            company=pricing_company,
+            tenant=pricing_tenant,
+            name='PriceBranch',
         ),
     )
 
@@ -86,7 +92,9 @@ def other_branch(pricing_company, pricing_tenant):
     return _run_in_tenant(
         pricing_tenant,
         lambda: Branch.objects.create(
-            company=pricing_company, tenant=pricing_tenant, name='OtherBranch',
+            company=pricing_company,
+            tenant=pricing_tenant,
+            name='OtherBranch',
         ),
     )
 
@@ -97,8 +105,11 @@ def tenant_price(pricing_tenant, pricing_product):
     return _run_in_tenant(
         pricing_tenant,
         lambda: ProductPrice.all_objects.create(
-            tenant=pricing_tenant, product=pricing_product,
-            amount=Decimal('13.90'), valid_from=now, valid_to=None,
+            tenant=pricing_tenant,
+            product=pricing_product,
+            amount=Decimal('13.90'),
+            valid_from=now,
+            valid_to=None,
         ),
     )
 
@@ -109,19 +120,29 @@ def branch_price(pricing_tenant, pricing_product, pricing_branch):
     return _run_in_tenant(
         pricing_tenant,
         lambda: BranchPrice.all_objects.create(
-            tenant=pricing_tenant, product=pricing_product, branch=pricing_branch,
-            amount=Decimal('12.90'), valid_from=now, valid_to=None,
+            tenant=pricing_tenant,
+            product=pricing_product,
+            branch=pricing_branch,
+            amount=Decimal('12.90'),
+            valid_from=now,
+            valid_to=None,
         ),
     )
 
 
 @pytest.mark.django_db
 def test_branch_price_overrides_tenant_default(
-    pricing_tenant, pricing_product, pricing_branch, tenant_price, branch_price,
+    pricing_tenant,
+    pricing_product,
+    pricing_branch,
+    tenant_price,
+    branch_price,
 ):
     def _assert():
         result = resolve_effective_price(
-            product=pricing_product, branch=pricing_branch, at=timezone.now(),
+            product=pricing_product,
+            branch=pricing_branch,
+            at=timezone.now(),
         )
         assert result.amount == Decimal('12.90')
 
@@ -130,11 +151,16 @@ def test_branch_price_overrides_tenant_default(
 
 @pytest.mark.django_db
 def test_default_price_is_used_without_branch_override(
-    pricing_tenant, pricing_product, other_branch, tenant_price,
+    pricing_tenant,
+    pricing_product,
+    other_branch,
+    tenant_price,
 ):
     def _assert():
         result = resolve_effective_price(
-            product=pricing_product, branch=other_branch, at=timezone.now(),
+            product=pricing_product,
+            branch=other_branch,
+            at=timezone.now(),
         )
         assert result.amount == Decimal('13.90')
 
@@ -146,7 +172,9 @@ def test_price_not_available_raises(pricing_tenant, pricing_product, pricing_bra
     def _assert():
         with pytest.raises(PriceNotAvailable):
             resolve_effective_price(
-                product=pricing_product, branch=pricing_branch, at=timezone.now(),
+                product=pricing_product,
+                branch=pricing_branch,
+                at=timezone.now(),
             )
 
     _run_in_tenant(pricing_tenant, _assert)
@@ -158,8 +186,10 @@ def test_price_amount_cannot_be_negative(pricing_tenant, pricing_product):
 
     now = timezone.now()
     price = ProductPrice(
-        tenant=pricing_tenant, product=pricing_product,
-        amount=Decimal('-1.00'), valid_from=now,
+        tenant=pricing_tenant,
+        product=pricing_product,
+        amount=Decimal('-1.00'),
+        valid_from=now,
     )
     with pytest.raises(ValidationError):
         price.full_clean()
@@ -171,13 +201,17 @@ def test_overlapping_tenant_prices_are_rejected(pricing_tenant, pricing_product)
     from datetime import timedelta
 
     ProductPrice.all_objects.create(
-        tenant=pricing_tenant, product=pricing_product,
-        amount=Decimal('10.00'), valid_from=now, valid_to=now + timedelta(days=10),
+        tenant=pricing_tenant,
+        product=pricing_product,
+        amount=Decimal('10.00'),
+        valid_from=now,
+        valid_to=now + timedelta(days=10),
     )
     from django.core.exceptions import ValidationError
 
     price2 = ProductPrice(
-        tenant=pricing_tenant, product=pricing_product,
+        tenant=pricing_tenant,
+        product=pricing_product,
         amount=Decimal('20.00'),
         valid_from=now + timedelta(days=5),
         valid_to=now + timedelta(days=15),
@@ -195,18 +229,25 @@ def test_branch_price_tenant_must_match_branch_tenant():
     with pg_tenant_context(tenant_b):
         unit = Unit.all_objects.create(tenant=tenant_b, symbol='kg', name='Kg', precision=3)
         product = Product.all_objects.create(
-            tenant=tenant_b, sku='BP', name='BP', base_unit=unit,
+            tenant=tenant_b,
+            sku='BP',
+            name='BP',
+            base_unit=unit,
         )
     branch = _run_in_tenant(
         tenant_b,
         lambda: Branch.objects.create(
             company=Company.objects.create(tenant=tenant_b, name='Co'),
-            tenant=tenant_b, name='Br',
+            tenant=tenant_b,
+            name='Br',
         ),
     )
     price = BranchPrice(
-        tenant=tenant_a, product=product, branch=branch,
-        amount=Decimal('5.00'), valid_from=timezone.now(),
+        tenant=tenant_a,
+        product=product,
+        branch=branch,
+        amount=Decimal('5.00'),
+        valid_from=timezone.now(),
     )
     with pytest.raises(ValidationError):
         price.full_clean()

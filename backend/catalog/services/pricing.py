@@ -15,9 +15,14 @@ def resolve_effective_price(*, product, branch, at=None):
     period = Q(valid_from__lte=at) & (Q(valid_to__isnull=True) | Q(valid_to__gt=at))
     from catalog.models import BranchPrice, ProductPrice
 
-    branch_price = BranchPrice.objects.filter(
-        product=product, branch=branch,
-    ).filter(period).first()
+    branch_price = (
+        BranchPrice.objects.filter(
+            product=product,
+            branch=branch,
+        )
+        .filter(period)
+        .first()
+    )
     if branch_price is not None:
         return branch_price
     tenant_price = ProductPrice.objects.filter(product=product).filter(period).first()

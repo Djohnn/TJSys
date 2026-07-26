@@ -3,7 +3,6 @@ def validate_gtin(value: str) -> bool:
         return False
     digits = [int(item) for item in value]
     total = sum(
-        digit * (3 if index % 2 == 0 else 1)
-        for index, digit in enumerate(reversed(digits[:-1]))
+        digit * (3 if index % 2 == 0 else 1) for index, digit in enumerate(reversed(digits[:-1]))
     )
     return (10 - total % 10) % 10 == digits[-1]

@@ -45,27 +45,40 @@ def _auth_client(client, user, tenant):
 def api_context(client):
     tenant = Tenant.objects.create(name='Purchasing API', slug='purchasing-api')
     user = User.objects.create_user(
-        email='purchasing-api@test.local', password='pass123',
+        email='purchasing-api@test.local',
+        password='pass123',
     )
     api_client = _auth_client(client, user, tenant)
 
     def _create():
         unit = Unit.all_objects.create(
-            tenant=tenant, symbol='UN', name='Unidade',
+            tenant=tenant,
+            symbol='UN',
+            name='Unidade',
         )
         product = Product.all_objects.create(
-            tenant=tenant, sku='COMP', name='Produto Compra', base_unit=unit,
+            tenant=tenant,
+            sku='COMP',
+            name='Produto Compra',
+            base_unit=unit,
         )
         company = Company.all_objects.create(tenant=tenant, name='Empresa')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial',
+            tenant=tenant,
+            company=company,
+            name='Filial',
         )
         supplier = Supplier.all_objects.create(
-            tenant=tenant, name='Fornecedor Ltda', cnpj='00.000.000/0001-00',
+            tenant=tenant,
+            name='Fornecedor Ltda',
+            cnpj='00.000.000/0001-00',
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='API',
-            name='Principal', is_primary=True,
+            tenant=tenant,
+            branch=branch,
+            code='API',
+            name='Principal',
+            is_primary=True,
         )
         return {
             'tenant': tenant,
@@ -90,12 +103,17 @@ def _h(headers, ctx):
 class TestSupplierAPI:
     def test_create_supplier(self, api_context):
         ctx = api_context
-        resp = ctx['client'].post('/api/v1/suppliers/', {
-            'name': 'Novo Fornecedor',
-            'cnpj': '11.111.111/0001-11',
-            'phone': '11999999999',
-            'email': 'novo@fornecedor.com',
-        }, content_type='application/json', **_h({}, ctx))
+        resp = ctx['client'].post(
+            '/api/v1/suppliers/',
+            {
+                'name': 'Novo Fornecedor',
+                'cnpj': '11.111.111/0001-11',
+                'phone': '11999999999',
+                'email': 'novo@fornecedor.com',
+            },
+            content_type='application/json',
+            **_h({}, ctx),
+        )
         assert resp.status_code == 201
         assert resp.json()['name'] == 'Novo Fornecedor'
 
@@ -103,8 +121,8 @@ class TestSupplierAPI:
         ctx = api_context
         resp = ctx['client'].get('/api/v1/suppliers/', **_h({}, ctx))
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
-        assert resp.json()[0]['name'] == 'Fornecedor Ltda'
+        assert len(resp.json()['results']) == 1
+        assert resp.json()['results'][0]['name'] == 'Fornecedor Ltda'
 
     def test_retrieve_supplier(self, api_context):
         ctx = api_context
@@ -147,11 +165,16 @@ class TestSupplierAPI:
 class TestPurchaseOrderAPI:
     def test_create_purchase_order(self, api_context):
         ctx = api_context
-        resp = ctx['client'].post('/api/v1/purchase-orders/', {
-            'supplier': str(ctx['supplier'].id),
-            'branch': str(ctx['branch'].id),
-            'notes': 'Pedido inicial',
-        }, content_type='application/json', **_h({}, ctx))
+        resp = ctx['client'].post(
+            '/api/v1/purchasing/orders/',
+            {
+                'supplier': str(ctx['supplier'].id),
+                'branch': str(ctx['branch'].id),
+                'notes': 'Pedido inicial',
+            },
+            content_type='application/json',
+            **_h({}, ctx),
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data['status'] == 'draft'
@@ -161,33 +184,43 @@ class TestPurchaseOrderAPI:
     def test_list_purchase_orders(self, api_context):
         ctx = api_context
         PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
-        resp = ctx['client'].get('/api/v1/purchase-orders/', **_h({}, ctx))
+        resp = ctx['client'].get('/api/v1/purchasing/orders/', **_h({}, ctx))
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()['results']) == 1
 
     def test_retrieve_purchase_order(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
-        resp = ctx['client'].get(f'/api/v1/purchase-orders/{po.id}/', **_h({}, ctx))
+        resp = ctx['client'].get(f'/api/v1/purchasing/orders/{po.id}/', **_h({}, ctx))
         assert resp.status_code == 200
         assert resp.json()['supplier_name'] == 'Fornecedor Ltda'
 
     def test_approve_purchase_order(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         PurchaseOrderItem.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po,
-            product=ctx['product'], unit=ctx['unit'],
-            quantity=Decimal('5'), unit_cost=Decimal('10'), factor=Decimal('1'),
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('5'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
         )
         resp = ctx['client'].post(
-            f'/api/v1/purchase-orders/{po.id}/approve/',
+            f'/api/v1/purchasing/orders/{po.id}/approve/',
             {},
             content_type='application/json',
             HTTP_IDEMPOTENCY_KEY='approve-po-test',
@@ -200,24 +233,33 @@ class TestPurchaseOrderAPI:
     def test_receive_purchase_order(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         item = PurchaseOrderItem.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po,
-            product=ctx['product'], unit=ctx['unit'],
-            quantity=Decimal('10'), unit_cost=Decimal('5'), factor=Decimal('1'),
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5'),
+            factor=Decimal('1'),
         )
         approve_purchase_order(
-            tenant=ctx['tenant'], purchase_order=po,
+            tenant=ctx['tenant'],
+            purchase_order=po,
             idempotency_key='receive-approve',
         )
         resp = ctx['client'].post(
-            f'/api/v1/purchase-orders/{po.id}/receive/',
+            f'/api/v1/purchasing/orders/{po.id}/receive/',
             {
-                'items': [{
-                    'purchase_order_item_id': str(item.id),
-                    'quantity_received': '10',
-                }],
+                'items': [
+                    {
+                        'purchase_order_item_id': str(item.id),
+                        'quantity_received': '10',
+                    }
+                ],
             },
             content_type='application/json',
             HTTP_IDEMPOTENCY_KEY='receive-po-test',
@@ -231,24 +273,33 @@ class TestPurchaseOrderAPI:
     def test_receive_without_idempotency(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         PurchaseOrderItem.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po,
-            product=ctx['product'], unit=ctx['unit'],
-            quantity=Decimal('5'), unit_cost=Decimal('10'), factor=Decimal('1'),
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('5'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
         )
         approve_purchase_order(
-            tenant=ctx['tenant'], purchase_order=po,
+            tenant=ctx['tenant'],
+            purchase_order=po,
             idempotency_key='receive-no-key-approve',
         )
         resp = ctx['client'].post(
-            f'/api/v1/purchase-orders/{po.id}/receive/',
+            f'/api/v1/purchasing/orders/{po.id}/receive/',
             {
-                'items': [{
-                    'purchase_order_item_id': '00000000-0000-0000-0000-000000000000',
-                    'quantity_received': '5',
-                }],
+                'items': [
+                    {
+                        'purchase_order_item_id': '00000000-0000-0000-0000-000000000000',
+                        'quantity_received': '5',
+                    }
+                ],
             },
             content_type='application/json',
             **_h({}, ctx),
@@ -261,35 +312,48 @@ class TestPurchaseOrderItemAPI:
     def test_create_item(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
-        resp = ctx['client'].post('/api/v1/purchase-order-items/', {
-            'purchase_order': str(po.id),
-            'product': str(ctx['product'].id),
-            'unit': str(ctx['unit'].id),
-            'quantity': '10',
-            'unit_cost': '5.00',
-            'factor': '1',
-        }, content_type='application/json', **_h({}, ctx))
+        resp = ctx['client'].post(
+            '/api/v1/purchase-order-items/',
+            {
+                'purchase_order': str(po.id),
+                'product': str(ctx['product'].id),
+                'unit': str(ctx['unit'].id),
+                'quantity': '10',
+                'unit_cost': '5.00',
+                'factor': '1',
+            },
+            content_type='application/json',
+            **_h({}, ctx),
+        )
         assert resp.status_code == 201
         assert resp.json()['product_name'] == 'Produto Compra'
 
     def test_list_items_by_po(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         PurchaseOrderItem.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po,
-            product=ctx['product'], unit=ctx['unit'],
-            quantity=Decimal('10'), unit_cost=Decimal('5'), factor=Decimal('1'),
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('10'),
+            unit_cost=Decimal('5'),
+            factor=Decimal('1'),
         )
         resp = ctx['client'].get(
             f'/api/v1/purchase-order-items/?purchase_order={po.id}',
             **_h({}, ctx),
         )
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()['results']) == 1
 
 
 @pytest.mark.django_db
@@ -297,24 +361,34 @@ class TestPurchaseReceiptAPI:
     def test_list_receipts(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         from purchasing.models import PurchaseReceipt
+
         PurchaseReceipt.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po, status='confirmed',
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            status='confirmed',
         )
         resp = ctx['client'].get('/api/v1/purchase-receipts/', **_h({}, ctx))
         assert resp.status_code == 200
-        assert len(resp.json()) == 1
+        assert len(resp.json()['results']) == 1
 
     def test_retrieve_receipt(self, api_context):
         ctx = api_context
         po = PurchaseOrder.all_objects.create(
-            tenant=ctx['tenant'], supplier=ctx['supplier'], branch=ctx['branch'],
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
         )
         from purchasing.models import PurchaseReceipt
+
         rct = PurchaseReceipt.all_objects.create(
-            tenant=ctx['tenant'], purchase_order=po, status='confirmed',
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            status='confirmed',
         )
         resp = ctx['client'].get(f'/api/v1/purchase-receipts/{rct.id}/', **_h({}, ctx))
         assert resp.status_code == 200

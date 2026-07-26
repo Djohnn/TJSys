@@ -2,7 +2,10 @@ import { useState, type FormEvent, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 
-interface MfaLocationState { temporaryToken?: string }
+interface MfaLocationState {
+  temporaryToken?: string
+  tenantId?: string
+}
 
 export default function MfaPage() {
   const auth = useAuth()
@@ -24,7 +27,8 @@ export default function MfaPage() {
     setIsSubmitting(true)
     setError(null)
     try {
-      await auth.verifyRecovery('d0ac1207-21d9-4912-88ad-93cec216aa45', code)
+      if (!state?.tenantId) throw new Error('Tenant MFA não informado.')
+      await auth.verifyRecovery(state.tenantId, code)
       navigate('/', { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Codigo invalido.')
@@ -36,7 +40,10 @@ export default function MfaPage() {
   if (!state?.temporaryToken) return null
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-900 p-4">
+    <div
+      data-testid="mfa-page"
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-900 p-4"
+    >
       <div className="w-full max-w-sm bg-surface rounded-xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-neutral-900">Autenticação</h1>

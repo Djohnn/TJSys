@@ -44,9 +44,7 @@ def _auth_client(client, user, tenant):
 @pytest.fixture
 def returns_api_context(client):
     tenant = Tenant.objects.create(name='Returns API', slug='returns-api')
-    user = User.objects.create_user(
-        email='returns-api@test.local', password='pass123'
-    )
+    user = User.objects.create_user(email='returns-api@test.local', password='pass123')
     api_client = _auth_client(client, user, tenant)
 
     def _create():
@@ -65,10 +63,15 @@ def returns_api_context(client):
         )
         company = Company.all_objects.create(tenant=tenant, name='Empresa Ret')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial Ret',
+            tenant=tenant,
+            company=company,
+            name='Filial Ret',
         )
         location = StockLocation.all_objects.create(
-            tenant=tenant, branch=branch, code='RET', name='Retorno',
+            tenant=tenant,
+            branch=branch,
+            code='RET',
+            name='Retorno',
             is_primary=True,
         )
         create_receipt(
@@ -110,10 +113,12 @@ class TestSaleReturnAPI:
 
         response = ctx['api_client'].post(
             url,
-            data=json.dumps({
-                'items': [{'sale_item_id': sale_item_id, 'quantity': '1'}],
-                'reason': 'Devolucao',
-            }),
+            data=json.dumps(
+                {
+                    'items': [{'sale_item_id': sale_item_id, 'quantity': '1'}],
+                    'reason': 'Devolucao',
+                }
+            ),
             content_type='application/json',
             HTTP_IDEMPOTENCY_KEY='api-return-1',
             HTTP_X_TENANT_ID=str(ctx['tenant'].id),
@@ -131,10 +136,12 @@ class TestSaleReturnAPI:
         sale_item_id = str(sale_item.id)
         response = ctx['api_client'].post(
             url,
-            data=json.dumps({
-                'items': [{'sale_item_id': sale_item_id, 'quantity': '1'}],
-                'reason': 'Sem key',
-            }),
+            data=json.dumps(
+                {
+                    'items': [{'sale_item_id': sale_item_id, 'quantity': '1'}],
+                    'reason': 'Sem key',
+                }
+            ),
             content_type='application/json',
             HTTP_X_TENANT_ID=str(ctx['tenant'].id),
         )
@@ -148,6 +155,7 @@ class TestSaleReturnAPI:
 
         def _seed():
             from sales.services import create_sale_return
+
             create_sale_return(
                 tenant=ctx['tenant'],
                 sale=sale,
@@ -155,11 +163,13 @@ class TestSaleReturnAPI:
                 reason='Lista teste',
                 idempotency_key='api-list-return-1',
             )
+
         _run_in_tenant(ctx['tenant'], _seed)
 
         url = reverse('sale-returns', kwargs={'pk': sale.id})
         response = ctx['api_client'].get(
-            url, HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+            url,
+            HTTP_X_TENANT_ID=str(ctx['tenant'].id),
         )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -209,9 +219,7 @@ class TestSaleReturnAPI:
         ctx = returns_api_context
         sale = self._sale(ctx)
         other_tenant = Tenant.objects.create(name='Other', slug='other-api')
-        other_user = User.objects.create_user(
-            email='other-api@test.local', password='pass123'
-        )
+        other_user = User.objects.create_user(email='other-api@test.local', password='pass123')
         _auth_client(client, other_user, other_tenant)
 
         url = reverse('sale-cancel', kwargs={'pk': sale.id})
@@ -227,6 +235,7 @@ class TestSaleReturnAPI:
 
 def _create_sale(ctx):
     from sales.services import create_counter_sale, open_cash_session
+
     open_cash_session(
         tenant=ctx['tenant'],
         branch=ctx['branch'],
@@ -239,12 +248,14 @@ def _create_sale(ctx):
         branch=ctx['branch'],
         operator=ctx['user'],
         stock_location=ctx['location'],
-        items=[{
-            'product': ctx['product'],
-            'unit': ctx['unit'],
-            'quantity': Decimal('2'),
-            'factor': Decimal('1'),
-        }],
+        items=[
+            {
+                'product': ctx['product'],
+                'unit': ctx['unit'],
+                'quantity': Decimal('2'),
+                'factor': Decimal('1'),
+            }
+        ],
         payments=[{'method': 'cash', 'amount': Decimal('20.00')}],
         idempotency_key='ret-api-sale',
     )

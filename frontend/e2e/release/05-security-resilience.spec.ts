@@ -1,29 +1,30 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect } from '@playwright/test'
-import { test } from '../fixtures'
+import { authenticatePage, test } from '../fixtures'
 
 test.describe('Segurança e Resiliência', () => {
   test('Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant', async ({ page }) => {
-    await page.goto('/login')
-    await page.fill('[name="email"]', 'web-admin@zyrp.local')
-    await page.fill('[name="password"]', 'e2e-test-pwd-2026')
-    await page.click('button[type="submit"]')
-    await page.waitForURL(/^\/(?!login)/)
+    await authenticatePage(page)
 
     await page.goto('/financial/receivables')
     await expect(page.getByTestId('receivables-table')).toBeVisible()
 
-    const firstRowBefore = page.locator('[data-testid="receivable-row"]').first().textContent()
+    const firstRowBefore = await page
+      .locator('[data-testid="receivable-row"]')
+      .first()
+      .textContent()
 
     const tenantButtons = page.getByTestId('tenant-selector').getByRole('button')
     const count = await tenantButtons.count()
     if (count >= 2) {
       await tenantButtons.nth(1).click()
-      await page.waitForURL(/^\/(?!login)/)
+      await expect(tenantButtons.nth(1)).toHaveAttribute('aria-current', 'true')
 
       await page.goto('/financial/receivables')
-      const firstRowAfter = page.locator('[data-testid="receivable-row"]').first().textContent()
-      expect(firstRowAfter).not.toEqual(firstRowBefore)
+      await expect(page.getByTestId('receivables-page')).toBeVisible()
+      if (firstRowBefore) {
+        await expect(page.locator('main')).not.toContainText(firstRowBefore.trim())
+      }
     }
   })
 

@@ -21,7 +21,8 @@ class TestCustomUserManager:
 
     def test_create_superuser_sets_required_flags(self):
         user = User.objects.create_superuser(
-            email='ROOT@example.com', password='safe-local-password',
+            email='ROOT@example.com',
+            password='safe-local-password',
         )
         assert user.email == 'root@example.com'
         assert user.is_staff is True

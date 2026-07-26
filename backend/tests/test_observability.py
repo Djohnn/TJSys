@@ -20,7 +20,12 @@ class TestRequestObservability:
         assert str(uuid.UUID(returned)) == returned
 
     def test_authenticated_tenant_is_present_in_request_log(
-        self, client, caplog, user_alpha, tenant_alpha, company_alpha,
+        self,
+        client,
+        caplog,
+        user_alpha,
+        tenant_alpha,
+        company_alpha,
     ):
         client.force_login(user_alpha)
         session = client.session

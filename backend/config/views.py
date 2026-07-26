@@ -84,7 +84,8 @@ def readiness(request):
             'outbox': {
                 'total_pending': total_pending,
                 'oldest_pending': oldest_pending['created_at'].isoformat()
-                    if oldest_pending else None,
+                if oldest_pending
+                else None,
                 'failed_count': failed_count,
                 'status': 'ok' if backlog_ok else 'backlog_too_large',
             },

@@ -13,8 +13,11 @@ def _captured_payment(ctx, *, fee=Decimal('3.00')):
         tenant=ctx['tenant'], provider='fake', secret='secret'
     )
     intent = create_payment_intent(
-        tenant=ctx['tenant'], sale=ctx['sale'], provider_config=config,
-        idempotency_key='reconcile-intent', actor=ctx['user'],
+        tenant=ctx['tenant'],
+        sale=ctx['sale'],
+        provider_config=config,
+        idempotency_key='reconcile-intent',
+        actor=ctx['user'],
     )
     transaction = capture_payment(intent=intent, actor=ctx['user'])
     transaction.fee_amount = fee
@@ -33,10 +36,16 @@ def test_reconciliation_confirms_gross_fee_and_net_settlement(sale_context):
     ctx = sale_context
     transaction = _captured_payment(ctx)
     batch = import_reconciliation_batch(
-        tenant=ctx['tenant'], provider='fake', rows=[{
-            'provider_reference': transaction.provider_reference,
-            'gross_amount': '20.00', 'fee_amount': '3.00', 'settled_amount': '17.00',
-        }],
+        tenant=ctx['tenant'],
+        provider='fake',
+        rows=[
+            {
+                'provider_reference': transaction.provider_reference,
+                'gross_amount': '20.00',
+                'fee_amount': '3.00',
+                'settled_amount': '17.00',
+            }
+        ],
     )
     confirm_reconciliation(batch=batch, actor=ctx['user'])
 
@@ -61,10 +70,16 @@ def test_reconciliation_divergence_requires_manual_review(sale_context):
     ctx = sale_context
     transaction = _captured_payment(ctx)
     batch = import_reconciliation_batch(
-        tenant=ctx['tenant'], provider='fake', rows=[{
-            'provider_reference': transaction.provider_reference,
-            'gross_amount': '20.00', 'fee_amount': '3.00', 'settled_amount': '16.00',
-        }],
+        tenant=ctx['tenant'],
+        provider='fake',
+        rows=[
+            {
+                'provider_reference': transaction.provider_reference,
+                'gross_amount': '20.00',
+                'fee_amount': '3.00',
+                'settled_amount': '16.00',
+            }
+        ],
     )
     item = PaymentReconciliationItem.all_objects.get(batch=batch)
     assert item.status == 'divergent'

@@ -22,7 +22,8 @@ def pre_mfa(client):
     TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
     TenantMFAPolicy.objects.create(tenant=tenant)
     response = client.post(
-        '/api/v1/auth/login/', {'email': user.email, 'password': 'valid-password'},
+        '/api/v1/auth/login/',
+        {'email': user.email, 'password': 'valid-password'},
         content_type='application/json',
     )
     assert response.status_code == 202
@@ -33,7 +34,8 @@ def pre_mfa(client):
 def test_totp_enrollment_completes_login(pre_mfa):
     client, user, tenant = pre_mfa
     enrollment = client.post(
-        '/api/v1/auth/mfa/totp/enroll/', {'tenant_id': str(tenant.id)},
+        '/api/v1/auth/mfa/totp/enroll/',
+        {'tenant_id': str(tenant.id)},
         content_type='application/json',
     )
     assert enrollment.status_code == 201
@@ -41,7 +43,8 @@ def test_totp_enrollment_completes_login(pre_mfa):
     code = pyotp.TOTP(decrypt_secret(device.encrypted_secret)).now()
     confirmation = client.post(
         '/api/v1/auth/mfa/totp/confirm/',
-        {'device_id': str(device.id), 'code': code}, content_type='application/json',
+        {'device_id': str(device.id), 'code': code},
+        content_type='application/json',
     )
     assert confirmation.status_code == 204
     assert client.session['_auth_user_id'] == str(user.id)
@@ -51,7 +54,8 @@ def test_totp_enrollment_completes_login(pre_mfa):
 def test_email_mfa_completes_login(pre_mfa):
     client, user, tenant = pre_mfa
     sent = client.post(
-        '/api/v1/auth/mfa/email/send/', {'tenant_id': str(tenant.id)},
+        '/api/v1/auth/mfa/email/send/',
+        {'tenant_id': str(tenant.id)},
         content_type='application/json',
     )
     assert sent.status_code == 202
