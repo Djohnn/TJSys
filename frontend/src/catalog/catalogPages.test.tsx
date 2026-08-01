@@ -1635,3 +1635,133 @@ describe('LabelsPage', () => {
     })
   })
 })
+
+// =============================================================================
+// Sprint 29 — Channel Profiles (ProductChannelsStep)
+// =============================================================================
+
+const CHANNEL_PROFILES_MOCK = [
+  {
+    id: 'ch-1',
+    product: 'p1',
+    channel_slug: 'mercadolivre',
+    title: 'Produto no ML',
+    description: 'Desc ML',
+    list_price: '149.9000',
+    sale_price: '129.9000',
+    dimensions_json: {},
+    weight_grams: 500,
+    status: 'draft',
+    version: 1,
+    published_at: null,
+  },
+  {
+    id: 'ch-2',
+    product: 'p1',
+    channel_slug: 'shopee',
+    title: 'Produto na Shopee',
+    description: 'Desc Shopee',
+    list_price: null,
+    sale_price: null,
+    dimensions_json: {},
+    weight_grams: null,
+    status: 'published',
+    version: 2,
+    published_at: '2026-07-15T12:00:00Z',
+  },
+]
+
+describe('ProductChannelsStep', () => {
+  beforeEach(() => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/channel-profiles/`, () =>
+        HttpResponse.json(CHANNEL_PROFILES_MOCK),
+      ),
+      http.post(`${BASE}/catalog/products/p1/channel-profiles/`, async ({ request }) => {
+        const body = (await request.json()) as { channel_slug?: string }
+        return HttpResponse.json(
+          {
+            id: `ch-new-${Date.now()}`,
+            product: 'p1',
+            channel_slug: body.channel_slug ?? 'new',
+            title: '',
+            description: '',
+            list_price: null,
+            sale_price: null,
+            dimensions_json: {},
+            weight_grams: null,
+            status: 'draft',
+            version: 1,
+            published_at: null,
+          },
+          { status: 201 },
+        )
+      }),
+      http.put(`${BASE}/catalog/products/p1/channel-profiles/mercadolivre/`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({
+          ...CHANNEL_PROFILES_MOCK[0],
+          ...body,
+          version: 2,
+        })
+      }),
+      http.post(`${BASE}/catalog/products/p1/channel-profiles/mercadolivre/publish/`, () =>
+        HttpResponse.json({
+          ...CHANNEL_PROFILES_MOCK[0],
+          status: 'ready',
+        }),
+      ),
+    )
+  })
+
+  it('displays channel profiles with status badges', async () => {
+    renderProductEditorEdit('p1')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    const channelsTab = screen.getByTestId('step-tab-channels')
+    expect(channelsTab).not.toBeDisabled()
+
+    const user = userEvent.setup()
+    await user.click(channelsTab)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-channels-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('channel-row-mercadolivre')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('channel-row-shopee')).toBeInTheDocument()
+    expect(screen.getByTestId('channel-status-mercadolivre')).toHaveTextContent('Rascunho')
+    expect(screen.getByTestId('channel-status-shopee')).toHaveTextContent('Publicado')
+  })
+
+  it('publishes a channel profile', async () => {
+    renderProductEditorEdit('p1')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    const user = userEvent.setup()
+    await user.click(screen.getByTestId('step-tab-channels'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-channels-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('publish-channel-mercadolivre')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTestId('publish-channel-mercadolivre'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('channel-publish-error')).not.toBeInTheDocument()
+    })
+  })
+})
