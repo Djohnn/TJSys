@@ -55,7 +55,7 @@ const FolderIcon = () => (
 const HUBS: HubCard[] = [
   { title: 'Produtos', description: 'Gerencie produtos, variações e preços', to: '/catalog/products', icon: <BoxIcon /> },
   { title: 'Serviços', description: 'Cadastre e precifique serviços prestados', to: '/catalog/services', icon: <WrenchIcon /> },
-  { title: 'Combo', description: 'Monte kits e combos de produtos', to: '/catalog/products?product_kind=kit', icon: <PuzzleIcon /> },
+  { title: 'Combo', description: 'Monte kits e combos de produtos', to: '/catalog/combos', icon: <PuzzleIcon /> },
   { title: 'Categorias', description: 'Organize produtos por categorias', to: '/catalog/categories', icon: <FolderIcon /> },
   { title: 'Marcas', description: 'Cadastre marcas dos produtos', to: '/catalog/brands', icon: <TagIcon /> },
   { title: 'Unidades', description: 'Gerencie unidades de medida', to: '/catalog/units', icon: <RulerIcon /> },

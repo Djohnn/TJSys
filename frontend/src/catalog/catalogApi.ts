@@ -321,3 +321,100 @@ export function updateBrand(
     body,
   }) as Promise<Brand>
 }
+
+export interface CommercialComboItem {
+  id: string
+  combo: string
+  item: string
+  item_sku?: string
+  item_name?: string
+  quantity: string
+  is_active: boolean
+  version: number
+}
+
+export interface CommercialCombo {
+  id: string
+  sku: string
+  name: string
+  description: string
+  price: string
+  valid_from: string
+  valid_to: string | null
+  is_active: boolean
+  version: number
+  items: CommercialComboItem[]
+  created_at?: string
+  updated_at?: string
+}
+
+export function fetchCombos(
+  tenantId: string,
+  params: { page?: number; q?: string; is_active?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<CommercialCombo>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  if (params.is_active) searchParams.set('is_active', params.is_active)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<CommercialCombo>>(`/catalog/combos/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<CommercialCombo>>
+}
+
+export function fetchCombo(
+  tenantId: string,
+  id: string,
+): Promise<CommercialCombo> {
+  return apiRequest<CommercialCombo>(`/catalog/combos/${id}/`, {
+    tenantId,
+  }) as Promise<CommercialCombo>
+}
+
+export function createCombo(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<CommercialCombo> {
+  return apiRequest<CommercialCombo>('/catalog/combos/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<CommercialCombo>
+}
+
+export function updateCombo(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<CommercialCombo> {
+  return apiRequest<CommercialCombo>(`/catalog/combos/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<CommercialCombo>
+}
+
+export function addComboItem(
+  tenantId: string,
+  comboId: string,
+  body: Record<string, unknown>,
+): Promise<CommercialComboItem> {
+  return apiRequest<CommercialComboItem>(`/catalog/combos/${comboId}/items/`, {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<CommercialComboItem>
+}
+
+export function removeComboItem(
+  tenantId: string,
+  comboId: string,
+  itemId: string,
+): Promise<void> {
+  return apiRequest<void>(`/catalog/combos/${comboId}/items/${itemId}/`, {
+    method: 'DELETE',
+    tenantId,
+  }) as Promise<void>
+}

@@ -20,6 +20,8 @@ import ProductEditorPage from './ProductEditorPage'
 import CategoriesPage from './CategoriesPage'
 import UnitsPage from './UnitsPage'
 import BrandsPage from './BrandsPage'
+import CombosPage from './CombosPage'
+import ComboEditorPage from './ComboEditorPage'
 
 const BASE = '/api/v1'
 
@@ -95,6 +97,16 @@ const BRANDS = {
   results: [
     { id: 'brand-1', name: 'Marca A', is_active: true },
     { id: 'brand-2', name: 'Marca B', is_active: true },
+  ],
+}
+
+const COMBOS_ALL = {
+  count: 2,
+  next: null,
+  previous: null,
+  results: [
+    { id: 'combo-1', sku: 'COMBO-A', name: 'Combo Alpha', description: '', price: '49.9000', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1, items: [{ id: 'ci-1', combo: 'combo-1', item: 'p1', item_name: 'Produto A', quantity: '2.000000', is_active: true, version: 1 }], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 'combo-2', sku: 'COMBO-B', name: 'Combo Beta', description: '', price: '79.9000', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1, items: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   ],
 }
 
@@ -378,6 +390,47 @@ beforeEach(() => {
       )
     }),
     http.delete(`${BASE}/catalog/products/p1/composition/:itemId/`, () => {
+      return new HttpResponse(null, { status: 204 })
+    }),
+    http.get(`${BASE}/catalog/combos/`, () => HttpResponse.json(COMBOS_ALL)),
+    http.post(`${BASE}/catalog/combos/`, async ({ request }) => {
+      const body = (await request.json()) as { name?: string; sku?: string }
+      if (!body.name) {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { name: ['Este campo e obrigatorio.'] } },
+          { status: 422 },
+        )
+      }
+      return HttpResponse.json(
+        { id: 'combo-new', sku: body.sku ?? '', name: body.name, description: '', price: '100.0000', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1, items: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        { status: 201 },
+      )
+    }),
+    http.get(`${BASE}/catalog/combos/:id/`, ({ params }) => {
+      const found = COMBOS_ALL.results.find((c) => c.id === params.id)
+      if (found) return HttpResponse.json(found)
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
+        { status: 404 },
+      )
+    }),
+    http.patch(`${BASE}/catalog/combos/:id/`, async ({ request, params }) => {
+      const body = (await request.json()) as Record<string, unknown>
+      const found = COMBOS_ALL.results.find((c) => c.id === params.id)
+      if (found) return HttpResponse.json({ ...found, ...body })
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
+        { status: 404 },
+      )
+    }),
+    http.post(`${BASE}/catalog/combos/:comboId/items/`, async ({ request }) => {
+      const body = (await request.json()) as { item?: string; quantity?: string }
+      return HttpResponse.json(
+        { id: `item-${Date.now()}`, combo: 'combo-1', item: body.item ?? '', quantity: body.quantity ?? '1', is_active: true, version: 1 },
+        { status: 201 },
+      )
+    }),
+    http.delete(`${BASE}/catalog/combos/:comboId/items/:itemId/`, () => {
       return new HttpResponse(null, { status: 204 })
     }),
   )
@@ -1388,5 +1441,91 @@ describe('ServiceEditorPage', () => {
     expect(payload.product.tracks_inventory).toBe(false)
     expect(payload.product).toHaveProperty('billing_unit', 'hora')
     expect(payload.product).toHaveProperty('duration_minutes', 60)
+  })
+})
+
+function renderCombosPage(initialRoute = '/catalog/combos') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/combos" element={<CombosPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderComboEditor(initialRoute = '/catalog/combos/new') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/combos/new" element={<ComboEditorPage />} />
+              <Route path="/catalog/combos/:comboId/edit" element={<ComboEditorPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('CombosPage', () => {
+  it('renders combo list with items count', async () => {
+    renderCombosPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('combos-page')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Combo Alpha')).toBeInTheDocument()
+    expect(screen.getByText('Combo Beta')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /novo combo/i })).toBeInTheDocument()
+  })
+
+  it('renders empty state when no combos', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/combos/`, () =>
+        HttpResponse.json({ count: 0, next: null, previous: null, results: [] }),
+      ),
+    )
+    renderCombosPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('empty-state')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('ComboEditorPage', () => {
+  it('renders new combo form and creates on save', async () => {
+    renderComboEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('combo-editor-page')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Novo Combo')).toBeInTheDocument()
+    expect(screen.getByTestId('combo-sku-input')).toBeInTheDocument()
+    expect(screen.getByTestId('combo-name-input')).toBeInTheDocument()
+    expect(screen.getByTestId('combo-price-input')).toBeInTheDocument()
+
+    await user.type(screen.getByTestId('combo-sku-input'), 'COMBO-TEST')
+    await user.type(screen.getByTestId('combo-name-input'), 'Combo Teste')
+    await user.type(screen.getByTestId('combo-price-input'), '99.90')
+
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+
+    await waitFor(() => {
+      const pathname = window.location.pathname ?? ''
+      expect(pathname).not.toContain('/combos/new')
+    })
   })
 })
