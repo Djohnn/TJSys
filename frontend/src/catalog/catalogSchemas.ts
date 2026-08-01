@@ -60,3 +60,44 @@ export const compositionSchema = z.object({
 })
 
 export type CompositionFormData = z.infer<typeof compositionSchema>
+
+export const serviceSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório').max(200),
+  sku: z.string().max(50).default(''),
+  description: z.string().max(1000).default(''),
+  category: z.string().nullable().default(null),
+  unit: z.string().nullable().default(null),
+  is_active: z.boolean().default(true),
+  price: z.string().default(''),
+  billing_unit: z.string().max(50).default(''),
+  duration_minutes: z.coerce.number().min(0).default(0),
+  ncm: z.string().max(20).default(''),
+  cest: z.string().max(20).default(''),
+  origin_code: z.string().regex(/^[0-8]$/, 'Origem deve ser entre 0 e 8').default('0'),
+  fiscal_class: z.string().max(50).default(''),
+})
+
+export type ServiceFormData = z.infer<typeof serviceSchema>
+
+export function toServicePayload(data: ServiceFormData) {
+  const { unit, billing_unit, duration_minutes, price, ncm, cest, origin_code, fiscal_class, ...product } = data
+  return {
+    product: {
+      ...product,
+      base_unit: unit ?? undefined,
+      product_kind: 'servico',
+      tracks_inventory: false,
+      billing_unit,
+      duration_minutes,
+    },
+    fiscal: {
+      ncm,
+      cest,
+      origin_code,
+      fiscal_class,
+    },
+    price_tier: price
+      ? { min_quantity: '1', amount: price }
+      : null,
+  }
+}
