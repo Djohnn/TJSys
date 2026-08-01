@@ -26,6 +26,7 @@ import UnitsPage from '@/catalog/UnitsPage'
 import BrandsPage from '@/catalog/BrandsPage'
 import CombosPage from '@/catalog/CombosPage'
 import ComboEditorPage from '@/catalog/ComboEditorPage'
+import LabelsPage from '@/catalog/LabelsPage'
 import BalancesPage from '@/inventory/BalancesPage'
 import MovementsPage from '@/inventory/MovementsPage'
 import LotsPage from '@/inventory/LotsPage'
@@ -89,6 +90,7 @@ export default function App(): ReactNode {
               <Route path="catalog/combos" element={<CombosPage />} />
               <Route path="catalog/combos/new" element={<ComboEditorPage />} />
               <Route path="catalog/combos/:comboId/edit" element={<ComboEditorPage />} />
+              <Route path="catalog/labels" element={<LabelsPage />} />
               <Route path="inventory" element={<BalancesPage />} />
               <Route path="inventory/balances" element={<BalancesPage />} />
               <Route path="inventory/movements" element={<MovementsPage />} />

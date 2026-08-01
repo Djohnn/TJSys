@@ -59,7 +59,7 @@ const HUBS: HubCard[] = [
   { title: 'Categorias', description: 'Organize produtos por categorias', to: '/catalog/categories', icon: <FolderIcon /> },
   { title: 'Marcas', description: 'Cadastre marcas dos produtos', to: '/catalog/brands', icon: <TagIcon /> },
   { title: 'Unidades', description: 'Gerencie unidades de medida', to: '/catalog/units', icon: <RulerIcon /> },
-  { title: 'Etiquetas', description: 'Configure modelos de etiquetas', to: '/catalog/tags', icon: <CubeIcon /> },
+  { title: 'Etiquetas', description: 'Configure modelos de etiquetas', to: '/catalog/labels', icon: <CubeIcon /> },
 ]
 
 export default function CatalogHomePage(): ReactNode {
