@@ -11,21 +11,28 @@ from financial.services import cashflow_projection
 def test_cashflow_projection_separates_realized_and_forecast(sale_context):
     """When a period is queried, realized and forecast balances shall remain separate."""
     ctx = sale_context
+    realized_entry = CashflowEntry.all_objects.get(
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        direction='inflow',
+        status='realized',
+    )
+    period_date = realized_entry.effective_date
     CashflowEntry.all_objects.create(
         tenant=ctx['tenant'],
         branch=ctx['branch'],
         direction='outflow',
         status='forecast',
         amount=Decimal('7.50'),
-        effective_date=date(2026, 7, 25),
+        effective_date=period_date,
         source_type='manual_test',
     )
 
     result = cashflow_projection(
         tenant=ctx['tenant'],
         branch=ctx['branch'],
-        date_from=date(2026, 7, 1),
-        date_to=date(2026, 7, 31),
+        date_from=period_date,
+        date_to=period_date,
     )
 
     assert result['realized_inflow'] == Decimal('20.00')

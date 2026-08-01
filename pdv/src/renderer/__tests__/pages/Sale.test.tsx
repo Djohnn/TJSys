@@ -75,21 +75,9 @@ describe('Sale', () => {
       success: true,
       savedPath: 'C:\\ERP\\cupom_nao_fiscal_sale-1.pdf',
     });
-    (window as any).electronAPI = { printReceipt };
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          results: [{
-            id: 'product-1',
-            sku: 'PDV-001',
-            name: 'Produto PDV',
-            base_unit: 'unit-1',
-            price: '49.90',
-          }],
-        }), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({
+    const createSale = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
           id: 'sale-1',
           created_at: '2026-07-18T13:52:03-03:00',
           net_total: '49.90',
@@ -99,8 +87,20 @@ describe('Sale', () => {
             quantity: '1.000000',
             line_total: '49.90',
           }],
-        }), { status: 201 }),
-      );
+      },
+    });
+    (window as any).electronAPI = { createSale, printReceipt };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-1',
+          sku: 'PDV-001',
+          name: 'Produto PDV',
+          base_unit: 'unit-1',
+          price: '49.90',
+        }],
+      }), { status: 200 }),
+    );
 
     render(
       <MemoryRouter>
@@ -116,25 +116,23 @@ describe('Sale', () => {
       target: { value: '49.90' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar Pagamento' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar Venda' }));
+    const confirmButton = screen.getByRole('button', { name: 'Confirmar Venda' });
+    await waitFor(() => expect(confirmButton).toBeEnabled());
+    fireEvent.click(confirmButton);
 
-    expect(await screen.findByRole('heading', { name: 'Venda Realizada' })).toBeInTheDocument();
-    expect(screen.getByText('Cupom Não Fiscal')).toBeInTheDocument();
-    expect(screen.getByText('Produto PDV')).toBeInTheDocument();
-    expect(screen.getByText('x1.0')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Imprimir Cupom' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Imprimir Cupom' }));
+    const confirmation = await screen.findByRole('status');
+    expect(confirmation).toHaveTextContent('Venda nº sale-1 realizada com sucesso.');
+    fireEvent.click(screen.getByRole('button', { name: 'Imprimir Cupom Balcão' }));
 
     await waitFor(() => {
       expect(printReceipt).toHaveBeenCalledWith(
         expect.objectContaining({
-          fileName: 'cupom_nao_fiscal_sale-1',
+          fileName: 'cupom_balcao_sale-1',
           html: expect.stringContaining('Produto PDV'),
         }),
       );
     });
-    expect(await screen.findByText(/Cupom enviado para impressão e salvo em:/)).toBeInTheDocument();
+    expect(printReceipt.mock.calls[0][0].html).toContain('x1.0');
     expect(browserPrint).not.toHaveBeenCalled();
   });
 });
