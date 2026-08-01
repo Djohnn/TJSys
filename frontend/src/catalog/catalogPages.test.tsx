@@ -302,6 +302,39 @@ beforeEach(() => {
     http.delete(`${BASE}/products/:id/price-tiers/:tierId/`, () => {
       return new HttpResponse(null, { status: 204 })
     }),
+    http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
+      if (params.id === 'p1') {
+        return HttpResponse.json({
+          id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        })
+      }
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
+        { status: 404 },
+      )
+    }),
+    http.get(`${BASE}/catalog/products/p1/composition/`, () => {
+      return HttpResponse.json([
+        { id: 'comp-1', component: 'p2', component_sku: 'SKU-B', component_name: 'Produto B', quantity: '2.00' },
+        { id: 'comp-2', component: 'p3', component_sku: 'SKU-C', component_name: 'Produto C', quantity: '1.00' },
+      ])
+    }),
+    http.post(`${BASE}/catalog/products/p1/composition/`, async ({ request }) => {
+      const body = await request.json() as { component?: string; quantity?: string }
+      return HttpResponse.json(
+        {
+          id: `comp-${Date.now()}`,
+          component: body.component ?? 'p2',
+          component_sku: 'SKU-B',
+          component_name: 'Produto B',
+          quantity: body.quantity ?? '1',
+        },
+        { status: 201 },
+      )
+    }),
+    http.delete(`${BASE}/catalog/products/p1/composition/:itemId/`, () => {
+      return new HttpResponse(null, { status: 204 })
+    }),
   )
 })
 
@@ -982,6 +1015,69 @@ describe('ProductEditorPage – fiscal step', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('fiscal-warning')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('ProductEditorPage – composition step', () => {
+  it('shows composition items for kit product', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('step-tab-composition')).not.toBeDisabled()
+
+    await user.click(screen.getByTestId('step-tab-composition'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-composition-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-table')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('SKU-B')).toBeInTheDocument()
+    expect(screen.getByText('SKU-C')).toBeInTheDocument()
+    expect(screen.getByText('1.00')).toBeInTheDocument()
+
+    expect(screen.queryByTestId('composition-kit-warning')).not.toBeInTheDocument()
+  })
+
+  it('adds a composition item', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTestId('step-tab-composition'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-composition-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-component-select')).toBeInTheDocument()
+    })
+
+    const componentSelect = screen.getByTestId('composition-component-select') as HTMLSelectElement
+    const optionValues = Array.from(componentSelect.options).map((o) => o.value)
+    const nonKitOption = optionValues.find((v) => v !== '' && v !== 'p1')
+
+    if (nonKitOption) {
+      await user.selectOptions(componentSelect, nonKitOption)
+    }
+
+    await user.type(screen.getByTestId('composition-quantity-input'), '3.50')
+    await user.click(screen.getByTestId('add-composition-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-quantity-input')).toHaveValue('')
     })
   })
 })

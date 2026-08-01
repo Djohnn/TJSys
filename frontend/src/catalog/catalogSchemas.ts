@@ -53,3 +53,10 @@ export const priceTierSchema = z.object({
 })
 
 export type PriceTierFormData = z.infer<typeof priceTierSchema>
+
+export const compositionSchema = z.object({
+  component: z.string().min(1, 'Componente é obrigatório'),
+  quantity: z.string().min(1, 'Quantidade é obrigatória'),
+})
+
+export type CompositionFormData = z.infer<typeof compositionSchema>

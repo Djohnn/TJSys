@@ -89,7 +89,7 @@ export default function ProductEditorPage(): ReactNode {
       case 'fiscal':
         return <ProductFiscalStep productId={productId} />
       case 'composition':
-        return <ProductCompositionStep />
+        return <ProductCompositionStep productId={productId} />
       case 'channels':
         return <ProductChannelsStep />
       default:
