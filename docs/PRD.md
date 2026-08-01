@@ -1167,6 +1167,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 - [x] Sprint 28 — modelos e pré-visualização de etiquetas antes do download.
 - [x] Sprint 29 — auditoria multi-tenant e integridade de dados.
 - [x] Sprint 30 — hardening, regressão e aceite em Chromium, Firefox e WebKit.
+- [x] Ajuste visual pós-aceite — shell Zyrp com navegação em dois níveis, drawer responsivo e editor padrão B (imagem à esquerda, identificação à direita), validado em 2026-08-01.
 
 **Evidência:** [Relatório final da Sprint 30](10_Releases/SPRINT-030_Catalog_Hardening_Acceptance_Final_Report.md).
 **Rollback:** [Runbook das Sprints 23–30](09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md).

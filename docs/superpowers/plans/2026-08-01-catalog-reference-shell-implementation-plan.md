@@ -8,6 +8,8 @@
 
 **Tech Stack:** React 18, React Router 7, TypeScript, Tailwind CSS 4, Vitest, Testing Library, Playwright.
 
+**Status de execução (2026-08-01):** Tasks 1–6 concluídas. Evidências finais: 22 arquivos/328 testes Vitest aprovados, typecheck e build aprovados, 15 cenários Playwright aprovados em Chromium, Firefox e WebKit e cadastro real validado no navegador com categoria e produto de teste.
+
 ---
 
 ## File map
