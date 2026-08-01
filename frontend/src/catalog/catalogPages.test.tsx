@@ -16,6 +16,7 @@ import CatalogHomePage from './CatalogHomePage'
 import ProductEditorPage from './ProductEditorPage'
 import CategoriesPage from './CategoriesPage'
 import UnitsPage from './UnitsPage'
+import BrandsPage from './BrandsPage'
 
 const BASE = '/api/v1'
 
@@ -69,8 +70,8 @@ const CATEGORIES = {
   next: null,
   previous: null,
   results: [
-    { id: 'cat-1', name: 'Categoria A', is_active: true },
-    { id: 'cat-2', name: 'Categoria B', is_active: true },
+    { id: 'cat-1', name: 'Categoria A', is_active: true, parent: null, parent_name: '' },
+    { id: 'cat-2', name: 'Categoria B', is_active: true, parent: 'cat-1', parent_name: 'Categoria A' },
   ],
 }
 
@@ -79,8 +80,18 @@ const UNITS = {
   next: null,
   previous: null,
   results: [
-    { id: 'unit-1', name: 'Unidade', abbreviation: 'Un' },
-    { id: 'unit-2', name: 'Quilograma', abbreviation: 'Kg' },
+    { id: 'unit-1', name: 'Unidade', abbreviation: 'Un', symbol: 'UN', precision: 2 },
+    { id: 'unit-2', name: 'Quilograma', abbreviation: 'Kg', symbol: 'KG', precision: 3 },
+  ],
+}
+
+const BRANDS = {
+  count: 2,
+  next: null,
+  previous: null,
+  results: [
+    { id: 'brand-1', name: 'Marca A', is_active: true },
+    { id: 'brand-2', name: 'Marca B', is_active: true },
   ],
 }
 
@@ -133,6 +144,23 @@ function renderUnitsPage(initialRoute = '/catalog/units') {
           <TenantContext.Provider value={tenantValue}>
             <Routes>
               <Route path="/catalog/units" element={<UnitsPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderBrandsPage(initialRoute = '/catalog/brands') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/brands" element={<BrandsPage />} />
             </Routes>
           </TenantContext.Provider>
         </AuthContext.Provider>
@@ -251,7 +279,21 @@ beforeEach(() => {
           { status: 422 },
         )
       }
-      return HttpResponse.json({ id: 'unit-new', symbol: body.symbol, name: body.name, precision: 0 }, { status: 201 })
+      return HttpResponse.json({ id: 'unit-new', symbol: body.symbol, name: body.name, abbreviation: body.symbol, precision: 0 }, { status: 201 })
+    }),
+    http.get(`${BASE}/catalog/brands/`, () => HttpResponse.json(BRANDS)),
+    http.post(`${BASE}/catalog/brands/`, async ({ request }) => {
+      const body = (await request.json()) as { name?: string }
+      return HttpResponse.json(
+        { id: 'brand-new', name: body.name ?? '', is_active: true },
+        { status: 201 },
+      )
+    }),
+    http.patch(`${BASE}/catalog/brands/:id/`, async ({ request, params }) => {
+      const body = (await request.json()) as { name?: string; is_active?: boolean }
+      return HttpResponse.json(
+        { id: params.id as string, name: body.name ?? 'Marca A', is_active: body.is_active ?? true },
+      )
     }),
     http.get(`${BASE}/products/:id/fiscal-data/`, ({ params }) => {
       if (params.id === 'p-no-fiscal') {
@@ -472,7 +514,7 @@ describe('CategoriesPage', () => {
   it('displays category list', async () => {
     renderCategoriesPage()
     await waitFor(() => {
-      expect(screen.getByText('Categoria A')).toBeInTheDocument()
+      expect(screen.getAllByText('Categoria A').length).toBeGreaterThan(0)
     })
     expect(screen.getByText('Categoria B')).toBeInTheDocument()
   })
@@ -482,7 +524,7 @@ describe('CategoriesPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Categoria A')).toBeInTheDocument()
+      expect(screen.getAllByText('Categoria A').length).toBeGreaterThan(0)
     })
 
     await user.click(screen.getByRole('button', { name: /nova categoria/i }))
@@ -501,7 +543,7 @@ describe('CategoriesPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Categoria A')).toBeInTheDocument()
+      expect(screen.getAllByText('Categoria A').length).toBeGreaterThan(0)
     })
 
     const editButtons = screen.getAllByRole('button', { name: /editar/i })
@@ -1079,5 +1121,115 @@ describe('ProductEditorPage – composition step', () => {
     await waitFor(() => {
       expect(screen.getByTestId('composition-quantity-input')).toHaveValue('')
     })
+  })
+})
+
+describe('BrandsPage', () => {
+  it('renders table with create and edit', async () => {
+    renderBrandsPage()
+    await waitFor(() => {
+      expect(screen.getByText('Marca A')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Marca B')).toBeInTheDocument()
+    expect(screen.getByTestId('brands-table')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /nova marca/i })).toBeInTheDocument()
+  })
+
+  it('creates a new brand and closes form on success', async () => {
+    renderBrandsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Marca A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /nova marca/i }))
+    expect(screen.getByTestId('brand-form')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/nome/i), 'Marca Nova')
+    await user.click(screen.getByRole('button', { name: /salvar/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('brand-form')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('BrandQuickCreateModal from ProductIdentityStep', () => {
+  it('opens and creates brand via quick create modal', async () => {
+    const queryClient = createQueryClient()
+    const result = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/catalog/products/new']}>
+          <AuthContext.Provider value={authValue}>
+            <TenantContext.Provider value={tenantValue}>
+              <Routes>
+                <Route path="/catalog/products/new" element={<ProductEditorPage />} />
+              </Routes>
+            </TenantContext.Provider>
+          </AuthContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(result.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    const brandBtn = result.getByTestId('quick-create-brand-btn')
+    expect(brandBtn).toBeInTheDocument()
+
+    const user = userEvent.setup()
+    await user.click(brandBtn)
+
+    await waitFor(() => {
+      expect(result.getByTestId('quick-brand-name-input')).toBeInTheDocument()
+    })
+
+    await user.type(result.getByTestId('quick-brand-name-input'), 'Marca Quick')
+    await user.click(result.getByRole('button', { name: 'Criar' }))
+
+    await waitFor(() => {
+      expect(result.queryByTestId('quick-brand-name-input')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('CategoriesPage – hierarchy', () => {
+  it('shows parent hierarchy in table', async () => {
+    renderCategoriesPage()
+    await waitFor(() => {
+      expect(screen.getByText('Categoria B')).toBeInTheDocument()
+    })
+    expect(screen.getAllByText('Categoria A').length).toBe(2)
+    expect(screen.getByText('-')).toBeInTheDocument()
+  })
+})
+
+describe('UnitsPage – search and pagination', () => {
+  it('renders search input and pagination', async () => {
+    const MANY_UNITS = {
+      count: 30,
+      next: null,
+      previous: null,
+      results: Array.from({ length: 25 }, (_, i) => ({
+        id: `unit-${i + 1}`,
+        name: `Unidade ${i + 1}`,
+        abbreviation: `U${i + 1}`,
+        symbol: `U${i + 1}`,
+        precision: 2,
+      })),
+    }
+
+    server.use(
+      http.get(`${BASE}/catalog/units/`, () => HttpResponse.json(MANY_UNITS)),
+    )
+
+    renderUnitsPage()
+    await waitFor(() => {
+      expect(screen.getByText('Unidade 1')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('unit-search-input')).toBeInTheDocument()
+    expect(screen.getByText(/página 1 de 2/i)).toBeInTheDocument()
   })
 })

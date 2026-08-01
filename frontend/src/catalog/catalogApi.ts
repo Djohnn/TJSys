@@ -41,12 +41,22 @@ export interface Category {
   id: string
   name: string
   is_active: boolean
+  parent: string | null
+  parent_name: string
 }
 
 export interface Unit {
   id: string
   name: string
   abbreviation: string
+  symbol: string
+  precision: number
+}
+
+export interface Brand {
+  id: string
+  name: string
+  is_active: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -272,4 +282,42 @@ export function createProductCode(
     tenantId,
     body,
   }) as Promise<unknown>
+}
+
+export function fetchBrands(
+  tenantId: string,
+  params: { page?: number; q?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Brand>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<Brand>>(`/catalog/brands/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<Brand>>
+}
+
+export function createBrand(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<Brand> {
+  return apiRequest<Brand>('/catalog/brands/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<Brand>
+}
+
+export function updateBrand(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<Brand> {
+  return apiRequest<Brand>(`/catalog/brands/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<Brand>
 }
