@@ -91,6 +91,7 @@ export function toServicePayload(data: ServiceFormData) {
       duration_minutes,
     },
     fiscal: {
+      fiscal_type: 'servico',
       ncm,
       cest,
       origin_code,

@@ -23,6 +23,7 @@ import BrandsPage from './BrandsPage'
 import CombosPage from './CombosPage'
 import ComboEditorPage from './ComboEditorPage'
 import LabelsPage from './LabelsPage'
+import { persistServiceExtensions } from './catalogApi'
 
 const BASE = '/api/v1'
 
@@ -1446,6 +1447,25 @@ describe('ServiceEditorPage', () => {
     expect(payload.product.tracks_inventory).toBe(false)
     expect(payload.product).toHaveProperty('billing_unit', 'hora')
     expect(payload.product).toHaveProperty('duration_minutes', 60)
+  })
+
+  it('persists service fiscal configuration and initial price after product creation', async () => {
+    const requests: string[] = []
+    server.use(
+      http.post(`${BASE}/products/s-new/fiscal-data/`, () => {
+        requests.push('fiscal')
+        return HttpResponse.json({ id: 'f1', product: 's-new' })
+      }),
+      http.post(`${BASE}/products/s-new/price-tiers/`, () => {
+        requests.push('price')
+        return HttpResponse.json({ id: 'pt1', product: 's-new' }, { status: 201 })
+      }),
+    )
+    await persistServiceExtensions('tenant-alpha', 's-new', {
+      fiscal: { fiscal_type: 'servico', fiscal_class: '0107' },
+      price_tier: { min_quantity: '1', amount: '150.00' },
+    })
+    expect(requests).toEqual(['fiscal', 'price'])
   })
 })
 

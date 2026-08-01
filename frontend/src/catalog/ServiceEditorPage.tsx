@@ -9,6 +9,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse, Category, Unit, Product } from './catalogApi'
+import { persistServiceExtensions } from './catalogApi'
 import { catalogKeys } from './catalogQueryKeys'
 import { serviceSchema, type ServiceFormData, toServicePayload } from './catalogSchemas'
 import Button from '@/components/ui/Button'
@@ -112,9 +113,11 @@ export default function ServiceEditorPage(): ReactNode {
   const createMutation = useMutation({
     mutationFn: async (data: ServiceFormData) => {
       const payload = toServicePayload(data)
-      return apiRequest<Product>('/catalog/products/', {
+      const product = await (apiRequest<Product>('/catalog/products/', {
         method: 'POST', tenantId, body: payload.product,
-      }) as Promise<Product>
+      }) as Promise<Product>)
+      await persistServiceExtensions(tenantId, product.id, payload)
+      return product
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services', tenantId] })
@@ -134,9 +137,14 @@ export default function ServiceEditorPage(): ReactNode {
   const updateMutation = useMutation({
     mutationFn: async (data: ServiceFormData) => {
       const payload = toServicePayload(data)
-      return apiRequest<Product>(`/catalog/products/${id}/`, {
+      const product = await (apiRequest<Product>(`/catalog/products/${id}/`, {
         method: 'PATCH', tenantId, body: payload.product,
-      }) as Promise<Product>
+      }) as Promise<Product>)
+      await persistServiceExtensions(tenantId, product.id, {
+        ...payload,
+        price_tier: null,
+      })
+      return product
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services', tenantId] })

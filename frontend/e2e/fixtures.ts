@@ -2,14 +2,19 @@ import { expect, test as base, type Page } from '@playwright/test'
 
 export async function authenticatePage(
   page: Page,
-  email = 'web-admin@zyrp.local',
+  email = process.env.E2E_USER_EMAIL,
 ): Promise<void> {
+  const password = process.env.E2E_USER_PASSWORD
+  const recoveryCode = process.env.E2E_RECOVERY_CODE
+  if (!email || !password || !recoveryCode) {
+    throw new Error('Defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_RECOVERY_CODE.')
+  }
   await page.goto('/login')
   await page.fill('[name="email"]', email)
-  await page.fill('[name="password"]', 'e2e-test-pwd-2026')
+  await page.fill('[name="password"]', password)
   await page.click('button[type="submit"]')
   await page.waitForURL(/\/mfa/)
-  await page.fill('#mfa-code', 'e2e0000001')
+  await page.fill('#mfa-code', recoveryCode)
   await page.getByRole('button', { name: 'Verificar' }).click()
   await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
 

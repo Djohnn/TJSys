@@ -257,6 +257,20 @@ export function deleteProductPriceTier(
   }) as Promise<void>
 }
 
+export async function persistServiceExtensions(
+  tenantId: string,
+  productId: string,
+  payload: {
+    fiscal: Record<string, unknown>
+    price_tier: Record<string, unknown> | null
+  },
+): Promise<void> {
+  await upsertProductFiscalData(tenantId, productId, payload.fiscal)
+  if (payload.price_tier) {
+    await createProductPriceTier(tenantId, productId, payload.price_tier)
+  }
+}
+
 export interface CompositionItem {
   id: string
   component: string
