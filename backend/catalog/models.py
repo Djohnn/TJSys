@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -127,6 +129,9 @@ class Product(TimeStampedModel, TenantScopedModel):
     model = models.CharField(max_length=120, blank=True, default='')
     tags = models.JSONField(default=list, blank=True)
     scale_code = models.CharField(max_length=20, blank=True, default='')
+    # Sprint 26 — service metadata
+    billing_unit = models.CharField(max_length=30, blank=True, default='')
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
 
     objects = TenantManager()
     all_objects = models.Manager()
@@ -155,6 +160,11 @@ class Product(TimeStampedModel, TenantScopedModel):
         if self.category_id and self.tenant_id:
             if self.category.tenant_id != self.tenant_id:
                 raise ValidationError({'category': 'Category must belong to the same tenant.'})
+        # Sprint 26: service invariants
+        if self.product_kind == 'servico':
+            self.tracks_inventory = False
+            self.requires_lot = False
+            self.requires_expiry = False
 
 
 class ProductUnit(TimeStampedModel, TenantScopedModel):
@@ -524,7 +534,8 @@ class Brand(TimeStampedModel, TenantScopedModel):
         ordering = ['name']
         constraints = [
             models.UniqueConstraint(
-                fields=['tenant', 'name'], condition=models.Q(is_active=True),
+                fields=['tenant', 'name'],
+                condition=models.Q(is_active=True),
                 name='uniq_brand_tenant_name_active',
             ),
         ]
@@ -551,3 +562,244 @@ class ProductImage(TimeStampedModel, TenantScopedModel):
         if self.product_id and self.tenant_id:
             if self.product.tenant_id != self.tenant_id:
                 raise ValidationError({'product': 'Product must belong to the same tenant.'})
+
+
+# =============================================================================
+# Sprint 27 — CommercialCombo (commercial bundles)
+# =============================================================================
+
+
+class CommercialCombo(TimeStampedModel, TenantScopedModel):
+    sku = models.CharField(max_length=64)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
+    price = models.DecimalField(max_digits=18, decimal_places=4)
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['sku']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'sku'],
+                condition=models.Q(is_active=True),
+                name='uniq_combo_tenant_sku_active',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(price__gte=0),
+                name='combo_price_nonneg',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.sku} [{self.tenant.name}]'
+
+    def save(self, *args, **kwargs):
+        self.sku = self.sku.strip().upper()
+        super().save(*args, **kwargs)
+
+
+class ComboItem(TimeStampedModel, TenantScopedModel):
+    combo = models.ForeignKey(
+        CommercialCombo,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    item = models.ForeignKey(
+        'Product',
+        on_delete=models.PROTECT,
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['combo', 'item']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='comboitem_qty_positive',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'combo', 'item'],
+                condition=models.Q(is_active=True),
+                name='uniq_comboitem_active',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.combo.sku} → {self.item.sku} ×{self.quantity}'
+
+    def clean(self):
+        super().clean()
+        if self.quantity <= 0:
+            raise ValidationError({'quantity': 'Positive quantity required.'})
+        if self.combo_id and self.tenant_id:
+            if self.combo.tenant_id != self.tenant_id:
+                raise ValidationError({'combo': 'Same tenant required.'})
+        if self.item_id and self.tenant_id:
+            if self.item.tenant_id != self.tenant_id:
+                raise ValidationError({'item': 'Same tenant required.'})
+
+
+# =============================================================================
+# Sprint 23 — ProductComposition (kit components)
+# =============================================================================
+
+
+class ProductComposition(TimeStampedModel, TenantScopedModel):
+    kit = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='compositions',
+        help_text='The kit product (product_kind=kit)',
+    )
+    component = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name='used_in_kits',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['kit', 'component']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='productcomposition_quantity_positive',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'kit', 'component'],
+                condition=models.Q(is_active=True),
+                name='uniq_composition_kit_component_active',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.kit.sku} = {self.quantity} x {self.component.sku}'
+
+    def clean(self):
+        super().clean()
+        if self.quantity <= 0:
+            raise ValidationError({'quantity': 'Quantity must be positive.'})
+        if self.kit_id and self.component_id:
+            if self.kit_id == self.component_id:
+                raise ValidationError({'component': 'A kit cannot be composed of itself.'})
+            if self.kit.tenant_id != self.tenant_id:
+                raise ValidationError({'kit': 'Kit must belong to the same tenant.'})
+            if self.component.tenant_id != self.tenant_id:
+                raise ValidationError({'component': 'Component must belong to the same tenant.'})
+            # D-KIT-2: component cannot itself be a kit
+            if self.component.product_kind == 'kit':
+                raise ValidationError({'component': 'A kit component cannot be another kit.'})
+            # Cycle detection
+            if self._has_cycle():
+                raise ValidationError(
+                    {'component': 'Adding this component would create a composition cycle.'}
+                )
+
+    def _has_cycle(self):
+        visited = {self.kit_id}
+        stack = [self.component_id]
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                return True
+            visited.add(current)
+            children = ProductComposition.all_objects.filter(
+                kit_id=current,
+                is_active=True,
+            ).values_list('component_id', flat=True)
+            stack.extend(children)
+        return False
+
+
+# =============================================================================
+# Sprint 28 — LabelTemplate (modelos de etiquetas)
+# =============================================================================
+
+
+class LabelTemplate(TimeStampedModel, TenantScopedModel):
+    name = models.CharField(max_length=120)
+    width_mm = models.DecimalField(max_digits=8, decimal_places=2)
+    height_mm = models.DecimalField(max_digits=8, decimal_places=2)
+    margin_mm = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('2.00'))
+    columns = models.PositiveSmallIntegerField(default=2)
+    rows = models.PositiveSmallIntegerField(default=5)
+    show_sku = models.BooleanField(default=True)
+    show_barcode = models.BooleanField(default=True)
+    show_price = models.BooleanField(default=True)
+    show_name = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.CheckConstraint(condition=models.Q(width_mm__gt=0), name='label_width_positive'),
+            models.CheckConstraint(
+                condition=models.Q(height_mm__gt=0), name='label_height_positive'
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.name} [{self.tenant.name}]'
+
+
+# =============================================================================
+# Sprint 29 — ProductChannelProfile (per-channel product content)
+# =============================================================================
+
+
+class ProductChannelProfile(TimeStampedModel, TenantScopedModel):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('ready', 'Ready'),
+        ('published', 'Published'),
+        ('failed', 'Failed'),
+    ]
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='channel_profiles',
+    )
+    channel_slug = models.CharField(max_length=60)
+    title = models.CharField(max_length=200, blank=True, default='')
+    description = models.TextField(blank=True, default='')
+    list_price = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
+    sale_price = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
+    dimensions_json = models.JSONField(default=dict, blank=True)
+    weight_grams = models.PositiveIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    version = models.PositiveIntegerField(default=1)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'product', 'channel_slug'],
+                name='uniq_channel_profile_prod_slug',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.product.sku} → {self.channel_slug} [{self.status}]'

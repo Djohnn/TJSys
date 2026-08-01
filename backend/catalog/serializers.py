@@ -7,8 +7,13 @@ from catalog.models import (
     BranchPrice,
     Brand,
     Category,
+    ComboItem,
+    CommercialCombo,
+    LabelTemplate,
     Product,
+    ProductChannelProfile,
     ProductCode,
+    ProductComposition,
     ProductFiscalData,
     ProductImage,
     ProductPrice,
@@ -87,8 +92,25 @@ class ProductSerializer(FullCleanModelSerializer):
             'model',
             'tags',
             'scale_code',
+            # Sprint 26 — service metadata
+            'billing_unit',
+            'duration_minutes',
         ]
         read_only_fields = ['id', 'version', 'price']
+
+    def validate(self, data):
+        if data.get('product_kind') == 'servico':
+            if data.get('tracks_inventory'):
+                raise serializers.ValidationError(
+                    {'tracks_inventory': 'Services cannot track inventory.'}
+                )
+            if data.get('requires_lot'):
+                raise serializers.ValidationError({'requires_lot': 'Services cannot require lots.'})
+            if data.get('requires_expiry'):
+                raise serializers.ValidationError(
+                    {'requires_expiry': 'Services cannot require expiry.'}
+                )
+        return data
 
     def get_price(self, obj):
         now = timezone.now()
@@ -213,3 +235,98 @@ class ProductImageSerializer(FullCleanModelSerializer):
         model = ProductImage
         fields = ['id', 'product', 'object_key', 'alt_text', 'is_primary', 'position']
         read_only_fields = ['id', 'product']
+
+
+class ProductCompositionSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = ProductComposition
+        fields = ['id', 'kit', 'component', 'quantity', 'version', 'is_active']
+        read_only_fields = ['id', 'version']
+
+
+class ComboItemSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = ComboItem
+        fields = ['id', 'combo', 'item', 'quantity', 'is_active', 'version']
+        read_only_fields = ['id', 'combo', 'version']
+
+
+# =============================================================================
+# Sprint 28 — LabelTemplate + Label Generate
+# =============================================================================
+
+
+class LabelTemplateSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = LabelTemplate
+        fields = [
+            'id',
+            'name',
+            'width_mm',
+            'height_mm',
+            'margin_mm',
+            'columns',
+            'rows',
+            'show_sku',
+            'show_barcode',
+            'show_price',
+            'show_name',
+            'is_active',
+            'version',
+        ]
+        read_only_fields = ['id', 'version']
+
+
+class LabelGenerateItemSerializer(serializers.Serializer):
+    product_id = serializers.UUIDField()
+    quantity = serializers.IntegerField(min_value=1, default=1)
+
+
+class LabelGenerateSerializer(serializers.Serializer):
+    template_id = serializers.UUIDField()
+    items = LabelGenerateItemSerializer(many=True)
+
+
+class CommercialComboSerializer(FullCleanModelSerializer):
+    items = ComboItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CommercialCombo
+        fields = [
+            'id',
+            'sku',
+            'name',
+            'description',
+            'price',
+            'valid_from',
+            'valid_to',
+            'is_active',
+            'version',
+            'items',
+        ]
+        read_only_fields = ['id', 'version']
+
+
+# =============================================================================
+# Sprint 29 — ProductChannelProfile
+# =============================================================================
+
+
+class ProductChannelProfileSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = ProductChannelProfile
+        fields = [
+            'id',
+            'product',
+            'channel_slug',
+            'title',
+            'description',
+            'list_price',
+            'sale_price',
+            'dimensions_json',
+            'weight_grams',
+            'status',
+            'version',
+            'published_at',
+        ]
+        read_only_fields = ['id', 'product', 'version', 'published_at']

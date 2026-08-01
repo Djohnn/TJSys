@@ -5,8 +5,14 @@ from catalog.views import (
     BranchPriceViewSet,
     BrandViewSet,
     CategoryViewSet,
+    ChannelProfilePublishView,
+    CommercialComboViewSet,
     EffectivePriceView,
+    LabelGenerateView,
+    LabelTemplateViewSet,
+    ProductChannelProfileViewSet,
     ProductCodeViewSet,
+    ProductCompositionViewSet,
     ProductFiscalDataView,
     ProductImageViewSet,
     ProductPriceTierViewSet,
@@ -21,6 +27,15 @@ router.register('categories', CategoryViewSet, basename='category')
 router.register('units', UnitViewSet, basename='unit')
 router.register('products', ProductViewSet, basename='product')
 router.register('brands', BrandViewSet, basename='brand')
+router.register('combos', CommercialComboViewSet, basename='combo')
+router.register('label-templates', LabelTemplateViewSet, basename='label-template')
+
+# Sprint 23 — ProductComposition (nested under products)
+router.register(
+    r'products/(?P<product_pk>[^/.]+)/composition',
+    ProductCompositionViewSet,
+    basename='product-composition',
+)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -154,5 +169,29 @@ urlpatterns = [
         'products/<uuid:product_pk>/images/<uuid:pk>/',
         ProductImageViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}),
         name='product-image-detail',
+    ),
+    # Sprint 28 — Label PDF generation
+    path(
+        'labels/generate/',
+        LabelGenerateView.as_view(),
+        name='label-generate',
+    ),
+    # Sprint 29 — ProductChannelProfile (CRUD + publish)
+    path(
+        'products/<uuid:product_pk>/channel-profiles/',
+        ProductChannelProfileViewSet.as_view({'get': 'list', 'post': 'create'}),
+        name='product-channel-profile-list',
+    ),
+    path(
+        'products/<uuid:product_pk>/channel-profiles/<slug:slug>/',
+        ProductChannelProfileViewSet.as_view(
+            {'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}
+        ),
+        name='product-channel-profile-detail',
+    ),
+    path(
+        'products/<uuid:product_id>/channel-profiles/<slug:slug>/publish/',
+        ChannelProfilePublishView.as_view(),
+        name='product-channel-profile-publish',
     ),
 ]

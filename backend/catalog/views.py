@@ -1,6 +1,8 @@
 from django.db import models
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,8 +12,13 @@ from catalog.models import (
     BranchPrice,
     Brand,
     Category,
+    ComboItem,
+    CommercialCombo,
+    LabelTemplate,
     Product,
+    ProductChannelProfile,
     ProductCode,
+    ProductComposition,
     ProductFiscalData,
     ProductImage,
     ProductPrice,
@@ -24,7 +31,13 @@ from catalog.serializers import (
     BranchPriceSerializer,
     BrandSerializer,
     CategorySerializer,
+    ComboItemSerializer,
+    CommercialComboSerializer,
+    LabelGenerateSerializer,
+    LabelTemplateSerializer,
+    ProductChannelProfileSerializer,
     ProductCodeSerializer,
+    ProductCompositionSerializer,
     ProductFiscalDataSerializer,
     ProductImageSerializer,
     ProductPriceSerializer,
@@ -34,7 +47,9 @@ from catalog.serializers import (
     UnitSerializer,
 )
 from catalog.services.events import emit_catalog_event
+from catalog.services.label_pdf import generate_label_pdf
 from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
+from outbox.models import OutboxMessage
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
 
 
@@ -490,7 +505,12 @@ class BrandViewSet(CatalogViewSetBase):
 
 class ProductImageViewSet(viewsets.ModelViewSet):
     serializer_class = ProductImageSerializer
-    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, CatalogCapabilityPermission]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
 
     def get_queryset(self):
         product_id = self.kwargs['product_pk']
@@ -519,3 +539,286 @@ class ProductImageViewSet(viewsets.ModelViewSet):
             request=self.request,
         )
         super().perform_destroy(instance)
+
+
+class ProductCompositionViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductCompositionSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        product_id = self.kwargs['product_pk']
+        return ProductComposition.all_objects.filter(tenant=self.request.tenant, kit_id=product_id)
+
+    def perform_create(self, serializer):
+        kit = get_object_or_404(
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
+        )
+        instance = serializer.save(tenant=self.request.tenant, kit=kit)
+        emit_catalog_event(
+            action='catalog.productcomposition.created',
+            event_type='catalog.productcomposition.created',
+            instance=instance,
+            request=self.request,
+        )
+        return instance
+
+
+# =============================================================================
+# Sprint 29 — ProductChannelProfile (CRUD + publish)
+# =============================================================================
+
+
+class ProductChannelProfileViewSet(CatalogViewSetBase):
+    queryset = ProductChannelProfile.objects.select_related('product')
+    serializer_class = ProductChannelProfileSerializer
+    lookup_field = 'channel_slug'
+    lookup_url_kwarg = 'slug'
+    pagination_class = None
+
+    def get_queryset(self):
+        product_pk = self.kwargs.get('product_pk') or self.kwargs.get('product_id')
+        return ProductChannelProfile.all_objects.filter(
+            tenant=self.request.tenant,
+            product_id=product_pk,
+        )
+
+    def perform_create(self, serializer):
+        product = get_object_or_404(
+            Product,
+            id=self.kwargs.get('product_pk', self.kwargs.get('product_id')),
+            tenant=self.request.tenant,
+        )
+        instance = serializer.save(tenant=self.request.tenant, product=product)
+        emit_catalog_event(
+            action='catalog.channelprofile.created',
+            event_type='catalog.channelprofile.created',
+            instance=instance,
+            request=self.request,
+        )
+        return instance
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        instance.version += 1
+        instance.save(update_fields=['version'])
+        emit_catalog_event(
+            action='catalog.channelprofile.updated',
+            event_type='catalog.channelprofile.updated',
+            instance=instance,
+            request=self.request,
+        )
+        return instance
+
+
+class ChannelProfilePublishView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
+
+    def post(self, request, product_id, slug):
+        product = get_object_or_404(
+            Product,
+            id=product_id,
+            tenant=request.tenant,
+        )
+        profile = get_object_or_404(
+            ProductChannelProfile,
+            product=product,
+            channel_slug=slug,
+            tenant=request.tenant,
+        )
+
+        idempotency_key = request.headers.get('Idempotency-Key', '')
+
+        if idempotency_key:
+            existing = OutboxMessage.objects.filter(
+                event_type='catalog.channel.publication_requested',
+                tenant_id=str(request.tenant.id),
+                correlation_id=idempotency_key,
+            ).first()
+            if existing is not None:
+                profile.status = 'published'
+                profile.published_at = timezone.now()
+                profile.save(update_fields=['status', 'published_at', 'updated_at'])
+                return Response(
+                    ProductChannelProfileSerializer(profile).data,
+                    status=status.HTTP_200_OK,
+                )
+
+        from outbox.services import create_outbox_message
+
+        tenant_id_str = str(request.tenant.id)
+        create_outbox_message(
+            event_type='catalog.channel.publication_requested',
+            aggregate_type='ProductChannelProfile',
+            aggregate_id=str(profile.id),
+            payload={
+                'id': str(profile.id),
+                'channel_slug': profile.channel_slug,
+                'status': profile.status,
+            },
+            correlation_id=idempotency_key,
+            tenant_id=tenant_id_str,
+            event_version='1',
+        )
+
+        profile.status = 'ready'
+        profile.save(update_fields=['status', 'updated_at'])
+
+        return Response(
+            ProductChannelProfileSerializer(profile).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class CommercialComboViewSet(CatalogViewSetBase):
+    queryset = CommercialCombo.objects.prefetch_related('items__item')
+    serializer_class = CommercialComboSerializer
+
+    def _apply_q_filter(self, qs, q):
+        return qs.filter(
+            models.Q(name__icontains=q) | models.Q(sku__icontains=q),
+        )
+
+    @action(detail=False, methods=['post'], url_path='(?P<combo_pk>[^/.]+)/items')
+    def add_item(self, request, combo_pk=None):
+        combo = get_object_or_404(
+            CommercialCombo,
+            id=combo_pk,
+            tenant=request.tenant,
+        )
+        serializer = ComboItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save(tenant=request.tenant, combo=combo)
+        emit_catalog_event(
+            action='catalog.comboitem.created',
+            event_type='catalog.comboitem.created',
+            instance=instance,
+            request=request,
+        )
+        return Response(ComboItemSerializer(instance).data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=False, methods=['delete'], url_path='(?P<combo_pk>[^/.]+)/items/(?P<item_pk>[^/.]+)'
+    )
+    def remove_item(self, request, combo_pk=None, item_pk=None):
+        combo_item = get_object_or_404(
+            ComboItem,
+            id=item_pk,
+            combo_id=combo_pk,
+            tenant=request.tenant,
+        )
+        emit_catalog_event(
+            action='catalog.comboitem.deactivated',
+            event_type='catalog.comboitem.deactivated',
+            instance=combo_item,
+            request=request,
+        )
+        combo_item.is_active = False
+        combo_item.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# =============================================================================
+# Sprint 28 — LabelTemplate (CRUD) + Label Generate (PDF)
+# =============================================================================
+
+
+class LabelTemplateViewSet(CatalogViewSetBase):
+    queryset = LabelTemplate.objects.all()
+    serializer_class = LabelTemplateSerializer
+
+
+class LabelGenerateView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
+
+    def post(self, request):
+        serializer = LabelGenerateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        template_id = serializer.validated_data['template_id']
+        template = get_object_or_404(
+            LabelTemplate,
+            id=template_id,
+            tenant=request.tenant,
+            is_active=True,
+        )
+
+        items_data = serializer.validated_data['items']
+        product_ids = [item['product_id'] for item in items_data]
+        products = Product.objects.filter(
+            id__in=product_ids,
+            tenant=request.tenant,
+            is_active=True,
+        ).select_related('base_unit')
+
+        product_map = {p.id: p for p in products}
+
+        label_items: list[dict] = []
+        for item in items_data:
+            product = product_map.get(item['product_id'])
+            if product is None:
+                continue
+
+            ean_code = ProductCode.objects.filter(
+                product=product,
+                tenant=request.tenant,
+                code_type='ean',
+                is_active=True,
+            ).first()
+
+            price = (
+                ProductPrice.objects.filter(
+                    product=product,
+                    tenant=request.tenant,
+                    is_active=True,
+                )
+                .order_by('-valid_from')
+                .first()
+            )
+
+            label_items.append(
+                {
+                    'sku': product.sku,
+                    'name': product.name,
+                    'ean': ean_code.value if ean_code else '',
+                    'price': str(price.amount) if price else '0',
+                }
+            )
+
+        pdf_bytes = generate_label_pdf(
+            items=label_items,
+            width_mm=template.width_mm,
+            height_mm=template.height_mm,
+            margin_mm=template.margin_mm,
+            columns=template.columns,
+            rows=template.rows,
+            show_sku=template.show_sku,
+            show_barcode=template.show_barcode,
+            show_price=template.show_price,
+            show_name=template.show_name,
+        )
+
+        return Response(
+            pdf_bytes,
+            status=status.HTTP_200_OK,
+            content_type='application/pdf',
+            headers={
+                'Content-Disposition': 'attachment; filename="labels.pdf"',
+            },
+        )

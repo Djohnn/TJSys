@@ -300,6 +300,8 @@ def create_issue(
     unit_cost=None,
     lot=None,
 ):
+    if not product.tracks_inventory:
+        return None
     payload = {
         'operation_type': 'issue',
         'branch': branch,
