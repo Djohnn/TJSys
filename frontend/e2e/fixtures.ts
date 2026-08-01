@@ -1,5 +1,7 @@
 import { expect, test as base, type Page } from '@playwright/test'
 
+export { expect }
+
 export async function authenticatePage(
   page: Page,
   email = process.env.E2E_USER_EMAIL,
@@ -9,7 +11,7 @@ export async function authenticatePage(
   if (!email || !password || !recoveryCode) {
     throw new Error('Defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_RECOVERY_CODE.')
   }
-  await page.goto('/login')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
   await page.fill('[name="email"]', email)
   await page.fill('[name="password"]', password)
   await page.click('button[type="submit"]')

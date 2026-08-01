@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import Card from '@/components/ui/Card'
 
 interface HubCard {
+  id: string
   title: string
   description: string
   to: string
@@ -53,13 +54,13 @@ const FolderIcon = () => (
 )
 
 const HUBS: HubCard[] = [
-  { title: 'Produtos', description: 'Gerencie produtos, variações e preços', to: '/catalog/products', icon: <BoxIcon /> },
-  { title: 'Serviços', description: 'Cadastre e precifique serviços prestados', to: '/catalog/services', icon: <WrenchIcon /> },
-  { title: 'Combo', description: 'Monte kits e combos de produtos', to: '/catalog/combos', icon: <PuzzleIcon /> },
-  { title: 'Categorias', description: 'Organize produtos por categorias', to: '/catalog/categories', icon: <FolderIcon /> },
-  { title: 'Marcas', description: 'Cadastre marcas dos produtos', to: '/catalog/brands', icon: <TagIcon /> },
-  { title: 'Unidades', description: 'Gerencie unidades de medida', to: '/catalog/units', icon: <RulerIcon /> },
-  { title: 'Etiquetas', description: 'Configure modelos de etiquetas', to: '/catalog/labels', icon: <CubeIcon /> },
+  { id: 'produtos', title: 'Produtos', description: 'Gerencie produtos, variações e preços', to: '/catalog/products', icon: <BoxIcon /> },
+  { id: 'serviços', title: 'Serviços', description: 'Cadastre e precifique serviços prestados', to: '/catalog/services', icon: <WrenchIcon /> },
+  { id: 'combo', title: 'Combo', description: 'Monte kits e combos de produtos', to: '/catalog/combos', icon: <PuzzleIcon /> },
+  { id: 'categorias', title: 'Categorias', description: 'Organize produtos por categorias', to: '/catalog/categories', icon: <FolderIcon /> },
+  { id: 'marcas', title: 'Marcas', description: 'Cadastre marcas dos produtos', to: '/catalog/brands', icon: <TagIcon /> },
+  { id: 'unidades', title: 'Unidades de Medida', description: 'Gerencie unidades de medida', to: '/catalog/units', icon: <RulerIcon /> },
+  { id: 'etiquetas', title: 'Impressão de Etiquetas', description: 'Configure modelos de etiquetas', to: '/catalog/labels', icon: <CubeIcon /> },
 ]
 
 export default function CatalogHomePage(): ReactNode {
@@ -71,7 +72,7 @@ export default function CatalogHomePage(): ReactNode {
           <Link
             key={hub.to}
             to={hub.to}
-            data-testid={`hub-card-${hub.title.toLowerCase().replace(/\s+/g, '-')}`}
+            data-testid={`hub-card-${hub.id}`}
             className="block"
           >
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">

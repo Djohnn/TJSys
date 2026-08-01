@@ -1154,6 +1154,35 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ---
 
+### Sprints 24–30 — Catálogo completo e hardening
+
+**Estado:** Concluídas e auditadas em 2026-08-01.
+**Especificação de continuidade:** [Sprints 31–33](superpowers/specs/2026-08-01-catalog-next-sprints-design.md)
+**Plano de continuidade:** [Plano Sprints 31–33](superpowers/plans/2026-08-01-catalog-next-sprints-implementation-plan.md)
+
+- [x] Sprint 24 — editor de produto no padrão B, mídia à esquerda e identificação à direita.
+- [x] Sprint 25 — categorias, marcas e unidades de medida com cadastros administrativos.
+- [x] Sprint 26 — serviços com preço e dados fiscais; combos com composição.
+- [x] Sprint 27 — upload/galeria de imagens e canais de venda idempotentes.
+- [x] Sprint 28 — modelos e pré-visualização de etiquetas antes do download.
+- [x] Sprint 29 — auditoria multi-tenant e integridade de dados.
+- [x] Sprint 30 — hardening, regressão e aceite em Chromium, Firefox e WebKit.
+
+**Evidência:** [Relatório final da Sprint 30](10_Releases/SPRINT-030_Catalog_Hardening_Acceptance_Final_Report.md).
+**Rollback:** [Runbook das Sprints 23–30](09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md).
+
+---
+
+### Próximas fases aprovadas
+
+- [ ] Sprint 31 — performance, code splitting e acessibilidade WCAG 2.2 AA.
+- [ ] Sprint 32 — regras por filial para combos e fiscal avançado de serviços.
+- [ ] Sprint 33 — observabilidade, piloto e exercício de rollback.
+
+Cada fase possui critérios objetivos e gates no plano e na especificação vinculados acima.
+
+---
+
 ## Registro de execução
 
 Adicionar uma entrada somente ao encerrar cada sprint:
@@ -1174,3 +1203,4 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 20 | 2026-07-22 | `feat/sprint-20-web-release` | Frontend: 283 Vitest (22 files); Backend: 38 BDD tests; TypeScript 0 errors; E2E 32 specs | Export CSV fiscal (action DRF) pendente de fix | Aprovado localmente |
 | 21 | 2026-07-24 | `feat/sprint-21-styling` | Frontend: 283 Vitest (22 files); TypeScript 0 errors; Tailwind CSS v4 em 17 módulos | UI components: Button, Card, Table, Badge, Modal, Skeleton, LoadingState, EmptyState | Aprovado localmente |
 | 23 | 2026-07-31 | `feat: sprint 23 - composicao de kit` | Frontend: Vitest + TypeScript 0 errors | Composition screens + tests | Aprovado localmente |
+| 24–30 | 2026-08-01 | `codex/fix-sprints-23-30` | Backend 671; frontend 326; PDV 137; Playwright 12/12 em 3 navegadores | Aviso de bundle principal acima de 250 kB endereçado na Sprint 31 | Aprovado localmente |

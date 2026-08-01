@@ -16,6 +16,7 @@ export default function UnitsPage() {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const [formName, setFormName] = useState('')
   const [formSymbol, setFormSymbol] = useState('')
   const [formPrecision, setFormPrecision] = useState('0')
@@ -58,6 +59,28 @@ export default function UnitsPage() {
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      apiRequest<Unit>('/catalog/units/', { method: 'POST', tenantId, body }) as Promise<Unit>,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['units', tenantId] })
+      setShowCreate(false)
+      setFormName('')
+      setFormSymbol('')
+      setFormPrecision('0')
+      setSubmitError(null)
+    },
+    onError: (err) => {
+      if (isApiProblemError(err) && err.problem.errors) {
+        setSubmitError(Object.values(err.problem.errors).flat().join(', '))
+      } else if (isApiProblemError(err)) {
+        setSubmitError(err.problem.detail)
+      } else {
+        setSubmitError('Erro ao criar unidade.')
+      }
+    },
+  })
+
   if (isLoading) return <LoadingState message="Carregando unidades..." />
   if (isError) return <p data-testid="error-state">Erro ao carregar unidades.</p>
 
@@ -68,6 +91,12 @@ export default function UnitsPage() {
     e.preventDefault()
     setSubmitError(null)
     updateMutation.mutate({ id, body: { name: formName, symbol: formSymbol, precision: parseInt(formPrecision, 10) || 0 } })
+  }
+
+  function handleCreateSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitError(null)
+    createMutation.mutate({ name: formName, symbol: formSymbol, precision: parseInt(formPrecision, 10) || 0 })
   }
 
   function startEdit(unit: Unit) {
@@ -88,7 +117,31 @@ export default function UnitsPage() {
 
   return (
     <div data-testid="units-page" className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-neutral-900">Unidades</h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold text-neutral-900">Unidades de Medida</h2>
+        <Button onClick={() => { setShowCreate(true); setSubmitError(null) }} variant="primary">Nova Unidade</Button>
+      </div>
+
+      {showCreate && (
+        <Card title="Nova Unidade">
+          <form onSubmit={handleCreateSubmit} data-testid="unit-create-form" className="grid gap-4 md:grid-cols-3">
+            {submitError && <div role="alert" className="md:col-span-3 text-sm text-red-700">{submitError}</div>}
+            <label className="text-sm font-medium text-neutral-700">Nome
+              <input value={formName} onChange={(e) => setFormName(e.target.value)} required className="mt-1 w-full px-3 py-2 border border-border rounded-lg" />
+            </label>
+            <label className="text-sm font-medium text-neutral-700">Símbolo
+              <input value={formSymbol} onChange={(e) => setFormSymbol(e.target.value)} required className="mt-1 w-full px-3 py-2 border border-border rounded-lg" />
+            </label>
+            <label className="text-sm font-medium text-neutral-700">Precisão
+              <input type="number" min="0" max="10" value={formPrecision} onChange={(e) => setFormPrecision(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border rounded-lg" />
+            </label>
+            <div className="md:col-span-3 flex gap-2">
+              <Button type="submit" loading={createMutation.isPending}>Salvar</Button>
+              <Button type="button" variant="secondary" onClick={() => { setShowCreate(false); setSubmitError(null) }}>Cancelar</Button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       {units.length > 0 && (
         <div className="flex gap-2">

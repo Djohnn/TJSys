@@ -35,11 +35,25 @@ class LoginView(APIView):
         request.session.create()
         mfa_session = request.session.session_key
         request.session.cycle_key()
-        return Response({
+        from tenancy.models import TenantMembership
+
+        membership = (
+            TenantMembership.objects.filter(
+                user=user,
+                is_active=True,
+                tenant__is_active=True,
+            )
+            .order_by('invited_at', 'id')
+            .first()
+        )
+        payload = {
             'detail': 'MFA required.',
             'requires_mfa': True,
             'mfa_session': mfa_session,
-        }, status=status.HTTP_202_ACCEPTED)
+        }
+        if membership is not None:
+            payload['mfa_tenant_id'] = str(membership.tenant_id)
+        return Response(payload, status=status.HTTP_202_ACCEPTED)
 
 
 class LogoutView(APIView):

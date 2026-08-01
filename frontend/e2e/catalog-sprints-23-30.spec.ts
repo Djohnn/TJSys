@@ -4,12 +4,13 @@ test.describe('Catálogo — aceite Sprints 23–30', () => {
   test('hub expõe todas as entradas solicitadas', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/catalog')
-    for (const label of [
-      'Produtos', 'Serviços', 'Combo', 'Categorias', 'Marcas',
-      'Unidades de Medida', 'Impressão de Etiquetas',
+    for (const id of [
+      'produtos', 'serviços', 'combo', 'categorias', 'marcas', 'unidades', 'etiquetas',
     ]) {
-      await expect(page.getByRole('link', { name: new RegExp(label, 'i') })).toBeVisible()
+      await expect(page.getByTestId(`hub-card-${id}`)).toBeVisible()
     }
+    await expect(page.getByTestId('hub-card-unidades')).toContainText('Unidades de Medida')
+    await expect(page.getByTestId('hub-card-etiquetas')).toContainText('Impressão de Etiquetas')
   })
 
   test('cadastro de produto mantém mídia à esquerda e seis etapas', async ({ authenticatedPage }) => {
@@ -24,10 +25,14 @@ test.describe('Catálogo — aceite Sprints 23–30', () => {
 
   test('classificadores administrativos carregam', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    for (const path of ['/catalog/categories', '/catalog/brands', '/catalog/units']) {
+    for (const [path, action] of [
+      ['/catalog/categories', 'Nova Categoria'],
+      ['/catalog/brands', 'Criar Marca'],
+      ['/catalog/units', 'Nova Unidade'],
+    ] as const) {
       await page.goto(path)
       await expect(page.locator('main')).toBeVisible()
-      await expect(page.getByRole('button', { name: /nov|adicionar/i }).first()).toBeVisible()
+      await expect(page.getByRole('button', { name: action })).toBeVisible()
     }
   })
 

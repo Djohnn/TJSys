@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
+const devPort = new URL(baseURL).port || '5173'
+const webCommand = process.env.PLAYWRIGHT_USE_PREVIEW
+  ? `npm run preview -- --port ${devPort}`
+  : `npm run dev -- --port ${devPort}`
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -8,7 +14,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html', { outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -28,8 +34,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: webCommand,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
 })

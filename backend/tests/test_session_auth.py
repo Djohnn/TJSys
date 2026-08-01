@@ -2,6 +2,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from tenancy.models import Tenant, TenantMembership
+
 User = get_user_model()
 
 
@@ -64,6 +66,24 @@ def test_verified_login_creates_only_pre_mfa_session(client):
     assert response.status_code == 202
     assert client.session['pre_mfa_user_id'] == str(user.id)
     assert '_auth_user_id' not in client.session
+
+
+@pytest.mark.django_db
+def test_verified_login_returns_default_active_mfa_tenant(client):
+    user = User.objects.create_user(email='tenant-login@test.local', password='valid-password')
+    user.email_verified_at = timezone.now()
+    user.save(update_fields=['email_verified_at'])
+    tenant = Tenant.objects.create(name='Tenant Login', slug='tenant-login')
+    TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
+
+    response = client.post(
+        '/api/v1/auth/login/',
+        {'email': user.email, 'password': 'valid-password'},
+        content_type='application/json',
+    )
+
+    assert response.status_code == 202
+    assert response.json()['mfa_tenant_id'] == str(tenant.id)
 
 
 @pytest.mark.django_db
