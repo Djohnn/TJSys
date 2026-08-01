@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
+import { toProductPayload } from './catalogSchemas'
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
@@ -756,5 +757,39 @@ describe('Product form – quick create modals', () => {
       expect(screen.getByTestId('quick-unit-error')).toBeInTheDocument()
       expect(screen.getByTestId('quick-unit-symbol-input')).toBeInTheDocument()
     })
+  })
+})
+
+describe('Product payload contract', () => {
+  it('maps unit to base_unit and removes unit/barcode from product body', () => {
+    const payload = toProductPayload({
+      name: 'Test', sku: 'T1', unit: 'unit-1', barcode: '789123', tags: 'qa, web',
+      category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product).toHaveProperty('base_unit', 'unit-1')
+    expect(payload.product).not.toHaveProperty('unit')
+    expect(payload.product).not.toHaveProperty('barcode')
+    expect(payload.barcode).toBe('789123')
+    expect(payload.product.tags).toEqual(['qa', 'web'])
+  })
+
+  it('splits comma-separated tags into array', () => {
+    const payload = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: 'a, b , c',
+      category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product.tags).toEqual(['a', 'b', 'c'])
+  })
+
+  it('handles empty tags and barcode gracefully', () => {
+    const payload = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: '',
+      category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product.tags).toEqual([])
+    expect(payload.barcode).toBe('')
   })
 })

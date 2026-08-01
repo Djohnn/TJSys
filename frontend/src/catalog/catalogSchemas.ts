@@ -17,6 +17,19 @@ export const productSchema = z.object({
 
 export type ProductFormData = z.infer<typeof productSchema>
 
+/** Maps form data to backend Product payload, separating barcode for ProductCode creation. */
+export function toProductPayload(data: ProductFormData) {
+  const { unit, barcode, tags, ...product } = data
+  return {
+    product: {
+      ...product,
+      base_unit: unit ?? undefined,
+      tags: tags ? tags.split(',').map(v => v.trim()).filter(Boolean) : [],
+    },
+    barcode: barcode?.trim() ?? '',
+  }
+}
+
 export const categorySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(200),
 })
