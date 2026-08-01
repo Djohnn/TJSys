@@ -91,7 +91,7 @@ export default function ProductEditorPage(): ReactNode {
       case 'composition':
         return <ProductCompositionStep productId={productId} />
       case 'channels':
-        return <ProductChannelsStep />
+        return <ProductChannelsStep productId={productId} />
       default:
         return null
     }

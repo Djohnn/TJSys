@@ -482,3 +482,70 @@ export function generateLabels(
     return response.blob()
   })
 }
+
+// =============================================================================
+// Sprint 29 — Channel Profiles
+// =============================================================================
+
+export interface ChannelProfile {
+  id: string
+  product: string
+  channel_slug: string
+  title: string
+  description: string
+  list_price: string | null
+  sale_price: string | null
+  dimensions_json: Record<string, unknown>
+  weight_grams: number | null
+  status: string
+  version: number
+  published_at: string | null
+}
+
+export function fetchChannelProfiles(
+  tenantId: string,
+  productId: string,
+): Promise<ChannelProfile[]> {
+  return apiRequest<ChannelProfile[]>(`/catalog/products/${productId}/channel-profiles/`, {
+    tenantId,
+  }) as Promise<ChannelProfile[]>
+}
+
+export function saveChannelProfile(
+  tenantId: string,
+  productId: string,
+  channelSlug: string,
+  data: Record<string, unknown>,
+): Promise<ChannelProfile> {
+  return apiRequest<ChannelProfile>(`/catalog/products/${productId}/channel-profiles/${channelSlug}/`, {
+    method: 'PUT',
+    tenantId,
+    body: data,
+  }) as Promise<ChannelProfile>
+}
+
+export function createChannelProfile(
+  tenantId: string,
+  productId: string,
+  data: Record<string, unknown>,
+): Promise<ChannelProfile> {
+  return apiRequest<ChannelProfile>(`/catalog/products/${productId}/channel-profiles/`, {
+    method: 'POST',
+    tenantId,
+    body: data,
+  }) as Promise<ChannelProfile>
+}
+
+export function publishChannel(
+  tenantId: string,
+  productId: string,
+  channelSlug: string,
+): Promise<ChannelProfile> {
+  return apiRequest<ChannelProfile>(
+    `/catalog/products/${productId}/channel-profiles/${channelSlug}/publish/`,
+    {
+      method: 'POST',
+      tenantId,
+    },
+  ) as Promise<ChannelProfile>
+}
