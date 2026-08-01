@@ -1,16 +1,16 @@
 import { expect, test } from './fixtures'
 
 test.describe('Catálogo — aceite Sprints 23–30', () => {
-  test('hub expõe todas as entradas solicitadas', async ({ authenticatedPage }) => {
+  test('shell expõe todas as entradas solicitadas', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/catalog')
-    for (const id of [
-      'produtos', 'serviços', 'combo', 'categorias', 'marcas', 'unidades', 'etiquetas',
+    const contextual = page.getByTestId('catalog-context-navigation')
+    for (const label of [
+      'Produtos', 'Serviços', 'Combo', 'Categorias', 'Marcas', 'Unidades de Medida', 'Impressão de Etiquetas',
     ]) {
-      await expect(page.getByTestId(`hub-card-${id}`)).toBeVisible()
+      await expect(contextual.getByRole('link', { name: label })).toBeVisible()
     }
-    await expect(page.getByTestId('hub-card-unidades')).toContainText('Unidades de Medida')
-    await expect(page.getByTestId('hub-card-etiquetas')).toContainText('Impressão de Etiquetas')
+    await expect(page.getByTestId('catalog-overview')).toBeVisible()
   })
 
   test('cadastro de produto mantém mídia à esquerda e seis etapas', async ({ authenticatedPage }) => {
@@ -18,6 +18,7 @@ test.describe('Catálogo — aceite Sprints 23–30', () => {
     await page.goto('/catalog/products/new')
     await expect(page.getByTestId('product-media-panel')).toBeVisible()
     await expect(page.getByTestId('product-identity-step')).toBeVisible()
+    await expect(page.getByTestId('product-editor-layout')).toHaveAttribute('data-layout', 'media-left-identity-right')
     for (const step of ['Identificação', 'Preços', 'Estoque', 'Fiscal', 'Composição', 'Canais']) {
       await expect(page.getByRole('tab', { name: step })).toBeVisible()
     }
