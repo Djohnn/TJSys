@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationItem } from './navigationModel'
 
@@ -18,7 +18,7 @@ function ModuleIcon({ type }: { type: NavigationItem['icon'] }): ReactNode {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6"><path strokeLinecap="round" strokeLinejoin="round" d={paths[type]} /></svg>
 }
 
-function ModuleRail({ pathname }: { pathname: string }): ReactNode {
+function ModuleRail({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): ReactNode {
   return (
     <div data-testid="module-navigation" className="flex w-[88px] shrink-0 flex-col bg-[var(--shell-ink)] text-white">
       <h1 aria-label="Zyrp ERP" className="flex h-[78px] flex-col items-center justify-center border-b border-white/10">
@@ -33,11 +33,11 @@ function ModuleRail({ pathname }: { pathname: string }): ReactNode {
               ? false
               : isRouteActive(pathname, item.to)
           return (
-            <NavLink key={item.id} to={item.to} aria-current={active ? 'page' : undefined}
+            <Link key={item.id} to={item.to} onClick={onNavigate} aria-current={active ? 'page' : undefined}
               className={`group flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors ${active ? 'bg-[var(--shell-active)] text-white ring-1 ring-white/25' : 'text-blue-100/75 hover:bg-white/10 hover:text-white'}`}>
               <ModuleIcon type={item.icon} />
               <span className="text-[10px] font-semibold leading-tight">{item.label}</span>
-            </NavLink>
+            </Link>
           )
         })}
       </div>
@@ -45,7 +45,7 @@ function ModuleRail({ pathname }: { pathname: string }): ReactNode {
   )
 }
 
-function CatalogContext({ pathname }: { pathname: string }): ReactNode {
+function CatalogContext({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): ReactNode {
   if (!pathname.startsWith('/catalog')) return null
   return (
     <div data-testid="catalog-context-navigation" className="w-[248px] shrink-0 border-r border-blue-950/20 bg-[var(--shell-ink-soft)] text-white">
@@ -58,10 +58,10 @@ function CatalogContext({ pathname }: { pathname: string }): ReactNode {
         {CATALOG_ITEMS.map((item) => {
           const active = isRouteActive(pathname, item.to)
           return (
-            <NavLink key={item.id} to={item.to} aria-current={active ? 'page' : undefined}
+            <Link key={item.id} to={item.to} onClick={onNavigate} aria-current={active ? 'page' : undefined}
               className={`relative flex min-h-11 items-center rounded-lg px-4 text-sm font-bold transition-colors ${active ? 'bg-white text-[var(--shell-ink)] shadow-sm before:absolute before:left-0 before:h-5 before:w-1 before:rounded-r before:bg-[var(--shell-active)]' : 'text-blue-50/80 hover:bg-white/10 hover:text-white'}`}>
               {item.label}
-            </NavLink>
+            </Link>
           )
         })}
       </div>
@@ -69,7 +69,15 @@ function CatalogContext({ pathname }: { pathname: string }): ReactNode {
   )
 }
 
-export default function Navigation(): ReactNode {
+interface NavigationProps {
+  variant?: 'desktop' | 'drawer'
+  onNavigate?: () => void
+}
+
+export default function Navigation({ variant = 'desktop', onNavigate }: NavigationProps): ReactNode {
   const { pathname } = useLocation()
-  return <nav data-testid="main-navigation" aria-label="Navegação principal" className="flex min-h-screen shrink-0"><ModuleRail pathname={pathname} /><CatalogContext pathname={pathname} /></nav>
+  const className = variant === 'desktop'
+    ? 'hidden min-h-screen shrink-0 lg:flex'
+    : 'flex h-full min-h-0 w-full shrink-0'
+  return <nav data-testid={variant === 'desktop' ? 'main-navigation' : undefined} aria-label={variant === 'desktop' ? 'Navegação principal' : 'Navegação móvel'} className={className}><ModuleRail pathname={pathname} onNavigate={onNavigate} /><CatalogContext pathname={pathname} onNavigate={onNavigate} /></nav>
 }

@@ -85,6 +85,19 @@ describe('AppShell', () => {
       .toHaveAttribute('aria-current', 'page')
   })
 
+  it('opens and closes the mobile navigation drawer', async () => {
+    const user = userEvent.setup()
+    renderShell('/catalog/products')
+
+    const trigger = await screen.findByRole('button', { name: /abrir menu/i })
+    await user.click(trigger)
+    expect(screen.getByTestId('mobile-navigation-drawer')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('mobile-navigation-drawer')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
   it('highlights active route', async () => {
     renderShell('/financial')
     const financialLink = await screen.findByText('Financeiro')
