@@ -8,6 +8,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse, Category, Unit } from './catalogApi'
+import { catalogKeys } from './catalogQueryKeys'
 import {
   fetchProductFiscalData,
   upsertProductFiscalData,
@@ -88,7 +89,7 @@ export default function ProductForm({
   const [fiscalWarning, setFiscalWarning] = useState<string | null>(null)
 
   const { data: categoriesData } = useQuery({
-    queryKey: ['categories', tenantId, 1],
+    queryKey: [...catalogKeys.categories(tenantId), 1],
     queryFn: ({ signal }) =>
       apiRequest<PaginatedResponse<Category>>('/catalog/categories/?page=1', {
         tenantId,
@@ -98,7 +99,7 @@ export default function ProductForm({
   })
 
   const { data: unitsData } = useQuery({
-    queryKey: ['units', tenantId, 1],
+    queryKey: [...catalogKeys.units(tenantId), 1],
     queryFn: ({ signal }) =>
       apiRequest<PaginatedResponse<Unit>>('/catalog/units/?page=1', {
         tenantId,
@@ -115,6 +116,7 @@ export default function ProductForm({
     resolver: zodResolver(productSchema),
     defaultValues: initialData ?? {
       name: '',
+      description: '',
       sku: '',
       barcode: '',
       category: null,

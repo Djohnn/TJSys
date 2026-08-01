@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createUnit } from './catalogApi'
+import { catalogKeys } from './catalogQueryKeys'
 
 interface UnitQuickCreateModalProps {
   open: boolean
@@ -17,13 +18,15 @@ export default function UnitQuickCreateModal({ open, tenantId, onClose }: UnitQu
   const mutation = useMutation({
     mutationFn: (data: { symbol: string; name: string }) => createUnit(tenantId, data),
     onSuccess: (newUnit) => {
-      queryClient.setQueryData(['units', tenantId], (old: unknown) => {
+      const updater = (old: unknown) => {
         if (old && typeof old === 'object' && 'results' in old) {
           const data = old as { results: unknown[] }
           return { ...data, results: [newUnit, ...data.results] }
         }
         return old
-      })
+      }
+      queryClient.setQueryData(catalogKeys.units(tenantId), updater)
+      queryClient.setQueryData([...catalogKeys.units(tenantId), 1], updater)
       setSymbol('')
       setName('')
       setError(null)

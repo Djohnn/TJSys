@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { createCategory } from './catalogApi'
+import { catalogKeys } from './catalogQueryKeys'
 
 interface CategoryQuickCreateModalProps {
   open: boolean
@@ -17,13 +18,15 @@ export default function CategoryQuickCreateModal({ open, tenantId, onClose }: Ca
   const mutation = useMutation({
     mutationFn: (categoryName: string) => createCategory(tenantId, { name: categoryName }),
     onSuccess: (newCategory) => {
-      queryClient.setQueryData(['categories', tenantId], (old: unknown) => {
+      const updater = (old: unknown) => {
         if (old && typeof old === 'object' && 'results' in old) {
           const data = old as { results: unknown[] }
           return { ...data, results: [newCategory, ...data.results] }
         }
         return old
-      })
+      }
+      queryClient.setQueryData(catalogKeys.categories(tenantId), updater)
+      queryClient.setQueryData([...catalogKeys.categories(tenantId), 1], updater)
       setName('')
       setError(null)
       onClose()

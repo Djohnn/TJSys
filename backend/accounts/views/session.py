@@ -31,9 +31,13 @@ class LoginView(APIView):
             return Response({'detail': 'Account is not available.'}, status=403)
         request.session.flush()
         request.session['pre_mfa_user_id'] = str(user.id)
+        request.session.create()
+        mfa_session = request.session.session_key
         request.session.cycle_key()
         return Response({
+            'detail': 'MFA required.',
             'requires_mfa': True,
+            'mfa_session': mfa_session,
         }, status=status.HTTP_202_ACCEPTED)
 
 
@@ -54,7 +58,24 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({'id': str(request.user.id), 'email': request.user.email})
+        from tenancy.models import TenantMembership
+        memberships_qs = TenantMembership.objects.select_related('tenant').filter(
+            user=request.user, is_active=True, tenant__is_active=True,
+        )
+        memberships = [
+            {
+                'id': str(m.id),
+                'tenant_id': str(m.tenant_id),
+                'tenant_name': m.tenant.name,
+                'role': m.role,
+            }
+            for m in memberships_qs
+        ]
+        return Response({
+            'id': str(request.user.id),
+            'email': request.user.email,
+            'memberships': memberships,
+        })
 
 
 class CSRFView(APIView):

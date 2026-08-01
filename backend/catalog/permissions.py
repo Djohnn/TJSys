@@ -13,16 +13,22 @@ class CatalogCapabilityPermission(BasePermission):
     def has_permission(self, request, view):
         tenant = getattr(request, 'tenant', None)
         if tenant is None:
+            self.message = 'X-Tenant-ID header is required or tenant not found.'
             return False
         membership = TenantMembership.objects.filter(
             user=request.user, tenant=tenant, is_active=True,
         ).first()
         if membership is None:
+            self.message = f'No active membership for user={request.user.id} tenant={tenant.id}.'
             return False
         action = getattr(view, 'action', '')
         if action in _READ_ACTIONS:
-            return role_allows(membership.role, self.view_capability)
-        return role_allows(membership.role, self.manage_capability)
+            allowed = role_allows(membership.role, self.view_capability)
+        else:
+            allowed = role_allows(membership.role, self.manage_capability)
+        if not allowed:
+            self.message = f'Role {membership.role} lacks {self.manage_capability if action not in _READ_ACTIONS else self.view_capability} (action={action}).'
+        return allowed
 
 
 class PricingCapabilityPermission(CatalogCapabilityPermission):
