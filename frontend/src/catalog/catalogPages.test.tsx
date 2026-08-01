@@ -964,23 +964,20 @@ describe('Product payload contract', () => {
 })
 
 describe('CatalogHomePage', () => {
-  it('renders 7 hub cards', () => {
+  it('renders a compact catalog overview with primary actions', () => {
     renderCatalogHome()
     expect(screen.getByTestId('catalog-home-page')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-produtos')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-serviços')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-combo')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-categorias')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-marcas')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-unidades')).toBeInTheDocument()
-    expect(screen.getByTestId('hub-card-etiquetas')).toBeInTheDocument()
+    expect(screen.getByTestId('catalog-overview')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver produtos' })).toHaveAttribute('href', '/catalog/products')
+    expect(screen.getByRole('link', { name: 'Novo produto' })).toHaveAttribute('href', '/catalog/products/new')
+    expect(screen.getByRole('link', { name: 'Imprimir etiquetas' })).toHaveAttribute('href', '/catalog/labels')
   })
 
-  it('card links navigate to correct routes', () => {
+  it('lists every catalog area without duplicating the contextual menu', () => {
     renderCatalogHome()
-    expect(screen.getByTestId('hub-card-produtos').closest('a')).toHaveAttribute('href', '/catalog/products')
-    expect(screen.getByTestId('hub-card-categorias').closest('a')).toHaveAttribute('href', '/catalog/categories')
-    expect(screen.getByTestId('hub-card-unidades').closest('a')).toHaveAttribute('href', '/catalog/units')
+    for (const label of ['Produtos', 'Serviços', 'Combo', 'Categorias', 'Marcas', 'Unidades de Medida', 'Impressão de Etiquetas']) {
+      expect(screen.getByText(label)).toBeInTheDocument()
+    }
   })
 })
 
@@ -994,8 +991,11 @@ describe('ProductEditorPage', () => {
     expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     expect(screen.getByTestId('product-editor-layout')).toHaveClass('grid-cols-1')
     expect(screen.getByTestId('product-editor-layout')).toHaveClass(
-      'lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,2.2fr)]',
+      'xl:grid-cols-[320px_minmax(0,1fr)]',
     )
+    expect(screen.getByTestId('product-editor-layout')).toHaveAttribute('data-layout', 'media-left-identity-right')
+    expect(screen.getByRole('complementary', { name: 'Imagens do produto' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Identificação do produto' })).toBeInTheDocument()
     expect(screen.getByText('Novo Produto')).toBeInTheDocument()
   })
 

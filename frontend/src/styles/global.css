@@ -24,6 +24,9 @@
 }
 
 body {
+  --shell-ink: #102a43;
+  --shell-ink-soft: #173f5f;
+  --shell-active: #0ea5e9;
   font-family: var(--font-sans);
   color: var(--color-text);
   background-color: var(--color-surface-muted);

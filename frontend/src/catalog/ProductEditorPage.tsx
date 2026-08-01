@@ -98,11 +98,14 @@ export default function ProductEditorPage(): ReactNode {
   }
 
   return (
-    <div data-testid="product-editor-page" className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-neutral-900">
+    <div data-testid="product-editor-page" className="mx-auto max-w-[1440px]">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white px-5 py-4 shadow-sm">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary-600">Cadastro de produto</p>
+          <h1 className="mt-1 text-2xl font-black text-slate-900">
           {isEditing ? 'Editar Produto' : 'Novo Produto'}
-        </h1>
+          </h1>
+        </div>
         <button
           type="button"
           onClick={() => navigate('/catalog/products')}
@@ -116,12 +119,13 @@ export default function ProductEditorPage(): ReactNode {
 
       <div
         data-testid="product-editor-layout"
-        className="grid grid-cols-1 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,2.2fr)] gap-8"
+        data-layout="media-left-identity-right"
+        className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)]"
       >
-        <aside>
+        <aside aria-label="Imagens do produto" className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm xl:sticky xl:top-6">
           <ProductMediaPanel productId={productId} />
         </aside>
-        <section>
+        <section aria-label="Identificação do produto" className="min-w-0 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
           {activeTab === 'identity' ? (
             <ProductIdentityStep
               onSubmit={handleIdentitySubmit}
