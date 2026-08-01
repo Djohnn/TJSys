@@ -211,3 +211,16 @@ export function deleteProductPriceTier(
     tenantId,
   }) as Promise<void>
 }
+
+/** Create a barcode/EAN code for a product. */
+export function createProductCode(
+  tenantId: string,
+  productId: string,
+  body: { code_type: string; value: string; is_principal?: boolean },
+): Promise<unknown> {
+  return apiRequest<unknown>(`/catalog/products/${productId}/codes/`, {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<unknown>
+}

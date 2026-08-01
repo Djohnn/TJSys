@@ -13,6 +13,8 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import ProductForm from './ProductForm'
 import type { ProductFormData } from './catalogSchemas'
+import { toProductPayload } from './catalogSchemas'
+import { createProductCode } from './catalogApi'
 
 export default function ProductsPage() {
   const { selectedTenant } = useTenant()
@@ -56,12 +58,16 @@ export default function ProductsPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (body: ProductFormData) =>
-      apiRequest<Product>('/catalog/products/', {
-        method: 'POST',
-        tenantId,
-        body,
-      }) as Promise<Product>,
+    mutationFn: async (body: ProductFormData) => {
+      const payload = toProductPayload(body)
+      const product = await apiRequest<Product>('/catalog/products/', {
+        method: 'POST', tenantId, body: payload.product,
+      }) as Product
+      if (payload.barcode && product) {
+        try { await createProductCode(tenantId, product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
+      }
+      return product
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
       setShowForm(false)
@@ -79,12 +85,16 @@ export default function ProductsPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: ProductFormData }) =>
-      apiRequest<Product>(`/catalog/products/${id}/`, {
-        method: 'PATCH',
-        tenantId,
-        body,
-      }) as Promise<Product>,
+    mutationFn: async ({ id, body }: { id: string; body: ProductFormData }) => {
+      const payload = toProductPayload(body)
+      const product = await apiRequest<Product>(`/catalog/products/${id}/`, {
+        method: 'PATCH', tenantId, body: payload.product,
+      }) as Product
+      if (payload.barcode && product) {
+        try { await createProductCode(tenantId, product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
+      }
+      return product
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products', tenantId] })
       setEditingId(null)

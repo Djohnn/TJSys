@@ -510,3 +510,44 @@ class ProductPriceTier(TimeStampedModel, TenantScopedModel):
             )
             if dup:
                 raise ValidationError({'min_quantity': 'A tier with this quantity already exists.'})
+
+
+class Brand(TimeStampedModel, TenantScopedModel):
+    name = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'name'], condition=models.Q(is_active=True),
+                name='uniq_brand_tenant_name_active',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class ProductImage(TimeStampedModel, TenantScopedModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+    object_key = models.CharField(max_length=500)
+    alt_text = models.CharField(max_length=200, blank=True, default='')
+    is_primary = models.BooleanField(default=False)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['product', 'position']
+
+    def clean(self):
+        super().clean()
+        if self.product_id and self.tenant_id:
+            if self.product.tenant_id != self.tenant_id:
+                raise ValidationError({'product': 'Product must belong to the same tenant.'})

@@ -1,0 +1,512 @@
+<testsuites id="" name="" tests="57" failures="11" skipped="0" errors="1" time="247.778298">
+<testsuite name="admin-tenancy.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="8" failures="2" skipped="0" time="32.512" errors="0">
+<testcase name="Painel administrativo de tenancy › Dashboard exibe painel com cards de módulos" classname="admin-tenancy.spec.ts" time="2.805">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Empresas page mostra lista de empresas" classname="admin-tenancy.spec.ts" time="2.78">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Filiais page mostra lista de filiais" classname="admin-tenancy.spec.ts" time="2.952">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Membros page mostra lista de membros" classname="admin-tenancy.spec.ts" time="7.611">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\admin-tenancy-Painel-admin-ff549-age-mostra-lista-de-membros-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › admin-tenancy.spec.ts:27:3 › Painel administrativo de tenancy › Membros page mostra lista de membros 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('members-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('members-page')
+
+
+      28 |     const page = authenticatedPage
+      29 |     await page.goto('/access/members')
+    > 30 |     await expect(page.getByTestId('members-page')).toBeVisible()
+         |                                                    ^
+      31 |   })
+      32 |
+      33 |   test('Convites page permite criar convite', async ({ authenticatedPage }) => {
+        at C:\ERP\frontend\e2e\admin-tenancy.spec.ts:30:52
+
+    Error Context: ..\test-results\admin-tenancy-Painel-admin-ff549-age-mostra-lista-de-membros-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Painel administrativo de tenancy › Convites page permite criar convite" classname="admin-tenancy.spec.ts" time="3.372">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Página de segurança MFA carrega" classname="admin-tenancy.spec.ts" time="7.374">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\admin-tenancy-Painel-admin-6e9cd-na-de-segurança-MFA-carrega-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › admin-tenancy.spec.ts:46:3 › Painel administrativo de tenancy › Página de segurança MFA carrega 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('mfa-policy-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('mfa-policy-page')
+
+
+      47 |     const page = authenticatedPage
+      48 |     await page.goto('/security/mfa')
+    > 49 |     await expect(page.getByTestId('mfa-policy-page')).toBeVisible()
+         |                                                       ^
+      50 |   })
+      51 |
+      52 |   test('Dispositivos page lista dispositivos', async ({ authenticatedPage }) => {
+        at C:\ERP\frontend\e2e\admin-tenancy.spec.ts:49:55
+
+    Error Context: ..\test-results\admin-tenancy-Painel-admin-6e9cd-na-de-segurança-MFA-carrega-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Painel administrativo de tenancy › Dispositivos page lista dispositivos" classname="admin-tenancy.spec.ts" time="3.155">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Navegação admin contém links corretos" classname="admin-tenancy.spec.ts" time="2.463">
+</testcase>
+</testsuite>
+<testsuite name="auth-tenant.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="8" failures="0" skipped="0" time="14.372" errors="0">
+<testcase name="Autenticação e troca de tenant › Login com credenciais válidas redireciona para o dashboard" classname="auth-tenant.spec.ts" time="1.96">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Login com credenciais inválidas mostra erro" classname="auth-tenant.spec.ts" time="1.884">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Seletor de tenant aparece quando há múltiplos tenants" classname="auth-tenant.spec.ts" time="1.98">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Troca de tenant exibe novo tenant no seletor" classname="auth-tenant.spec.ts" time="2.067">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Logout redireciona para página de login" classname="auth-tenant.spec.ts" time="2.13">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Após logout, navegação ao dashboard retorna ao login" classname="auth-tenant.spec.ts" time="2.374">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Usuário não autenticado é redirecionado ao login" classname="auth-tenant.spec.ts" time="1.042">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Página MFA sem pré-sessão retorna ao login" classname="auth-tenant.spec.ts" time="0.935">
+</testcase>
+</testsuite>
+<testsuite name="catalog-inventory-purchasing.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="8" failures="0" skipped="0" time="21.588" errors="0">
+<testcase name="Catálogo, Estoque e Compras › Catálogo — lista de produtos carrega" classname="catalog-inventory-purchasing.spec.ts" time="2.78">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Catálogo — busca por nome filtra produtos" classname="catalog-inventory-purchasing.spec.ts" time="2.862">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Catálogo — categorias podem ser criadas" classname="catalog-inventory-purchasing.spec.ts" time="2.838">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Estoque — saldos carregam com filtros" classname="catalog-inventory-purchasing.spec.ts" time="2.519">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Estoque — movimentações têm filtro de data" classname="catalog-inventory-purchasing.spec.ts" time="2.814">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Compras — fornecedores podem ser criados" classname="catalog-inventory-purchasing.spec.ts" time="2.751">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Compras — ordens de compra listam" classname="catalog-inventory-purchasing.spec.ts" time="2.404">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Navegação contém links do módulo" classname="catalog-inventory-purchasing.spec.ts" time="2.62">
+</testcase>
+</testsuite>
+<testsuite name="pdv-management-financial.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="8" failures="2" skipped="0" time="32.61" errors="0">
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — lista de vendas carrega" classname="pdv-management-financial.spec.ts" time="2.635">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — detalhe de venda mostra itens" classname="pdv-management-financial.spec.ts" time="7.66">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\pdv-management-financial-G-71730-talhe-de-venda-mostra-itens-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › pdv-management-financial.spec.ts:12:3 › Gestão de PDV, Pessoas e Financeiro › Vendas — detalhe de venda mostra itens 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('sale-detail-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('sale-detail-page')
+
+
+      18 |     await expect(firstSaleLink).toBeVisible()
+      19 |     await firstSaleLink.click()
+    > 20 |     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
+         |                                                        ^
+      21 |     await expect(page.getByTestId('sale-items-table')).toBeVisible()
+      22 |   })
+      23 |
+        at C:\ERP\frontend\e2e\pdv-management-financial.spec.ts:20:56
+
+    Error Context: ..\test-results\pdv-management-financial-G-71730-talhe-de-venda-mostra-itens-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — nenhuma ação de nova venda" classname="pdv-management-financial.spec.ts" time="2.786">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Sessões de caixa — lista carrega" classname="pdv-management-financial.spec.ts" time="3.175">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Pessoas — lista com busca" classname="pdv-management-financial.spec.ts" time="2.495">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Pessoas — detalhe mostra seções" classname="pdv-management-financial.spec.ts" time="7.911">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\pdv-management-financial-G-181be-oas-—-detalhe-mostra-seções-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › pdv-management-financial.spec.ts:50:3 › Gestão de PDV, Pessoas e Financeiro › Pessoas — detalhe mostra seções 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('person-detail-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('person-detail-page')
+
+
+      56 |     await expect(firstPersonLink).toBeVisible()
+      57 |     await firstPersonLink.click()
+    > 58 |     await expect(page.getByTestId('person-detail-page')).toBeVisible()
+         |                                                          ^
+      59 |     await expect(page.getByTestId('person-info')).toBeVisible()
+      60 |   })
+      61 |
+        at C:\ERP\frontend\e2e\pdv-management-financial.spec.ts:58:58
+
+    Error Context: ..\test-results\pdv-management-financial-G-181be-oas-—-detalhe-mostra-seções-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Financeiro — contas a receber" classname="pdv-management-financial.spec.ts" time="3.115">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Financeiro — fluxo de caixa" classname="pdv-management-financial.spec.ts" time="2.833">
+</testcase>
+</testsuite>
+<testsuite name="release\01-auth-tenancy.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="6" failures="2" skipped="0" time="20.155" errors="0">
+<testcase name="Autenticação e Tenancy › Login bem-sucedido redireciona para o dashboard" classname="release\01-auth-tenancy.spec.ts" time="2.637">
+</testcase>
+<testcase name="Autenticação e Tenancy › Desafio MFA é apresentado quando conta requer MFA" classname="release\01-auth-tenancy.spec.ts" time="1.915">
+</testcase>
+<testcase name="Autenticação e Tenancy › Seletor de tenant está visível no dashboard" classname="release\01-auth-tenancy.spec.ts" time="2.582">
+</testcase>
+<testcase name="Autenticação e Tenancy › Navegação exibe todos os links de módulos principais" classname="release\01-auth-tenancy.spec.ts" time="2.497">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-01-auth-tenancy-Au-15dc9-links-de-módulos-principais-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\01-auth-tenancy.spec.ts:26:3 › Autenticação e Tenancy › Navegação exibe todos os links de módulos principais 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('link', { name: 'Catálogo' })
+    Expected: visible
+    Error: strict mode violation: getByRole('link', { name: 'Catálogo' }) resolved to 2 elements:
+        1) <a href="/catalog" data-discover="true" class="block px-4 py-2 mx-2 rounded-lg text-sm font-medium transition-colors text-neutral-300 hover:bg-neutral-700 hover:text-white">Catálogo</a> aka getByTestId('main-navigation').getByRole('link', { name: 'Catálogo' })
+        2) <a href="/catalog" data-discover="true" data-testid="card-catalog" class="block p-5 rounded-xl border border-border bg-primary-50 hover:bg-primary-100 hover:border-primary-300 transition-all no-underline">…</a> aka getByTestId('card-catalog')
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('link', { name: 'Catálogo' })
+
+
+      40 |     ]
+      41 |     for (const label of moduleLinks) {
+    > 42 |       await expect(page.getByRole('link', { name: label })).toBeVisible()
+         |                                                             ^
+      43 |     }
+      44 |   })
+      45 |
+        at C:\ERP\frontend\e2e\release\01-auth-tenancy.spec.ts:42:61
+
+    Error Context: ..\test-results\release-01-auth-tenancy-Au-15dc9-links-de-módulos-principais-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Autenticação e Tenancy › Recuperação de sessão expirada — rota protegida sem auth → login → retorno" classname="release\01-auth-tenancy.spec.ts" time="3.203">
+</testcase>
+<testcase name="Autenticação e Tenancy › Negação de papel — operador não pode acessar páginas somente-admin" classname="release\01-auth-tenancy.spec.ts" time="7.321">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-01-auth-tenancy-Au-e5937-essar-páginas-somente-admin-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\01-auth-tenancy.spec.ts:56:3 › Autenticação e Tenancy › Negação de papel — operador não pode acessar páginas somente-admin 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('forbidden-page').or(getByRole('alert'))
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('forbidden-page').or(getByRole('alert'))
+
+
+      58 |
+      59 |     await page.goto('/fiscal/emitters')
+    > 60 |     await expect(page.getByTestId('forbidden-page').or(page.getByRole('alert'))).toBeVisible()
+         |                                                                                  ^
+      61 |   })
+      62 | })
+      63 |
+        at C:\ERP\frontend\e2e\release\01-auth-tenancy.spec.ts:60:82
+
+    Error Context: ..\test-results\release-01-auth-tenancy-Au-e5937-essar-páginas-somente-admin-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="release\02-catalog-purchasing.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="8" failures="2" skipped="0" time="33.707" errors="0">
+<testcase name="Catálogo, Estoque e Compras › Lista de produtos exibe tabela com data-testid" classname="release\02-catalog-purchasing.spec.ts" time="3.067">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Busca de produtos funciona" classname="release\02-catalog-purchasing.spec.ts" time="2.884">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de categorias carrega e exibe tabela" classname="release\02-catalog-purchasing.spec.ts" time="2.752">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Saldos de inventário exibem dados" classname="release\02-catalog-purchasing.spec.ts" time="2.84">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Movimentações de inventário filtram por data" classname="release\02-catalog-purchasing.spec.ts" time="2.85">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de fornecedores carrega" classname="release\02-catalog-purchasing.spec.ts" time="2.933">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de ordens de compra exibe dados" classname="release\02-catalog-purchasing.spec.ts" time="7.696">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-02-catalog-purchas-f71a2-rdens-de-compra-exibe-dados-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\02-catalog-purchasing.spec.ts:51:3 › Catálogo, Estoque e Compras › Lista de ordens de compra exibe dados 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('orders-table')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('orders-table')
+
+
+      53 |     await page.goto('/purchasing/orders')
+      54 |     await expect(page.getByTestId('purchase-orders-page')).toBeVisible()
+    > 55 |     await expect(page.getByTestId('orders-table')).toBeVisible()
+         |                                                    ^
+      56 |   })
+      57 |
+      58 |   test('Navegação catálogo → compras — vai de produtos para ordens', async ({ authenticatedPage }) => {
+        at C:\ERP\frontend\e2e\release\02-catalog-purchasing.spec.ts:55:52
+
+    Error Context: ..\test-results\release-02-catalog-purchas-f71a2-rdens-de-compra-exibe-dados-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Navegação catálogo → compras — vai de produtos para ordens" classname="release\02-catalog-purchasing.spec.ts" time="8.685">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-02-catalog-purchas-894c1-vai-de-produtos-para-ordens-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\02-catalog-purchasing.spec.ts:58:3 › Catálogo, Estoque e Compras › Navegação catálogo → compras — vai de produtos para ordens 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('orders-table')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('orders-table')
+
+
+      63 |     await page.goto('/purchasing/orders')
+      64 |     await expect(page.getByTestId('purchase-orders-page')).toBeVisible()
+    > 65 |     await expect(page.getByTestId('orders-table')).toBeVisible()
+         |                                                    ^
+      66 |   })
+      67 | })
+      68 |
+        at C:\ERP\frontend\e2e\release\02-catalog-purchasing.spec.ts:65:52
+
+    Error Context: ..\test-results\release-02-catalog-purchas-894c1-vai-de-produtos-para-ordens-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="release\03-pdv-management.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="6" failures="3" skipped="0" time="33.699" errors="0">
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de vendas carrega" classname="release\03-pdv-management.spec.ts" time="3.095">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Detalhe da venda exibe itens e pagamentos" classname="release\03-pdv-management.spec.ts" time="7.791">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-03-pdv-management--811e9-da-exibe-itens-e-pagamentos-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\03-pdv-management.spec.ts:12:3 › PDV, Pessoas e Sessões de Caixa › Detalhe da venda exibe itens e pagamentos 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('sale-detail-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('sale-detail-page')
+
+
+      18 |     await expect(firstSaleLink).toBeVisible()
+      19 |     await firstSaleLink.click()
+    > 20 |     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
+         |                                                        ^
+      21 |     await expect(page.getByTestId('sale-items-table')).toBeVisible()
+      22 |     await expect(page.getByTestId('sale-payments-table')).toBeVisible()
+      23 |   })
+        at C:\ERP\frontend\e2e\release\03-pdv-management.spec.ts:20:56
+
+    Error Context: ..\test-results\release-03-pdv-management--811e9-da-exibe-itens-e-pagamentos-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Diálogo de estorno (ReturnDialog) não está disponível no detalhe E2E" classname="release\03-pdv-management.spec.ts" time="8.44">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-03-pdv-management--bec19-á-disponível-no-detalhe-E2E-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\03-pdv-management.spec.ts:25:3 › PDV, Pessoas e Sessões de Caixa › Diálogo de estorno (ReturnDialog) não está disponível no detalhe E2E 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('sale-detail-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('sale-detail-page')
+
+
+      28 |     const firstSaleLink = page.locator('[data-testid="sale-row"]').first().getByRole('link')
+      29 |     await firstSaleLink.click()
+    > 30 |     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
+         |                                                        ^
+      31 |     await expect(page.getByTestId('return-dialog')).toHaveCount(0)
+      32 |   })
+      33 |
+        at C:\ERP\frontend\e2e\release\03-pdv-management.spec.ts:30:56
+
+    Error Context: ..\test-results\release-03-pdv-management--bec19-á-disponível-no-detalhe-E2E-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de sessões de caixa carrega" classname="release\03-pdv-management.spec.ts" time="3.624">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de pessoas carrega com busca" classname="release\03-pdv-management.spec.ts" time="2.877">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Detalhe da pessoa exibe seções de informação" classname="release\03-pdv-management.spec.ts" time="7.872">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-03-pdv-management--f38e6--exibe-seções-de-informação-chromium\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › release\03-pdv-management.spec.ts:53:3 › PDV, Pessoas e Sessões de Caixa › Detalhe da pessoa exibe seções de informação 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('person-detail-page')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByTestId('person-detail-page')
+
+
+      59 |     await expect(firstPersonLink).toBeVisible()
+      60 |     await firstPersonLink.click()
+    > 61 |     await expect(page.getByTestId('person-detail-page')).toBeVisible()
+         |                                                          ^
+      62 |     await expect(page.getByTestId('person-info')).toBeVisible()
+      63 |   })
+      64 | })
+        at C:\ERP\frontend\e2e\release\03-pdv-management.spec.ts:61:58
+
+    Error Context: ..\test-results\release-03-pdv-management--f38e6--exibe-seções-de-informação-chromium\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="release\05-security-resilience.spec.ts" timestamp="2026-07-26T01:10:43.298Z" hostname="chromium" tests="5" failures="0" skipped="0" time="43.342" errors="1">
+<testcase name="Segurança e Resiliência › Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant" classname="release\05-security-resilience.spec.ts" time="30.031">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results\release-05-security-resili-bf2fc-ão-vê-dados-de-outro-tenant-chromium\error-context.md]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  [chromium] › release\05-security-resilience.spec.ts:6:3 › Segurança e Resiliência › Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.textContent: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('[data-testid="receivable-row"]').first()
+
+
+      25 |         .locator('[data-testid="receivable-row"]')
+      26 |         .first()
+    > 27 |         .textContent()
+         |          ^
+      28 |       expect(firstRowAfter).not.toEqual(firstRowBefore)
+      29 |     }
+      30 |   })
+        at C:\ERP\frontend\e2e\release\05-security-resilience.spec.ts:27:10
+
+    Error Context: ..\test-results\release-05-security-resili-bf2fc-ão-vê-dados-de-outro-tenant-chromium\error-context.md
+]]>
+</error>
+</testcase>
+<testcase name="Segurança e Resiliência › Expiração de sessão — cookies limpos → redireciona ao login" classname="release\05-security-resilience.spec.ts" time="3.497">
+</testcase>
+<testcase name="Segurança e Resiliência › Recuperação de erro de rede — intercept falha e depois sucesso" classname="release\05-security-resilience.spec.ts" time="2.811">
+</testcase>
+<testcase name="Segurança e Resiliência › Navegação browser voltar/avançar preserva estado" classname="release\05-security-resilience.spec.ts" time="4.245">
+</testcase>
+<testcase name="Segurança e Resiliência › Auditoria de acessibilidade no dashboard sem violações críticas ou sérias" classname="release\05-security-resilience.spec.ts" time="2.758">
+</testcase>
+</testsuite>
+</testsuites>

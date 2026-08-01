@@ -1,0 +1,50 @@
+<h2>Direção visual do novo Catálogo Zyrp</h2>
+<p class="subtitle">As duas opções preservam as sete funções da referência. Escolha o grau de fidelidade visual.</p>
+
+<div class="cards">
+  <div class="card" data-choice="fiel" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#70aa36;padding:16px;min-height:420px;color:white;font-family:Arial,sans-serif">
+      <div style="display:grid;grid-template-columns:78px 1fr;gap:20px">
+        <aside style="display:flex;flex-direction:column;gap:22px;text-align:center;font-size:11px">
+          <div style="font-size:31px">⌂</div><div>☆<br>FAVORITOS</div><div style="color:#fff200">▥<br>CATÁLOGO</div><div>◇<br>VENDAS</div><div>▤<br>ESTOQUE</div>
+        </aside>
+        <main>
+          <div style="background:#171717;padding:16px;margin:-16px -16px 24px;font-weight:bold;font-size:20px">ZYRP <span style="color:#fff200;font-size:11px">ERP</span></div>
+          <div style="display:flex;flex-direction:column;gap:24px;font-weight:bold;font-size:13px">
+            <div>PRODUTOS</div><div>SERVIÇOS</div><div>COMBO</div><div>CATEGORIAS</div><div>MARCAS</div><div>UNIDADES DE MEDIDA</div><div>IMPRESSÃO DE ETIQUETAS</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Fidelidade estrutural</h3>
+      <p>Menu verde em duas colunas, tipografia compacta, ícones lineares e destaque amarelo. É a opção mais próxima da captura.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="zyrp" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f7f2;padding:16px;min-height:420px;color:#203121;font-family:system-ui,sans-serif">
+      <div style="display:grid;grid-template-columns:86px 1fr;gap:18px">
+        <aside style="background:#244b35;border-radius:18px;padding:18px 8px;color:white;display:flex;flex-direction:column;gap:22px;text-align:center;font-size:10px;box-shadow:0 15px 30px #16352533">
+          <div style="font-size:26px">⌂</div><div>☆<br>FAVORITOS</div><div style="background:#d9f23d;color:#183523;border-radius:12px;padding:9px 3px">▥<br>CATÁLOGO</div><div>◇<br>VENDAS</div><div>▤<br>ESTOQUE</div>
+        </aside>
+        <main>
+          <div style="margin-bottom:20px"><strong style="font-size:22px">Catálogo</strong><div style="color:#68806e;font-size:12px">Cadastros e operações comerciais</div></div>
+          <div style="display:grid;gap:10px">
+            <div style="background:white;border-left:4px solid #66a83c;padding:13px;border-radius:10px;box-shadow:0 3px 12px #244b3518"><b>Produtos</b><small style="display:block;color:#718074">Itens, preços, fiscal e estoque</small></div>
+            <div style="background:white;padding:13px;border-radius:10px">Serviços</div><div style="background:white;padding:13px;border-radius:10px">Combo</div><div style="background:white;padding:13px;border-radius:10px">Categorias</div><div style="background:white;padding:13px;border-radius:10px">Marcas</div><div style="background:white;padding:13px;border-radius:10px">Unidades de Medida</div><div style="background:white;padding:13px;border-radius:10px">Impressão de Etiquetas</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Adaptação Zyrp</h3>
+      <p>Mantém a hierarquia e o verde da referência, mas usa componentes atuais, melhor legibilidade, responsividade e acessibilidade.</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros"><h4>Recomendação</h4><ul><li>Opção B preserva a identidade funcional sem parecer uma cópia.</li><li>Integra melhor ao frontend React/Tailwind existente.</li><li>Reduz risco de acessibilidade e adaptação mobile.</li></ul></div>
+  <div class="cons"><h4>Trade-off</h4><ul><li>Opção A é visualmente mais fiel, mas herda densidade e padrões antigos.</li><li>Opção B moderniza espaçamento e componentes.</li></ul></div>
+</div>

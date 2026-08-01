@@ -5,10 +5,12 @@ from rest_framework import serializers
 
 from catalog.models import (
     BranchPrice,
+    Brand,
     Category,
     Product,
     ProductCode,
     ProductFiscalData,
+    ProductImage,
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
@@ -197,3 +199,17 @@ class ProductPriceTierSerializer(FullCleanModelSerializer):
             'version',
         ]
         read_only_fields = ['id', 'version']
+
+
+class BrandSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = Brand
+        fields = ['id', 'name', 'is_active', 'version']
+        read_only_fields = ['id', 'version']
+
+
+class ProductImageSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'product', 'object_key', 'alt_text', 'is_primary', 'position']
+        read_only_fields = ['id', 'product']

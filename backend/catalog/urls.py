@@ -3,10 +3,12 @@ from rest_framework.routers import DefaultRouter
 
 from catalog.views import (
     BranchPriceViewSet,
+    BrandViewSet,
     CategoryViewSet,
     EffectivePriceView,
     ProductCodeViewSet,
     ProductFiscalDataView,
+    ProductImageViewSet,
     ProductPriceTierViewSet,
     ProductPriceViewSet,
     ProductUnitViewSet,
@@ -18,6 +20,7 @@ router = DefaultRouter()
 router.register('categories', CategoryViewSet, basename='category')
 router.register('units', UnitViewSet, basename='unit')
 router.register('products', ProductViewSet, basename='product')
+router.register('brands', BrandViewSet, basename='brand')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -140,5 +143,16 @@ urlpatterns = [
             }
         ),
         name='product-price-tier-detail',
+    ),
+    # Sprint 24 — ProductImage (collection nested under product)
+    path(
+        'products/<uuid:product_pk>/images/',
+        ProductImageViewSet.as_view({'get': 'list', 'post': 'create'}),
+        name='product-image-list',
+    ),
+    path(
+        'products/<uuid:product_pk>/images/<uuid:pk>/',
+        ProductImageViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}),
+        name='product-image-detail',
     ),
 ]

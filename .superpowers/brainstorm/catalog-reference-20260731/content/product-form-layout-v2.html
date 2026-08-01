@@ -1,0 +1,71 @@
+<h2>Cadastro de Produto — layout revisado</h2>
+<p class="subtitle">Imagem à esquerda e identificação à direita, mantendo a paleta atual do Zyrp.</p>
+
+<div class="mockup">
+  <div class="mockup-header" style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb">
+    <div><strong style="color:#111827">Novo produto</strong><span style="color:#6b7280;margin-left:10px;font-size:12px">Cadastro completo</span></div>
+    <div><button style="border:1px solid #e5e7eb;background:white;border-radius:8px;padding:7px 12px;color:#374151">Cancelar</button> <button style="border:0;background:#2563eb;color:white;border-radius:8px;padding:8px 14px">Salvar produto</button></div>
+  </div>
+  <div class="mockup-body" style="background:#f9fafb;padding:18px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span style="background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:7px 13px;font-weight:700">1. Identificação</span>
+      <span style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:7px 13px">2. Preços</span>
+      <span style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:7px 13px">3. Estoque</span>
+      <span style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:7px 13px">4. Fiscal</span>
+      <span style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:7px 13px">5. Composição</span>
+      <span style="background:white;border:1px solid #e5e7eb;border-radius:999px;padding:7px 13px">6. Canais</span>
+    </div>
+
+    <section style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:18px">
+      <div style="display:grid;grid-template-columns:minmax(210px,0.8fr) minmax(0,2.2fr);gap:22px">
+        <aside>
+          <div style="aspect-ratio:1/1;border:2px dashed #93c5fd;background:#eff6ff;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#2563eb;text-align:center;padding:16px">
+            <div style="font-size:42px;margin-bottom:8px">▧</div>
+            <strong>Imagem principal</strong>
+            <small style="color:#5b75a6">PNG ou JPG · até 5 MB</small>
+          </div>
+          <button style="width:100%;margin-top:10px;border:1px solid #bfdbfe;background:white;color:#2563eb;border-radius:8px;padding:9px;font-weight:600">Enviar imagem</button>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px">
+            <div style="aspect-ratio:1;border:1px solid #dbeafe;border-radius:8px;background:#f8fbff"></div>
+            <div style="aspect-ratio:1;border:1px dashed #bfdbfe;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#60a5fa">+</div>
+            <div style="aspect-ratio:1;border:1px dashed #bfdbfe;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#60a5fa">+</div>
+          </div>
+        </aside>
+
+        <main>
+          <h3 style="margin-top:0;color:#111827">Identificação do produto</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+            <label style="grid-column:1/-1;color:#374151;font-size:12px">Descrição *<input style="display:block;width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px" value="Ração Premium 10 kg" readonly></label>
+            <label style="color:#374151;font-size:12px">Código interno<input style="display:block;width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px" value="RAC-10KG" readonly></label>
+            <label style="color:#374151;font-size:12px">Código de barras<input style="display:block;width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px" value="7891234567895" readonly></label>
+            <label style="color:#374151;font-size:12px">Tipo de item<select style="display:block;width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px"><option>Produto para revenda</option></select></label>
+            <label style="color:#374151;font-size:12px">Unidade de medida<select style="display:block;width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px"><option>Unidade (UN)</option></select></label>
+            <label style="color:#374151;font-size:12px">Categoria<select style="display:block;width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px"><option>Alimentos para animais</option></select></label>
+            <label style="color:#374151;font-size:12px">Subcategoria<select style="display:block;width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px"><option>Rações</option></select></label>
+            <label style="color:#374151;font-size:12px">Marca<select style="display:block;width:100%;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px"><option>Marca Exemplo</option></select></label>
+            <label style="color:#374151;font-size:12px">Modelo<input style="display:block;width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:9px;margin-top:4px" value="Premium Adultos" readonly></label>
+          </div>
+        </main>
+      </div>
+
+      <div style="display:flex;gap:22px;flex-wrap:wrap;margin-top:18px;padding:12px 14px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;font-size:12px;color:#6b7280">
+        <span>Status: <strong style="color:#16a34a">Ativo</strong></span>
+        <span>Estoque: <strong style="color:#374151">Controlado</strong></span>
+        <span>Fiscal: <strong style="color:#ca8a04">Pendente</strong></span>
+        <span>Preço: <strong style="color:#ca8a04">Pendente</strong></span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Responsividade</h3>
+  <p>Em telas menores, a imagem fica acima dos campos. No desktop, permanece fixa à esquerda enquanto a identificação ocupa a área principal à direita.</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="aprovar-imagem-esquerda" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>Aprovar imagem à esquerda</h3><p>Registrar esta composição como padrão do cadastro na Sprint 24.</p></div>
+  </div>
+</div>

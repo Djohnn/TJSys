@@ -1,0 +1,154 @@
+<testsuites id="" name="" tests="66" failures="0" skipped="0" errors="0" time="188.55541499999998">
+<testsuite name="accessibility.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="2" failures="0" skipped="0" time="5.574" errors="0">
+<testcase name="Acessibilidade (axe-core) › Página de login não possui violações críticas ou sérias" classname="accessibility.spec.ts" time="2.235">
+</testcase>
+<testcase name="Acessibilidade (axe-core) › Shell autenticado não possui violações críticas ou sérias" classname="accessibility.spec.ts" time="3.339">
+</testcase>
+</testsuite>
+<testsuite name="admin-tenancy.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="8" failures="0" skipped="0" time="22.584" errors="0">
+<testcase name="Painel administrativo de tenancy › Dashboard exibe painel com cards de módulos" classname="admin-tenancy.spec.ts" time="2.503">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Empresas page mostra lista de empresas" classname="admin-tenancy.spec.ts" time="2.945">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Filiais page mostra lista de filiais" classname="admin-tenancy.spec.ts" time="2.965">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Membros page mostra lista de membros" classname="admin-tenancy.spec.ts" time="2.71">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Convites page permite criar convite" classname="admin-tenancy.spec.ts" time="3.071">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Página de segurança MFA carrega" classname="admin-tenancy.spec.ts" time="2.674">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Dispositivos page lista dispositivos" classname="admin-tenancy.spec.ts" time="2.959">
+</testcase>
+<testcase name="Painel administrativo de tenancy › Navegação admin contém links corretos" classname="admin-tenancy.spec.ts" time="2.757">
+</testcase>
+</testsuite>
+<testsuite name="auth-tenant.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="8" failures="0" skipped="0" time="15.222" errors="0">
+<testcase name="Autenticação e troca de tenant › Login com credenciais válidas redireciona para o dashboard" classname="auth-tenant.spec.ts" time="2.097">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Login com credenciais inválidas mostra erro" classname="auth-tenant.spec.ts" time="1.93">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Seletor de tenant aparece quando há múltiplos tenants" classname="auth-tenant.spec.ts" time="2.087">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Troca de tenant exibe novo tenant no seletor" classname="auth-tenant.spec.ts" time="2.139">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Logout redireciona para página de login" classname="auth-tenant.spec.ts" time="2.359">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Após logout, navegação ao dashboard retorna ao login" classname="auth-tenant.spec.ts" time="2.584">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Usuário não autenticado é redirecionado ao login" classname="auth-tenant.spec.ts" time="1.078">
+</testcase>
+<testcase name="Autenticação e troca de tenant › Página MFA sem pré-sessão retorna ao login" classname="auth-tenant.spec.ts" time="0.948">
+</testcase>
+</testsuite>
+<testsuite name="catalog-inventory-purchasing.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="8" failures="0" skipped="0" time="23.288" errors="0">
+<testcase name="Catálogo, Estoque e Compras › Catálogo — lista de produtos carrega" classname="catalog-inventory-purchasing.spec.ts" time="2.948">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Catálogo — busca por nome filtra produtos" classname="catalog-inventory-purchasing.spec.ts" time="3.09">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Catálogo — categorias podem ser criadas" classname="catalog-inventory-purchasing.spec.ts" time="2.979">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Estoque — saldos carregam com filtros" classname="catalog-inventory-purchasing.spec.ts" time="2.961">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Estoque — movimentações têm filtro de data" classname="catalog-inventory-purchasing.spec.ts" time="2.805">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Compras — fornecedores podem ser criados" classname="catalog-inventory-purchasing.spec.ts" time="2.883">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Compras — ordens de compra listam" classname="catalog-inventory-purchasing.spec.ts" time="3.032">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Navegação contém links do módulo" classname="catalog-inventory-purchasing.spec.ts" time="2.59">
+</testcase>
+</testsuite>
+<testsuite name="pdv-management-financial.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="8" failures="0" skipped="0" time="24.303" errors="0">
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — lista de vendas carrega" classname="pdv-management-financial.spec.ts" time="2.817">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — detalhe de venda mostra itens" classname="pdv-management-financial.spec.ts" time="3.367">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Vendas — nenhuma ação de nova venda" classname="pdv-management-financial.spec.ts" time="2.687">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Sessões de caixa — lista carrega" classname="pdv-management-financial.spec.ts" time="3.48">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Pessoas — lista com busca" classname="pdv-management-financial.spec.ts" time="3.045">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Pessoas — detalhe mostra seções" classname="pdv-management-financial.spec.ts" time="3.079">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Financeiro — contas a receber" classname="pdv-management-financial.spec.ts" time="2.997">
+</testcase>
+<testcase name="Gestão de PDV, Pessoas e Financeiro › Financeiro — fluxo de caixa" classname="pdv-management-financial.spec.ts" time="2.831">
+</testcase>
+</testsuite>
+<testsuite name="release\01-auth-tenancy.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="6" failures="0" skipped="0" time="15.894" errors="0">
+<testcase name="Autenticação e Tenancy › Login bem-sucedido redireciona para o dashboard" classname="release\01-auth-tenancy.spec.ts" time="2.682">
+</testcase>
+<testcase name="Autenticação e Tenancy › Desafio MFA é apresentado quando conta requer MFA" classname="release\01-auth-tenancy.spec.ts" time="1.922">
+</testcase>
+<testcase name="Autenticação e Tenancy › Seletor de tenant está visível no dashboard" classname="release\01-auth-tenancy.spec.ts" time="2.694">
+</testcase>
+<testcase name="Autenticação e Tenancy › Navegação exibe todos os links de módulos principais" classname="release\01-auth-tenancy.spec.ts" time="2.98">
+</testcase>
+<testcase name="Autenticação e Tenancy › Recuperação de sessão expirada — rota protegida sem auth → login → retorno" classname="release\01-auth-tenancy.spec.ts" time="2.895">
+</testcase>
+<testcase name="Autenticação e Tenancy › Negação de papel — operador não pode acessar páginas somente-admin" classname="release\01-auth-tenancy.spec.ts" time="2.721">
+</testcase>
+</testsuite>
+<testsuite name="release\02-catalog-purchasing.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="8" failures="0" skipped="0" time="23.683" errors="0">
+<testcase name="Catálogo, Estoque e Compras › Lista de produtos exibe tabela com data-testid" classname="release\02-catalog-purchasing.spec.ts" time="3.21">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Busca de produtos funciona" classname="release\02-catalog-purchasing.spec.ts" time="2.998">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de categorias carrega e exibe tabela" classname="release\02-catalog-purchasing.spec.ts" time="2.813">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Saldos de inventário exibem dados" classname="release\02-catalog-purchasing.spec.ts" time="2.918">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Movimentações de inventário filtram por data" classname="release\02-catalog-purchasing.spec.ts" time="2.925">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de fornecedores carrega" classname="release\02-catalog-purchasing.spec.ts" time="2.676">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Lista de ordens de compra exibe dados" classname="release\02-catalog-purchasing.spec.ts" time="2.946">
+</testcase>
+<testcase name="Catálogo, Estoque e Compras › Navegação catálogo → compras — vai de produtos para ordens" classname="release\02-catalog-purchasing.spec.ts" time="3.197">
+</testcase>
+</testsuite>
+<testsuite name="release\03-pdv-management.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="6" failures="0" skipped="0" time="18.67" errors="0">
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de vendas carrega" classname="release\03-pdv-management.spec.ts" time="3.107">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Detalhe da venda exibe itens e pagamentos" classname="release\03-pdv-management.spec.ts" time="2.972">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Diálogo de estorno (ReturnDialog) não está disponível no detalhe E2E" classname="release\03-pdv-management.spec.ts" time="3.067">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de sessões de caixa carrega" classname="release\03-pdv-management.spec.ts" time="3.456">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Lista de pessoas carrega com busca" classname="release\03-pdv-management.spec.ts" time="2.884">
+</testcase>
+<testcase name="PDV, Pessoas e Sessões de Caixa › Detalhe da pessoa exibe seções de informação" classname="release\03-pdv-management.spec.ts" time="3.184">
+</testcase>
+</testsuite>
+<testsuite name="release\04-financial-fiscal-payments.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="7" failures="0" skipped="0" time="19.247" errors="0">
+<testcase name="Financeiro, Fiscal e Pagamentos › Lista de contas a receber carrega" classname="release\04-financial-fiscal-payments.spec.ts" time="2.828">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Lista de contas a pagar carrega com filtros de status" classname="release\04-financial-fiscal-payments.spec.ts" time="2.792">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Fluxo de caixa carrega" classname="release\04-financial-fiscal-payments.spec.ts" time="2.796">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Emitentes fiscais carregam com tabela" classname="release\04-financial-fiscal-payments.spec.ts" time="2.742">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Documentos fiscais carregam com filtro de status" classname="release\04-financial-fiscal-payments.spec.ts" time="2.721">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Configurações de provedores de pagamento exibem tabela" classname="release\04-financial-fiscal-payments.spec.ts" time="2.669">
+</testcase>
+<testcase name="Financeiro, Fiscal e Pagamentos › Dashboard de monitoramento de operações carrega com seção de saúde" classname="release\04-financial-fiscal-payments.spec.ts" time="2.699">
+</testcase>
+</testsuite>
+<testsuite name="release\05-security-resilience.spec.ts" timestamp="2026-07-26T01:25:47.975Z" hostname="chromium" tests="5" failures="0" skipped="0" time="16.976" errors="0">
+<testcase name="Segurança e Resiliência › Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant" classname="release\05-security-resilience.spec.ts" time="3.529">
+</testcase>
+<testcase name="Segurança e Resiliência › Expiração de sessão — cookies limpos → redireciona ao login" classname="release\05-security-resilience.spec.ts" time="3.182">
+</testcase>
+<testcase name="Segurança e Resiliência › Recuperação de erro de rede — intercept falha e depois sucesso" classname="release\05-security-resilience.spec.ts" time="2.752">
+</testcase>
+<testcase name="Segurança e Resiliência › Navegação browser voltar/avançar preserva estado" classname="release\05-security-resilience.spec.ts" time="4.501">
+</testcase>
+<testcase name="Segurança e Resiliência › Auditoria de acessibilidade no dashboard sem violações críticas ou sérias" classname="release\05-security-resilience.spec.ts" time="3.012">
+</testcase>
+</testsuite>
+</testsuites>

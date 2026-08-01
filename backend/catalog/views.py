@@ -8,10 +8,12 @@ from rest_framework.views import APIView
 
 from catalog.models import (
     BranchPrice,
+    Brand,
     Category,
     Product,
     ProductCode,
     ProductFiscalData,
+    ProductImage,
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
@@ -20,9 +22,11 @@ from catalog.models import (
 from catalog.permissions import CatalogCapabilityPermission, PricingCapabilityPermission
 from catalog.serializers import (
     BranchPriceSerializer,
+    BrandSerializer,
     CategorySerializer,
     ProductCodeSerializer,
     ProductFiscalDataSerializer,
+    ProductImageSerializer,
     ProductPriceSerializer,
     ProductPriceTierSerializer,
     ProductSerializer,
@@ -473,3 +477,45 @@ class EffectivePriceView(APIView):
             tenant=request.tenant,
         )
         return _resolve_effective_price_response(request, product)
+
+
+class BrandViewSet(CatalogViewSetBase):
+    queryset = Brand.objects.all()
+    serializer_class = BrandSerializer
+    filterset_fields = ['is_active']
+
+    def get_queryset(self):
+        return Brand.objects.filter(tenant=self.request.tenant).order_by('name')
+
+
+class ProductImageViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductImageSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, CatalogCapabilityPermission]
+
+    def get_queryset(self):
+        product_id = self.kwargs['product_pk']
+        return ProductImage.all_objects.filter(tenant=self.request.tenant, product_id=product_id)
+
+    def perform_create(self, serializer):
+        product = get_object_or_404(
+            Product,
+            id=self.kwargs.get('product_pk'),
+            tenant=self.request.tenant,
+        )
+        instance = serializer.save(tenant=self.request.tenant, product=product)
+        emit_catalog_event(
+            action='catalog.productimage.created',
+            event_type='catalog.productimage.created',
+            instance=instance,
+            request=self.request,
+        )
+        return instance
+
+    def perform_destroy(self, instance):
+        emit_catalog_event(
+            action='catalog.productimage.deleted',
+            event_type='catalog.productimage.deleted',
+            instance=instance,
+            request=self.request,
+        )
+        super().perform_destroy(instance)
