@@ -250,6 +250,7 @@ export default function ProductsPage() {
                             productId={product.id}
                             initialData={{
                               name: product.name,
+                              description: '',
                               sku: product.sku,
                               barcode: product.barcode,
                               category: product.category,

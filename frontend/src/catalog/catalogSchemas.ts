@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(200),
+  description: z.string().max(1000).default(''),
   sku: z.string().max(50).default(''),
   barcode: z.string().max(50).default(''),
   category: z.string().nullable().default(null),
@@ -52,3 +53,10 @@ export const priceTierSchema = z.object({
 })
 
 export type PriceTierFormData = z.infer<typeof priceTierSchema>
+
+export const compositionSchema = z.object({
+  component: z.string().min(1, 'Componente é obrigatório'),
+  quantity: z.string().min(1, 'Quantidade é obrigatória'),
+})
+
+export type CompositionFormData = z.infer<typeof compositionSchema>

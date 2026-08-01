@@ -16,9 +16,7 @@ class CatalogCapabilityPermission(BasePermission):
             self.message = 'X-Tenant-ID header is required or tenant not found.'
             return False
         membership = TenantMembership.objects.filter(
-            user=request.user,
-            tenant=tenant,
-            is_active=True,
+            user=request.user, tenant=tenant, is_active=True,
         ).first()
         if membership is None:
             self.message = f'No active membership for user={request.user.id} tenant={tenant.id}.'
@@ -29,10 +27,7 @@ class CatalogCapabilityPermission(BasePermission):
         else:
             allowed = role_allows(membership.role, self.manage_capability)
         if not allowed:
-            required_capability = (
-                self.view_capability if action in _READ_ACTIONS else self.manage_capability
-            )
-            self.message = f'Role {membership.role} lacks {required_capability} (action={action}).'
+            self.message = f'Role {membership.role} lacks {self.manage_capability if action not in _READ_ACTIONS else self.view_capability} (action={action}).'
         return allowed
 
 

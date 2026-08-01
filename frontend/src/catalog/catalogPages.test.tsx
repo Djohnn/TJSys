@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
+import { toProductPayload } from './catalogSchemas'
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
@@ -11,6 +12,8 @@ import { TenantContext } from '@/tenant/TenantProvider'
 import { server } from '@/test/server'
 
 import ProductsPage from './ProductsPage'
+import CatalogHomePage from './CatalogHomePage'
+import ProductEditorPage from './ProductEditorPage'
 import CategoriesPage from './CategoriesPage'
 import UnitsPage from './UnitsPage'
 
@@ -130,6 +133,40 @@ function renderUnitsPage(initialRoute = '/catalog/units') {
           <TenantContext.Provider value={tenantValue}>
             <Routes>
               <Route path="/catalog/units" element={<UnitsPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderCatalogHome(initialRoute = '/catalog') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog" element={<CatalogHomePage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderProductEditor(initialRoute = '/catalog/products/new') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/products/new" element={<ProductEditorPage />} />
             </Routes>
           </TenantContext.Provider>
         </AuthContext.Provider>
@@ -263,6 +300,39 @@ beforeEach(() => {
       )
     }),
     http.delete(`${BASE}/products/:id/price-tiers/:tierId/`, () => {
+      return new HttpResponse(null, { status: 204 })
+    }),
+    http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
+      if (params.id === 'p1') {
+        return HttpResponse.json({
+          id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        })
+      }
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
+        { status: 404 },
+      )
+    }),
+    http.get(`${BASE}/catalog/products/p1/composition/`, () => {
+      return HttpResponse.json([
+        { id: 'comp-1', component: 'p2', component_sku: 'SKU-B', component_name: 'Produto B', quantity: '2.00' },
+        { id: 'comp-2', component: 'p3', component_sku: 'SKU-C', component_name: 'Produto C', quantity: '1.00' },
+      ])
+    }),
+    http.post(`${BASE}/catalog/products/p1/composition/`, async ({ request }) => {
+      const body = await request.json() as { component?: string; quantity?: string }
+      return HttpResponse.json(
+        {
+          id: `comp-${Date.now()}`,
+          component: body.component ?? 'p2',
+          component_sku: 'SKU-B',
+          component_name: 'Produto B',
+          quantity: body.quantity ?? '1',
+        },
+        { status: 201 },
+      )
+    }),
+    http.delete(`${BASE}/catalog/products/p1/composition/:itemId/`, () => {
       return new HttpResponse(null, { status: 204 })
     }),
   )
@@ -755,6 +825,259 @@ describe('Product form – quick create modals', () => {
     await waitFor(() => {
       expect(screen.getByTestId('quick-unit-error')).toBeInTheDocument()
       expect(screen.getByTestId('quick-unit-symbol-input')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('Product payload contract', () => {
+  it('maps unit to base_unit and removes unit/barcode from product body', () => {
+    const payload = toProductPayload({
+      name: 'Test', sku: 'T1', unit: 'unit-1', barcode: '789123', tags: 'qa, web',
+      description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product).toHaveProperty('base_unit', 'unit-1')
+    expect(payload.product).not.toHaveProperty('unit')
+    expect(payload.product).not.toHaveProperty('barcode')
+    expect(payload.barcode).toBe('789123')
+    expect(payload.product.tags).toEqual(['qa', 'web'])
+  })
+
+  it('splits comma-separated tags into array', () => {
+    const payload = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: 'a, b , c',
+      description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product.tags).toEqual(['a', 'b', 'c'])
+  })
+
+  it('handles empty tags and barcode gracefully', () => {
+    const payload = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: '',
+      description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false,
+    })
+    expect(payload.product.tags).toEqual([])
+    expect(payload.barcode).toBe('')
+  })
+})
+
+describe('CatalogHomePage', () => {
+  it('renders 7 hub cards', () => {
+    renderCatalogHome()
+    expect(screen.getByTestId('catalog-home-page')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-produtos')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-serviços')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-combo')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-categorias')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-marcas')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-unidades')).toBeInTheDocument()
+    expect(screen.getByTestId('hub-card-etiquetas')).toBeInTheDocument()
+  })
+
+  it('card links navigate to correct routes', () => {
+    renderCatalogHome()
+    expect(screen.getByTestId('hub-card-produtos').closest('a')).toHaveAttribute('href', '/catalog/products')
+    expect(screen.getByTestId('hub-card-categorias').closest('a')).toHaveAttribute('href', '/catalog/categories')
+    expect(screen.getByTestId('hub-card-unidades').closest('a')).toHaveAttribute('href', '/catalog/units')
+  })
+})
+
+describe('ProductEditorPage', () => {
+  it('renders editor layout for new product', async () => {
+    renderProductEditor()
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-page')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('product-media-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    expect(screen.getByText('Novo Produto')).toBeInTheDocument()
+  })
+
+  it('shows back button that navigates to products list', () => {
+    renderProductEditor()
+    expect(screen.getByText('Voltar')).toBeInTheDocument()
+  })
+
+  it('shows tab navigation with 6 tabs', async () => {
+    renderProductEditor()
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('step-tab-identity')).toBeInTheDocument()
+    expect(screen.getByTestId('step-tab-prices')).toBeInTheDocument()
+    expect(screen.getByTestId('step-tab-inventory')).toBeInTheDocument()
+    expect(screen.getByTestId('step-tab-fiscal')).toBeInTheDocument()
+    expect(screen.getByTestId('step-tab-composition')).toBeInTheDocument()
+    expect(screen.getByTestId('step-tab-channels')).toBeInTheDocument()
+  })
+
+  it('identity step submits and enables other tabs', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('step-tab-prices')).toBeDisabled()
+    expect(screen.getByTestId('step-tab-fiscal')).toBeDisabled()
+
+    await user.type(screen.getByLabelText('Nome'), 'Produto Novo Teste')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-tab-prices')).not.toBeDisabled()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('step-tab-fiscal')).not.toBeDisabled()
+    })
+  })
+})
+
+function renderProductEditorEdit(productId = 'p1', initialRoute = `/catalog/products/${productId}/edit`) {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/products/:productId/edit" element={<ProductEditorPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('ProductEditorPage – quick create category', () => {
+  it('quick-created category appears in dropdown without reloading', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    const catSelect = screen.getByLabelText('Categoria') as HTMLSelectElement
+    const initialOptions = Array.from(catSelect.options).map((o) => o.textContent)
+    expect(initialOptions).not.toContain('Nova Categoria Quick')
+
+    await user.click(screen.getByTestId('quick-create-category-btn'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-cat-name-input')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByTestId('quick-cat-name-input'), 'Nova Categoria Quick')
+    await user.click(screen.getByRole('button', { name: 'Criar' }))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('quick-cat-name-input')).not.toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      const updatedOptions = Array.from(catSelect.options).map((o) => o.textContent)
+      expect(updatedOptions).toContain('Nova Categoria Quick')
+    })
+  })
+})
+
+describe('ProductEditorPage – fiscal step', () => {
+  it('loads and saves fiscal data in edit mode', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('step-tab-fiscal')).not.toBeDisabled()
+
+    await user.click(screen.getByTestId('step-tab-fiscal'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-fiscal-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fiscal-data-section')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('fiscal-ncm-input')).toHaveValue('12345678')
+
+    await user.clear(screen.getByTestId('fiscal-ncm-input'))
+    await user.type(screen.getByTestId('fiscal-ncm-input'), '87654321')
+    await user.click(screen.getByTestId('fiscal-save-button'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('fiscal-warning')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('ProductEditorPage – composition step', () => {
+  it('shows composition items for kit product', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('step-tab-composition')).not.toBeDisabled()
+
+    await user.click(screen.getByTestId('step-tab-composition'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-composition-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-table')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('SKU-B')).toBeInTheDocument()
+    expect(screen.getByText('SKU-C')).toBeInTheDocument()
+    expect(screen.getByText('1.00')).toBeInTheDocument()
+
+    expect(screen.queryByTestId('composition-kit-warning')).not.toBeInTheDocument()
+  })
+
+  it('adds a composition item', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTestId('step-tab-composition'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-composition-step')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-component-select')).toBeInTheDocument()
+    })
+
+    const componentSelect = screen.getByTestId('composition-component-select') as HTMLSelectElement
+    const optionValues = Array.from(componentSelect.options).map((o) => o.value)
+    const nonKitOption = optionValues.find((v) => v !== '' && v !== 'p1')
+
+    if (nonKitOption) {
+      await user.selectOptions(componentSelect, nonKitOption)
+    }
+
+    await user.type(screen.getByTestId('composition-quantity-input'), '3.50')
+    await user.click(screen.getByTestId('add-composition-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('composition-quantity-input')).toHaveValue('')
     })
   })
 })

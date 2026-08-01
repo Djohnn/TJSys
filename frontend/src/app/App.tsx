@@ -17,6 +17,8 @@ import InvitationsPage from '@/access/InvitationsPage'
 import MfaPolicyPage from '@/security/MfaPolicyPage'
 import DevicesPage from '@/devices/DevicesPage'
 import ProductsPage from '@/catalog/ProductsPage'
+import CatalogHomePage from '@/catalog/CatalogHomePage'
+import ProductEditorPage from '@/catalog/ProductEditorPage'
 import CategoriesPage from '@/catalog/CategoriesPage'
 import UnitsPage from '@/catalog/UnitsPage'
 import BalancesPage from '@/inventory/BalancesPage'
@@ -78,8 +80,10 @@ export default function App(): ReactNode {
             >
               <Route index element={<DashboardPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="catalog" element={<ProductsPage />} />
+              <Route path="catalog" element={<CatalogHomePage />} />
               <Route path="catalog/products" element={<ProductsPage />} />
+              <Route path="catalog/products/new" element={<ProductEditorPage />} />
+              <Route path="catalog/products/:productId/edit" element={<ProductEditorPage />} />
               <Route path="catalog/categories" element={<CategoriesPage />} />
               <Route path="catalog/units" element={<UnitsPage />} />
               <Route path="inventory" element={<BalancesPage />} />

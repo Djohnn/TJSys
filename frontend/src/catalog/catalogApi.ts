@@ -212,7 +212,56 @@ export function deleteProductPriceTier(
   }) as Promise<void>
 }
 
+export interface CompositionItem {
+  id: string
+  component: string
+  component_sku: string
+  component_name: string
+  quantity: string
+}
+
+export function fetchComposition(
+  tenantId: string,
+  productId: string,
+): Promise<CompositionItem[]> {
+  return apiRequest<CompositionItem[]>(`/catalog/products/${productId}/composition/`, {
+    tenantId,
+  }) as Promise<CompositionItem[]>
+}
+
+export function createCompositionItem(
+  tenantId: string,
+  productId: string,
+  body: Record<string, unknown>,
+): Promise<CompositionItem> {
+  return apiRequest<CompositionItem>(`/catalog/products/${productId}/composition/`, {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<CompositionItem>
+}
+
+export function deleteCompositionItem(
+  tenantId: string,
+  productId: string,
+  itemId: string,
+): Promise<void> {
+  return apiRequest<void>(`/catalog/products/${productId}/composition/${itemId}/`, {
+    method: 'DELETE',
+    tenantId,
+  }) as Promise<void>
+}
+
 /** Create a barcode/EAN code for a product. */
+export function fetchProduct(
+  tenantId: string,
+  id: string,
+): Promise<Product> {
+  return apiRequest<Product>(`/catalog/products/${id}/`, {
+    tenantId,
+  }) as Promise<Product>
+}
+
 export function createProductCode(
   tenantId: string,
   productId: string,
