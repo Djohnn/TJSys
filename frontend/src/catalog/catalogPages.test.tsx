@@ -12,6 +12,9 @@ import { TenantContext } from '@/tenant/TenantProvider'
 import { server } from '@/test/server'
 
 import ProductsPage from './ProductsPage'
+import ServicesPage from './ServicesPage'
+import ServiceEditorPage from './ServiceEditorPage'
+import { toServicePayload } from './catalogSchemas'
 import CatalogHomePage from './CatalogHomePage'
 import ProductEditorPage from './ProductEditorPage'
 import CategoriesPage from './CategoriesPage'
@@ -1231,5 +1234,159 @@ describe('UnitsPage – search and pagination', () => {
     })
     expect(screen.getByTestId('unit-search-input')).toBeInTheDocument()
     expect(screen.getByText(/página 1 de 2/i)).toBeInTheDocument()
+  })
+})
+
+const SERVICES_LIST = {
+  count: 2,
+  next: null,
+  previous: null,
+  results: [
+    { id: 's1', name: 'Consultoria', sku: 'SVC-001', billing_unit: 'hora', duration_minutes: 60, price: '150.00', is_active: true },
+    { id: 's2', name: 'Suporte', sku: 'SVC-002', billing_unit: 'unidade', duration_minutes: 30, price: '80.00', is_active: false },
+  ],
+}
+
+const SERVICES_SEARCH = {
+  count: 1,
+  next: null,
+  previous: null,
+  results: [
+    { id: 's1', name: 'Consultoria', sku: 'SVC-001', billing_unit: 'hora', duration_minutes: 60, price: '150.00', is_active: true },
+  ],
+}
+
+function renderServicesPage(initialRoute = '/catalog/services') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/services" element={<ServicesPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderServiceEditor(initialRoute = '/catalog/services/new') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/services/new" element={<ServiceEditorPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('ServicesPage', () => {
+  beforeEach(() => {
+    server.use(
+      http.get(`${BASE}/catalog/products/`, ({ request }) => {
+        const url = new URL(request.url)
+        const productKind = url.searchParams.get('product_kind')
+        const q = url.searchParams.get('q')
+        if (productKind === 'servico' && q) return HttpResponse.json(SERVICES_SEARCH)
+        if (productKind === 'servico') return HttpResponse.json(SERVICES_LIST)
+        return HttpResponse.json(PRODUCTS_ALL)
+      }),
+      http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
+      http.get(`${BASE}/catalog/units/`, () => HttpResponse.json(UNITS)),
+    )
+  })
+
+  it('ServicesPage renders with search', async () => {
+    renderServicesPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('services-page')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Consultoria')).toBeInTheDocument()
+    expect(screen.getByText('Suporte')).toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar serviços')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /novo serviço/i })).toBeInTheDocument()
+
+    const searchInput = screen.getByLabelText('Buscar serviços')
+    await user.type(searchInput, 'Consultoria')
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Consultoria')).toBeInTheDocument()
+      expect(screen.queryByText('Suporte')).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe('ServiceEditorPage', () => {
+  beforeEach(() => {
+    server.use(
+      http.post(`${BASE}/catalog/products/`, async ({ request }) => {
+        const body = (await request.json()) as { tracks_inventory?: boolean; name?: string }
+        if (body.tracks_inventory === true) {
+          return HttpResponse.json(
+            { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Serviços não controlam estoque.', errors: { tracks_inventory: ['Serviços não podem controlar estoque.'] } },
+            { status: 422 },
+          )
+        }
+        return HttpResponse.json(
+          { id: 's-new', name: body.name ?? '', sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: 'servico', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
+          { status: 201 },
+        )
+      }),
+      http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
+      http.get(`${BASE}/catalog/units/`, () => HttpResponse.json(UNITS)),
+    )
+  })
+
+  it('ServiceEditorPage shows service-specific fields (billing_unit, duration)', async () => {
+    renderServiceEditor()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('service-editor-page')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('service-editor-form')).toBeInTheDocument()
+    expect(screen.getByTestId('service-billing-unit-input')).toBeInTheDocument()
+    expect(screen.getByTestId('service-duration-input')).toBeInTheDocument()
+    expect(screen.getByTestId('service-price-input')).toBeInTheDocument()
+    expect(screen.getByText('Novo Serviço')).toBeInTheDocument()
+
+    expect(screen.queryByTestId('product-tracks-inventory-checkbox')).not.toBeInTheDocument()
+  })
+
+  it('Creating service rejects tracks_inventory', () => {
+    const payload = toServicePayload({
+      name: 'Serviço Teste',
+      sku: '',
+      description: '',
+      category: null,
+      unit: null,
+      is_active: true,
+      price: '100.00',
+      billing_unit: 'hora',
+      duration_minutes: 60,
+      ncm: '',
+      cest: '',
+      origin_code: '0',
+      fiscal_class: '',
+    })
+
+    expect(payload.product.product_kind).toBe('servico')
+    expect(payload.product.tracks_inventory).toBe(false)
+    expect(payload.product).toHaveProperty('billing_unit', 'hora')
+    expect(payload.product).toHaveProperty('duration_minutes', 60)
   })
 })

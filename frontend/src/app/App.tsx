@@ -19,6 +19,8 @@ import DevicesPage from '@/devices/DevicesPage'
 import ProductsPage from '@/catalog/ProductsPage'
 import CatalogHomePage from '@/catalog/CatalogHomePage'
 import ProductEditorPage from '@/catalog/ProductEditorPage'
+import ServicesPage from '@/catalog/ServicesPage'
+import ServiceEditorPage from '@/catalog/ServiceEditorPage'
 import CategoriesPage from '@/catalog/CategoriesPage'
 import UnitsPage from '@/catalog/UnitsPage'
 import BrandsPage from '@/catalog/BrandsPage'
@@ -85,6 +87,9 @@ export default function App(): ReactNode {
               <Route path="catalog/products" element={<ProductsPage />} />
               <Route path="catalog/products/new" element={<ProductEditorPage />} />
               <Route path="catalog/products/:productId/edit" element={<ProductEditorPage />} />
+              <Route path="catalog/services" element={<ServicesPage />} />
+              <Route path="catalog/services/new" element={<ServiceEditorPage />} />
+              <Route path="catalog/services/:id/edit" element={<ServiceEditorPage />} />
               <Route path="catalog/categories" element={<CategoriesPage />} />
               <Route path="catalog/units" element={<UnitsPage />} />
               <Route path="catalog/brands" element={<BrandsPage />} />
