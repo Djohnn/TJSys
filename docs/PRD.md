@@ -62,6 +62,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 20 | Concluída | Fiscal, pagamentos, observabilidade, E2E aceite |
 | 21 | Concluída | Estilização Tailwind CSS de todo o frontend |
 | 22 | Concluída | Refatoração do catálogo (fiscal-data, price-tiers, novos campos) |
+| 23 | Concluída | Kit composition with inventory decomposition |
 
 ---
 
@@ -1131,6 +1132,28 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ---
 
+### Sprint 23 — Kit Composition with Inventory Decomposition
+
+**Estado:** Concluída em 2026-07-31.
+**Objetivo:** implementar composição de kits e decomposição de estoque.
+
+**Entregável:** tela de composição no frontend, API de composição e decomposição de estoque.
+
+#### 23.1 Frontend composition screens
+
+- [x] Atualizar `ProductCompositionStep` com fetch/criação/exclusão real de composição.
+- [x] Adicionar `fetchComposition`, `createCompositionItem`, `deleteCompositionItem` no `catalogApi`.
+- [x] Adicionar testes Vitest para aba de composição e criação de item.
+- [x] Adicionar `compositionSchema` no `catalogSchemas`.
+
+#### 23.2 PRD e encerramento
+
+- [x] Atualizar PRD.md com entrada da Sprint 23.
+- [x] Executar suíte completa de testes frontend.
+- [x] Commit e merge em master.
+
+---
+
 ## Registro de execução
 
 Adicionar uma entrada somente ao encerrar cada sprint:
@@ -1150,3 +1173,4 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 19 | 2026-07-22 | `feat/sprint-19-pdv-management-web` | Frontend: 251 Vitest (19 files); Backend: 34 BDD tests; TypeScript 0 errors | Nenhuma rota web de criação de venda (non-negotiable) | Aprovado localmente |
 | 20 | 2026-07-22 | `feat/sprint-20-web-release` | Frontend: 283 Vitest (22 files); Backend: 38 BDD tests; TypeScript 0 errors; E2E 32 specs | Export CSV fiscal (action DRF) pendente de fix | Aprovado localmente |
 | 21 | 2026-07-24 | `feat/sprint-21-styling` | Frontend: 283 Vitest (22 files); TypeScript 0 errors; Tailwind CSS v4 em 17 módulos | UI components: Button, Card, Table, Badge, Modal, Skeleton, LoadingState, EmptyState | Aprovado localmente |
+| 23 | 2026-07-31 | `feat: sprint 23 - composicao de kit` | Frontend: Vitest + TypeScript 0 errors | Composition screens + tests | Aprovado localmente |
