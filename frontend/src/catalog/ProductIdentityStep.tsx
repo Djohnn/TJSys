@@ -6,11 +6,12 @@ import type { ReactNode } from 'react'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
-import type { PaginatedResponse, Category, Unit } from './catalogApi'
+import type { PaginatedResponse, Category, Unit, Brand } from './catalogApi'
 import { catalogKeys } from './catalogQueryKeys'
 import { productSchema, type ProductFormData } from './catalogSchemas'
 import CategoryQuickCreateModal from './CategoryQuickCreateModal'
 import UnitQuickCreateModal from './UnitQuickCreateModal'
+import BrandQuickCreateModal from './BrandQuickCreateModal'
 
 const PRODUCT_KIND_OPTIONS = [
   { value: '', label: 'Selecione...' },
@@ -33,6 +34,7 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
 
   const [showCatModal, setShowCatModal] = useState(false)
   const [showUnitModal, setShowUnitModal] = useState(false)
+  const [showBrandModal, setShowBrandModal] = useState(false)
 
   const { data: categoriesData } = useQuery({
     queryKey: [...catalogKeys.categories(tenantId), 1],
@@ -51,6 +53,16 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
         tenantId,
         signal,
       }) as Promise<PaginatedResponse<Unit>>,
+    enabled: !!tenantId,
+  })
+
+  const { data: brandsData } = useQuery({
+    queryKey: [...catalogKeys.brands(tenantId), 1],
+    queryFn: ({ signal }) =>
+      apiRequest<PaginatedResponse<Brand>>('/catalog/brands/?page=1', {
+        tenantId,
+        signal,
+      }) as Promise<PaginatedResponse<Brand>>,
     enabled: !!tenantId,
   })
 
@@ -78,6 +90,7 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
 
   const categories = categoriesData?.results ?? []
   const units = unitsData?.results ?? []
+  const brands = brandsData?.results ?? []
 
   return (
     <div data-testid="product-identity-step">
@@ -127,7 +140,24 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
 
         <div>
           <label htmlFor="pi-brand" className="block text-sm font-medium text-neutral-700 mb-1">Marca</label>
-          <input id="pi-brand" {...register('brand')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+          <div className="flex items-center gap-2">
+            <select id="pi-brand" {...register('brand')} className="flex-1 px-3 py-2 border border-border rounded-lg text-sm">
+              <option value="">Selecione...</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+            {tenantId && (
+              <button
+                type="button"
+                onClick={() => setShowBrandModal(true)}
+                className="text-xs text-primary-600 hover:text-primary-800 cursor-pointer whitespace-nowrap"
+                data-testid="quick-create-brand-btn"
+              >
+                + Nova
+              </button>
+            )}
+          </div>
         </div>
 
         <div>
@@ -188,6 +218,7 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
 
       <CategoryQuickCreateModal open={showCatModal} tenantId={tenantId} onClose={() => setShowCatModal(false)} />
       <UnitQuickCreateModal open={showUnitModal} tenantId={tenantId} onClose={() => setShowUnitModal(false)} />
+      <BrandQuickCreateModal open={showBrandModal} tenantId={tenantId} onClose={() => setShowBrandModal(false)} />
     </div>
   )
 }

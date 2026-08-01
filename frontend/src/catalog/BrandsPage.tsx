@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
-import { apiRequest } from '@/api/client'
+import { fetchBrands, createBrand, updateBrand } from './catalogApi'
+import type { Brand } from './catalogApi'
 import { isApiProblemError } from '@/api/problem'
-import type { PaginatedResponse, Category } from './catalogApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 
-export default function CategoriesPage() {
+export default function BrandsPage() {
   const { selectedTenant } = useTenant()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
@@ -19,42 +19,21 @@ export default function CategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formName, setFormName] = useState('')
-  const [formParent, setFormParent] = useState<string>('')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const tenantId = selectedTenant?.tenant_id ?? ''
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories', tenantId, page, q],
-    queryFn: ({ signal }) =>
-      apiRequest<PaginatedResponse<Category>>(`/catalog/categories/?page=${page}${q ? `&q=${encodeURIComponent(q)}` : ''}`, {
-        tenantId,
-        signal,
-      }) as Promise<PaginatedResponse<Category>>,
-    enabled: !!tenantId,
-  })
-
-  const { data: allCategories } = useQuery({
-    queryKey: ['categories', tenantId, 'all'],
-    queryFn: ({ signal }) =>
-      apiRequest<PaginatedResponse<Category>>('/catalog/categories/?page=1&page_size=1000', {
-        tenantId,
-        signal,
-      }) as Promise<PaginatedResponse<Category>>,
+    queryKey: ['brands', tenantId, page, q],
+    queryFn: ({ signal }) => fetchBrands(tenantId, { page, q: q || undefined }, signal),
     enabled: !!tenantId,
   })
 
   const createMutation = useMutation({
-    mutationFn: (body: Record<string, unknown>) =>
-      apiRequest<Category>('/catalog/categories/', {
-        method: 'POST',
-        tenantId,
-        body,
-      }) as Promise<Category>,
+    mutationFn: (body: { name: string }) => createBrand(tenantId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', tenantId] })
+      queryClient.invalidateQueries({ queryKey: ['brands', tenantId] })
       setShowForm(false)
       setFormName('')
-      setFormParent('')
       setSubmitError(null)
     },
     onError: (err) => {
@@ -63,23 +42,18 @@ export default function CategoriesPage() {
       } else if (isApiProblemError(err)) {
         setSubmitError(err.problem.detail)
       } else {
-        setSubmitError('Erro ao criar categoria.')
+        setSubmitError('Erro ao criar marca.')
       }
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
-      apiRequest<Category>(`/catalog/categories/${id}/`, {
-        method: 'PATCH',
-        tenantId,
-        body,
-      }) as Promise<Category>,
+      updateBrand(tenantId, id, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories', tenantId] })
+      queryClient.invalidateQueries({ queryKey: ['brands', tenantId] })
       setEditingId(null)
       setFormName('')
-      setFormParent('')
       setSubmitError(null)
     },
     onError: (err) => {
@@ -88,34 +62,32 @@ export default function CategoriesPage() {
       } else if (isApiProblemError(err)) {
         setSubmitError(err.problem.detail)
       } else {
-        setSubmitError('Erro ao atualizar categoria.')
+        setSubmitError('Erro ao atualizar marca.')
       }
     },
   })
 
-  if (isLoading) return <LoadingState message="Carregando categorias..." />
-  if (isError) return <p data-testid="error-state">Erro ao carregar categorias.</p>
+  if (isLoading) return <LoadingState message="Carregando marcas..." />
+  if (isError) return <p data-testid="error-state">Erro ao carregar marcas.</p>
 
-  const categories = data?.results ?? []
-  const parentOptions = allCategories?.results ?? []
+  const brands = data?.results ?? []
   const totalPages = data ? Math.ceil(data.count / 25) : 1
 
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
-    createMutation.mutate({ name: formName, parent: formParent || null })
+    createMutation.mutate({ name: formName })
   }
 
   function handleEditSubmit(e: React.FormEvent, id: string) {
     e.preventDefault()
     setSubmitError(null)
-    updateMutation.mutate({ id, body: { name: formName, parent: formParent || null } })
+    updateMutation.mutate({ id, body: { name: formName } })
   }
 
-  function startEdit(category: Category) {
-    setEditingId(category.id)
-    setFormName(category.name)
-    setFormParent(category.parent ?? '')
+  function startEdit(brand: Brand) {
+    setEditingId(brand.id)
+    setFormName(brand.name)
     setSubmitError(null)
   }
 
@@ -123,40 +95,19 @@ export default function CategoriesPage() {
     setShowForm(false)
     setEditingId(null)
     setFormName('')
-    setFormParent('')
     setSubmitError(null)
   }
 
-  function renderParentDropdown() {
-    return (
-      <div>
-        <label htmlFor="category-parent" className="block text-sm font-medium text-neutral-700 mb-1">Categoria Pai</label>
-        <select
-          id="category-parent"
-          value={formParent}
-          onChange={(e) => setFormParent(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg text-sm"
-          data-testid="category-parent-select"
-        >
-          <option value="">Nenhuma</option>
-          {parentOptions.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
   return (
-    <div data-testid="categories-page" className="p-6 space-y-6">
+    <div data-testid="brands-page" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-neutral-900">Categorias</h2>
-        {!showForm && categories.length > 0 && (
-          <Button onClick={() => { setShowForm(true); setFormName(''); setFormParent(''); setSubmitError(null) }} variant="primary">Nova Categoria</Button>
+        <h2 className="text-2xl font-bold text-neutral-900">Marcas</h2>
+        {!showForm && brands.length > 0 && (
+          <Button onClick={() => { setShowForm(true); setFormName(''); setSubmitError(null) }} variant="primary">Nova Marca</Button>
         )}
       </div>
 
-      {categories.length > 0 && (
+      {brands.length > 0 && (
         <div className="flex gap-2">
           <input
             type="search"
@@ -164,29 +115,28 @@ export default function CategoriesPage() {
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1) }}
             className="w-full max-w-xs px-3 py-2 border border-border rounded-lg text-sm"
-            data-testid="category-search-input"
+            data-testid="brand-search-input"
           />
         </div>
       )}
 
       {showForm && (
-        <Card title="Nova Categoria">
-          <form onSubmit={handleCreateSubmit} data-testid="category-form" className="space-y-4">
+        <Card title="Nova Marca">
+          <form onSubmit={handleCreateSubmit} data-testid="brand-form" className="space-y-4">
             {submitError && (
               <div data-testid="form-error" role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                 {submitError}
               </div>
             )}
             <div>
-              <label htmlFor="category-name" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
+              <label htmlFor="brand-name" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
               <input
-                id="category-name"
+                id="brand-name"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm"
               />
             </div>
-            {renderParentDropdown()}
             <div className="flex gap-2">
               <Button type="submit" disabled={createMutation.isPending} loading={createMutation.isPending}>
                 {createMutation.isPending ? 'Salvando...' : 'Salvar'}
@@ -199,50 +149,48 @@ export default function CategoriesPage() {
         </Card>
       )}
 
-      {categories.length === 0 && !showForm && (
+      {brands.length === 0 && !showForm && (
         <EmptyState
-          title="Nenhuma categoria"
-          description="Crie sua primeira categoria para começar."
+          title="Nenhuma marca"
+          description="Crie sua primeira marca para começar."
           action={
-            <Button onClick={() => { setShowForm(true); setFormName(''); setFormParent(''); setSubmitError(null) }} variant="primary">Criar Categoria</Button>
+            <Button onClick={() => { setShowForm(true); setFormName(''); setSubmitError(null) }} variant="primary">Criar Marca</Button>
           }
         />
       )}
 
-      {categories.length > 0 && (
+      {brands.length > 0 && (
         <Card>
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table data-testid="categories-table" className="w-full text-sm">
+            <table data-testid="brands-table" className="w-full text-sm">
               <thead>
                 <tr className="bg-neutral-50 border-b border-border">
                   <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Nome</th>
-                  <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Categoria Pai</th>
                   <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Status</th>
                   <th className="px-4 py-3 text-left font-semibold text-neutral-600 whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {categories.map((category) => (
-                  <tr key={category.id} data-testid="category-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
-                    {editingId === category.id ? (
+                {brands.map((brand) => (
+                  <tr key={brand.id} data-testid="brand-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
+                    {editingId === brand.id ? (
                       <>
-                        <td colSpan={4} className="p-4">
-                          <form onSubmit={(e) => handleEditSubmit(e, category.id)} data-testid="category-form" className="space-y-4">
+                        <td colSpan={3} className="p-4">
+                          <form onSubmit={(e) => handleEditSubmit(e, brand.id)} data-testid="brand-form" className="space-y-4">
                             {submitError && (
                               <div data-testid="form-error" role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                                 {submitError}
                               </div>
                             )}
                             <div>
-                              <label htmlFor="category-name-edit" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
+                              <label htmlFor="brand-name-edit" className="block text-sm font-medium text-neutral-700 mb-1">Nome</label>
                               <input
-                                id="category-name-edit"
+                                id="brand-name-edit"
                                 value={formName}
                                 onChange={(e) => setFormName(e.target.value)}
                                 className="w-full px-3 py-2 border border-border rounded-lg text-sm"
                               />
                             </div>
-                            {renderParentDropdown()}
                             <div className="flex gap-2">
                               <Button type="submit" disabled={updateMutation.isPending} loading={updateMutation.isPending}>
                                 {updateMutation.isPending ? 'Salvando...' : 'Salvar'}
@@ -256,17 +204,16 @@ export default function CategoriesPage() {
                       </>
                     ) : (
                       <>
-                        <td className="px-4 py-3 text-neutral-700">{category.name}</td>
-                        <td className="px-4 py-3 text-neutral-700">{category.parent_name || '-'}</td>
+                        <td className="px-4 py-3 text-neutral-700">{brand.name}</td>
                         <td className="px-4 py-3">
-                          <Badge variant={category.is_active ? 'success' : 'neutral'}>{category.is_active ? 'Ativo' : 'Inativo'}</Badge>
+                          <Badge variant={brand.is_active ? 'success' : 'neutral'}>{brand.is_active ? 'Ativo' : 'Inativo'}</Badge>
                         </td>
                         <td className="px-4 py-3 flex gap-2">
-                          <Button onClick={() => startEdit(category)} variant="ghost" size="sm">Editar</Button>
-                          {category.is_active ? (
-                            <Button onClick={() => updateMutation.mutate({ id: category.id, body: { is_active: false } })} variant="ghost" size="sm">Desativar</Button>
+                          <Button onClick={() => startEdit(brand)} variant="ghost" size="sm">Editar</Button>
+                          {brand.is_active ? (
+                            <Button onClick={() => updateMutation.mutate({ id: brand.id, body: { is_active: false } })} variant="ghost" size="sm">Desativar</Button>
                           ) : (
-                            <Button onClick={() => updateMutation.mutate({ id: category.id, body: { is_active: true } })} variant="ghost" size="sm">Ativar</Button>
+                            <Button onClick={() => updateMutation.mutate({ id: brand.id, body: { is_active: true } })} variant="ghost" size="sm">Ativar</Button>
                           )}
                         </td>
                       </>
