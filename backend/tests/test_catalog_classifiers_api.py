@@ -86,6 +86,28 @@ def test_brand_unique_name_per_tenant(classifier_context):
 
 
 @pytest.mark.django_db
+def test_brand_name_is_normalized_and_case_insensitive_unique(classifier_context):
+    """Given equivalent brand names, only one canonical brand shall be created."""
+    ctx = classifier_context
+    first = ctx['client'].post(
+        '/api/v1/catalog/brands/',
+        {'name': '  Acme   Industrial  '},
+        content_type='application/json',
+        **{H: str(ctx['tenant'].id)},
+    )
+    assert first.status_code == 201
+    assert first.json()['name'] == 'Acme Industrial'
+
+    duplicate = ctx['client'].post(
+        '/api/v1/catalog/brands/',
+        {'name': 'acme industrial'},
+        content_type='application/json',
+        **{H: str(ctx['tenant'].id)},
+    )
+    assert duplicate.status_code in (400, 422)
+
+
+@pytest.mark.django_db
 def test_brand_different_tenants_same_name_ok(classifier_context):
     ctx = classifier_context
     other = Tenant.objects.create(name='Other2', slug='other2')

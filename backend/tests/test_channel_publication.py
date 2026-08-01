@@ -135,7 +135,7 @@ def test_publish_channel_idempotent(pub_ctx):
     )
     assert r2.status_code == 200
     data = r2.json()
-    assert data['status'] in ('ready', 'published')
+    assert data['status'] == 'ready'
 
     count = OutboxMessage.objects.filter(
         event_type='catalog.channel.publication_requested',

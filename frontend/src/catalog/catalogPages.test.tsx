@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { toProductPayload } from './catalogSchemas'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
 import type { AuthContextValue } from '@/auth/AuthProvider'
@@ -991,6 +991,10 @@ describe('ProductEditorPage', () => {
     })
     expect(screen.getByTestId('product-media-panel')).toBeInTheDocument()
     expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    expect(screen.getByTestId('product-editor-layout')).toHaveClass('grid-cols-1')
+    expect(screen.getByTestId('product-editor-layout')).toHaveClass(
+      'lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,2.2fr)]',
+    )
     expect(screen.getByText('Novo Produto')).toBeInTheDocument()
   })
 
@@ -1633,6 +1637,59 @@ describe('LabelsPage', () => {
       expect(screen.getByTestId('label-generate-error')).toBeInTheDocument()
       expect(screen.getByTestId('label-generate-error')).toHaveTextContent('modelo')
     })
+  })
+
+  it('uploads and displays a valid product image when editing', async () => {
+    const images: Array<Record<string, unknown>> = []
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/images/`, () => HttpResponse.json(images)),
+      http.post(`${BASE}/catalog/products/p1/images/`, () => {
+        const image = {
+          id: 'img-1', product: 'p1', object_key: 'produto.png',
+          file: '/media/catalog/products/produto.png', alt_text: 'produto',
+          is_primary: false, position: 0,
+        }
+        images.push(image)
+        return HttpResponse.json(image, { status: 201 })
+      }),
+    )
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+    const file = new File(['png'], 'produto.png', { type: 'image/png' })
+    await user.upload(screen.getByTestId('media-file-input'), file)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-image-gallery')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('img', { name: 'produto' })).toHaveAttribute(
+      'src', '/media/catalog/products/produto.png',
+    )
+  })
+
+  it('shows a PDF preview before offering the final download', async () => {
+    const createObjectURL = vi.fn(() => 'blob:label-preview')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    renderLabelsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByText('Produto A')).toBeInTheDocument())
+    await user.selectOptions(screen.getByTestId('label-template-select'), 'tpl-1')
+    await user.click(screen.getByTestId('label-checkbox-p1'))
+    await user.click(screen.getByTestId('label-generate-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('label-pdf-preview')).toHaveAttribute(
+        'src',
+        'blob:label-preview',
+      )
+    })
+    expect(screen.getByTestId('label-download-link')).toHaveAttribute(
+      'href',
+      'blob:label-preview',
+    )
+    expect(revokeObjectURL).not.toHaveBeenCalled()
   })
 })
 

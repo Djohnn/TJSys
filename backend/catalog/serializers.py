@@ -231,9 +231,17 @@ class BrandSerializer(FullCleanModelSerializer):
 
 
 class ProductImageSerializer(FullCleanModelSerializer):
+    def validate_file(self, value):
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError('Use uma imagem JPEG, PNG ou WebP.')
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        return value
+
     class Meta:
         model = ProductImage
-        fields = ['id', 'product', 'object_key', 'alt_text', 'is_primary', 'position']
+        fields = ['id', 'product', 'object_key', 'file', 'alt_text', 'is_primary', 'position']
         read_only_fields = ['id', 'product']
 
 

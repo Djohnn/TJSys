@@ -543,10 +543,26 @@ class Brand(TimeStampedModel, TenantScopedModel):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        super().clean()
+        self.name = ' '.join(self.name.split())
+        duplicate = Brand.all_objects.filter(
+            tenant_id=self.tenant_id,
+            name__iexact=self.name,
+            is_active=True,
+        ).exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError({'name': 'An active brand with this name already exists.'})
+
+    def save(self, *args, **kwargs):
+        self.name = ' '.join(self.name.split())
+        super().save(*args, **kwargs)
+
 
 class ProductImage(TimeStampedModel, TenantScopedModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    object_key = models.CharField(max_length=500)
+    object_key = models.CharField(max_length=500, blank=True, default='')
+    file = models.FileField(upload_to='catalog/products/%Y/%m/', null=True, blank=True)
     alt_text = models.CharField(max_length=200, blank=True, default='')
     is_primary = models.BooleanField(default=False)
     position = models.PositiveSmallIntegerField(default=0)

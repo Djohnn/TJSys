@@ -5,6 +5,8 @@ from pathlib import Path
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-not-for-production')
 DEBUG = config('DEBUG', default=False, cast=bool)

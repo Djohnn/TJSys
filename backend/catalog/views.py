@@ -1,6 +1,5 @@
 from django.db import models
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import CursorPagination
@@ -243,7 +242,13 @@ class ProductUnitViewSet(CatalogViewSetBase):
             id=self.kwargs.get('product_pk'),
             tenant=self.request.tenant,
         )
-        instance = serializer.save(tenant=self.request.tenant, product=product)
+        uploaded_file = serializer.validated_data.get('file')
+        instance = serializer.save(
+            tenant=self.request.tenant,
+            product=product,
+            object_key=serializer.validated_data.get('object_key')
+            or (uploaded_file.name if uploaded_file else ''),
+        )
         emit_catalog_event(
             action='catalog.productunit.created',
             event_type='catalog.productunit.created',
@@ -647,9 +652,6 @@ class ChannelProfilePublishView(APIView):
                 correlation_id=idempotency_key,
             ).first()
             if existing is not None:
-                profile.status = 'published'
-                profile.published_at = timezone.now()
-                profile.save(update_fields=['status', 'published_at', 'updated_at'])
                 return Response(
                     ProductChannelProfileSerializer(profile).data,
                     status=status.HTTP_200_OK,

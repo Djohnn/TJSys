@@ -114,9 +114,12 @@ export default function ProductEditorPage(): ReactNode {
 
       <ProductEditorSteps tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="grid grid-cols-[minmax(220px,0.8fr)_minmax(0,2.2fr)] gap-8">
+      <div
+        data-testid="product-editor-layout"
+        className="grid grid-cols-1 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,2.2fr)] gap-8"
+      >
         <aside>
-          <ProductMediaPanel />
+          <ProductMediaPanel productId={productId} />
         </aside>
         <section>
           {activeTab === 'identity' ? (

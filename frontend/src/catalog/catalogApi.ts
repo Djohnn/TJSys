@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client'
+import { getCsrfToken } from '@/api/client'
 
 export interface Product {
   id: string
@@ -57,6 +58,40 @@ export interface Brand {
   id: string
   name: string
   is_active: boolean
+}
+
+export interface ProductImage {
+  id: string
+  product: string
+  object_key: string
+  file: string | null
+  alt_text: string
+  is_primary: boolean
+  position: number
+}
+
+export function fetchProductImages(tenantId: string, productId: string): Promise<ProductImage[]> {
+  return apiRequest<ProductImage[]>(`/catalog/products/${productId}/images/`, {
+    tenantId,
+  }) as Promise<ProductImage[]>
+}
+
+export async function uploadProductImage(
+  tenantId: string,
+  productId: string,
+  file: File,
+): Promise<ProductImage> {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('alt_text', file.name.replace(/\.[^.]+$/, ''))
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Tenant-ID': tenantId }
+  const csrfToken = getCsrfToken()
+  if (csrfToken) headers['X-CSRFToken'] = csrfToken
+  const response = await fetch(`/api/v1/catalog/products/${productId}/images/`, {
+    method: 'POST', headers, credentials: 'include', body,
+  })
+  if (!response.ok) throw new Error('Não foi possível enviar a imagem.')
+  return response.json() as Promise<ProductImage>
 }
 
 export interface PaginatedResponse<T> {

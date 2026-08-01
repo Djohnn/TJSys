@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
@@ -30,6 +30,7 @@ export default function LabelsPage() {
   const [selectedItems, setSelectedItems] = useState<Map<string, SelectedItem>>(new Map())
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
   const { data: productsData, isLoading: productsLoading } = useQuery({
@@ -77,6 +78,12 @@ export default function LabelsPage() {
     })
   }, [products, brandFilter])
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
+
   const toggleItem = useCallback((productId: string) => {
     setSelectedItems((prev) => {
       const next = new Map(prev)
@@ -121,13 +128,7 @@ export default function LabelsPage() {
         items,
       })
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'etiquetas.pdf'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setPreviewUrl(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar etiquetas.')
     } finally {
@@ -228,7 +229,7 @@ export default function LabelsPage() {
           </Button>
         </div>
 
-        {error && (
+      {error && (
           <div data-testid="label-generate-error" className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
             {error}
           </div>
@@ -328,6 +329,28 @@ export default function LabelsPage() {
               </div>
             </div>
           )}
+        </Card>
+      )}
+
+      {previewUrl && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-neutral-900">Pré-visualização</h3>
+            <a
+              data-testid="label-download-link"
+              href={previewUrl}
+              download="etiquetas.pdf"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+            >
+              Baixar PDF
+            </a>
+          </div>
+          <iframe
+            data-testid="label-pdf-preview"
+            title="Pré-visualização das etiquetas"
+            src={previewUrl}
+            className="w-full h-[32rem] rounded-lg border border-border"
+          />
         </Card>
       )}
     </div>
