@@ -418,3 +418,67 @@ export function removeComboItem(
     tenantId,
   }) as Promise<void>
 }
+
+// =============================================================================
+// Sprint 28 — Label Templates + Generate
+// =============================================================================
+
+export interface LabelTemplate {
+  id: string
+  name: string
+  width_mm: string
+  height_mm: string
+  margin_mm: string
+  columns: number
+  rows: number
+  show_sku: boolean
+  show_barcode: boolean
+  show_price: boolean
+  show_name: boolean
+  is_active: boolean
+  version: number
+}
+
+export function fetchLabelTemplates(
+  tenantId: string,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<LabelTemplate>> {
+  return apiRequest<PaginatedResponse<LabelTemplate>>('/catalog/label-templates/', {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<LabelTemplate>>
+}
+
+export function generateLabels(
+  tenantId: string,
+  body: { template_id: string; items: { product_id: string; quantity: number }[] },
+): Promise<Blob> {
+  const url = `/api/v1/catalog/labels/generate/`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Tenant-ID': String(tenantId),
+  }
+  const csrfToken = (() => {
+    const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
+    return match ? match[1] : null
+  })()
+  if (csrfToken) headers['X-CSRFToken'] = csrfToken
+
+  return fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(body),
+  }).then(async (response) => {
+    if (!response.ok) {
+      let problem: unknown
+      try { problem = await response.json() } catch { problem = response.statusText }
+      throw new Error(
+        typeof problem === 'object' && problem !== null && 'detail' in problem
+          ? (problem as { detail: string }).detail
+          : 'Erro ao gerar etiquetas.',
+      )
+    }
+    return response.blob()
+  })
+}

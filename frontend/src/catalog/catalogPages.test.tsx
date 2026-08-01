@@ -22,6 +22,7 @@ import UnitsPage from './UnitsPage'
 import BrandsPage from './BrandsPage'
 import CombosPage from './CombosPage'
 import ComboEditorPage from './ComboEditorPage'
+import LabelsPage from './LabelsPage'
 
 const BASE = '/api/v1'
 
@@ -1526,6 +1527,111 @@ describe('ComboEditorPage', () => {
     await waitFor(() => {
       const pathname = window.location.pathname ?? ''
       expect(pathname).not.toContain('/combos/new')
+    })
+  })
+})
+
+const LABEL_TEMPLATES = {
+  count: 1,
+  next: null,
+  previous: null,
+  results: [
+    {
+      id: 'tpl-1',
+      name: 'Padrao 50x30',
+      width_mm: '50.00',
+      height_mm: '30.00',
+      margin_mm: '2.00',
+      columns: 2,
+      rows: 5,
+      show_sku: true,
+      show_barcode: true,
+      show_price: true,
+      show_name: true,
+      is_active: true,
+      version: 1,
+    },
+  ],
+}
+
+function renderLabelsPage(initialRoute = '/catalog/labels') {
+  const queryClient = createQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <AuthContext.Provider value={authValue}>
+          <TenantContext.Provider value={tenantValue}>
+            <Routes>
+              <Route path="/catalog/labels" element={<LabelsPage />} />
+            </Routes>
+          </TenantContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('LabelsPage', () => {
+  beforeEach(() => {
+    server.use(
+      http.get(`${BASE}/catalog/products/`, () => HttpResponse.json(PRODUCTS_ALL)),
+      http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
+      http.get(`${BASE}/catalog/brands/`, () => HttpResponse.json(BRANDS)),
+      http.get(`${BASE}/catalog/label-templates/`, () => HttpResponse.json(LABEL_TEMPLATES)),
+      http.post(`${BASE}/catalog/labels/generate/`, () => {
+        const pdfContent = '%PDF-1.4 fake label pdf'
+        return new HttpResponse(pdfContent, {
+          status: 200,
+          headers: { 'Content-Type': 'application/pdf' },
+        })
+      }),
+    )
+  })
+
+  it('renders product table and filters', async () => {
+    renderLabelsPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('labels-product-table')).toBeInTheDocument()
+    expect(screen.getByTestId('label-product-search')).toBeInTheDocument()
+    expect(screen.getByTestId('label-category-filter')).toBeInTheDocument()
+    expect(screen.getByTestId('label-brand-filter')).toBeInTheDocument()
+    expect(screen.getByTestId('label-template-select')).toBeInTheDocument()
+    expect(screen.getByTestId('label-generate-button')).toBeInTheDocument()
+  })
+
+  it('selects products and enables generate button', async () => {
+    renderLabelsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    const generateBtn = screen.getByTestId('label-generate-button')
+    expect(generateBtn).toBeDisabled()
+
+    await user.click(screen.getByTestId('label-checkbox-p1'))
+    expect(generateBtn).not.toBeDisabled()
+  })
+
+  it('shows error when generating without template selected', async () => {
+    renderLabelsPage()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByText('Produto A')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByTestId('label-checkbox-p1'))
+    await user.click(screen.getByTestId('label-generate-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('label-generate-error')).toBeInTheDocument()
+      expect(screen.getByTestId('label-generate-error')).toHaveTextContent('modelo')
     })
   })
 })
