@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi } from 'vitest'
@@ -63,17 +63,26 @@ describe('AppShell', () => {
 
     const links = nav.querySelectorAll('a')
     const linkTexts = Array.from(links).map((l) => l.textContent)
-    expect(linkTexts).toContain('Dashboard')
+    expect(linkTexts).toContain('Início')
     expect(linkTexts).toContain('Catálogo')
     expect(linkTexts).toContain('Estoque')
     expect(linkTexts).toContain('Vendas')
     expect(linkTexts).toContain('Financeiro')
-    expect(linkTexts).toContain('Empresas')
-    expect(linkTexts).toContain('Filiais')
-    expect(linkTexts).toContain('Membros')
-    expect(linkTexts).toContain('Convites')
-    expect(linkTexts).toContain('Segurança')
-    expect(linkTexts).toContain('Dispositivos')
+    expect(linkTexts).toContain('Relatórios')
+    expect(linkTexts).toContain('Administração')
+  })
+
+  it('shows the complete contextual catalog navigation', async () => {
+    renderShell('/catalog/products')
+    const contextual = await screen.findByTestId('catalog-context-navigation')
+    for (const label of [
+      'Produtos', 'Serviços', 'Combo', 'Categorias', 'Marcas',
+      'Unidades de Medida', 'Impressão de Etiquetas',
+    ]) {
+      expect(within(contextual).getByRole('link', { name: label })).toBeInTheDocument()
+    }
+    expect(within(contextual).getByRole('link', { name: 'Produtos' }))
+      .toHaveAttribute('aria-current', 'page')
   })
 
   it('highlights active route', async () => {
