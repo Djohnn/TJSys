@@ -142,7 +142,7 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def _problem(self, detail, code='purchasing_error', status_code=400):
         return Response(
             {
-                'type': f'https://zyrp.local/problems/{code}',
+                'type': f'https://tjsys.local/problems/{code}',
                 'title': 'Purchase operation rejected',
                 'status': status_code,
                 'detail': str(detail),
@@ -299,7 +299,7 @@ class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
     def _problem(self, detail, code='purchasing_error', status_code=400):
         return Response(
             {
-                'type': f'https://zyrp.local/problems/{code}',
+                'type': f'https://tjsys.local/problems/{code}',
                 'title': 'Purchase operation rejected',
                 'status': status_code,
                 'detail': str(detail),

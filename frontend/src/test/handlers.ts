@@ -7,7 +7,7 @@ export const handlers = [
     HttpResponse.json({
       user: {
         id: 1,
-        email: 'admin@zyrp.local',
+        email: 'admin@tjsys.local',
         name: 'Admin',
         is_active: true,
         is_mfa_enabled: false,
@@ -20,7 +20,7 @@ export const handlers = [
 
   http.post(`${BASE}/auth/login/`, async ({ request }) => {
     const body = (await request.json()) as { email?: string; password?: string }
-    if (body.email === 'mfa@zyrp.local') {
+    if (body.email === 'mfa@tjsys.local') {
       return HttpResponse.json(
         { requires_mfa: true, mfa_session: 'mfa_session_abc' },
         { status: 200 },
@@ -142,7 +142,7 @@ export const handlers = [
   http.patch(`${BASE}/memberships/:id/`, ({ params }) =>
     HttpResponse.json({
       id: Number(params.id),
-      user: { id: 1, email: 'admin@zyrp.local', name: 'Admin' },
+      user: { id: 1, email: 'admin@tjsys.local', name: 'Admin' },
       role: 'admin',
       is_active: true,
       branch_ids: [],
@@ -157,7 +157,7 @@ export const handlers = [
 
   http.post(`${BASE}/invitations/`, () =>
     HttpResponse.json(
-      { id: 1, email: 'test@zyrp.local', role: 'operator', status: 'pending', expires_at: '2026-08-01T00:00:00Z', created_at: '2026-07-22T00:00:00Z' },
+      { id: 1, email: 'test@tjsys.local', role: 'operator', status: 'pending', expires_at: '2026-08-01T00:00:00Z', created_at: '2026-07-22T00:00:00Z' },
       { status: 201 },
     ),
   ),

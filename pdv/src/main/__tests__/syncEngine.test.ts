@@ -164,6 +164,7 @@ describe('syncEngine', () => {
     vi.mocked(shouldRetry).mockReturnValue(true);
     vi.mocked(connectivityMonitor.isOnline)
       .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
       .mockReturnValueOnce(false);
     
     await syncEngine.sync();

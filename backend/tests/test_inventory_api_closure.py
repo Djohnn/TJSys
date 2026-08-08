@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 
 from catalog.models import Product, Unit
-from inventory.models import StockLocation, StockLot
+from inventory.models import StockBalance, StockLocation, StockLot
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant, TenantMembership
 
@@ -170,6 +170,37 @@ def test_api_reconciliation_endpoint_returns_divergences(api_context):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.django_db
+def test_balance_search_accepts_product_name_or_sku(api_context):
+    """Given a stock balance, when searching by SKU text, then the matching balance is returned."""
+    ctx = api_context
+    def _create_non_matching_balance():
+        other = Product.all_objects.create(
+            tenant=ctx['tenant'], sku='OTHER-PROD', name='Outro Produto', base_unit=ctx['unit'],
+        )
+        StockBalance.all_objects.create(
+            tenant=ctx['tenant'], product=other, location=ctx['location'], quantity='9.000000',
+        )
+
+    _run_in_tenant(ctx['tenant'], _create_non_matching_balance)
+    ctx['client'].post(
+        '/api/v1/stock-operations/receipt/',
+        _receipt_payload(ctx),
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        HTTP_IDEMPOTENCY_KEY='api-balance-search-seed',
+    )
+
+    response = ctx['client'].get(
+        '/api/v1/inventory/balances/?q=API-PROD',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+
+    assert response.status_code == 200
+    assert response.json()['count'] == 1
+    assert response.json()['results'][0]['product_sku'] == 'API-PROD'
 
 
 @pytest.mark.django_db

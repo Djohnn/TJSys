@@ -1,6 +1,6 @@
 # Backend
 
-Monólito modular Django/DRF do Zyrp. Responsável por Identity, Organizations,
+Monólito modular Django/DRF do TJSys. Responsável por Identity, Organizations,
 Catalog, Inventory, Purchasing, Sales, Cash Management, Financial, Fiscal,
 Analytics, Integrations e Audit.
 

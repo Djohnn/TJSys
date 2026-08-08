@@ -1,4 +1,4 @@
-# Zyrp — Foundation Design
+# TJSys — Foundation Design
 
 ## Controle do documento
 
@@ -13,7 +13,7 @@
 
 ## 1. Propósito
 
-Esta especificação consolida as decisões aprovadas para iniciar profissionalmente o Zyrp. Ela define o escopo do MVP, as fronteiras arquiteturais, o modelo SaaS multi-tenant, o PDV, a estratégia fiscal, os requisitos de qualidade e a estrutura documental.
+Esta especificação consolida as decisões aprovadas para iniciar profissionalmente o TJSys. Ela define o escopo do MVP, as fronteiras arquiteturais, o modelo SaaS multi-tenant, o PDV, a estratégia fiscal, os requisitos de qualidade e a estrutura documental.
 
 ## 2. Visão do produto
 

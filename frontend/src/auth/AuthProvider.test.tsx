@@ -19,7 +19,7 @@ function TestDisplay() {
       <span data-testid="auth-state">{auth.state}</span>
       {auth.user && <span data-testid="auth-user">{auth.user.email}</span>}
       <span data-testid="auth-memberships-count">{auth.memberships.length}</span>
-      <button data-testid="btn-login" onClick={() => auth.login('admin@zyrp.local', 'password')}>
+      <button data-testid="btn-login" onClick={() => auth.login('admin@tjsys.local', 'password')}>
         Login
       </button>
       <button data-testid="btn-logout" onClick={() => auth.logout()}>
@@ -34,7 +34,7 @@ function TestMfaFlow() {
   const [tempToken, setTempToken] = useState<string | null>(null)
 
   const handleLoginMfa = async () => {
-    const result = await auth.login('mfa@zyrp.local', 'password')
+    const result = await auth.login('mfa@tjsys.local', 'password')
     if (result.requiresMfa && result.temporaryToken) {
       setTempToken(result.temporaryToken)
     }
@@ -82,7 +82,7 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated')
     })
-    expect(screen.getByTestId('auth-user')).toHaveTextContent('admin@zyrp.local')
+    expect(screen.getByTestId('auth-user')).toHaveTextContent('admin@tjsys.local')
     expect(screen.getByTestId('auth-memberships-count')).toHaveTextContent('1')
   })
 

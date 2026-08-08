@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Preparar o Zyrp para um piloto controlado em 1 a 2 lojas, com segurança, operação, suporte, restauração e rollback verificáveis antes de qualquer uso real assistido.
+Preparar o TJSys para um piloto controlado em 1 a 2 lojas, com segurança, operação, suporte, restauração e rollback verificáveis antes de qualquer uso real assistido.
 
 ## Escopo
 

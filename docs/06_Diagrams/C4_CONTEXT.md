@@ -10,7 +10,7 @@ flowchart LR
     gestor["Gestor do estabelecimento"]
     contador["Contador"]
     suporte["Equipe da plataforma"]
-    erp["Zyrp\nERP SaaS multi-tenant"]
+    erp["TJSys\nERP SaaS multi-tenant"]
     fiscal["Provedor fiscal externo"]
     sefaz["SEFAZ"]
     pagamentos["Provedores de pagamento"]

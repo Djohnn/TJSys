@@ -54,11 +54,11 @@ Criar testes que consultem `pg_roles` e exijam `rolsuper = false`, `rolbypassrls
 
 Run: `pytest tests/test_database_roles.py -v`
 
-Expected: falha porque `zyrp` é superuser e bypassa RLS.
+Expected: falha porque `tjsys` é superuser e bypassa RLS.
 
 - [ ] **Step 3: Criar bootstrap de papéis**
 
-O init SQL criará `zyrp_owner` para migrations e `zyrp_app` para runtime, sem privilégios elevados. Conceder conexão, uso do schema, DML nas tabelas e privilégios default necessários ao papel app, mantendo propriedade com owner.
+O init SQL criará `tjsys_owner` para migrations e `tjsys_app` para runtime, sem privilégios elevados. Conceder conexão, uso do schema, DML nas tabelas e privilégios default necessários ao papel app, mantendo propriedade com owner.
 
 - [ ] **Step 4: Separar credenciais por ambiente**
 
@@ -70,7 +70,7 @@ Executar o SQL idempotente no banco existente com o owner e aplicar migrations. 
 
 - [ ] **Step 6: Criar testes RLS reais**
 
-Executar queries sob `zyrp_app` e provar:
+Executar queries sob `tjsys_app` e provar:
 
 - tenant A lê A e não lê B;
 - tenant B lê B e não lê A;

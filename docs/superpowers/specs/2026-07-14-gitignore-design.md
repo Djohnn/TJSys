@@ -2,7 +2,7 @@
 
 **Status:** Approved for review  
 **Data:** 2026-07-14  
-**Escopo:** `.gitignore` raiz do Zyrp
+**Escopo:** `.gitignore` raiz do TJSys
 
 ## Objetivo
 

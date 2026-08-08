@@ -57,14 +57,4 @@ export function setupSaleHandlers() {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get sale detail' };
     }
   });
-
-  ipcMain.handle('sale:receipt', async (event: IpcMainInvokeEvent, saleId: string) => {
-    try {
-      const res = await api.get(`/sales/${saleId}/receipt/`);
-      return { success: true, data: res.data };
-    } catch (error) {
-      logger.error('Failed to get receipt:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get receipt' };
-    }
-  });
 }

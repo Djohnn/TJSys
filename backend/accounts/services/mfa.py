@@ -22,7 +22,7 @@ def begin_totp_enrollment(*, user, tenant):
             'last_counter': None,
         },
     )
-    uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name='Zyrp')
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name='TJSys')
     return uri, device
 
 

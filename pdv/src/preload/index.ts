@@ -44,7 +44,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listSales: (params?: { branch?: string; limit?: number; offset?: number }) =>
     ipcRenderer.invoke('sale:list', params),
   getSaleDetail: (saleId: string) => ipcRenderer.invoke('sale:detail', saleId),
-  getSaleReceipt: (saleId: string) => ipcRenderer.invoke('sale:receipt', saleId),
   printReceipt: (data: { html: string; fileName: string }) =>
     ipcRenderer.invoke('printing:receipt', data),
   printFiscalReceipt: (data: { html: string; fileName: string }) =>
@@ -74,4 +73,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startSync: () => ipcRenderer.invoke('sync:start'),
   getPendingOperations: () => ipcRenderer.invoke('sync:pending'),
   getJournal: () => ipcRenderer.invoke('sync:journal'),
+
+  // Catalog cache
+  catalogSync: () => ipcRenderer.invoke('catalog-cache:sync'),
+  searchProductsCache: (query: string) => ipcRenderer.invoke('catalog-cache:search', query),
+  getProductCache: (productId: string) => ipcRenderer.invoke('catalog-cache:get-product', productId),
+  getProductBySkuCache: (sku: string) => ipcRenderer.invoke('catalog-cache:get-product-by-sku', sku),
+  getProductPriceCache: (data: { productId: string; at?: string }) => ipcRenderer.invoke('catalog-cache:get-price', data),
 });

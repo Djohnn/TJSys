@@ -1,6 +1,6 @@
 # Infra
 
-Configuração de infraestrutura local e de ambientes do Zyrp.
+Configuração de infraestrutura local e de ambientes do TJSys.
 
 - `compose.yaml`: PostgreSQL e Redis versionados para uso local.
 - Variáveis sensíveis exclusivamente via `.env` (não versionado).

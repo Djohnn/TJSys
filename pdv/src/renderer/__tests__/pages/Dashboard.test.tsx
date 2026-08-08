@@ -187,7 +187,6 @@ describe('Dashboard', () => {
     });
     window.electronAPI.printReceipt.mockResolvedValue({
       success: true,
-      savedPath: '/mock/path/cupom_nao_fiscal_sale-123.pdf',
     });
 
     render(
@@ -355,7 +354,7 @@ describe('Dashboard', () => {
       expect(actionButton).toHaveTextContent('...');
     });
 
-    resolvePrint!({ success: true, savedPath: '/mock/path.pdf' });
+    resolvePrint!({ success: true });
     await waitFor(() => {
       expect(actionButton).not.toBeDisabled();
       expect(actionButton).toHaveTextContent('⋮');

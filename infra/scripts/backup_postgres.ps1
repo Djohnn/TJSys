@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    PostgreSQL backup script for Zyrp ERP.
+    PostgreSQL backup script for TJSys ERP.
 
 .DESCRIPTION
     Creates a compressed, encrypted backup of the PostgreSQL database.
@@ -25,8 +25,8 @@ param(
     [switch]$Encrypt = $false,
     [string]$Host = "127.0.0.1",
     [int]$Port = 5432,
-    [string]$Database = "zyrp",
-    [string]$Username = "zyrp_app"
+    [string]$Database = "tjsys",
+    [string]$Username = "tjsys_app"
 )
 
 $ErrorActionPreference = "Stop"

@@ -70,7 +70,7 @@ Todas as mudanças relevantes na base documental são registradas aqui.
 - PDV Electron online por padrão, com contingência offline restrita.
 - Provedor fiscal contratado e pago pelo cliente no MVP.
 - IA fora do MVP, com preparação arquitetural para adoção futura.
-- Nome oficial do produto definido como **Zyrp**; o nome provisório anterior permanece apenas no arquivo histórico.
+- Nome oficial do produto definido como **TJSys**; o nome provisório anterior permanece apenas no arquivo histórico.
 
 ### Archived
 

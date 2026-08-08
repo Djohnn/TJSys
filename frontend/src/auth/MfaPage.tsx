@@ -15,6 +15,7 @@ export default function MfaPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false)
 
   useEffect(() => {
     if (!state?.temporaryToken) {
@@ -27,11 +28,17 @@ export default function MfaPage() {
     setIsSubmitting(true)
     setError(null)
     try {
-      if (!state?.tenantId) throw new Error('Tenant MFA não informado.')
-      await auth.verifyRecovery(state.tenantId, code)
+      if (isRecoveryMode || code.length >= 8) {
+        if (!state?.tenantId) throw new Error('Tenant MFA não informado.')
+        await auth.verifyRecovery(state.tenantId, code)
+      } else {
+        if (!state?.temporaryToken) throw new Error('Sessão MFA não informada.')
+        await auth.challengeMfa(state.temporaryToken, code)
+      }
       navigate('/', { replace: true })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Codigo invalido.')
+      const msg = err instanceof Error ? err.message : 'Código inválido.'
+      setError(msg.includes('validation error') ? 'Código inválido ou expirado.' : msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -51,21 +58,57 @@ export default function MfaPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-sm text-neutral-500 text-center">Digite um código de recuperação de 10 caracteres</p>
+          <p className="text-sm text-neutral-500 text-center">
+            {isRecoveryMode
+              ? 'Digite o código de recuperação ou emergência'
+              : 'Digite os 6 dígitos do aplicativo autenticador'}
+          </p>
 
           <div>
-            <label htmlFor="mfa-code" className="block text-sm font-medium text-neutral-700 mb-1">Código de Recuperação</label>
-            <input id="mfa-code" type="text" value={code} onChange={e => setCode(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-center tracking-widest font-mono focus:outline-2 focus:outline-primary-500"
-              placeholder="31de82a6e8" maxLength={10} />
+            <label htmlFor="mfa-code" className="block text-sm font-medium text-neutral-700 mb-1">
+              Código
+            </label>
+            <input
+              id="mfa-code"
+              type="text"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={e => {
+                const regex = isRecoveryMode ? /[^a-zA-Z0-9]/g : /\D/g
+                setCode(e.target.value.replace(regex, ''))
+              }}
+              className="w-full px-3 py-2 border border-border rounded-lg text-xl text-center tracking-widest font-mono focus:outline-2 focus:outline-primary-500"
+              placeholder={isRecoveryMode ? '12345678' : '000000'}
+              maxLength={isRecoveryMode ? 10 : 6}
+              autoFocus
+            />
           </div>
 
           {error && <p className="text-sm text-danger text-center">{error}</p>}
 
-          <button type="submit" disabled={isSubmitting || code.length < 10}
-            className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer">
-            {isSubmitting ? 'Verificando...' : 'Verificar'}
+          <button
+            type="submit"
+            disabled={isSubmitting || (isRecoveryMode ? code.length < 8 : code.length < 6)}
+            className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {isSubmitting ? 'Verificando...' : 'Entrar'}
           </button>
+
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRecoveryMode(!isRecoveryMode)
+                setCode('')
+                setError(null)
+              }}
+              className="text-sm font-medium text-primary-600 hover:text-primary-500 cursor-pointer"
+            >
+              {isRecoveryMode
+                ? 'Usar aplicativo autenticador em vez disso'
+                : 'Não tenho meu dispositivo / código de emergência'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -65,6 +65,7 @@ export interface ProductImage {
   product: string
   object_key: string
   file: string | null
+  file_url: string | null
   alt_text: string
   is_primary: boolean
   position: number
@@ -127,6 +128,62 @@ export function createProduct(
     tenantId,
     body,
   }) as Promise<Product>
+}
+
+export interface ApplyStockCommand {
+  branch: string
+  location: string
+  initial_quantity: string
+  minimum_quantity: string
+  maximum_quantity?: string | null
+  reorder_point: string
+  allow_negative: boolean
+}
+
+export interface ApplyProductPayload {
+  command_id: string
+  product: Record<string, unknown>
+  stock?: ApplyStockCommand | null
+}
+
+export interface ProductStockSummary {
+  quantity: string
+  reserved: string
+  available: string
+  status: 'negative' | 'zero' | 'low' | 'normal'
+  branch: string | null
+  branch_name: string
+  location: string | null
+  location_name: string
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+}
+
+export interface ApplyProductResponse {
+  product: Product
+  stock_summary: ProductStockSummary | null
+}
+
+/** Atomically creates a product and, when tracking inventory, its stock policy and initial balance. */
+export function applyProduct(
+  tenantId: string,
+  payload: ApplyProductPayload,
+): Promise<ApplyProductResponse> {
+  return apiRequest<ApplyProductResponse>('/catalog/products/apply/', {
+    method: 'POST',
+    tenantId,
+    body: payload,
+  }) as Promise<ApplyProductResponse>
+}
+
+export function fetchProductStockSummary(
+  tenantId: string,
+  productId: string,
+): Promise<ProductStockSummary[] | ProductStockSummary | null> {
+  return apiRequest<ProductStockSummary[] | ProductStockSummary | null>(`/inventory/product-summary/${productId}/`, {
+    tenantId,
+  }) as Promise<ProductStockSummary[] | ProductStockSummary | null>
 }
 
 export function updateProduct(
@@ -204,11 +261,14 @@ export function fetchUnits(
   }) as Promise<PaginatedResponse<Unit>>
 }
 
+const productExtensionPath = (productId: string, suffix: string) =>
+  `/catalog/products/${productId}/${suffix}/`
+
 export function fetchProductFiscalData(
   tenantId: string,
   productId: string,
 ): Promise<ProductFiscalData> {
-  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+  return apiRequest<ProductFiscalData>(productExtensionPath(productId, 'fiscal-data'), {
     tenantId,
   }) as Promise<ProductFiscalData>
 }
@@ -218,7 +278,7 @@ export function upsertProductFiscalData(
   productId: string,
   data: Record<string, unknown>,
 ): Promise<ProductFiscalData> {
-  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+  return apiRequest<ProductFiscalData>(productExtensionPath(productId, 'fiscal-data'), {
     method: 'POST',
     tenantId,
     body: data,
@@ -228,10 +288,10 @@ export function upsertProductFiscalData(
 export function fetchProductPriceTiers(
   tenantId: string,
   productId: string,
-): Promise<ProductPriceTier[]> {
-  return apiRequest<ProductPriceTier[]>(`/products/${productId}/price-tiers/`, {
+): Promise<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]> {
+  return apiRequest<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]>(productExtensionPath(productId, 'price-tiers'), {
     tenantId,
-  }) as Promise<ProductPriceTier[]>
+  }) as Promise<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]>
 }
 
 export function createProductPriceTier(
@@ -239,7 +299,7 @@ export function createProductPriceTier(
   productId: string,
   data: Record<string, unknown>,
 ): Promise<ProductPriceTier> {
-  return apiRequest<ProductPriceTier>(`/products/${productId}/price-tiers/`, {
+  return apiRequest<ProductPriceTier>(productExtensionPath(productId, 'price-tiers'), {
     method: 'POST',
     tenantId,
     body: data,
@@ -251,7 +311,7 @@ export function deleteProductPriceTier(
   productId: string,
   tierId: string,
 ): Promise<void> {
-  return apiRequest<void>(`/products/${productId}/price-tiers/${tierId}/`, {
+  return apiRequest<void>(`/catalog/products/${productId}/price-tiers/${tierId}/`, {
     method: 'DELETE',
     tenantId,
   }) as Promise<void>

@@ -30,7 +30,7 @@ export default function LoginPage() {
           },
         })
       } else {
-        navigate('/select-tenant')
+        navigate('/dashboard')
       }
     } catch {
       setError('root', { message: 'Credenciais inválidas.' })
@@ -41,7 +41,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-900 p-4">
       <div className="w-full max-w-sm bg-surface rounded-xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-neutral-900">Zyrp</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">TJSys</h1>
           <p className="text-sm text-neutral-500 mt-1">Painel Administrativo</p>
         </div>
 

@@ -33,7 +33,7 @@ etiquetas (28) e publicação externa de canais (29).
 
 ## UX aprovada
 
-Padrão B com tokens atuais do Zyrp (`primary` azul, superfícies brancas, neutros). Abas/etapas,
+Padrão B com tokens atuais do TJSys (`primary` azul, superfícies brancas, neutros). Abas/etapas,
 ações Salvar/Cancelar persistentes e faixa inferior com status de estoque, fiscal e preço.
 Cadastros rápidos atualizam o seletor imediatamente.
 

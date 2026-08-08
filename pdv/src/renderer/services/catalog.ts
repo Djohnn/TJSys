@@ -38,7 +38,26 @@ class CatalogCacheImpl {
   async syncFromBackend(): Promise<{ products: number; prices: number }> {
     this.lastSync = new Date();
     localStorage.setItem('catalog_last_sync', Date.now().toString());
+
+    try {
+      // Trigger main process sync which will populate the catalog cache
+      const syncResult = await window.electronAPI.catalogSync?.();
+      if (syncResult?.success) {
+        // Refresh local cache from main process
+        await this.refreshFromMainProcess();
+        return syncResult.data;
+      }
+    } catch (error) {
+      console.error('Failed to sync catalog:', error);
+    }
+
     return { products: 0, prices: 0 };
+  }
+
+  private async refreshFromMainProcess(): Promise<void> {
+    // The renderer can query the main process cache through IPC
+    // This is handled by the individual product/price lookups
+    localStorage.setItem('catalog_last_sync', Date.now().toString());
   }
 
   searchProducts(query: string): CachedProduct[] {

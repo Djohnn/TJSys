@@ -1,4 +1,9 @@
-from django.db import models
+import hashlib
+import json
+import uuid
+
+from django.db import models, transaction
+from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -15,6 +20,7 @@ from catalog.models import (
     CommercialCombo,
     LabelTemplate,
     Product,
+    ProductApplyCommand,
     ProductChannelProfile,
     ProductCode,
     ProductComposition,
@@ -27,6 +33,7 @@ from catalog.models import (
 )
 from catalog.permissions import CatalogCapabilityPermission, PricingCapabilityPermission
 from catalog.serializers import (
+    ApplyProductSerializer,
     BranchPriceSerializer,
     BrandSerializer,
     CategorySerializer,
@@ -48,6 +55,7 @@ from catalog.serializers import (
 from catalog.services.events import emit_catalog_event
 from catalog.services.label_pdf import generate_label_pdf
 from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
+from inventory.services.product_stock import apply_initial_product_stock
 from outbox.models import OutboxMessage
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
 
@@ -824,3 +832,131 @@ class LabelGenerateView(APIView):
                 'Content-Disposition': 'attachment; filename="labels.pdf"',
             },
         )
+
+
+def build_apply_product_response(product, stock_result):
+    from catalog.serializers import ProductSerializer
+    from inventory.services.product_stock import build_product_stock_summary
+
+    policy = stock_result.policy if stock_result else None
+    balance = stock_result.balance if stock_result else None
+    return {
+        'product': ProductSerializer(product).data,
+        'stock_policy': (
+            {
+                'id': str(policy.id),
+                'minimum_quantity': str(policy.minimum_quantity),
+                'maximum_quantity': (
+                    str(policy.maximum_quantity) if policy.maximum_quantity is not None else None
+                ),
+                'reorder_point': str(policy.reorder_point),
+                'allow_negative': policy.allow_negative,
+            }
+            if policy
+            else None
+        ),
+        'stock_summary': (
+            build_product_stock_summary(product=product, policy=policy, balance=balance)
+            if policy
+            else None
+        ),
+    }
+
+
+class ProductApplyView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        CatalogCapabilityPermission,
+    ]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = ApplyProductSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        tenant = request.tenant
+        payload_hash = hashlib.sha256(
+            json.dumps(request.data, sort_keys=True, separators=(',', ':'), default=str).encode()
+        ).hexdigest()
+        command_id = data['command_id']
+        receipt = ProductApplyCommand.all_objects.select_for_update().filter(
+            tenant=tenant,
+            command_id=command_id,
+        ).first()
+        if receipt:
+            if receipt.payload_hash != payload_hash:
+                return Response(
+                    {
+                        'type': 'about:blank',
+                        'title': 'Conflict',
+                        'status': 409,
+                        'detail': 'The command id was already used with a different payload.',
+                        'code': 'COMMAND_PAYLOAD_MISMATCH',
+                        'errors': {'command_id': ['Command id already used.']},
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                    content_type='application/problem+json',
+                )
+            return Response(receipt.response_json, status=status.HTTP_201_CREATED)
+
+        receipt = ProductApplyCommand.all_objects.create(
+            tenant=tenant,
+            command_id=command_id,
+            payload_hash=payload_hash,
+            correlation_id=uuid.UUID(request.correlation_id),
+        )
+        product_data = data['product']
+        stock_data = data.get('stock')
+
+        from catalog.models import Category, Unit
+
+        if not product_data.get('sku'):
+            product_data['sku'] = product_data['name'][:50].upper().replace(' ', '-')
+
+        base_unit = Unit.all_objects.get(tenant=tenant, id=product_data['base_unit'])
+        category = None
+        if product_data.get('category'):
+            category = Category.all_objects.get(tenant=tenant, id=product_data['category'])
+
+        product = Product.all_objects.create(
+            tenant=tenant,
+            name=product_data['name'],
+            sku=product_data['sku'],
+            description=product_data.get('description', ''),
+            category=category,
+            base_unit=base_unit,
+            product_kind=product_data.get('product_kind', ''),
+            brand=product_data.get('brand', ''),
+            model=product_data.get('model', ''),
+            tags=product_data.get('tags', []),
+            tracks_inventory=product_data.get('tracks_inventory', False),
+        )
+        product.full_clean()
+        product.save()
+
+        emit_catalog_event(
+            action='catalog.product.created',
+            event_type='catalog.product.created',
+            instance=product,
+            request=request,
+        )
+
+        stock_result = None
+        if product_data.get('tracks_inventory') and stock_data:
+            stock_result = apply_initial_product_stock(
+                tenant=tenant,
+                product=product,
+                actor=request.user,
+                command_id=data['command_id'],
+                data=stock_data,
+                correlation_id=str(receipt.correlation_id),
+            )
+
+        response_data = json.loads(
+            json.dumps(build_apply_product_response(product, stock_result), cls=DjangoJSONEncoder)
+        )
+        receipt.response_json = response_data
+        receipt.save(update_fields=['response_json', 'updated_at'])
+        return Response(response_data, status=status.HTTP_201_CREATED)

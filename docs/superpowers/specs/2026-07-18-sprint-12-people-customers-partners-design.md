@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Criar o cadastro operacional de pessoas do Zyrp para clientes, fornecedores, transportadores e contatos, sustentando vendas identificadas, emissão fiscal correta, compras, financeiro, LGPD e futuras ações de relacionamento.
+Criar o cadastro operacional de pessoas do TJSys para clientes, fornecedores, transportadores e contatos, sustentando vendas identificadas, emissão fiscal correta, compras, financeiro, LGPD e futuras ações de relacionamento.
 
 ## Escopo
 

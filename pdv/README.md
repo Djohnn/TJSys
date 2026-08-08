@@ -1,6 +1,6 @@
 # PDV
 
-Aplicativo Electron/React/SQLite do caixa desktop do Zyrp.
+Aplicativo Electron/React/SQLite do caixa desktop do TJSys.
 
 - Online por padrão, contingência offline restrita (ADR-003).
 - Journal SQLite WAL persistente; sincronização idempotente com o backend.

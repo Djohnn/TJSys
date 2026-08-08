@@ -17,7 +17,7 @@ class Command(BaseCommand):
         if not password:
             raise CommandError('SEED_ADMIN_PASSWORD is required for local seed data.')
 
-        admin_user, created = User.objects.get_or_create(email='admin@zyrp.local')
+        admin_user, created = User.objects.get_or_create(email='admin@tjsys.local')
         if created:
             admin_user.is_staff = True
             admin_user.is_superuser = True

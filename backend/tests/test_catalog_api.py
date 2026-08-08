@@ -99,6 +99,11 @@ def test_manager_creates_product(manager_client, catalog_tenant, catalog_unit):
     )
     assert response.status_code == 201
     assert response.json()['sku'] == 'RACAO-20KG'
+    assert response.json()['base_unit'] == str(catalog_unit.id)
+    assert response.json()['unit'] == str(catalog_unit.id)
+    assert response.json()['unit_name'] == 'Kg'
+    assert response.json()['category_name'] == ''
+    assert response.json()['barcode'] == ''
 
 
 @pytest.mark.django_db

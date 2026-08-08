@@ -153,7 +153,7 @@ export function Dashboard() {
 
       const printResult = await (printFn || fallbackPrint)({ html, fileName });
       if (printResult?.success) {
-        setReprintMessage(`Cupom reimpresso e salvo em: ${printResult.savedPath}`);
+        setReprintMessage(`Cupom reimpresso com sucesso.`);
       } else {
         setReprintMessage(`Falha na impressão: ${printResult?.error || 'erro desconhecido'}`);
       }

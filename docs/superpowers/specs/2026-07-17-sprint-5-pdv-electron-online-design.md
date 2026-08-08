@@ -446,8 +446,8 @@ pdv/
 ### 11.1 Configuração electron-builder
 
 ```yaml
-appId: com.zyrp.pdv
-productName: Zyrp PDV
+appId: com.tjsys.pdv
+productName: TJSys PDV
 directories:
   output: dist
 files:
@@ -486,9 +486,9 @@ nsis:
 
 ### 11.3 Artefatos
 
-- **Windows:** `pdv/dist/Zyrp PDV Setup.exe`
-- **macOS:** `pdv/dist/Zyrp PDV.dmg`
-- **Linux:** `pdv/dist/Zyrp PDV.AppImage`
+- **Windows:** `pdv/dist/TJSys PDV Setup.exe`
+- **macOS:** `pdv/dist/TJSys PDV.dmg`
+- **Linux:** `pdv/dist/TJSys PDV.AppImage`
 
 ## 12. Qualidade e Segurança
 

@@ -1,6 +1,6 @@
-# Zyrp — Documentação
+# TJSys — Documentação
 
-Esta pasta é a fonte oficial de verdade do Zyrp, um SaaS brasileiro de gestão comercial inicialmente direcionado a casas de rações.
+Esta pasta é a fonte oficial de verdade do TJSys, um SaaS brasileiro de gestão comercial inicialmente direcionado a casas de rações.
 
 ## Estado atual
 

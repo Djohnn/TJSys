@@ -5,9 +5,9 @@
 
 ## Escopo aceito
 
-- Shell Zyrp inspirado na referência aprovada: trilho de módulos, painel contextual do Catálogo e as sete opções solicitadas.
+- Shell TJSys inspirado na referência aprovada: trilho de módulos, painel contextual do Catálogo e as sete opções solicitadas.
 - Visão geral compacta do Catálogo, sem duplicar o menu contextual em uma grade genérica de cartões.
-- Editor responsivo no padrão B, preservando as cores Zyrp, com mídia à esquerda e identificação à direita.
+- Editor responsivo no padrão B, preservando as cores TJSys, com mídia à esquerda e identificação à direita.
 - Seis etapas: Identificação, Preços, Estoque, Fiscal, Composição e Canais.
 - Upload real e galeria de imagens; limite de 5 MB e validação de tipo.
 - Categorias, marcas e unidades com ações de cadastro; marcas normalizadas sem duplicidade por caixa.

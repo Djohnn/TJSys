@@ -1,8 +1,8 @@
-# Gitignore and Zyrp Naming Implementation Plan
+# Gitignore and TJSys Naming Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Proteger arquivos locais e segredos da stack prevista e tornar Zyrp o nome oficial em toda documentação ativa.
+**Goal:** Proteger arquivos locais e segredos da stack prevista e tornar TJSys o nome oficial em toda documentação ativa.
 
 **Architecture:** Um `.gitignore` raiz atenderá o futuro monorepositório Django, React e Electron. A renomeação será limitada a documentos ativos; o arquivo histórico manterá os textos originais, enquanto índice, changelog e manifesto serão atualizados para refletir os artefatos finais.
 
@@ -13,8 +13,8 @@
 ## Mapa de arquivos
 
 - Criar `.gitignore`: política única de exclusão do monorepositório.
-- Renomear `docs/superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md` para `docs/superpowers/specs/2026-07-14-zyrp-foundation-design.md`.
-- Modificar documentos ativos encontrados por busca: trocar o nome comercial antigo por `Zyrp`.
+- Renomear `docs/superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md` para `docs/superpowers/specs/2026-07-14-tjsys-foundation-design.md`.
+- Modificar documentos ativos encontrados por busca: trocar o nome comercial antigo por `TJSys`.
 - Preservar `docs/99_Archive/**`: conteúdo histórico não normativo.
 - Modificar `docs/DOCUMENT_INDEX.md` e `docs/CHANGELOG.md`: registrar caminho e nomenclatura final.
 - Regenerar `docs/10_Releases/MILESTONE-001_MANIFEST.txt`: atualizar inventário e SHA-256.
@@ -178,7 +178,7 @@ git add .gitignore
 git commit -m "chore: add repository gitignore"
 ```
 
-### Task 2: Normalizar o nome oficial Zyrp
+### Task 2: Normalizar o nome oficial TJSys
 
 **Files:**
 - Rename: `docs/superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md`
@@ -196,14 +196,14 @@ git commit -m "chore: add repository gitignore"
 Run:
 
 ```powershell
-git mv docs/superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md docs/superpowers/specs/2026-07-14-zyrp-foundation-design.md
+git mv docs/superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md docs/superpowers/specs/2026-07-14-tjsys-foundation-design.md
 ```
 
 Expected: Git registra um rename, preservando o histórico.
 
 - [ ] **Step 2: Substituir o nome em documentos ativos**
 
-Substituir o nome comercial provisório por `Zyrp` apenas fora de `docs/99_Archive`. No desenho de fundação, preservar literalmente `Enterprise_Commerce_Platform_Docs` porque identifica o nome de um diretório antigo removido.
+Substituir o nome comercial provisório por `TJSys` apenas fora de `docs/99_Archive`. No desenho de fundação, preservar literalmente `Enterprise_Commerce_Platform_Docs` porque identifica o nome de um diretório antigo removido.
 
 - [ ] **Step 3: Verificar ausência do nome comercial antigo no conteúdo normativo**
 
@@ -225,7 +225,7 @@ Run:
 ```powershell
 $legacyName = 'Enterprise' + ' Commerce Platform'
 rg -n $legacyName docs/99_Archive
-rg -n 'Enterprise_Commerce_Platform_Docs' docs/superpowers/specs/2026-07-14-zyrp-foundation-design.md
+rg -n 'Enterprise_Commerce_Platform_Docs' docs/superpowers/specs/2026-07-14-tjsys-foundation-design.md
 ```
 
 Expected: ambos os comandos retornam pelo menos uma ocorrência.
@@ -234,7 +234,7 @@ Expected: ambos os comandos retornam pelo menos uma ocorrência.
 
 ```powershell
 git add docs
-git commit -m "docs: rename product to Zyrp"
+git commit -m "docs: rename product to TJSys"
 ```
 
 ### Task 3: Atualizar governança do marco documental
@@ -249,12 +249,12 @@ git commit -m "docs: rename product to Zyrp"
 Adicionar em `2026-07-14 — Documentation Foundation v0.1.0`, na seção `Decisions`:
 
 ```markdown
-- Nome oficial do produto definido como **Zyrp**; o nome provisório anterior permanece apenas no arquivo histórico.
+- Nome oficial do produto definido como **TJSys**; o nome provisório anterior permanece apenas no arquivo histórico.
 ```
 
 - [ ] **Step 2: Atualizar o índice para o novo caminho da especificação**
 
-Trocar o caminho de `superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md` por `superpowers/specs/2026-07-14-zyrp-foundation-design.md` e o título da linha para `Zyrp Foundation Design`.
+Trocar o caminho de `superpowers/specs/2026-07-14-enterprise-commerce-platform-foundation-design.md` por `superpowers/specs/2026-07-14-tjsys-foundation-design.md` e o título da linha para `TJSys Foundation Design`.
 
 - [ ] **Step 3: Regenerar o manifesto**
 
@@ -275,7 +275,7 @@ Expected: `git diff --check` sem erros e busca sem marcadores incompletos.
 
 ```powershell
 git add docs/CHANGELOG.md docs/DOCUMENT_INDEX.md docs/10_Releases/MILESTONE-001_MANIFEST.txt
-git commit -m "docs: refresh Zyrp milestone metadata"
+git commit -m "docs: refresh TJSys milestone metadata"
 ```
 
 ### Task 4: Verificação final
@@ -300,7 +300,7 @@ Expected: worktree limpa e três novos commits de implementação após o commit
 Run:
 
 ```powershell
-rg -n 'Zyrp' docs/README.md docs/DOCUMENT_INDEX.md docs/05_API/openapi.yaml docs/06_Diagrams/C4_CONTEXT.md
+rg -n 'TJSys' docs/README.md docs/DOCUMENT_INDEX.md docs/05_API/openapi.yaml docs/06_Diagrams/C4_CONTEXT.md
 ```
 
 Expected: ocorrências em todos os arquivos informados.

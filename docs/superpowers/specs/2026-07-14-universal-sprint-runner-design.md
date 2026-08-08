@@ -2,11 +2,11 @@
 
 **Status:** Approved for review  
 **Data:** 2026-07-14  
-**Produto:** Zyrp
+**Produto:** TJSys
 
 ## Objetivo
 
-Criar um mecanismo simples, legível e independente de ferramenta para que qualquer agente de terminal consiga executar uma sprint do Zyrp com base na documentação oficial, enquanto o usuário acompanha o progresso por checkboxes no próprio PRD operacional.
+Criar um mecanismo simples, legível e independente de ferramenta para que qualquer agente de terminal consiga executar uma sprint do TJSys com base na documentação oficial, enquanto o usuário acompanha o progresso por checkboxes no próprio PRD operacional.
 
 ## Artefatos
 
@@ -81,7 +81,7 @@ O agente poderá criar e modificar arquivos, instalar dependências previstas, e
 
 ## Sprint 0 — direção
 
-O Sprint 0 estabelecerá a fundação técnica do Zyrp:
+O Sprint 0 estabelecerá a fundação técnica do TJSys:
 
 - monorepositório preparado para backend, frontend, PDV e infraestrutura;
 - backend Django e DRF configurado por ambiente;

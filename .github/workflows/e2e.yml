@@ -12,9 +12,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: zyrp
-          POSTGRES_USER: zyrp
-          POSTGRES_PASSWORD: zyrp
+          POSTGRES_DB: tjsys
+          POSTGRES_USER: tjsys
+          POSTGRES_PASSWORD: tjsys
         options: >-
           --health-cmd pg_isready
           --health-interval 5s
@@ -53,7 +53,7 @@ jobs:
       - name: Start backend
         working-directory: ./backend
         env:
-          DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+          DATABASE_URL: postgres://tjsys:tjsys@localhost:5432/tjsys
           REDIS_URL: redis://localhost:6379
           SECRET_KEY: ci-secret-key
           DEBUG: 'true'

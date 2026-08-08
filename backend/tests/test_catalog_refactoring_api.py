@@ -212,7 +212,6 @@ def test_create_fiscal_data(catalog_context):
     """
     ctx = catalog_context
     payload = {
-        'product': str(ctx['product'].id),
         'fiscal_type': 'revenda',
         'ncm': '12345678',
         'cest': '1234567890',
@@ -380,8 +379,6 @@ def test_create_price_tier(catalog_context):
     """
     ctx = catalog_context
     payload = {
-        'product': str(ctx['product'].id),
-        'price': str(ctx['price'].id),
         'min_quantity': '5',
         'amount': '8.50',
     }

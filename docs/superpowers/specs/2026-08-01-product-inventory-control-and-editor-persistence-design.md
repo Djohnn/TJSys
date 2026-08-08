@@ -1,7 +1,7 @@
 # Controle de Estoque no Produto e Persistência do Editor
 
 **Data:** 2026-08-01  
-**Status:** Aguardando revisão final  
+**Status:** Aprovada com correções de auditoria em 2026-08-02
 **Escopo:** Catálogo de produtos, configuração de estoque, saldo inicial, preços, fiscal e canais
 
 ## 1. Contexto
@@ -129,6 +129,15 @@ Validações:
 
 A operação deverá usar uma chave idempotente derivada do comando de criação para impedir saldo duplicado em repetição de requisição.
 
+### 5.3 Comando idempotente
+
+`command_id` identifica o comando inteiro, e não somente a movimentação. O backend armazenará, por tenant, o identificador, o hash canônico do payload, o estado e a resposta persistida.
+
+- A primeira requisição executa produto, política, entrada, auditoria e outbox na mesma transação.
+- Uma repetição com o mesmo `command_id` e o mesmo hash retorna a resposta original, sem novas gravações.
+- O mesmo `command_id` com payload diferente retorna `409 COMMAND_PAYLOAD_MISMATCH`.
+- Uma falha transacional não deixa um comando concluído nem uma resposta parcial.
+
 ## 6. Contratos de API
 
 ### 6.1 Aplicar produto com estoque
@@ -182,6 +191,8 @@ Resposta `201`:
 - `PATCH /api/v1/inventory/product-policies/<id>/` com `If-Match` baseado em `version`.
 - `GET /api/v1/inventory/product-summary/<product-id>/?branch=<id>&location=<id>` para saldo e situação consolidados.
 
+Quando filial e local não forem informados, o resumo retornará `locations`, uma coleção ordenada por filial e local. O backend não escolherá implicitamente a primeira política. Para editar uma política ou iniciar um ajuste, filial e local são obrigatórios.
+
 Erros seguirão `application/problem+json`, com `errors` por campo e códigos estáveis, incluindo:
 
 - `STOCK_LOCATION_BRANCH_MISMATCH`
@@ -189,6 +200,10 @@ Erros seguirão `application/problem+json`, com `errors` por campo e códigos es
 - `STOCK_SERVICE_NOT_ALLOWED`
 - `STOCK_NEGATIVE_NOT_ALLOWED`
 - `CONFLICT_VERSION_MISMATCH`
+- `COMMAND_PAYLOAD_MISMATCH`
+- `STOCK_CONTROL_ACTIVE_BALANCE`
+
+Todos os erros de validação e conflito usarão `Content-Type: application/problem+json` e conterão `type`, `title`, `status`, `detail`, `code` e `errors`. `errors` será um objeto cujas chaves correspondem aos caminhos dos campos do comando.
 
 ## 7. Regras de transição
 
@@ -199,6 +214,8 @@ Erros seguirão `application/problem+json`, com `errors` por campo e códigos es
 - Produto existente que deixa de controlar estoque: política fica inativa; histórico e saldo permanecem consultáveis; novas operações são bloqueadas até reativação.
 - Produto com saldo ou reserva diferente de zero não poderá deixar de controlar estoque sem confirmação e tratamento operacional no módulo Inventário.
 
+Ativar, desativar ou reativar controle em produto existente usará um comando próprio e versionado. A desativação somente será aceita quando quantidade e reserva forem zero em todos os locais. A política será inativada, nunca removida. A reativação reutilizará ou atualizará uma política existente; quantidade inicial continuará proibida se já houver movimentos no local.
+
 ## 8. Segurança, auditoria e concorrência
 
 - Todas as consultas e gravações respeitarão tenant e permissões da filial.
@@ -206,6 +223,9 @@ Erros seguirão `application/problem+json`, com `errors` por campo e códigos es
 - Produto, política, operação e movimento compartilharão um `correlation_id`.
 - Atualizações de política usarão `version`/`If-Match`.
 - A entrada inicial será idempotente e auditável; nenhuma escrita direta em `StockBalance` será permitida.
+- A autorização validará tanto a capacidade do módulo quanto o acesso do usuário à filial informada.
+- O registro do comando, os eventos de auditoria e os eventos de outbox serão gravados na mesma transação das entidades de domínio.
+- A migração de `ProductStockPolicy` habilitará e forçará RLS com `RunSQL` e `reverse_sql` explícitos; um teste PostgreSQL comprovará leitura e escrita isoladas entre tenants.
 
 ## 9. Estados e mensagens
 
@@ -267,6 +287,9 @@ Erros seguirão `application/problem+json`, com `errors` por campo e códigos es
 - Frontend unitário: exibição condicional, validações, mensagens e invalidação de queries.
 - E2E Playwright: criação completa com categoria, marca, política e saldo inicial; reabertura do produto; preço, fiscal e canal persistidos; cenário sem controle; cenário móvel.
 - Auditoria: consulta ao banco com contexto de tenant confirmando produto, política, movimento, saldo e eventos.
+- Idempotência: repetir o comando com payload igual retorna a mesma resposta; payload divergente retorna conflito.
+- Transições: ativar, desativar e reativar, incluindo bloqueio com saldo/reserva e proibição de saldo inicial após movimentos.
+- Múltiplos locais: consulta sem filtros retorna coleção ordenada e nunca seleciona uma política arbitrária.
 
 ## 12. Migração e compatibilidade
 
@@ -282,4 +305,3 @@ Erros seguirão `application/problem+json`, com `errors` por campo e códigos es
 - Lote econômico de compra.
 - Estoque em trânsito como campo editável no produto.
 - Upload de imagem de teste nesta entrega, salvo cobertura de regressão do comportamento já existente.
-

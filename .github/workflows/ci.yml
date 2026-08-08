@@ -9,25 +9,25 @@ on:
 env:
   PYTHON_VERSION: '3.13'
   DJANGO_SETTINGS_MODULE: config.settings.test
-  DB_NAME: zyrp_test
-  DB_USER: zyrp
-  DB_PASSWORD: zyrp
+  DB_NAME: tjsys_test
+  DB_USER: tjsys
+  DB_PASSWORD: tjsys
   DB_HOST: localhost
   DB_PORT: 5432
   REDIS_URL: redis://localhost:6379/0
   SECRET_KEY: ci-only-not-a-secret-0123456789abcdefghijklmnopqrstuvwxyz-ABCDE
   DEBUG: 'False'
   ALLOWED_HOSTS: localhost
-  POSTGRES_DB: zyrp_test
-  POSTGRES_USER: zyrp
-  POSTGRES_PASSWORD: zyrp
+  POSTGRES_DB: tjsys_test
+  POSTGRES_USER: tjsys
+  POSTGRES_PASSWORD: tjsys
   POSTGRES_HOST: localhost
   POSTGRES_PORT: 5432
-  POSTGRES_APP_USER: zyrp_app
-  POSTGRES_APP_PASSWORD: zyrp_app_ci
-  POSTGRES_TEST_USER: zyrp_test
-  POSTGRES_TEST_PASSWORD: zyrp_test_ci
-  POSTGRES_TEST_DB: test_zyrp
+  POSTGRES_APP_USER: tjsys_app
+  POSTGRES_APP_PASSWORD: tjsys_app_ci
+  POSTGRES_TEST_USER: tjsys_test
+  POSTGRES_TEST_PASSWORD: tjsys_test_ci
+  POSTGRES_TEST_DB: test_tjsys
   CELERY_BROKER_URL: redis://localhost:6379/1
   CELERY_RESULT_BACKEND: redis://localhost:6379/1
   EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
@@ -46,9 +46,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: zyrp_test
-          POSTGRES_USER: zyrp
-          POSTGRES_PASSWORD: zyrp
+          POSTGRES_DB: tjsys_test
+          POSTGRES_USER: tjsys
+          POSTGRES_PASSWORD: tjsys
         ports:
           - 5432:5432
         options: >-
@@ -165,9 +165,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: zyrp_test
-          POSTGRES_USER: zyrp
-          POSTGRES_PASSWORD: zyrp
+          POSTGRES_DB: tjsys_test
+          POSTGRES_USER: tjsys
+          POSTGRES_PASSWORD: tjsys
         ports:
           - 5432:5432
         options: >-

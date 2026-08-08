@@ -1,5 +1,5 @@
 {
-  "name": "zyrp-pdv",
+  "name": "tjsys-pdv",
   "version": "0.1.0",
   "private": true,
   "main": "dist/main/index.js",
@@ -47,8 +47,8 @@
     "vitest": "^4.0.0"
   },
   "build": {
-    "appId": "com.zyrp.pdv",
-    "productName": "Zyrp PDV",
+    "appId": "com.tjsys.pdv",
+    "productName": "TJSys PDV",
     "directories": {
       "output": "dist"
     },

@@ -2,7 +2,7 @@
 
 **Status:** Approved for review  
 **Data:** 2026-07-14  
-**Produto:** Zyrp
+**Produto:** TJSys
 
 ## Objetivo
 
@@ -10,7 +10,7 @@ Corrigir a implementação inicial do Sprint 0 para que os checkboxes do PRD ref
 
 ## Diagnóstico confirmado
 
-- O papel PostgreSQL `zyrp` é superuser e possui `BYPASSRLS`; portanto as policies não protegem a aplicação.
+- O papel PostgreSQL `tjsys` é superuser e possui `BYPASSRLS`; portanto as policies não protegem a aplicação.
 - O contexto tenant usa `SET` persistente na conexão, sem transação por requisição ou limpeza garantida.
 - A seleção do tenant usa a primeira membership ativa, sem escolha explícita.
 - Os testes de aplicação filtram manualmente por tenant e não demonstram proteção automática.
@@ -27,9 +27,9 @@ Corrigir a implementação inicial do Sprint 0 para que os checkboxes do PRD ref
 
 O PostgreSQL local e de CI terá papéis separados:
 
-- `zyrp_owner`: proprietário do schema e executor de migrations; não será usado pela aplicação em runtime.
-- `zyrp_app`: login da aplicação, sem `SUPERUSER`, `BYPASSRLS` ou propriedade das tabelas.
-- `zyrp_test`: papel não privilegiado usado nos testes de isolamento, ou execução equivalente por `SET ROLE` controlado.
+- `tjsys_owner`: proprietário do schema e executor de migrations; não será usado pela aplicação em runtime.
+- `tjsys_app`: login da aplicação, sem `SUPERUSER`, `BYPASSRLS` ou propriedade das tabelas.
+- `tjsys_test`: papel não privilegiado usado nos testes de isolamento, ou execução equivalente por `SET ROLE` controlado.
 
 O ambiente de desenvolvimento poderá executar migrations com credenciais owner e iniciar Django com credenciais app. As policies usarão `current_setting('app.current_tenant_id', true)` e negarão leitura e escrita quando o contexto estiver ausente ou incompatível.
 

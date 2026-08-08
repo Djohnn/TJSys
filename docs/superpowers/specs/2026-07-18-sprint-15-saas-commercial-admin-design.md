@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Preparar o Zyrp para operação comercial SaaS: planos, assinatura, ciclo de vida do tenant, suspensão controlada, portal administrativo, suporte e governança de release.
+Preparar o TJSys para operação comercial SaaS: planos, assinatura, ciclo de vida do tenant, suspensão controlada, portal administrativo, suporte e governança de release.
 
 ## Escopo
 

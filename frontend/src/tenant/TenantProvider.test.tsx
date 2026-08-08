@@ -10,11 +10,11 @@ import type { User, Membership } from '../auth/authApi'
 
 import { TenantProvider, useTenant } from './TenantProvider'
 
-const STORAGE_KEY = 'zyrp:selected-tenant'
+const STORAGE_KEY = 'tjsys:selected-tenant'
 
 const mockUser: User = {
   id: 1,
-  email: 'admin@zyrp.local',
+  email: 'admin@tjsys.local',
   name: 'Admin',
   is_active: true,
   is_mfa_enabled: false,

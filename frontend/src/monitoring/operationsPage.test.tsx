@@ -16,7 +16,7 @@ const BASE = '/api/v1'
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
-  user: { id: 1, email: 'admin@zyrp.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
+  user: { id: 1, email: 'admin@tjsys.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   logout: async () => {},
@@ -56,10 +56,10 @@ const OPERATIONS_DATA = {
     fiscal: { total: 50, pending: 3, processing: 2, concluded: 40, rejected: 3, cancelled: 1, failed: 1 },
   },
   runbook_links: [
-    { id: 'db-down', label: 'Database outage', url: 'https://docs.zyrp.local/runbooks/db-down' },
-    { id: 'cache-down', label: 'Cache outage', url: 'https://docs.zyrp.local/runbooks/cache-down' },
-    { id: 'fiscal-rejected', label: 'Fiscal rejection', url: 'https://docs.zyrp.local/runbooks/fiscal-rejected' },
-    { id: 'outbox-backlog', label: 'Outbox backlog', url: 'https://docs.zyrp.local/runbooks/outbox-backlog' },
+    { id: 'db-down', label: 'Database outage', url: 'https://docs.tjsys.local/runbooks/db-down' },
+    { id: 'cache-down', label: 'Cache outage', url: 'https://docs.tjsys.local/runbooks/cache-down' },
+    { id: 'fiscal-rejected', label: 'Fiscal rejection', url: 'https://docs.tjsys.local/runbooks/fiscal-rejected' },
+    { id: 'outbox-backlog', label: 'Outbox backlog', url: 'https://docs.tjsys.local/runbooks/outbox-backlog' },
   ],
 }
 

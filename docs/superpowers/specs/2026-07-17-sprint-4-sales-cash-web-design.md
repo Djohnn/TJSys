@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Implementar o primeiro ciclo comercial online do Zyrp: venda balcão web com pagamento registrado, baixa imediata de estoque e movimento de caixa na mesma transação.
+Implementar o primeiro ciclo comercial online do TJSys: venda balcão web com pagamento registrado, baixa imediata de estoque e movimento de caixa na mesma transação.
 
 ## Escopo aprovado
 

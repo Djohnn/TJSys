@@ -1,7 +1,7 @@
 # Rollback Runbook
 
 ## Overview
-This runbook defines when and how to rollback a deployment for the Zyrp platform.
+This runbook defines when and how to rollback a deployment for the TJSys platform.
 
 ## Rollback Triggers (MUST meet at least ONE)
 
@@ -31,36 +31,36 @@ This runbook defines when and how to rollback a deployment for the Zyrp platform
 ### Backend (Django) - Docker/Kubernetes
 ```bash
 # 1. Check current deployment
-kubectl get deployments -n zyrp
+kubectl get deployments -n tjsys
 
 # 2. View rollout history
-kubectl rollout history deployment/zyrp-backend -n zyrp
+kubectl rollout history deployment/tjsys-backend -n tjsys
 
 # 3. Rollback to previous revision
-kubectl rollout undo deployment/zyrp-backend -n zyrp
+kubectl rollout undo deployment/tjsys-backend -n tjsys
 
 # 4. Verify rollout
-kubectl rollout status deployment/zyrp-backend -n zyrp
+kubectl rollout status deployment/tjsys-backend -n tjsys
 
 # 5. If specific revision needed
-kubectl rollout undo deployment/zyrp-backend --to-revision=N -n zyrp
+kubectl rollout undo deployment/tjsys-backend --to-revision=N -n tjsys
 ```
 
 ### Backend (Django) - Traditional Server
 ```bash
 # 1. Stop current service
-sudo systemctl stop zyrp-backend
+sudo systemctl stop tjsys-backend
 
 # 2. Switch to previous release
-cd /opt/zyrp/releases
+cd /opt/tjsys/releases
 ln -sfn release-YYYYMMDD-HHMMSS current
 
 # 3. Run migrations (if rollback includes DB changes)
-cd /opt/zyrp/current/backend
+cd /opt/tjsys/current/backend
 python manage.py migrate --fake-initial
 
 # 4. Restart service
-sudo systemctl start zyrp-backend
+sudo systemctl start tjsys-backend
 
 # 5. Verify health
 curl -f http://localhost:8000/api/v1/monitoring/health/
@@ -70,16 +70,16 @@ curl -f http://localhost:8000/api/v1/monitoring/health/
 ```bash
 # ONLY if data corruption confirmed and no other fix
 # 1. STOP ALL SERVICES
-sudo systemctl stop zyrp-backend zyrp-worker zyrp-scheduler
+sudo systemctl stop tjsys-backend tjsys-worker tjsys-scheduler
 
 # 2. Restore from backup
-pg_restore -d zyrp -U postgres -h localhost backup_YYYYMMDD_HHMMSS.dump
+pg_restore -d tjsys -U postgres -h localhost backup_YYYYMMDD_HHMMSS.dump
 
 # 3. Verify data integrity
-psql -d zyrp -c "SELECT count(*) FROM sales_sale;"
+psql -d tjsys -c "SELECT count(*) FROM sales_sale;"
 
 # 4. Restart services
-sudo systemctl start zyrp-backend zyrp-worker zyrp-scheduler
+sudo systemctl start tjsys-backend tjsys-worker tjsys-scheduler
 ```
 
 ### PDV (Electron) Rollback
@@ -97,7 +97,7 @@ sudo systemctl start zyrp-backend zyrp-worker zyrp-scheduler
 If feature flagged:
 ```bash
 # Disable feature flag immediately
-kubectl set env deployment/zyrp-backend FEATURE_NEW_CHECKOUT=false -n zyrp
+kubectl set env deployment/tjsys-backend FEATURE_NEW_CHECKOUT=false -n tjsys
 # Or via admin panel
 ```
 

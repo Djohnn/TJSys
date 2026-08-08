@@ -10,9 +10,34 @@
 
 ---
 
+## Execution contract
+
+All commands in this plan start at `C:\ERP`. Backend commands must run as:
+
+```powershell
+Push-Location C:\ERP\backend
+C:\ERP\.venv\Scripts\python.exe -m pytest <test-path> --no-cov -q
+Pop-Location
+```
+
+Targeted RED/GREEN runs use `--no-cov`; the final backend suite keeps the repository's 80% coverage gate. Frontend commands run from `C:\ERP\frontend`. Every E2E test creates names with a run-scoped UUID and removes its own data through the test API or a database fixture.
+
+## Mandatory audit corrections
+
+The following requirements are release blockers and are part of this plan, not a later sprint:
+
+1. `command_id` protects the entire apply-product command. Store tenant, command id, canonical payload hash, status and persisted response. Equal retries return the original response; a different payload returns `409 COMMAND_PAYLOAD_MISMATCH`.
+2. Product stock control transitions are explicit commands. Deactivation requires zero quantity and reservation in every location, inactivates policies and preserves history. Reactivation never creates initial stock when movements already exist.
+3. Product, policy, operation, movement, audit and outbox records share one `correlation_id` and commit atomically.
+4. `ProductStockPolicy` receives explicit reversible PostgreSQL RLS. Tests must prove tenant A cannot read or write tenant B's policy.
+5. Summary without branch/location returns an ordered `locations` collection. Editing and adjustment require an explicit branch and location.
+6. Every validation/conflict response follows `application/problem+json` with stable `code` and field-level `errors`.
+7. Capability checks are supplemented by branch-access authorization for every branch supplied by the client.
+
 ## File map
 
-- Create `backend/inventory/migrations/0006_product_stock_policy.py`: tabela, índices, constraint única e política RLS.
+- Create `backend/inventory/migrations/0006_add_product_stock_policy.py`: tabela, índices, constraint única e política RLS reversível.
+- Create `backend/catalog/models.py` command receipt model (or a focused catalog model module following the repository convention): idempotência integral do comando.
 - Modify `backend/inventory/models.py`: modelo `ProductStockPolicy` e regra de saldo negativo baseada na política.
 - Modify `backend/inventory/serializers.py`: política, comando inicial e resumo de estoque.
 - Create `backend/inventory/services/product_stock.py`: aplicação atômica, resumo e desativação segura.
@@ -22,7 +47,7 @@
 - Modify `backend/catalog/urls.py`: publicar o comando de aplicação.
 - Modify `backend/catalog/serializers.py`: serializer do comando produto + estoque.
 - Modify `backend/catalog/services/product_extensions.py`: manter extensões independentes e reutilizáveis.
-- Modify `backend/inventory/services.py`: respeitar `allow_negative` sem escrita direta em saldo.
+- Modify `backend/inventory/services/operations.py`: respeitar `allow_negative` sem escrita direta em saldo.
 - Create `backend/tests/test_product_stock_policy.py`: modelo, serviço, rollback, idempotência e RLS.
 - Create `backend/tests/test_product_stock_api.py`: contratos do comando, política e resumo.
 - Modify `backend/tests/test_catalog_product_experience_api.py`: regressão de preço/fiscal/canal.
@@ -152,7 +177,7 @@ git commit -m "fix(catalog): persist product extension steps"
 
 **Files:**
 - Modify: `backend/inventory/models.py`
-- Create: `backend/inventory/migrations/0006_product_stock_policy.py`
+- Create: `backend/inventory/migrations/0006_add_product_stock_policy.py`
 - Modify: `backend/inventory/serializers.py`
 - Create: `backend/tests/test_product_stock_policy.py`
 
@@ -232,8 +257,16 @@ class ProductStockPolicy(VersionedInventoryModel):
             errors['location'] = 'Stock location must belong to the selected branch.'
         if self.maximum_quantity is not None and self.maximum_quantity < self.minimum_quantity:
             errors['maximum_quantity'] = 'Maximum quantity must be greater than or equal to minimum quantity.'
-        if self.minimum_quantity < 0 or self.reorder_point < 0:
-            errors['minimum_quantity'] = 'Stock thresholds cannot be negative.'
+        if self.minimum_quantity < 0:
+            errors['minimum_quantity'] = 'Minimum quantity cannot be negative.'
+        if self.reorder_point < 0:
+            errors['reorder_point'] = 'Reorder point cannot be negative.'
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.branch_id and self.tenant_id and self.branch.tenant_id != self.tenant_id:
+            errors['branch'] = 'Branch must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
         if errors:
             raise ValidationError(errors)
 ```
@@ -246,17 +279,26 @@ Run:
 C:\ERP\.venv\Scripts\python.exe manage.py makemigrations inventory
 ```
 
-Na migração gerada, adicionar `RunSQL` equivalente aos modelos protegidos:
+Na migração gerada, adicionar a operação reversível completa:
 
-```sql
-ALTER TABLE inventory_productstockpolicy ENABLE ROW LEVEL SECURITY;
-ALTER TABLE inventory_productstockpolicy FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation_productstockpolicy ON inventory_productstockpolicy
-USING (tenant_id::text = current_setting('app.current_tenant_id', true))
-WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true));
+```python
+migrations.RunSQL(
+    sql='''
+        ALTER TABLE inventory_productstockpolicy ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE inventory_productstockpolicy FORCE ROW LEVEL SECURITY;
+        CREATE POLICY tenant_isolation_productstockpolicy
+        ON inventory_productstockpolicy
+        USING (tenant_id::text = current_setting('app.current_tenant_id', true))
+        WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true));
+    ''',
+    reverse_sql='''
+        DROP POLICY IF EXISTS tenant_isolation_productstockpolicy
+        ON inventory_productstockpolicy;
+        ALTER TABLE inventory_productstockpolicy NO FORCE ROW LEVEL SECURITY;
+        ALTER TABLE inventory_productstockpolicy DISABLE ROW LEVEL SECURITY;
+    ''',
+)
 ```
-
-O reverso remove a policy antes da tabela ser removida pelo rollback da migração.
 
 - [ ] **Step 5: Criar serializer**
 
@@ -494,6 +536,69 @@ C:\ERP\.venv\Scripts\python.exe -m pytest backend/tests/test_product_stock_api.p
 git add backend/catalog/serializers.py backend/catalog/views.py backend/catalog/urls.py backend/inventory/views.py backend/inventory/urls.py backend/tests/test_product_stock_api.py
 git commit -m "feat(catalog): apply product with stock policy"
 ```
+
+### Task 4A: Fechar idempotência, transições, eventos e contrato de erros
+
+**Files:**
+- Modify: `backend/catalog/models.py`
+- Create: `backend/catalog/migrations/0015_product_apply_command.py`
+- Modify: `backend/catalog/views.py`
+- Modify: `backend/catalog/serializers.py`
+- Modify: `backend/inventory/services/product_stock.py`
+- Modify: `backend/inventory/views.py`
+- Test: `backend/tests/test_product_stock_api.py`
+- Test: `backend/tests/test_product_stock_policy.py`
+
+- [ ] **Step 1: Escrever os cenários BDD RED**
+
+Implementar testes independentes com estes nomes e resultados:
+
+```python
+def test_apply_retry_with_same_payload_returns_original_201_response(): ...
+def test_apply_retry_with_changed_payload_returns_problem_409(): ...
+def test_apply_rollback_does_not_leave_completed_command_or_events(): ...
+def test_apply_persists_shared_correlation_id_in_audit_and_outbox(): ...
+def test_deactivate_rejects_any_nonzero_quantity_or_reservation(): ...
+def test_deactivate_preserves_movements_and_inactivates_all_policies(): ...
+def test_reactivate_rejects_initial_quantity_when_location_has_history(): ...
+def test_summary_without_filters_returns_ordered_locations(): ...
+def test_policy_patch_requires_if_match_and_branch_access(): ...
+def test_validation_errors_use_problem_json_and_stable_field_codes(): ...
+```
+
+- [ ] **Step 2: Confirmar RED sem o gate global de cobertura**
+
+```powershell
+Push-Location C:\ERP\backend
+C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_product_stock_api.py tests/test_product_stock_policy.py --no-cov -q
+Pop-Location
+```
+
+Expected: os dez novos cenários falham pelos contratos ainda ausentes; testes anteriores permanecem verdes.
+
+- [ ] **Step 3: Persistir o recibo idempotente do comando**
+
+Criar `ProductApplyCommand` com `tenant`, `command_id`, `payload_hash`, `status`, `response_json`, `correlation_id`, timestamps e constraint única `(tenant, command_id)`. Calcular SHA-256 sobre JSON canônico (`sort_keys=True`, separadores compactos). Dentro de `transaction.atomic`, bloquear o recibo com `select_for_update`; retornar `response_json` para hash igual concluído e `COMMAND_PAYLOAD_MISMATCH` para hash divergente. Somente marcar como concluído depois de produto, estoque, auditoria e outbox serem persistidos.
+
+- [ ] **Step 4: Implementar transições e resumos determinísticos**
+
+Adicionar serviços `activate_product_stock_control`, `deactivate_product_stock_control` e `reactivate_product_stock_control`. Usar `select_for_update` em produto, políticas e saldos. A desativação falha com `STOCK_CONTROL_ACTIVE_BALANCE` se qualquer `quantity != 0` ou `reserved != 0`. O resumo sem filtros serializa todas as políticas ativas com `order_by('branch__name', 'location__name', 'id')`; com apenas um dos filtros, retornar erro por campo.
+
+- [ ] **Step 5: Normalizar erros, concorrência e autorização**
+
+Exigir `If-Match` no PATCH; ausência retorna `428 PRECONDITION_REQUIRED`, divergência retorna `409 CONFLICT_VERSION_MISMATCH`. Antes de qualquer consulta/gravação, validar acesso do ator à filial. Mapear `ValidationError`, conflito, objeto ausente e permissão para `application/problem+json` com `code` e `errors`, sem expor exceções internas.
+
+- [ ] **Step 6: Confirmar GREEN e commit**
+
+```powershell
+Push-Location C:\ERP\backend
+C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_product_stock_api.py tests/test_product_stock_policy.py --no-cov -q
+Pop-Location
+git add backend/catalog backend/inventory backend/tests/test_product_stock_api.py backend/tests/test_product_stock_policy.py
+git commit -m "fix(catalog): close product stock command contracts"
+```
+
+Expected: todos os cenários do comando, transições, RLS e política passam sem warnings de paginação não ordenada.
 
 ### Task 5: Exibir campos condicionais na Identificação
 

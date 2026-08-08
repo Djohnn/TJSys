@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Completar o ciclo pós-venda do Zyrp com devolução parcial/total, cancelamento de venda, reentrada de estoque, reflexo em caixa/pagamentos e integração com estado fiscal quando aplicável.
+Completar o ciclo pós-venda do TJSys com devolução parcial/total, cancelamento de venda, reentrada de estoque, reflexo em caixa/pagamentos e integração com estado fiscal quando aplicável.
 
 ## Escopo
 

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Este documento define como a plataforma Zyrp administra planos, assinaturas, capacidades, limites, suspensão de tenants, feature flags e acessos temporários de suporte. A camada comercial SaaS permanece separada dos dados operacionais de vendas, estoque, fiscal e financeiro.
+Este documento define como a plataforma TJSys administra planos, assinaturas, capacidades, limites, suspensão de tenants, feature flags e acessos temporários de suporte. A camada comercial SaaS permanece separada dos dados operacionais de vendas, estoque, fiscal e financeiro.
 
 ## Limites arquiteturais
 

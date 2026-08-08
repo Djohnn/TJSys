@@ -9,7 +9,7 @@ test.describe('Autenticação e troca de tenant', () => {
 
   test('Login com credenciais inválidas mostra erro', async ({ page }) => {
     await page.goto('/login')
-    await page.fill('[name="email"]', 'wrong@zyrp.local')
+    await page.fill('[name="email"]', 'wrong@tjsys.local')
     await page.fill('[name="password"]', 'wrong-password')
     await page.click('button[type="submit"]')
     await expect(page.getByRole('alert')).toBeVisible()

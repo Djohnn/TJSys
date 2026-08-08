@@ -70,6 +70,10 @@ class CategorySerializer(FullCleanModelSerializer):
 
 class ProductSerializer(FullCleanModelSerializer):
     price = serializers.SerializerMethodField()
+    unit = serializers.UUIDField(source='base_unit_id', read_only=True)
+    unit_name = serializers.CharField(source='base_unit.name', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, default='')
+    barcode = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -79,7 +83,11 @@ class ProductSerializer(FullCleanModelSerializer):
             'name',
             'description',
             'category',
+            'category_name',
             'base_unit',
+            'unit',
+            'unit_name',
+            'barcode',
             'requires_lot',
             'requires_expiry',
             'is_active',
@@ -126,6 +134,10 @@ class ProductSerializer(FullCleanModelSerializer):
             .first()
         )
         return f'{price.amount:.2f}' if price else None
+
+    def get_barcode(self, obj):
+        code = obj.codes.filter(code_type='ean', is_active=True).order_by('-is_principal', 'id').first()
+        return code.value if code else ''
 
 
 class ProductUnitSerializer(FullCleanModelSerializer):
@@ -205,7 +217,7 @@ class ProductFiscalDataSerializer(FullCleanModelSerializer):
             'is_active',
             'version',
         ]
-        read_only_fields = ['id', 'version']
+        read_only_fields = ['id', 'product', 'version']
 
 
 class ProductPriceTierSerializer(FullCleanModelSerializer):
@@ -220,7 +232,7 @@ class ProductPriceTierSerializer(FullCleanModelSerializer):
             'is_active',
             'version',
         ]
-        read_only_fields = ['id', 'version']
+        read_only_fields = ['id', 'product', 'version']
 
 
 class BrandSerializer(FullCleanModelSerializer):
@@ -231,6 +243,8 @@ class BrandSerializer(FullCleanModelSerializer):
 
 
 class ProductImageSerializer(FullCleanModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
     def validate_file(self, value):
         allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
         if value.content_type not in allowed_types:
@@ -239,9 +253,17 @@ class ProductImageSerializer(FullCleanModelSerializer):
             raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
         return value
 
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
     class Meta:
         model = ProductImage
-        fields = ['id', 'product', 'object_key', 'file', 'alt_text', 'is_primary', 'position']
+        fields = ['id', 'product', 'object_key', 'file', 'file_url', 'alt_text', 'is_primary', 'position']
         read_only_fields = ['id', 'product']
 
 
@@ -338,3 +360,54 @@ class ProductChannelProfileSerializer(FullCleanModelSerializer):
             'published_at',
         ]
         read_only_fields = ['id', 'product', 'version', 'published_at']
+
+
+class ApplyProductStockSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    location = serializers.UUIDField()
+    initial_quantity = serializers.DecimalField(
+        max_digits=18, decimal_places=6, required=False, default=0,
+    )
+    minimum_quantity = serializers.DecimalField(
+        max_digits=18, decimal_places=6, required=False, default=0,
+    )
+    maximum_quantity = serializers.DecimalField(
+        max_digits=18, decimal_places=6, required=False, allow_null=True,
+    )
+    reorder_point = serializers.DecimalField(
+        max_digits=18, decimal_places=6, required=False, default=0,
+    )
+    allow_negative = serializers.BooleanField(required=False, default=False)
+
+
+class ApplyProductInputSerializer(serializers.Serializer):
+    sku = serializers.CharField(max_length=64, required=False, allow_blank=True, default='')
+    name = serializers.CharField(max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    product_kind = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    base_unit = serializers.UUIDField()
+    category = serializers.UUIDField(required=False, allow_null=True)
+    brand = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+    model = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+    tags = serializers.JSONField(required=False, default=list)
+    tracks_inventory = serializers.BooleanField(required=False, default=False)
+
+
+class ApplyProductSerializer(serializers.Serializer):
+    command_id = serializers.CharField(max_length=80)
+    product = ApplyProductInputSerializer()
+    stock = ApplyProductStockSerializer(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        product_data = attrs.get('product', {})
+        stock = attrs.get('stock')
+        tracks_inventory = product_data.get('tracks_inventory', False)
+        if tracks_inventory and not stock:
+            raise serializers.ValidationError(
+                {'stock': 'Stock is required when the product tracks inventory.'}
+            )
+        if product_data.get('product_kind') == 'servico' and stock:
+            raise serializers.ValidationError(
+                {'stock': 'Services cannot have stock.'}
+            )
+        return attrs

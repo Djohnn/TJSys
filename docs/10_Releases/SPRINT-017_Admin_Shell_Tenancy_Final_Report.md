@@ -73,7 +73,7 @@ Failures are pre-existing (pagination flat→paginated migration in payments/peo
 Spec: frontend/e2e/admin-tenancy.spec.ts — 8 scenarios (dashboard, companies, branches, members, invitations, MFA, devices, nav)
 Status: ALL 8 FAILED — backend (Django) not running on port 8000.
 Execution requires full stack: backend (docker compose up + python manage.py runserver 8000)
-  + frontend dev server + seeded data (web-admin@zyrp.local)
+  + frontend dev server + seeded data (web-admin@tjsys.local)
 ```
 
 ### TypeScript
@@ -132,6 +132,6 @@ tsc --noEmit — aguardar execução
 ## Lessons learned / riscos
 
 - A migração de flat lists para respostas paginadas em APIs existentes (payments, people, purchasing, platform_admin) causou falhas em testes de sprints anteriores — necessário alinhamento do contrato de paginação em toda a codebase.
-- O seed E2E (`web-admin@zyrp.local`) é essencial para testes de frontend; sem dados de demonstração, as páginas ficam em estado vazio.
+- O seed E2E (`web-admin@tjsys.local`) é essencial para testes de frontend; sem dados de demonstração, as páginas ficam em estado vazio.
 - A fixture `authenticatedPage` reduz drasticamente a duplicação de login nos testes Playwright.
 - As rotas do frontend precisam ser registradas em `App.tsx` — páginas sem rota resultam em 404 mesmo com o componente implementado.

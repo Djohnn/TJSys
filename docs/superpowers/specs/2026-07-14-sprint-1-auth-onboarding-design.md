@@ -5,7 +5,7 @@ Estado: aprovado para planejamento
 
 ## Objetivo
 
-Entregar o ciclo seguro de entrada no Zyrp: cadastro público do primeiro administrador, confirmação de e-mail, criação transacional da organização inicial, autenticação por sessão, recuperação de acesso, MFA por TOTP ou e-mail, convites e autorização contextual por capability.
+Entregar o ciclo seguro de entrada no TJSys: cadastro público do primeiro administrador, confirmação de e-mail, criação transacional da organização inicial, autenticação por sessão, recuperação de acesso, MFA por TOTP ou e-mail, convites e autorização contextual por capability.
 
 ## Escopo
 
@@ -41,7 +41,7 @@ Entregar o ciclo seguro de entrada no Zyrp: cadastro público do primeiro admini
 
 ## Decisões arquiteturais
 
-Será usada a autenticação nativa do Django com Django REST Framework e serviços de domínio próprios. O Zyrp não adotará nesta sprint um provedor externo de identidade nem uma suíte de autenticação que substitua os limites do domínio.
+Será usada a autenticação nativa do Django com Django REST Framework e serviços de domínio próprios. O TJSys não adotará nesta sprint um provedor externo de identidade nem uma suíte de autenticação que substitua os limites do domínio.
 
 Sessões seguras serão o mecanismo da aplicação web. Tokens de confirmação, recuperação e convite serão aleatórios, enviados ao usuário e persistidos somente como digest criptográfico. Nenhum token, segredo TOTP, código MFA, código de recuperação ou senha será escrito em logs, auditoria ou Outbox.
 

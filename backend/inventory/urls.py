@@ -2,6 +2,10 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from inventory.views import (
+    ProductStockControlDeactivateView,
+    ProductStockControlReactivateView,
+    ProductStockPolicyViewSet,
+    ProductStockSummaryView,
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
@@ -21,7 +25,27 @@ router.register(
     StockOperationReversalViewSet,
     basename='stockoperationreversal',
 )
+router.register(
+    'product-policies',
+    ProductStockPolicyViewSet,
+    basename='productstockpolicy',
+)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path(
+        'product-summary/<uuid:product_id>/',
+        ProductStockSummaryView.as_view(),
+        name='product-stock-summary',
+    ),
+    path(
+        'products/<uuid:product_id>/stock-control/deactivate/',
+        ProductStockControlDeactivateView.as_view(),
+        name='product-stock-control-deactivate',
+    ),
+    path(
+        'products/<uuid:product_id>/stock-control/reactivate/',
+        ProductStockControlReactivateView.as_view(),
+        name='product-stock-control-reactivate',
+    ),
 ]

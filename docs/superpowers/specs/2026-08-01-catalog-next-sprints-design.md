@@ -20,4 +20,4 @@
 
 ## Fora de escopo
 
-Não redesenhar a identidade Zyrp nem substituir o padrão B aprovado. Mudanças de contrato exigem migração compatível e plano de rollback.
+Não redesenhar a identidade TJSys nem substituir o padrão B aprovado. Mudanças de contrato exigem migração compatível e plano de rollback.

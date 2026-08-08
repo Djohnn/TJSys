@@ -10,6 +10,7 @@ from catalog.views import (
     EffectivePriceView,
     LabelGenerateView,
     LabelTemplateViewSet,
+    ProductApplyView,
     ProductChannelProfileViewSet,
     ProductCodeViewSet,
     ProductCompositionViewSet,
@@ -38,6 +39,12 @@ router.register(
 )
 
 urlpatterns = [
+    # Public before the detail route so `apply` is not captured by `<uuid:pk>`.
+    path(
+        'products/apply/',
+        ProductApplyView.as_view(),
+        name='product-apply',
+    ),
     path('', include(router.urls)),
     path(
         'products/<uuid:product_id>/effective-price/',

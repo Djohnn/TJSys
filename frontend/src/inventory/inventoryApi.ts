@@ -77,6 +77,7 @@ export interface BalancesQuery {
   branch?: string
   location?: string
   product?: string
+  q?: string
 }
 
 export interface MovementsQuery {
@@ -157,4 +158,104 @@ export function fetchLots(
     tenantId,
     signal,
   }) as Promise<PaginatedResponse<InventoryLot>>
+}
+
+export interface Branch {
+  id: string
+  name: string
+  code: string
+  is_active: boolean
+}
+
+export interface StockLocation {
+  id: string
+  branch: string
+  branch_name: string
+  code: string
+  name: string
+  location_type: string
+  is_primary: boolean
+  is_active: boolean
+}
+
+export interface ProductStockPolicy {
+  id: string
+  product: string
+  branch: string
+  location: string
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+  allow_negative: boolean
+  is_active: boolean
+  version: number
+}
+
+export interface ProductStockSummary {
+  product: string
+  branch: string | null
+  branch_name: string
+  location: string | null
+  location_name: string
+  quantity: string
+  reserved: string
+  available: string
+  status: 'negative' | 'zero' | 'low' | 'normal'
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+}
+
+export function fetchBranches(
+  tenantId: string,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Branch>> {
+  return apiRequest<PaginatedResponse<Branch>>('/branches/', { tenantId, signal }) as Promise<PaginatedResponse<Branch>>
+}
+
+export function fetchStockLocations(
+  tenantId: string,
+  query: { branch?: string },
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<StockLocation>> {
+  const qs = buildSearchParams(query as Record<string, string | number | undefined>)
+  return apiRequest<PaginatedResponse<StockLocation>>(`/inventory/stock-locations/${qs}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<StockLocation>>
+}
+
+export function fetchProductStockSummary(
+  tenantId: string,
+  productId: string,
+  signal?: AbortSignal,
+): Promise<ProductStockSummary[] | ProductStockSummary | null> {
+  return apiRequest<ProductStockSummary[] | ProductStockSummary | null>(`/inventory/product-summary/${productId}/`, {
+    tenantId,
+    signal,
+  }) as Promise<ProductStockSummary[] | ProductStockSummary | null>
+}
+
+export function fetchProductStockPolicies(
+  tenantId: string,
+  productId: string,
+): Promise<PaginatedResponse<ProductStockPolicy>> {
+  return apiRequest<PaginatedResponse<ProductStockPolicy>>(
+    `/inventory/product-policies/?product=${productId}`,
+    { tenantId },
+  ) as Promise<PaginatedResponse<ProductStockPolicy>>
+}
+
+export function updateProductStockPolicy(
+  tenantId: string,
+  policyId: string,
+  body: Record<string, unknown>,
+  version: number,
+): Promise<ProductStockPolicy> {
+  return apiRequest<ProductStockPolicy>(`/inventory/product-policies/${policyId}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+    headers: { 'If-Match': String(version) },
+  }) as Promise<ProductStockPolicy>
 }

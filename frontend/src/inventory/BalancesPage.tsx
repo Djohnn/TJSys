@@ -17,7 +17,7 @@ export default function BalancesPage() {
 
   const page = Number(searchParams.get('page')) || 1
   const branchFilter = searchParams.get('branch') || ''
-  const productFilter = searchParams.get('product') || ''
+  const productFilter = searchParams.get('q') || ''
   const locationFilter = searchParams.get('location') || ''
 
   const { data, isLoading, isError } = useQuery({
@@ -25,10 +25,11 @@ export default function BalancesPage() {
     queryFn: ({ signal }) =>
       fetchBalances(
         tenantId,
-        { page, branch: branchFilter || undefined, product: productFilter || undefined, location: locationFilter || undefined },
+        { page, branch: branchFilter || undefined, q: productFilter || undefined, location: locationFilter || undefined },
         signal,
       ),
     enabled: !!tenantId,
+    placeholderData: (previousData) => previousData,
   })
 
   const { data: branchesData } = useQuery({
@@ -79,7 +80,7 @@ export default function BalancesPage() {
           <input
             type="text"
             value={productFilter}
-            onChange={(e) => setFilter('product', e.target.value)}
+            onChange={(e) => setFilter('q', e.target.value)}
             placeholder="Buscar produto..."
             aria-label="Buscar produto"
             className="w-full px-3 py-2 border border-border rounded-lg text-sm"

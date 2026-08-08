@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Preparar o Zyrp para desenvolvimento web seguro e previsível com React, Vite e TypeScript, eliminando impedimentos de integração entre navegador e backend.
+Preparar o TJSys para desenvolvimento web seguro e previsível com React, Vite e TypeScript, eliminando impedimentos de integração entre navegador e backend.
 
 ## Escopo
 

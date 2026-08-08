@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { app } from 'electron';
 import { join } from 'path';
 import { logger } from '../utils/logger';
+import { api } from './api';
 
 export interface CachedProduct {
   id: string;
@@ -71,8 +72,112 @@ class CatalogCache {
   }
 
   async syncFromBackend(): Promise<{ products: number; prices: number }> {
-    this.lastSync = new Date();
-    return { products: 0, prices: 0 };
+    if (!this.db) {
+      logger.warn('Catalog cache not initialized');
+      return { products: 0, prices: 0 };
+    }
+
+    let totalProducts = 0;
+    let totalPrices = 0;
+
+    try {
+      // Fetch products with pagination
+      let nextPage = 1;
+      const pageSize = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.get('/products/', {
+          params: { page: nextPage, page_size: pageSize, is_active: 'true' },
+        });
+
+        const results = response.data.results || [];
+        if (results.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        // Insert products into local database
+        const insertProduct = this.db.prepare(`
+          INSERT OR REPLACE INTO products
+          (id, sku, name, base_unit_id, requires_lot, requires_expiry, is_active, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const insertMany = this.db.transaction((products: any[]) => {
+          for (const p of products) {
+            insertProduct.run(
+              p.id,
+              p.sku,
+              p.name,
+              p.base_unit,
+              p.requires_lot ? 1 : 0,
+              p.requires_expiry ? 1 : 0,
+              p.is_active ? 1 : 0,
+              p.updated_at || new Date().toISOString()
+            );
+          }
+        });
+
+        insertMany(results);
+        totalProducts += results.length;
+
+        // Fetch prices for each product
+        for (const product of results) {
+          try {
+            const priceResponse = await api.get(`/products/${product.id}/price-tiers/`, {
+              params: { is_active: 'true' },
+            });
+
+            const priceTiers = priceResponse.data.results || priceResponse.data || [];
+
+            if (priceTiers.length > 0) {
+              const insertPrice = this.db.prepare(`
+                INSERT OR REPLACE INTO prices
+                (id, product_id, amount, valid_from, valid_to, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+              `);
+
+              const insertPricesTx = this.db.transaction((tiers: any[]) => {
+                for (const tier of tiers) {
+                  if (tier.price !== undefined && tier.is_active) {
+                    insertPrice.run(
+                      tier.id,
+                      product.id,
+                      tier.price,
+                      tier.updated_at || new Date().toISOString(), // valid_from
+                      null, // valid_to
+                      tier.updated_at || new Date().toISOString()
+                    );
+                    totalPrices++;
+                  }
+                }
+              });
+
+              insertPricesTx(priceTiers);
+            }
+          } catch (priceError) {
+            // Product might not have prices, continue
+            logger.debug(`No prices found for product ${product.id}`);
+          }
+        }
+
+        // Check if there are more pages
+        if (response.data.next) {
+          nextPage++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      this.lastSync = new Date();
+      logger.info(`Catalog sync completed: ${totalProducts} products, ${totalPrices} prices`);
+
+      return { products: totalProducts, prices: totalPrices };
+    } catch (error) {
+      logger.error('Failed to sync catalog from backend:', error);
+      return { products: totalProducts, prices: totalPrices };
+    }
   }
 
   searchProducts(query: string): CachedProduct[] {

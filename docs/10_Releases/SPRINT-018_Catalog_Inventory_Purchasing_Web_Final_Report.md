@@ -109,7 +109,7 @@ Status: ALL require full stack (backend + frontend dev server + seeded data)
 
 - As rotas de catálogo e estoque precisam ser registradas em `App.tsx` para que a navegação funcione — páginas sem rota resultam em 404 mesmo com o componente implementado.
 - A fixture `authenticatedPage` reduz drasticamente a duplicação de login nos testes Playwright.
-- O seed E2E (`web-admin@zyrp.local`) é essencial para testes de frontend; sem dados de demonstração, as páginas ficam em estado vazio.
+- O seed E2E (`web-admin@tjsys.local`) é essencial para testes de frontend; sem dados de demonstração, as páginas ficam em estado vazio.
 - Os testes E2E Playwright exigem stack completa (backend + frontend) para execução real.
 
 Now let me update the PRD.md to mark Sprint 18 as concluded:

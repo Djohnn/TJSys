@@ -31,11 +31,10 @@ class LoginView(APIView):
         if not user.is_active or user.email_verified_at is None:
             return Response({'detail': 'Account is not available.'}, status=403)
         request.session.flush()
-        request.session['pre_mfa_user_id'] = str(user.id)
         request.session.create()
         mfa_session = request.session.session_key
         request.session.cycle_key()
-        from tenancy.models import TenantMembership
+        from tenancy.models import TenantMembership, TenantMFAPolicy
 
         membership = (
             TenantMembership.objects.filter(
@@ -46,14 +45,26 @@ class LoginView(APIView):
             .order_by('invited_at', 'id')
             .first()
         )
-        payload = {
-            'detail': 'MFA required.',
-            'requires_mfa': True,
-            'mfa_session': mfa_session,
-        }
+
+        requires_mfa = False
         if membership is not None:
-            payload['mfa_tenant_id'] = str(membership.tenant_id)
-        return Response(payload, status=status.HTTP_202_ACCEPTED)
+            policy, _ = TenantMFAPolicy.objects.get_or_create(tenant=membership.tenant)
+            requires_mfa = policy.allow_totp or policy.allow_email
+
+        if requires_mfa:
+            request.session['pre_mfa_user_id'] = str(user.id)
+            payload = {
+                'detail': 'MFA required.',
+                'requires_mfa': True,
+                'mfa_session': mfa_session,
+            }
+            if membership is not None:
+                payload['mfa_tenant_id'] = str(membership.tenant_id)
+            return Response(payload, status=status.HTTP_202_ACCEPTED)
+        else:
+            from django.contrib.auth import login
+            login(request, user)
+            return Response({'detail': 'Login successful.', 'requires_mfa': False}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):

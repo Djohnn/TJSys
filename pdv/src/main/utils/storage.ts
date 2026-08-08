@@ -2,7 +2,7 @@ import { app } from 'electron';
 import * as fs from 'fs';
 import { join } from 'path';
 
-const STORAGE_FILE = 'zyrp-pdv-state.json';
+const STORAGE_FILE = 'tjsys-pdv-state.json';
 
 function getStoragePath(): string {
   return join(app.getPath('userData'), STORAGE_FILE);

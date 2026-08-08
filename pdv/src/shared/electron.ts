@@ -41,8 +41,7 @@ export const getElectronAPI = () => {
     createSale: async (data: any) => ({ success: true, data: { id: 'mock-sale', net_total: '0.00' } }),
     listSales: async (params?: any) => ({ success: true, data: [] }),
     getSaleDetail: async (saleId: string) => ({ success: true, data: { id: saleId, items: [], net_total: '0.00' } }),
-    getSaleReceipt: async (saleId: string) => ({ success: true, data: { html: '<html>Mock Receipt</html>' } }),
-    printReceipt: async (data: any) => ({ success: true, savedPath: '/mock/path.pdf' }),
+    printReceipt: async (data: any) => ({ success: true }),
     
     // Catalog
     searchProducts: async (query: string) => ({ success: true, data: [] }),

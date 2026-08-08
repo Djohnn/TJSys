@@ -1,10 +1,11 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { useTenant } from '@/tenant/TenantProvider'
+import { isApiProblemError } from '@/api/problem'
 import {
   fetchProductPriceTiers,
   createProductPriceTier,
@@ -22,11 +23,16 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
   const tenantId = selectedTenant?.tenant_id ?? ''
   const queryClient = useQueryClient()
 
-  const { data: priceTiers, isLoading: tiersLoading } = useQuery({
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+
+  const { data: priceTiersData, isLoading: tiersLoading } = useQuery({
     queryKey: ['product-price-tiers', tenantId, productId],
     queryFn: () => fetchProductPriceTiers(tenantId, productId),
     enabled: !!tenantId && !!productId,
   })
+  const priceTiers = Array.isArray(priceTiersData)
+    ? priceTiersData
+    : priceTiersData?.results ?? []
 
   const {
     register: registerTier,
@@ -44,6 +50,10 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-price-tiers', tenantId, productId] })
       resetTier()
+      setFeedback({ kind: 'success', text: 'Faixa de preço adicionada.' })
+    },
+    onError: (err) => {
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao adicionar faixa de preço.' })
     },
   })
 
@@ -52,6 +62,10 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
       deleteProductPriceTier(tenantId, productId, tierId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-price-tiers', tenantId, productId] })
+      setFeedback({ kind: 'success', text: 'Faixa de preço removida.' })
+    },
+    onError: (err) => {
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao remover faixa de preço.' })
     },
   })
 
@@ -62,6 +76,12 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
   return (
     <div data-testid="product-prices-step" className="space-y-4">
       <h2 className="text-xl font-bold text-neutral-900 mb-6">Preços</h2>
+
+      {feedback && (
+        <div role={feedback.kind === 'error' ? 'alert' : 'status'} className={feedback.kind === 'error' ? 'text-danger text-sm' : 'text-success text-sm'} data-testid="price-feedback">
+          {feedback.text}
+        </div>
+      )}
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-neutral-800 border-b border-border pb-2">Preços por Quantidade</h3>

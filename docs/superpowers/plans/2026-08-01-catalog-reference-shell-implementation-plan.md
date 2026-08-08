@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rebuild the shared Zyrp shell with the approved two-column reference navigation, complete Catalog submenu, responsive drawer, and verified pattern-B product editor.
+**Goal:** Rebuild the shared TJSys shell with the approved two-column reference navigation, complete Catalog submenu, responsive drawer, and verified pattern-B product editor.
 
 **Architecture:** Keep React Router routes and backend contracts unchanged. Split navigation data from presentation, let `AppShell` own mobile drawer state, and make `Navigation` render the same module/catalog model in desktop and drawer contexts. Use existing Tailwind tokens plus focused CSS variables in `global.css`.
 
@@ -17,7 +17,7 @@
 - Create `frontend/src/layout/navigationModel.ts`: typed module and Catalog navigation definitions plus active-route helper.
 - Modify `frontend/src/layout/Navigation.tsx`: desktop rails and reusable drawer navigation.
 - Modify `frontend/src/layout/AppShell.tsx`: responsive header/drawer state and content composition.
-- Modify `frontend/src/styles/global.css`: Zyrp shell variables, focus, transitions, reduced-motion behavior.
+- Modify `frontend/src/styles/global.css`: TJSys shell variables, focus, transitions, reduced-motion behavior.
 - Modify `frontend/src/layout/AppShell.test.tsx`: shell, submenu, active state and drawer behavior.
 - Modify `frontend/src/catalog/CatalogHomePage.tsx`: compact module landing page.
 - Modify `frontend/src/catalog/catalogPages.test.tsx`: landing page semantics and destinations.
@@ -125,7 +125,7 @@ Expected: FAIL because “Abrir menu” is absent.
 
 Use `useState`, `useEffect`, and `useRef` in `AppShell`. The header button gets `aria-expanded`, `aria-controls="mobile-navigation"`; Escape closes the drawer and restores focus. Desktop navigation uses `hidden lg:flex`; mobile drawer uses `lg:hidden`.
 
-- [ ] **Step 4: Add intentional Zyrp shell styles**
+- [ ] **Step 4: Add intentional TJSys shell styles**
 
 In `global.css`, define:
 
@@ -154,7 +154,7 @@ Expected: all tests PASS.
 
 ```bash
 git add frontend/src/layout/AppShell.tsx frontend/src/layout/Navigation.tsx frontend/src/styles/global.css frontend/src/layout/AppShell.test.tsx
-git commit -m "feat(layout): add responsive zyrp shell"
+git commit -m "feat(layout): add responsive tjsys shell"
 ```
 
 ### Task 3: Compact Catalog landing page

@@ -67,14 +67,14 @@ path('fiscal/documents/export/', FiscalDocumentExportView.as_view(), name='fisca
 services:
   db:
     image: postgres:16
-    environment: { POSTGRES_DB: zyrp, POSTGRES_USER: zyrp, POSTGRES_PASSWORD: zyrp }
+    environment: { POSTGRES_DB: tjsys, POSTGRES_USER: tjsys, POSTGRES_PASSWORD: tjsys }
   redis:
     image: redis:7
   backend:
     build: ./backend
     depends_on: [db, redis]
     environment:
-      DATABASE_URL: postgres://zyrp:zyrp@db:5432/zyrp
+      DATABASE_URL: postgres://tjsys:tjsys@db:5432/tjsys
       REDIS_URL: redis://redis:6379
       SECRET_KEY: e2e-secret-key
     command: >

@@ -2,14 +2,17 @@ from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
+from django.http import JsonResponse
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from catalog.models import Product, Unit
 from inventory.models import (
+    ProductStockPolicy,
     StockBalance,
     StockLocation,
     StockLot,
@@ -22,6 +25,7 @@ from inventory.permissions import (
     InventoryLocationsPermission,
 )
 from inventory.serializers import (
+    ProductStockPolicySerializer,
     StockBalanceSerializer,
     StockLocationSerializer,
     StockLotSerializer,
@@ -34,10 +38,14 @@ from inventory.services import (
     ExpiredLotError,
     InsufficientStock,
     InvalidLotError,
+    ProductStockControlError,
+    ProductStockControlResult,
     create_adjustment,
     create_issue,
     create_receipt,
     create_transfer,
+    deactivate_product_stock_control,
+    reactivate_product_stock_control,
     reconcile_stock_balances,
     reverse_operation,
 )
@@ -91,7 +99,7 @@ class StockReversalRequestSerializer(serializers.Serializer):
 def _problem(detail, code='invalid_stock_operation', status_code=400):
     return Response(
         {
-            'type': f'https://zyrp.local/problems/{code}',
+            'type': f'https://tjsys.local/problems/{code}',
             'title': 'Stock operation rejected',
             'status': status_code,
             'detail': str(detail),
@@ -426,6 +434,7 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
         branch_id = self.request.query_params.get('branch')
         location_id = self.request.query_params.get('location')
         lot_id = self.request.query_params.get('lot')
+        query = self.request.query_params.get('q', '').strip()
         if product_id:
             queryset = queryset.filter(product_id=product_id)
         if branch_id:
@@ -434,6 +443,10 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(location_id=location_id)
         if lot_id:
             queryset = queryset.filter(lot_id=lot_id)
+        if query:
+            queryset = queryset.filter(
+                Q(product__name__icontains=query) | Q(product__sku__icontains=query)
+            )
         return queryset
 
     @action(detail=False, methods=['get'])
@@ -473,3 +486,239 @@ class StockOperationReversalViewSet(TenantScopedViewSetMixin, viewsets.ModelView
             'original_operation',
             'reversal_operation',
         ).filter(tenant=self.request.tenant)
+
+
+class ProductStockPolicyViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = ProductStockPolicySerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        InventoryCapabilityPermission,
+    ]
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_queryset(self):
+        qs = ProductStockPolicy.objects.select_related(
+            'product',
+            'branch',
+            'location',
+        ).filter(tenant=self.request.tenant).order_by(
+            'branch__name',
+            'location__name',
+            'id',
+        )
+        product_id = self.request.query_params.get('product')
+        branch_id = self.request.query_params.get('branch')
+        location_id = self.request.query_params.get('location')
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        if location_id:
+            qs = qs.filter(location_id=location_id)
+        return qs
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'partial_update', 'update'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(InventoryCapabilityPermission())
+        return permissions
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if_match = request.headers.get('If-Match')
+        if if_match is not None and str(instance.version) != if_match:
+            return Response(
+                {
+                    'type': 'about:blank',
+                    'title': 'Conflict',
+                    'status': 409,
+                    'detail': 'Version mismatch.',
+                    'code': 'CONFLICT_VERSION_MISMATCH',
+                },
+                status=status.HTTP_409_CONFLICT,
+                content_type='application/problem+json',
+            )
+        return super().update(request, *args, **kwargs)
+
+
+class ProductStockSummaryView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        InventoryCapabilityPermission,
+    ]
+
+    def get(self, request, product_id):
+        from catalog.models import Product
+        from inventory.services.product_stock import build_product_stock_summary
+
+        product = Product.all_objects.get(
+            tenant=request.tenant,
+            id=product_id,
+        )
+
+        branch_id = request.query_params.get('branch')
+        location_id = request.query_params.get('location')
+        has_filters = bool(branch_id or location_id)
+
+        policies = ProductStockPolicy.objects.filter(
+            tenant=request.tenant,
+            product=product,
+            is_active=True,
+        ).order_by('branch__name', 'location__name', 'id')
+
+        if branch_id:
+            policies = policies.filter(branch_id=branch_id)
+        if location_id:
+            policies = policies.filter(location_id=location_id)
+
+        # If no filters, return ordered collection of all locations
+        if not has_filters:
+            summaries = []
+            for policy in policies:
+                balance = StockBalance.objects.filter(
+                    tenant=request.tenant,
+                    product=product,
+                    location=policy.location,
+                ).first()
+                summaries.append(
+                    build_product_stock_summary(
+                        product=product,
+                        policy=policy,
+                        balance=balance,
+                    )
+                )
+            return Response(summaries)
+
+        # If filters provided, return single summary
+        policy = policies.first()
+        if not policy:
+            return JsonResponse(None, safe=False)
+
+        balance = StockBalance.objects.filter(
+            tenant=request.tenant,
+            product=product,
+            location=policy.location,
+        ).first()
+
+        return Response(
+            build_product_stock_summary(
+                product=product,
+                policy=policy,
+                balance=balance,
+            )
+        )
+
+
+class ProductStockControlDeactivateView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        InventoryCapabilityPermission,
+    ]
+
+    def post(self, request, product_id):
+        from catalog.models import Product
+        from inventory.serializers import (
+            StockControlDeactivateRequestSerializer,
+        )
+
+        serializer = StockControlDeactivateRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        command_id = str(data['command_id'])
+        correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
+
+        try:
+            result = deactivate_product_stock_control(
+                tenant=request.tenant,
+                product=product,
+                actor=request.user,
+                command_id=command_id,
+                correlation_id=correlation_id,
+            )
+        except ProductStockControlError as exc:
+            problem = {
+                'type': f'https://tjsys.local/problems/{exc.code}',
+                'title': 'Stock control operation rejected',
+                'status': exc.status_code,
+                'detail': str(exc),
+                'code': exc.code,
+            }
+            if exc.errors:
+                problem['errors'] = exc.errors
+            return Response(
+                problem,
+                status=exc.status_code,
+                content_type='application/problem+json',
+            )
+
+        return Response(
+            {
+                'action': result.action,
+                'policy_updated': result.policy_updated,
+                'correlation_id': result.correlation_id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProductStockControlReactivateView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        InventoryCapabilityPermission,
+    ]
+
+    def post(self, request, product_id):
+        from catalog.models import Product
+        from inventory.serializers import (
+            StockControlReactivateRequestSerializer,
+        )
+
+        serializer = StockControlReactivateRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        command_id = str(data['command_id'])
+        correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
+        initial_stocks = data.get('initial_stocks', [])
+
+        try:
+            result = reactivate_product_stock_control(
+                tenant=request.tenant,
+                product=product,
+                actor=request.user,
+                command_id=command_id,
+                correlation_id=correlation_id,
+                initial_stocks=initial_stocks,
+            )
+        except ProductStockControlError as exc:
+            problem = {
+                'type': f'https://tjsys.local/problems/{exc.code}',
+                'title': 'Stock control operation rejected',
+                'status': exc.status_code,
+                'detail': str(exc),
+                'code': exc.code,
+            }
+            if exc.errors:
+                problem['errors'] = exc.errors
+            return Response(
+                problem,
+                status=exc.status_code,
+                content_type='application/problem+json',
+            )
+
+        return Response(
+            {
+                'action': result.action,
+                'policy_updated': result.policy_updated,
+                'correlation_id': result.correlation_id,
+            },
+            status=status.HTTP_201_CREATED,
+        )

@@ -48,9 +48,9 @@ export function setupCatalogCacheHandlers() {
   ipcMain.handle('catalog-cache:sync', async () => {
     logger.info('Syncing catalog cache from backend');
     try {
-      // This would call the actual sync logic
-      // For now, return success
-      return { success: true, data: { products: 0, prices: 0 } };
+      const result = await catalogCache.syncFromBackend();
+      logger.info('Catalog sync completed', result);
+      return { success: true, data: result };
     } catch (error) {
       logger.error('Failed to sync catalog cache:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to sync catalog' };

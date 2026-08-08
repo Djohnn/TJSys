@@ -18,7 +18,15 @@ export default function CatalogHomePage(): ReactNode {
           </div>
         </div>
         <div className="grid gap-px bg-blue-100 sm:grid-cols-2 xl:grid-cols-4">
-          {AREAS.map((area) => <div key={area} className="bg-white px-5 py-4 text-sm font-semibold text-slate-700">{area}</div>)}
+          {AREAS.map((area) => (
+            <div 
+              key={area} 
+              className="bg-white px-5 py-4 text-sm font-semibold text-slate-700"
+              data-testid={`hub-card-${area.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {area}
+            </div>
+          ))}
         </div>
       </section>
     </div>

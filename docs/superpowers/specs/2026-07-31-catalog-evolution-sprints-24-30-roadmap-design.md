@@ -3,7 +3,7 @@
 ## 1. Contexto e decisões aprovadas
 
 Este roadmap transforma a referência visual e funcional analisada nos três HTMLs
-`MarketUP - [Produtos]*.html` em uma evolução própria do Zyrp. A referência é usada
+`MarketUP - [Produtos]*.html` em uma evolução própria do TJSys. A referência é usada
 somente para levantamento de jornadas e hierarquia; código, marca, logotipo e ativos
 de terceiros não serão copiados.
 
@@ -11,7 +11,7 @@ Decisões aprovadas pelo usuário em 31/07/2026:
 
 - preservar a Sprint 23 existente como antecessora, dedicada à composição de kits;
 - iniciar a nova evolução na Sprint 24;
-- usar o padrão visual B, mantendo a paleta atual do Zyrp;
+- usar o padrão visual B, mantendo a paleta atual do TJSys;
 - no cadastro de produto, posicionar imagem/galeria à esquerda e identificação à direita;
 - dividir o formulário nas etapas Identificação, Preços, Estoque, Fiscal, Composição e Canais;
 - criar specs e plans separados, explícitos e rastreáveis para todas as sprints seguintes.

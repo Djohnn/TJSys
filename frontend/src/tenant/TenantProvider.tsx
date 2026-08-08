@@ -5,13 +5,14 @@ import {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   type ReactNode,
 } from 'react'
 
 import { useAuth } from '@/auth/AuthProvider'
 import type { Membership } from '@/auth/authApi'
 
-const STORAGE_KEY = 'zyrp:selected-tenant'
+const STORAGE_KEY = 'tjsys:selected-tenant'
 
 export interface TenantContextValue {
   selectedTenant: Membership | null
@@ -43,6 +44,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
     return auth.memberships.length > 0 ? auth.memberships[0] : null
   }, [auth.state, auth.memberships, overrideTenantId])
+
+  // Auto-selecionar primeiro tenant e persistir no localStorage
+  useEffect(() => {
+    if (auth.state === 'authenticated' && auth.memberships.length > 0 && !selectedTenant) {
+      const firstTenant = auth.memberships[0]
+      localStorage.setItem(STORAGE_KEY, firstTenant.tenant_id)
+      setOverrideTenantId(firstTenant.tenant_id)
+    }
+  }, [auth.state, auth.memberships, selectedTenant])
 
   const selectTenant = useCallback(
     (tenantId: string) => {

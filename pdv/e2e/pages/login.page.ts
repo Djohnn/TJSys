@@ -11,7 +11,7 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { name: 'Zyrp PDV' });
+    this.heading = page.getByRole('heading', { name: 'TJSys PDV' });
     this.apiKeyInput = page.getByLabel('Chave de API (API Key)');
     this.submitButton = page.getByRole('button', { name: 'Entrar' });
     this.errorMessage = page.getByText(/API key|Erro/);

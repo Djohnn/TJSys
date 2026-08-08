@@ -1,7 +1,7 @@
 # Observability Dashboards
 
 ## Overview
-This document defines the operational dashboards and alert thresholds for the Zyrp ERP pilot deployment.
+This document defines the operational dashboards and alert thresholds for the TJSys ERP pilot deployment.
 
 ## Dashboard Panels
 
@@ -80,7 +80,7 @@ Returns JSON with:
 
 ### Prometheus Scrape Config (if using)
 ```yaml
-- job_name: 'zyrp-backend'
+- job_name: 'tjsys-backend'
   static_configs:
     - targets: ['backend:8000']
   metrics_path: '/api/v1/monitoring/metrics/'

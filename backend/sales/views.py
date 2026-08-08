@@ -47,7 +47,7 @@ from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
 def _problem(detail, code='invalid_sales_operation', status_code=400):
     return Response(
         {
-            'type': f'https://zyrp.local/problems/{code}',
+            'type': f'https://tjsys.local/problems/{code}',
             'title': 'Sales operation rejected',
             'status': status_code,
             'detail': str(detail),

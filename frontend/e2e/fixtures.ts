@@ -1,4 +1,12 @@
-import { expect, test as base, type Page } from '@playwright/test'
+import path from 'node:path'
+
+import {
+  expect,
+  test as base,
+  type Page,
+} from '@playwright/test'
+
+const authStatePath = path.resolve('test-results/.auth/e2e-user.json')
 
 export { expect }
 
@@ -16,8 +24,11 @@ export async function authenticatePage(
   await page.fill('[name="password"]', password)
   await page.click('button[type="submit"]')
   await page.waitForURL(/\/mfa/)
+  if (recoveryCode.length >= 8) {
+    await page.locator('button[type="button"]').last().click()
+  }
   await page.fill('#mfa-code', recoveryCode)
-  await page.getByRole('button', { name: 'Verificar' }).click()
+  await page.getByRole('button', { name: /Entrar|Verificar/ }).click()
   await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
 
   const tenantSelector = page.getByTestId('tenant-selector')
@@ -28,11 +39,11 @@ export async function authenticatePage(
   }
 }
 
-export const test = base.extend<{
-  authenticatedPage: any
-}>({
-  authenticatedPage: async ({ page }, use) => {
-    await authenticatePage(page)
+export const test = base.extend<{ authenticatedPage: Page }>({
+  authenticatedPage: async ({ browser, baseURL }, use) => {
+    const context = await browser.newContext({ baseURL, storageState: authStatePath })
+    const page = await context.newPage()
     await use(page)
+    await context.close()
   },
 })

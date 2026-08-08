@@ -51,7 +51,7 @@ Criar a aplicação React/Vite/TypeScript e tornar a API segura e tipada para co
 
 ### Task 6 — E2E e CI gates
 - `backend/tenancy/management/commands/seed_e2e.py` estendido com:
-  - Web admin `web-admin@zyrp.local` (membro de `e2e` e `e2e-beta`)
+  - Web admin `web-admin@tjsys.local` (membro de `e2e` e `e2e-beta`)
   - Segundo tenant `e2e-beta` com Company e Branch próprias
 - `frontend/e2e/auth-tenant.spec.ts` — login, credenciais inválidas, tenant selector, troca de tenant, logout, expired session
 - `frontend/e2e/accessibility.spec.ts` — axe-core scan no login e no shell autenticado

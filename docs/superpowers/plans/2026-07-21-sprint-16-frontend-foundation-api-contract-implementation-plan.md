@@ -38,7 +38,7 @@ Execute on a new `feat/sprint-16-frontend-foundation` worktree based on updated 
 - [ ] Run `C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_frontend_readiness.py -q --no-cov`; expect failures for missing packages/routes/headers.
 - [ ] Add dependencies `django-cors-headers>=4.4,<5` and `drf-spectacular>=0.27,<1` to `backend/pyproject.toml`, then run `C:\ERP\.venv\Scripts\python.exe -m pip install -e ".[dev]"` from `backend/`.
 - [ ] Add `corsheaders` and `drf_spectacular`, place `corsheaders.middleware.CorsMiddleware` immediately after `SecurityMiddleware`, set `CORS_ALLOWED_ORIGINS` from environment, set `CORS_ALLOW_CREDENTIALS = True`, and set DRF `DEFAULT_SCHEMA_CLASS = 'drf_spectacular.openapi.AutoSchema'`.
-- [ ] Add `SpectacularAPIView` at `/api/v1/schema/` and `SpectacularSwaggerView` at `/api/v1/docs/`; schema title is `Zyrp API`, version `1.0.0`, and schema is not public without authentication outside DEBUG.
+- [ ] Add `SpectacularAPIView` at `/api/v1/schema/` and `SpectacularSwaggerView` at `/api/v1/docs/`; schema title is `TJSys API`, version `1.0.0`, and schema is not public without authentication outside DEBUG.
 - [ ] Add `CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173` to `.env.example`.
 - [ ] Run the focused test; expect all scenarios PASS.
 - [ ] Run `python manage.py spectacular --file openapi.yaml --validate`; expect exit 0.
@@ -58,7 +58,7 @@ Execute on a new `feat/sprint-16-frontend-foundation` worktree based on updated 
 - [ ] Install fixed runtime dependencies: `npm install react@18.3.1 react-dom@18.3.1 react-router-dom@7.18.1 @tanstack/react-query@5 react-hook-form@7 zod@3 @hookform/resolvers@3`.
 - [ ] Install fixed dev dependency majors: `npm install -D typescript@5.5 vite@7 @vitejs/plugin-react@5 vitest@4 jsdom@29 @testing-library/react@16 @testing-library/jest-dom@6 @testing-library/user-event@14 msw@2 openapi-typescript@7 @playwright/test@1.45 @axe-core/playwright@4 eslint@9 prettier@3`.
 - [ ] Set scripts exactly: `dev`, `build`, `lint`, `typecheck`, `test`, `test:watch`, `test:e2e`, `api:generate` and `api:check`; `api:generate` runs `openapi-typescript http://127.0.0.1:8000/api/v1/schema/ -o src/api/generated/schema.ts`, while CI exports the schema locally before generation and fails on generated diff.
-- [ ] Write `App.test.tsx` asserting the Zyrp shell renders; run `npm test -- --run src/app/App.test.tsx`; expect RED before `App` exists.
+- [ ] Write `App.test.tsx` asserting the TJSys shell renders; run `npm test -- --run src/app/App.test.tsx`; expect RED before `App` exists.
 - [ ] Implement semantic landmarks (`header`, `nav`, `main`) and global tokens for color, spacing, focus and typography; do not add a component framework.
 - [ ] Run `npm run lint && npm run typecheck && npm test && npm run build`; expect exit 0.
 - [ ] Commit with `feat(frontend): scaffold React web application`.
@@ -92,7 +92,7 @@ Execute on a new `feat/sprint-16-frontend-foundation` worktree based on updated 
 - [ ] Write tests for initial CSRF/me lookup, successful login, MFA-required response, logout, protected redirect, tenant persistence by non-sensitive tenant ID, and query-cache clearing on tenant switch.
 - [ ] Run both test files; expect RED for missing providers.
 - [ ] Implement auth state machine `loading | anonymous | mfa_required | authenticated`; call `/auth/csrf/`, `/auth/login/`, `/auth/mfa/challenge/`, `/auth/me/`, `/auth/logout/` through the central client.
-- [ ] Persist only selected tenant UUID under `zyrp:selected-tenant`; validate it against memberships returned by `/auth/me/` before use.
+- [ ] Persist only selected tenant UUID under `tjsys:selected-tenant`; validate it against memberships returned by `/auth/me/` before use.
 - [ ] On tenant switch call `queryClient.clear()` before exposing the new tenant ID.
 - [ ] Configure routes `/login`, `/mfa` and protected `/`; browser back must not reveal protected cached data after logout.
 - [ ] Run focused tests; expect PASS.

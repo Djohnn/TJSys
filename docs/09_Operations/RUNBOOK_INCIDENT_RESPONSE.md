@@ -47,7 +47,7 @@
 **Symptoms**: Health checks failing, all endpoints return 5xx or timeout
 
 **Immediate Actions**:
-1. Check `systemctl status zyrp-backend` (or container logs)
+1. Check `systemctl status tjsys-backend` (or container logs)
 2. Check database connectivity: `pg_isready -h localhost -p 5432`
 3. Check Redis: `redis-cli ping`
 4. Check disk space: `df -h`
@@ -80,7 +80,7 @@
 
 **Immediate Actions**:
 1. Check `SELECT * FROM fiscal_fiscalcocument WHERE status IN ('REJECTED','FAILED') ORDER BY created_at DESC LIMIT 10;`
-2. Check webhook logs: `grep fiscal_webhook /var/log/zyrp/*.log`
+2. Check webhook logs: `grep fiscal_webhook /var/log/tjsys/*.log`
 3. Check PlugNotas API status
 4. Verify emitter config: `SELECT * FROM fiscal_fiscalemitter WHERE is_active = true;`
 
@@ -153,7 +153,7 @@ Channel: #incident-YYYYMMDD-XXX
 > Workaround: [if available]
 > Next update: [time]
 > 
-> For urgent issues: support@zyrp.local
+> For urgent issues: support@tjsys.local
 
 ### Resolution
 ```

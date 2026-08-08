@@ -76,7 +76,7 @@ class TenantMiddleware:
     def _problem(status, code, detail):
         return JsonResponse(
             {
-                'type': f'https://docs.zyrp.local/errors/{code}',
+                'type': f'https://docs.tjsys.local/errors/{code}',
                 'title': code.replace('_', ' ').title(),
                 'status': status,
                 'detail': detail,

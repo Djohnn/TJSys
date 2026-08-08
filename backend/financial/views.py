@@ -67,7 +67,7 @@ class ReportView(APIView):
         if limit < 1 or limit > MAX_EXPORT_ROWS:
             return Response(
                 {
-                    'type': 'https://zyrp.local/problems/export-limit-exceeded',
+                    'type': 'https://tjsys.local/problems/export-limit-exceeded',
                     'title': 'Export limit exceeded',
                     'status': 400,
                     'detail': f'Export limit must be between 1 and {MAX_EXPORT_ROWS}.',

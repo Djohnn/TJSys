@@ -389,7 +389,7 @@ const paymentsPayload = payments.map(p => ({
         position: 'sticky', top: 0, zIndex: 100
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1976d2' }}>Zyrp PDV</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#1976d2' }}>TJSys PDV</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '24px', paddingLeft: '24px', borderLeft: '1px solid #e0e0e0' }}>
             <span style={{ fontSize: '0.875rem', color: '#757575' }}>Caixa: </span>
             <strong>{session.status === 'open' ? 'ABERTO' : 'FECHADO'}</strong>

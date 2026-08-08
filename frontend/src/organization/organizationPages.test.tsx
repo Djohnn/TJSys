@@ -18,7 +18,7 @@ const BASE = '/api/v1'
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
-  user: { id: 1, email: 'admin@zyrp.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
+  user: { id: 1, email: 'admin@tjsys.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},

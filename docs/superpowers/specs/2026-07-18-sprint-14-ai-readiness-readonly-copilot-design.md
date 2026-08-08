@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Preparar a fundação segura para IA futura no Zyrp, começando por RAG documental e copiloto operacional somente leitura, sem autorização para executar ações transacionais.
+Preparar a fundação segura para IA futura no TJSys, começando por RAG documental e copiloto operacional somente leitura, sem autorização para executar ações transacionais.
 
 ## Escopo
 

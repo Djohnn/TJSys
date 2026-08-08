@@ -53,7 +53,7 @@ describe('AppShell', () => {
   it('renders app title in header', async () => {
     renderShell()
     const heading = await screen.findByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent('Zyrp ERP')
+    expect(heading).toHaveTextContent('TJSys ERP')
   })
 
   it('renders navigation with expected items', async () => {

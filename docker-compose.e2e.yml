@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: zyrp
-      POSTGRES_USER: zyrp
-      POSTGRES_PASSWORD: zyrp
+      POSTGRES_DB: tjsys
+      POSTGRES_USER: tjsys
+      POSTGRES_PASSWORD: tjsys
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zyrp"]
+      test: ["CMD-SHELL", "pg_isready -U tjsys"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -30,7 +30,7 @@ services:
       redis: { condition: service_healthy }
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.test
-      DATABASE_URL: postgres://zyrp:zyrp@db:5432/zyrp
+      DATABASE_URL: postgres://tjsys:tjsys@db:5432/tjsys
       REDIS_URL: redis://redis:6379
       SECRET_KEY: e2e-secret-key-not-for-production
       DEBUG: "true"

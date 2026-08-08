@@ -266,22 +266,22 @@ class OperationsView(APIView):
                     {
                         'id': 'db-down',
                         'label': 'Database outage',
-                        'url': 'https://docs.zyrp.local/runbooks/db-down',
+                        'url': 'https://docs.tjsys.local/runbooks/db-down',
                     },
                     {
                         'id': 'cache-down',
                         'label': 'Cache outage',
-                        'url': 'https://docs.zyrp.local/runbooks/cache-down',
+                        'url': 'https://docs.tjsys.local/runbooks/cache-down',
                     },
                     {
                         'id': 'fiscal-rejected',
                         'label': 'Fiscal rejection guidance',
-                        'url': 'https://docs.zyrp.local/runbooks/fiscal-rejected',
+                        'url': 'https://docs.tjsys.local/runbooks/fiscal-rejected',
                     },
                     {
                         'id': 'outbox-backlog',
                         'label': 'Outbox backlog guidance',
-                        'url': 'https://docs.zyrp.local/runbooks/outbox-backlog',
+                        'url': 'https://docs.tjsys.local/runbooks/outbox-backlog',
                     },
                 ],
             }

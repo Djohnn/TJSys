@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Criar um PRD operacional acompanhável e um prompt universal que execute uma sprint do Zyrp por vez, marcando tarefas somente após validação objetiva.
+**Goal:** Criar um PRD operacional acompanhável e um prompt universal que execute uma sprint do TJSys por vez, marcando tarefas somente após validação objetiva.
 
 **Architecture:** `docs/PRD.md` será o rastreador operacional ligado aos documentos normativos existentes. `docs/PROMPT_EXECUCAO_SPRINT.md` será uma instrução independente de ferramenta que recebe a sprint na mensagem do usuário, lê a documentação e o código, executa apenas tarefas abertas e atualiza o checklist com evidências.
 
@@ -17,7 +17,7 @@
 
 - [ ] **Step 1: Criar cabeçalho e protocolo de acompanhamento**
 
-Adicionar título `PRD Operacional — Roadmap de Sprints do Zyrp`, status, data, links para o PRD mestre e arquitetura. Definir `- [ ]` como pendente, `- [x]` como concluído com validação e `BLOQUEADO:` como impedimento que mantém a caixa aberta.
+Adicionar título `PRD Operacional — Roadmap de Sprints do TJSys`, status, data, links para o PRD mestre e arquitetura. Definir `- [ ]` como pendente, `- [x]` como concluído com validação e `BLOQUEADO:` como impedimento que mantém a caixa aberta.
 
 - [ ] **Step 2: Criar Sprint 0 granular**
 

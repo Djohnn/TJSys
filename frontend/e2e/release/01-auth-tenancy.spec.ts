@@ -11,7 +11,7 @@ test.describe('Autenticação e Tenancy', () => {
 
   test('Desafio MFA é apresentado quando conta requer MFA', async ({ page }) => {
     await page.goto('/login')
-    await page.fill('[name="email"]', 'mfa@zyrp.local')
+    await page.fill('[name="email"]', 'mfa@tjsys.local')
     await page.fill('[name="password"]', 'e2e-test-pwd-2026')
     await page.click('button[type="submit"]')
     await expect(page.getByTestId('mfa-page')).toBeVisible()
@@ -56,7 +56,7 @@ test.describe('Autenticação e Tenancy', () => {
   })
 
   test('Negação de papel — operador não pode acessar páginas somente-admin', async ({ page }) => {
-    await authenticatePage(page, 'operator@zyrp.local')
+    await authenticatePage(page, 'operator@tjsys.local')
 
     await page.goto('/fiscal/emitters')
     await expect(page.getByTestId('forbidden-page').or(page.getByRole('alert'))).toBeVisible()

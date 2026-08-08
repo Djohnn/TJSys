@@ -1,7 +1,7 @@
 # Pilot Readiness Checklist
 
 ## Overview
-This checklist must be completed and signed off before initiating the Zyrp pilot with 1-2 stores.
+This checklist must be completed and signed off before initiating the TJSys pilot with 1-2 stores.
 
 ## Sections
 

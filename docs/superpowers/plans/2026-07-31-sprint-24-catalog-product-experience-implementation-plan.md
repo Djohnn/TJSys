@@ -1,7 +1,7 @@
 # Sprint 24 Catalog Product Experience Implementation Plan
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver the Zyrp catalog hub and a complete, working product registration flow with the approved image-left/identification-right layout.
+**Goal:** Deliver the TJSys catalog hub and a complete, working product registration flow with the approved image-left/identification-right layout.
 
 **Architecture:** Keep `Product` as the catalog root and adapt the React form to the existing nested APIs for codes, prices, fiscal data, tiers, units and Sprint 23 composition. Add only `Brand`, category hierarchy usage and `ProductImage`; Inventory remains the sole owner of stock balances and movements.
 

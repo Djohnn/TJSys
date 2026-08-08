@@ -4,9 +4,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { fetchProductImages, uploadProductImage } from './catalogApi'
+import type { ProductImage } from './catalogApi'
 
 interface ProductMediaPanelProps {
   productId?: string | null
+}
+
+interface PreviewImage {
+  id: string
+  url: string
+  alt_text: string
+  is_primary: boolean
+  position: number
 }
 
 export default function ProductMediaPanel({ productId }: ProductMediaPanelProps): ReactNode {
@@ -14,6 +23,7 @@ export default function ProductMediaPanel({ productId }: ProductMediaPanelProps)
   const tenantId = selectedTenant?.tenant_id ?? ''
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
+  const [previews, setPreviews] = useState<PreviewImage[]>([])
   const queryClient = useQueryClient()
   const { data: images = [] } = useQuery({
     queryKey: ['product-images', tenantId, productId],
@@ -22,10 +32,18 @@ export default function ProductMediaPanel({ productId }: ProductMediaPanelProps)
   })
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadProductImage(tenantId, productId!, file),
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: ['product-images', tenantId, productId],
-    }),
-    onError: () => setError('Não foi possível enviar a imagem.'),
+    onSuccess: (uploaded: ProductImage) => {
+      // Remove the local preview and show the persisted image URL
+      setPreviews((prev) => prev.filter((p) => p.id !== uploaded.alt_text))
+      queryClient.invalidateQueries({
+        queryKey: ['product-images', tenantId, productId],
+      })
+    },
+    onError: (_err, file) => {
+      const altText = file.name.replace(/\.[^.]+$/, '')
+      setPreviews((prev) => prev.filter((p) => p.id !== altText))
+      setError('Não foi possível enviar a imagem.')
+    },
   })
 
   const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
@@ -40,17 +58,45 @@ export default function ProductMediaPanel({ productId }: ProductMediaPanelProps)
         setError('A imagem deve ter no máximo 5 MB.')
         continue
       }
+      // Show a local preview immediately while the upload is in progress
+      const altText = file.name.replace(/\.[^.]+$/, '')
+      const preview: PreviewImage = {
+        id: altText,
+        url: URL.createObjectURL(file),
+        alt_text: altText,
+        is_primary: false,
+        position: 0,
+      }
+      setPreviews((prev) => [...prev, preview])
       uploadMutation.mutate(file)
     }
     event.target.value = ''
   }
 
+  const displayImages: PreviewImage[] = [
+    ...previews,
+    ...images
+      .filter((image) => !previews.some((p) => p.alt_text === image.alt_text))
+      .map((image) => ({
+        id: image.id,
+        url: image.file_url ?? image.file ?? '',
+        alt_text: image.alt_text,
+        is_primary: image.is_primary,
+        position: image.position,
+      })),
+  ]
+
   return (
     <div data-testid="product-media-panel" className="border-2 border-dashed border-neutral-300 rounded-xl p-6 text-center min-h-64">
-      {images.length > 0 && (
+      {displayImages.length > 0 && (
         <div data-testid="product-image-gallery" className="grid grid-cols-2 gap-2 mb-4">
-          {images.map((image) => (
-            <img key={image.id} src={image.file ?? image.object_key} alt={image.alt_text} className="w-full h-24 object-cover rounded-lg" />
+          {displayImages.map((image) => (
+            <img
+              key={image.id}
+              src={image.url}
+              alt={image.alt_text}
+              className="w-full h-24 object-cover rounded-lg"
+            />
           ))}
         </div>
       )}

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${POSTGRES_APP_USER:=zyrp_app}"
-: "${POSTGRES_APP_PASSWORD:=zyrp_app_dev}"
-: "${POSTGRES_TEST_USER:=zyrp_test}"
-: "${POSTGRES_TEST_PASSWORD:=zyrp_test_dev}"
+: "${POSTGRES_APP_USER:=tjsys_app}"
+: "${POSTGRES_APP_PASSWORD:=tjsys_app_dev}"
+: "${POSTGRES_TEST_USER:=tjsys_test}"
+: "${POSTGRES_TEST_PASSWORD:=tjsys_test_dev}"
 
 psql_host_args=()
 if [[ -n "${POSTGRES_HOST:-}" ]]; then
@@ -32,7 +32,7 @@ SELECT format('ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS CREATEDB'
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'test_user') \gexec
-SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'app_user') \gexec
+SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'app_user') \gexec
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'test_user') \gexec
 SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_user') \gexec
 SELECT format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_user') \gexec

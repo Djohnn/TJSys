@@ -1,14 +1,14 @@
-# Catálogo — Shell de Referência com Identidade Zyrp
+# Catálogo — Shell de Referência com Identidade TJSys
 
 ## Objetivo
 
-Corrigir a divergência entre o frontend entregue e o layout aprovado. O sistema deve adotar a estrutura de navegação da referência fornecida pelo usuário, sem copiar a marca ou a paleta do MarketUP. A identidade visual continua sendo Zyrp.
+Corrigir a divergência entre o frontend entregue e o layout aprovado. O sistema deve adotar a estrutura de navegação da referência fornecida pelo usuário, sem copiar a marca ou a paleta do MarketUP. A identidade visual continua sendo TJSys.
 
 ## Direção visual aprovada
 
 - Estética operacional, densa e direta, adequada a um ERP usado durante todo o expediente.
 - Navegação lateral com duas colunas: uma faixa estreita de módulos e um painel contextual expandido.
-- Cores derivadas dos tokens Zyrp: azul profundo como base, azul vivo para seleção, branco para conteúdo e acento ciano.
+- Cores derivadas dos tokens TJSys: azul profundo como base, azul vivo para seleção, branco para conteúdo e acento ciano.
 - Tipografia e ícones legíveis; nenhum logotipo, verde ou ativo proprietário do sistema de referência será copiado.
 - O conteúdo principal permanece claro, com alto contraste, largura fluida e hierarquia compacta.
 
@@ -16,7 +16,7 @@ Corrigir a divergência entre o frontend entregue e o layout aprovado. O sistema
 
 Em viewports a partir de 1024 px, o shell terá:
 
-1. **Faixa de módulos, 88 px:** marca Zyrp no topo e atalhos verticais com ícone + rótulo para Início, Favoritos, Catálogo, Vendas, Estoque, Compras, Financeiro, Relatórios e Administração.
+1. **Faixa de módulos, 88 px:** marca TJSys no topo e atalhos verticais com ícone + rótulo para Início, Favoritos, Catálogo, Vendas, Estoque, Compras, Financeiro, Relatórios e Administração.
 2. **Painel contextual, 248 px:** ao estar em qualquer rota `/catalog`, mostra o título “Catálogo” e links Produtos, Serviços, Combo, Categorias, Marcas, Unidades de Medida e Impressão de Etiquetas.
 3. **Área principal:** cabeçalho com contexto administrativo, seletor de tenant e saída; conteúdo abaixo sem o excesso de margem dupla atual.
 
@@ -59,7 +59,7 @@ O módulo e o submenu ativos devem ter `aria-current="page"`, contraste percept�
 ## Critérios de aceite
 
 1. A estrutura desktop é reconhecível como a referência: faixa de módulos + painel contextual + conteúdo.
-2. A paleta e a marca são exclusivamente Zyrp.
+2. A paleta e a marca são exclusivamente TJSys.
 3. As sete opções de Catálogo aparecem no painel contextual e navegam para as rotas existentes.
 4. O cadastro exibe mídia à esquerda e identificação à direita em desktop.
 5. Em 360 px não há rolagem horizontal e o menu funciona por teclado.

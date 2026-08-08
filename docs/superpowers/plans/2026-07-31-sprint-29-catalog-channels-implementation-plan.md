@@ -56,7 +56,7 @@ def test_ready_profile_requires_primary_image(profile):
 
 - [ ] Write RED tests for draft editing, image ordering, required-field summary and preview.
 - [ ] Run Vitest target; expected: FAIL.
-- [ ] Implement profile editor using Sprint 24 media and current Zyrp components; label publication as internal request, not external success.
+- [ ] Implement profile editor using Sprint 24 media and current TJSys components; label publication as internal request, not external success.
 - [ ] Run tests, axe, typecheck and build; expected: PASS.
 - [ ] Commit: `feat(frontend): add product channel profiles`.
 

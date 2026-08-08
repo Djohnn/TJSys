@@ -50,7 +50,7 @@ PRD.md	29527	e79d14e1e9e2adb503bc083122cc292a74b34460a198bed324dad6f61476b618
 PROMPT_EXECUCAO_SPRINT.md	11386	9028282f1c8cd94faf1ce9cf56e3f2dfbf5d98b9f0ddfed913c2bce028046bb3
 README.md	2512	aadb88650c0729bc61d64e5da1f1410d6b230d68fe92697d1ec7734f2a10a050
 superpowers/plans/2026-07-14-documentation-baseline-implementation-plan.md	20499	b65d27ac8171d24b62ff3568944f37d498965f31230ee7985ecbd6b11a88c98c
-superpowers/plans/2026-07-14-gitignore-and-zyrp-naming-implementation-plan.md	8693	e4ef943c4cddbcd2de3716f27223beff0ab6c7270d6315279243c6baa8dd054f
+superpowers/plans/2026-07-14-gitignore-and-tjsys-naming-implementation-plan.md	8693	e4ef943c4cddbcd2de3716f27223beff0ab6c7270d6315279243c6baa8dd054f
 superpowers/plans/2026-07-14-sprint-0-remediation-implementation-plan.md	12697	406063a3e6eb3fe68a0d7d855ec785dad6838c1905878a87dc6b2d68ff250477
 superpowers/plans/2026-07-14-sprint-1-auth-onboarding-implementation-plan.md	17257	75493528de631f01dd61964a30a606edf24aa0392d26b6fc089d1ed502ce7905
 superpowers/plans/2026-07-14-sprint-2-catalog-implementation-plan.md	18934	82cee21012a13cf4791ef19d4f9be0ee1d07aa1c40f18609ab232a5f8458cb9e
@@ -62,4 +62,4 @@ superpowers/specs/2026-07-14-sprint-1-auth-onboarding-design.md	10447	d03a4cee87
 superpowers/specs/2026-07-14-sprint-2-catalog-design.md	6340	f76b2984f9b8cd02de04988b1c0395eaa80df87c896a1b55df48d564f51246b9
 superpowers/specs/2026-07-14-sprint-3-inventory-design.md	7727	ac22ac612929d8de92e0ecdbde3b03edbdeb8e44296fee73b99a51c3b3e20c6c
 superpowers/specs/2026-07-14-universal-sprint-runner-design.md	5504	34dcef905b795f883be86c695a180adbed4b31c96ee8ba6ffc0e4aed92d591c9
-superpowers/specs/2026-07-14-zyrp-foundation-design.md	11672	469b71e98e53bcbb9c4943d44d0d628339ce92b4c816e0e8135be0bde7e607cf
+superpowers/specs/2026-07-14-tjsys-foundation-design.md	11672	469b71e98e53bcbb9c4943d44d0d628339ce92b4c816e0e8135be0bde7e607cf

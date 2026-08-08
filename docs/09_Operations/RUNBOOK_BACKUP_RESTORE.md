@@ -2,7 +2,7 @@
 
 ## Overview
 
-PostgreSQL backup/restore for the Zyrp pilot. All scripts read credentials
+PostgreSQL backup/restore for the TJSys pilot. All scripts read credentials
 from environment variables — **never** embed secrets in scripts.
 
 ## Prerequisites
@@ -10,7 +10,7 @@ from environment variables — **never** embed secrets in scripts.
 - PostgreSQL client tools: `pg_dump`, `pg_restore`, `psql`
 - Environment variables:
   ```powershell
-  $env:DB_NAME = "zyrp"
+  $env:DB_NAME = "tjsys"
   $env:DB_USER = "postgres"
   $env:DB_PASSWORD = "<your-password>"
   $env:DB_HOST = "localhost"     # optional, default localhost
@@ -30,23 +30,23 @@ cd infra/scripts
 ```
 
 By default, backups are stored in `./backups/` with filename
-`zyrp_YYYYMMDD_HHmmss.dump`. Retention: 30 days (auto-cleanup).
+`tjsys_YYYYMMDD_HHmmss.dump`. Retention: 30 days (auto-cleanup).
 
 ### Manual
 
 ```powershell
 $env:PGPASSWORD = "<password>"
-pg_dump -h localhost -p 5432 -U postgres -F c -Z 9 -f backup.dump zyrp
+pg_dump -h localhost -p 5432 -U postgres -F c -Z 9 -f backup.dump tjsys
 ```
 
 ### Expected output
 
 ```
 === PostgreSQL Backup ===
-Database: zyrp
+Database: tjsys
 Host: localhost:5432
-Output: C:\ERP\infra\scripts\backups\zyrp_20260719_120000.dump
-[PASS] Backup completed: ...\zyrp_20260719_120000.dump
+Output: C:\ERP\infra\scripts\backups\tjsys_20260719_120000.dump
+[PASS] Backup completed: ...\tjsys_20260719_120000.dump
        Size: 12.34 MB
 === Backup finished at 2026-07-19 12:00:00 ===
 ```
@@ -57,7 +57,7 @@ Run from the repository root:
 
 ```powershell
 cd infra/scripts
-./restore_postgres_verify.ps1 .\backups\zyrp_20260719_120000.dump
+./restore_postgres_verify.ps1 .\backups\tjsys_20260719_120000.dump
 ```
 
 This script:
@@ -88,9 +88,9 @@ If a rollback is needed:
 
 ```powershell
 $env:PGPASSWORD = "<password>"
-dropdb -h localhost -U postgres zyrp
-createdb -h localhost -U postgres zyrp
-pg_restore -h localhost -U postgres -d zyrp -c ./backups/zyrp_20260719_060000.dump
+dropdb -h localhost -U postgres tjsys
+createdb -h localhost -U postgres tjsys
+pg_restore -h localhost -U postgres -d tjsys -c ./backups/tjsys_20260719_060000.dump
 ```
 
 5. Verify restore with `./restore_postgres_verify.ps1`

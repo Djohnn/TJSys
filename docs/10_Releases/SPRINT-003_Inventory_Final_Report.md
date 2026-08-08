@@ -64,8 +64,8 @@ A execução dos testes com banco travava durante o setup do pytest-django. A in
 
 Causas encontradas:
 
-- `config.settings.test` apontava `NAME` diretamente para `test_zyrp`; o Django tentava criar `test_test_zyrp`.
-- Após corrigir o nome, o banco `test_zyrp` existia mas não estava migrado.
+- `config.settings.test` apontava `NAME` diretamente para `test_tjsys`; o Django tentava criar `test_test_tjsys`.
+- Após corrigir o nome, o banco `test_tjsys` existia mas não estava migrado.
 - Após aplicar migrations com o owner correto, o usuário runtime/teste não tinha DML nas tabelas criadas pelo owner.
 
 Correções aplicadas:
@@ -73,7 +73,7 @@ Correções aplicadas:
 - `config.settings.test` voltou a usar `POSTGRES_DB` como banco base e `TEST.NAME=POSTGRES_TEST_DB`.
 - `OPTIONS.connect_timeout=5` foi adicionado para transformar esperas infinitas em erro explícito.
 - `tests/conftest.py` passou a usar o banco de teste pré-provisionado e garantir grants DML para o usuário runtime/teste.
-- O banco `test_zyrp` foi migrado com `config.settings.migration`.
+- O banco `test_tjsys` foi migrado com `config.settings.migration`.
 
 Também foi confirmado que `manage.py migrate` com o usuário runtime falha por ausência de permissão DDL no schema `public`; a aplicação correta é via `config.settings.migration`, coerente com a estratégia de owner separado.
 

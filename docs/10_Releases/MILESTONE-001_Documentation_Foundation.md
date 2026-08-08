@@ -9,7 +9,7 @@
 
 ## Objetivo
 
-Consolidar uma base documental profissional e rastreável para iniciar a implementação do Zyrp sem antecipar código de produto.
+Consolidar uma base documental profissional e rastreável para iniciar a implementação do TJSys sem antecipar código de produto.
 
 ## Escopo entregue
 

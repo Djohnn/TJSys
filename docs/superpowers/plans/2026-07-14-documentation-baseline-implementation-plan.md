@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Criar uma baseline documental profissional, consistente e rastreável para iniciar o Zyrp sem produzir código nesta fase.
+**Goal:** Criar uma baseline documental profissional, consistente e rastreável para iniciar o TJSys sem produzir código nesta fase.
 
 **Architecture:** Toda a documentação vigente ficará em `C:\ERP\docs`, organizada por governança, produto, arquitetura, domínio, requisitos, API, diagramas, testes, segurança, operações e releases. Os rascunhos anteriores permanecerão imutáveis em `docs/99_Archive`; novos documentos começarão como `v0.1.0 Draft` e usarão identificadores rastreáveis.
 

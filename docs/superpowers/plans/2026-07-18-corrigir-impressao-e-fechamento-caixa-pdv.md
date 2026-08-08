@@ -190,7 +190,7 @@ const buildReceiptHtml = (saleReceipt: any): string => {
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Zyrp PDV - Cupom Não Fiscal #${escapeHtml(saleNumber)}</title>
+  <title>TJSys PDV - Cupom Não Fiscal #${escapeHtml(saleNumber)}</title>
   <style>
     body { margin: 0; padding: 16px; font-family: Arial, sans-serif; color: #212121; }
     .receipt { width: 80mm; max-width: 100%; margin: 0 auto; }
@@ -206,7 +206,7 @@ const buildReceiptHtml = (saleReceipt: any): string => {
 </head>
 <body>
   <main class="receipt">
-    <h1>Zyrp PDV</h1>
+    <h1>TJSys PDV</h1>
     <p class="subtitle">Cupom Não Fiscal</p>
     <div class="line"><span>Venda</span><strong>#${escapeHtml(saleNumber)}</strong></div>
     <div class="line"><span>Data</span><span>${escapeHtml(new Date(saleReceipt.created_at).toLocaleString('pt-BR'))}</span></div>

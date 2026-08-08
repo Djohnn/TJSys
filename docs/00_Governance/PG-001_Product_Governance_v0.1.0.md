@@ -14,7 +14,7 @@
 
 ## 1. Objetivo
 
-Estabelecer autoridade, responsabilidades, fluxo decisório e critérios de qualidade para evolução sustentável do Zyrp.
+Estabelecer autoridade, responsabilidades, fluxo decisório e critérios de qualidade para evolução sustentável do TJSys.
 
 ## 2. Princípios
 

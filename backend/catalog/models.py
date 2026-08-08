@@ -819,3 +819,23 @@ class ProductChannelProfile(TimeStampedModel, TenantScopedModel):
 
     def __str__(self):
         return f'{self.product.sku} → {self.channel_slug} [{self.status}]'
+
+
+class ProductApplyCommand(TimeStampedModel, TenantScopedModel):
+    """Idempotency receipt for the complete product-apply transaction."""
+
+    command_id = models.CharField(max_length=80)
+    payload_hash = models.CharField(max_length=64)
+    response_json = models.JSONField(default=dict, blank=True)
+    correlation_id = models.UUIDField()
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'command_id'],
+                name='uniq_product_apply_command_tenant_id',
+            ),
+        ]

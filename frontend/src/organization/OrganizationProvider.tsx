@@ -13,7 +13,7 @@ import { useAuth } from '@/auth/AuthProvider'
 import type { Branch, Company } from './organizationApi'
 import { fetchCompanies, fetchBranches } from './organizationApi'
 
-const BRANCH_KEY = 'zyrp:selected-branch'
+const BRANCH_KEY = 'tjsys:selected-branch'
 
 export interface OrganizationContextValue {
   companies: Company[]

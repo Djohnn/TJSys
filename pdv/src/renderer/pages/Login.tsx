@@ -53,7 +53,7 @@ export function Login() {
               <path d="M4 10h16"/><path d="M8 14h8"/><path d="M12 18h4"/>
             </svg>
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '8px' }}>Zyrp PDV</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '8px' }}>TJSys PDV</h1>
           <p style={{ color: '#757575', marginBottom: 0 }}>Sistema de Ponto de Venda</p>
         </div>
 
@@ -109,7 +109,7 @@ export function Login() {
           </Button>
 
           <p style={{ fontSize: '0.75rem', color: '#757575', textAlign: 'center', lineHeight: 1.5 }}>
-            A API Key é gerada no painel web do Zyrp.
+            A API Key é gerada no painel web do TJSys.
             <br />
             <a href="#" style={{ color: '#1976d2', textDecoration: 'none' }}>Obter API Key no painel web</a>
           </p>

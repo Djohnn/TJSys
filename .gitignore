@@ -130,3 +130,18 @@ skills/
 
 fluxo_fechamento_caixa.md
 fluxo_mov_caixa.md
+
+# .graphifyignore
+node_modules/
+dist/
+*.generated.py
+
+# only index src/, ignore everything else
+*
+!src/
+!src/**
+
+graphify-out/cost.json       
+# local only
+# graphify-out/cache/        
+# optional: commit for speed, skip to keep repo small

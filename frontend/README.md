@@ -1,6 +1,6 @@
-# Zyrp Frontend
+# TJSys Frontend
 
-Web application for the Zyrp ERP — React SPA consuming the Django REST API.
+Web application for the TJSys ERP — React SPA consuming the Django REST API.
 
 ## Security conventions
 

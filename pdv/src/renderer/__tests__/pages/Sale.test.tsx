@@ -73,7 +73,6 @@ describe('Sale', () => {
     const browserPrint = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     const printReceipt = vi.fn().mockResolvedValue({
       success: true,
-      savedPath: 'C:\\ERP\\cupom_nao_fiscal_sale-1.pdf',
     });
     const createSale = vi.fn().mockResolvedValue({
       success: true,

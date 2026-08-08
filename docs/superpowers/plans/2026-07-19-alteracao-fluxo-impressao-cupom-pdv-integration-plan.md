@@ -345,7 +345,7 @@ export function buildReceiptHtml(
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>Zyrp PDV - Cupom${fiscalInfo ? ' Fiscal' : ' N\u00e3o Fiscal'} #${escapeHtml(saleNumber)}</title>
+  <title>TJSys PDV - Cupom${fiscalInfo ? ' Fiscal' : ' N\u00e3o Fiscal'} #${escapeHtml(saleNumber)}</title>
   <style>
     * { box-sizing: border-box; }
     @page { size: 80mm auto; margin: 0; }
@@ -366,7 +366,7 @@ export function buildReceiptHtml(
 </head>
 <body>
   <main class="receipt">
-    <h1>Zyrp PDV</h1>
+    <h1>TJSys PDV</h1>
     <p class="subtitle">${fiscalInfo ? 'Cupom Fiscal' : 'Cupom N\u00e3o Fiscal'}</p>
     <div class="line"><span>Venda</span><strong>#${escapeHtml(saleNumber)}</strong></div>
     <div class="line"><span>Data</span><span>${escapeHtml(new Date(saleReceipt.created_at).toLocaleString('pt-BR'))}</span></div>

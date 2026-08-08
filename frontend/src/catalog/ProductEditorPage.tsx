@@ -4,9 +4,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
-import { apiRequest } from '@/api/client'
-import { createProductCode } from './catalogApi'
-import type { Product } from './catalogApi'
+import { isApiProblemError } from '@/api/problem'
+import { createProductCode, applyProduct } from './catalogApi'
+import type { ApplyProductResponse } from './catalogApi'
 import { toProductPayload } from './catalogSchemas'
 import type { ProductFormData } from './catalogSchemas'
 
@@ -38,6 +38,12 @@ export default function ProductEditorPage(): ReactNode {
 
   const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('identity')
+  const [commandId] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `cmd-${Date.now()}`,
+  )
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   const productId = urlProductId ?? createdProductId
   const tabsReady = isEditing || !!productId
@@ -45,16 +51,25 @@ export default function ProductEditorPage(): ReactNode {
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       const payload = toProductPayload(data)
-      const product = await apiRequest<Product>('/catalog/products/', {
-        method: 'POST', tenantId, body: payload.product,
-      }) as Product
-      if (payload.barcode && product) {
-        try { await createProductCode(tenantId, product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
+      const result = await applyProduct(tenantId, {
+        command_id: commandId,
+        product: payload.product,
+        stock: payload.stock ?? null,
+      })
+      if (payload.barcode && result.product) {
+        try { await createProductCode(tenantId, result.product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
       }
-      return product
+      return result as ApplyProductResponse
     },
-    onSuccess: (product) => {
-      setCreatedProductId(product.id)
+    onSuccess: (result) => {
+      setCreatedProductId(result.product.id)
+      setFeedback({ kind: 'success', text: 'Produto criado com sucesso.' })
+    },
+    onError: (err) => {
+      setFeedback({
+        kind: 'error',
+        text: isApiProblemError(err) ? err.problem.detail : 'Erro ao criar produto.',
+      })
     },
   })
 
@@ -114,6 +129,20 @@ export default function ProductEditorPage(): ReactNode {
           Voltar
         </button>
       </div>
+
+      {feedback && (
+        <div
+          role={feedback.kind === 'error' ? 'alert' : 'status'}
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            feedback.kind === 'error'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-green-200 bg-green-50 text-green-700'
+          }`}
+          data-testid="editor-feedback"
+        >
+          {feedback.text}
+        </div>
+      )}
 
       <ProductEditorSteps tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 

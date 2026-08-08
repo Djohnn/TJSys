@@ -1,7 +1,7 @@
 # Security & Privacy Checklist
 
 ## Overview
-This checklist ensures the Zyrp platform meets security and privacy requirements for pilot deployment.
+This checklist ensures the TJSys platform meets security and privacy requirements for pilot deployment.
 
 ---
 

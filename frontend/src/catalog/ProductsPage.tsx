@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
@@ -18,6 +18,7 @@ import { createProductCode } from './catalogApi'
 
 export default function ProductsPage() {
   const { selectedTenant } = useTenant()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -158,7 +159,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">Produtos</h2>
         {!showForm && products.length > 0 && (
-          <Button onClick={() => setShowForm(true)} variant="primary">Novo Produto</Button>
+          <Button onClick={() => navigate('/catalog/products/new')} variant="primary">Novo Produto</Button>
         )}
       </div>
 
@@ -221,7 +222,7 @@ export default function ProductsPage() {
           title="Nenhum produto"
           description="Crie seu primeiro produto para começar."
           action={
-            <Button onClick={() => setShowForm(true)} variant="primary">Criar Produto</Button>
+            <Button onClick={() => navigate('/catalog/products/new')} variant="primary">Criar Produto</Button>
           }
         />
       )}
@@ -262,6 +263,7 @@ export default function ProductsPage() {
                               tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
                               scale_code: product.scale_code ?? '',
                               tracks_inventory: product.tracks_inventory ?? false,
+                              stock: null,
                             }}
                             onSubmit={(data) => updateMutation.mutate({ id: product.id, body: data })}
                             onCancel={() => { setEditingId(null); setSubmitError(null) }}

@@ -12,13 +12,11 @@ import Button from '@/components/ui/Button'
 
 const FISCAL_TYPE_OPTIONS = [
   { value: '', label: 'Selecione...' },
-  { value: '00', label: '00 - Tributado integralmente' },
-  { value: '10', label: '10 - Tributado com ICMS ST' },
-  { value: '20', label: '20 - Com redução de base de cálculo' },
-  { value: '30', label: '30 - Isento / Não tributado' },
-  { value: '40', label: '40 - Imune' },
-  { value: '60', label: '60 - ICMS cobrado anteriormente por ST' },
-  { value: '70', label: '70 - Com redução de BC e cobrança ST' },
+  { value: 'revenda', label: 'Revenda' },
+  { value: 'industrializacao', label: 'Industrialização' },
+  { value: 'servico', label: 'Serviço' },
+  { value: 'uso_consumo', label: 'Uso e consumo' },
+  { value: 'outro', label: 'Outro' },
 ]
 
 const ORIGIN_CODE_OPTIONS = [
@@ -42,7 +40,7 @@ export default function ProductFiscalStep({ productId }: ProductFiscalStepProps)
   const tenantId = selectedTenant?.tenant_id ?? ''
   const queryClient = useQueryClient()
 
-  const [fiscalWarning, setFiscalWarning] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   const { data: fiscalData, isLoading: fiscalLoading } = useQuery({
     queryKey: ['product-fiscal-data', tenantId, productId],
@@ -72,14 +70,10 @@ export default function ProductFiscalStep({ productId }: ProductFiscalStepProps)
       upsertProductFiscalData(tenantId, productId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-fiscal-data', tenantId, productId] })
-      setFiscalWarning(null)
+      setFeedback({ kind: 'success', text: 'Dados fiscais salvos.' })
     },
     onError: (err) => {
-      if (isApiProblemError(err)) {
-        setFiscalWarning(err.problem.detail ?? 'Erro ao salvar dados fiscais.')
-      } else {
-        setFiscalWarning('Erro ao salvar dados fiscais.')
-      }
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao salvar dados fiscais.' })
     },
   })
 
@@ -91,9 +85,9 @@ export default function ProductFiscalStep({ productId }: ProductFiscalStepProps)
     <div data-testid="product-fiscal-step" className="space-y-4">
       <h2 className="text-xl font-bold text-neutral-900 mb-6">Dados Fiscais</h2>
 
-      {fiscalWarning && (
-        <div role="alert" className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700" data-testid="fiscal-warning">
-          {fiscalWarning}
+      {feedback && (
+        <div role={feedback.kind === 'error' ? 'alert' : 'status'} className={feedback.kind === 'error' ? 'text-danger text-sm' : 'text-success text-sm'} data-testid="fiscal-feedback">
+          {feedback.text}
         </div>
       )}
 

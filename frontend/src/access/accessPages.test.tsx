@@ -17,7 +17,7 @@ const BASE = '/api/v1'
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
-  user: { id: 1, email: 'admin@zyrp.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
+  user: { id: 1, email: 'admin@tjsys.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
@@ -42,9 +42,9 @@ const MEMBERS = {
   next: null,
   previous: null,
   results: [
-    { id: 1, user: { id: 1, email: 'admin@zyrp.local', name: 'Admin' }, role: 'admin', is_active: true, branch_ids: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-    { id: 2, user: { id: 2, email: 'gerente@zyrp.local', name: 'Gerente' }, role: 'manager', is_active: true, branch_ids: ['branch-1'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-    { id: 3, user: { id: 3, email: 'operador@zyrp.local', name: 'Operador' }, role: 'operator', is_active: false, branch_ids: ['branch-1', 'branch-2'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 1, user: { id: 1, email: 'admin@tjsys.local', name: 'Admin' }, role: 'admin', is_active: true, branch_ids: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 2, user: { id: 2, email: 'gerente@tjsys.local', name: 'Gerente' }, role: 'manager', is_active: true, branch_ids: ['branch-1'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+    { id: 3, user: { id: 3, email: 'operador@tjsys.local', name: 'Operador' }, role: 'operator', is_active: false, branch_ids: ['branch-1', 'branch-2'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
   ],
 }
 
@@ -53,8 +53,8 @@ const INVITATIONS = {
   next: null,
   previous: null,
   results: [
-    { id: 1, email: 'convite1@zyrp.local', role: 'manager', status: 'pending', expires_at: '2026-08-01T00:00:00Z', created_at: '2026-07-01T00:00:00Z' },
-    { id: 2, email: 'convite2@zyrp.local', role: 'operator', status: 'accepted', expires_at: '2026-07-15T00:00:00Z', created_at: '2026-06-01T00:00:00Z' },
+    { id: 1, email: 'convite1@tjsys.local', role: 'manager', status: 'pending', expires_at: '2026-08-01T00:00:00Z', created_at: '2026-07-01T00:00:00Z' },
+    { id: 2, email: 'convite2@tjsys.local', role: 'operator', status: 'accepted', expires_at: '2026-07-15T00:00:00Z', created_at: '2026-06-01T00:00:00Z' },
   ],
 }
 
@@ -105,7 +105,7 @@ beforeEach(() => {
       const body = await request.json() as { role?: string }
       return HttpResponse.json({
         id: Number(params.id),
-        user: { id: 1, email: 'admin@zyrp.local', name: 'Admin' },
+        user: { id: 1, email: 'admin@tjsys.local', name: 'Admin' },
         role: body.role ?? 'admin',
         is_active: true,
         branch_ids: [],
@@ -116,7 +116,7 @@ beforeEach(() => {
     http.get(`${BASE}/invitations/`, () => HttpResponse.json(INVITATIONS)),
     http.post(`${BASE}/invitations/`, async ({ request }) => {
       const body = await request.json() as { email?: string }
-      if (body.email === 'duplicate@zyrp.local') {
+      if (body.email === 'duplicate@tjsys.local') {
         return HttpResponse.json(
           { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Já existe um convite para este email.', code: 'unique_violation' },
           { status: 409 },
@@ -145,10 +145,10 @@ describe('MembersPage', () => {
   it('shows list of members', async () => {
     renderMembersPage()
     await waitFor(() => {
-      expect(screen.getByText('admin@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('admin@tjsys.local')).toBeInTheDocument()
     })
-    expect(screen.getByText('gerente@zyrp.local')).toBeInTheDocument()
-    expect(screen.getByText('operador@zyrp.local')).toBeInTheDocument()
+    expect(screen.getByText('gerente@tjsys.local')).toBeInTheDocument()
+    expect(screen.getByText('operador@tjsys.local')).toBeInTheDocument()
   })
 
   it('shows role labels in Portuguese', async () => {
@@ -186,7 +186,7 @@ describe('MembersPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('admin@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('admin@tjsys.local')).toBeInTheDocument()
     })
 
     const editButtons = screen.getAllByRole('button', { name: /editar/i })
@@ -206,7 +206,7 @@ describe('MembersPage', () => {
   it('does not show Editar button when current user role is operator', async () => {
     renderMembersPage(operatorTenantValue)
     await waitFor(() => {
-      expect(screen.getByText('admin@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('admin@tjsys.local')).toBeInTheDocument()
     })
     expect(screen.queryByRole('button', { name: /editar/i })).not.toBeInTheDocument()
   })
@@ -224,7 +224,7 @@ describe('MembersPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('admin@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('admin@tjsys.local')).toBeInTheDocument()
     })
 
     const editButtons = screen.getAllByRole('button', { name: /editar/i })
@@ -252,9 +252,9 @@ describe('InvitationsPage', () => {
   it('shows list of invitations', async () => {
     renderInvitationsPage()
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
-    expect(screen.getByText('convite2@zyrp.local')).toBeInTheDocument()
+    expect(screen.getByText('convite2@tjsys.local')).toBeInTheDocument()
   })
 
   it('shows status labels in Portuguese', async () => {
@@ -282,13 +282,13 @@ describe('InvitationsPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /novo convite/i }))
     expect(screen.getByTestId('invitation-form')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText(/email/i), 'novo@zyrp.local')
+    await user.type(screen.getByLabelText(/email/i), 'novo@tjsys.local')
     await user.selectOptions(screen.getByLabelText(/função/i), 'manager')
     await user.click(screen.getByRole('button', { name: /convidar/i }))
 
@@ -302,7 +302,7 @@ describe('InvitationsPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /novo convite/i }))
@@ -318,11 +318,11 @@ describe('InvitationsPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /novo convite/i }))
-    await user.type(screen.getByLabelText(/email/i), 'duplicate@zyrp.local')
+    await user.type(screen.getByLabelText(/email/i), 'duplicate@tjsys.local')
     await user.selectOptions(screen.getByLabelText(/função/i), 'operator')
     await user.click(screen.getByRole('button', { name: /convidar/i }))
 
@@ -336,7 +336,7 @@ describe('InvitationsPage', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
 
     const resendButtons = screen.getAllByRole('button', { name: /reenviar/i })
@@ -344,7 +344,7 @@ describe('InvitationsPage', () => {
 
     await user.click(resendButtons[0])
     await waitFor(() => {
-      expect(screen.getByText('convite1@zyrp.local')).toBeInTheDocument()
+      expect(screen.getByText('convite1@tjsys.local')).toBeInTheDocument()
     })
   })
 })

@@ -3,6 +3,7 @@ import { operationJournal } from './operationJournal';
 import { connectivityMonitor } from './connectivityMonitor';
 import { resolveConflict } from './conflictResolver';
 import { getBackoffDelay, shouldRetry } from '../utils/backoff';
+import { catalogCache } from './catalogCache';
 import { logger } from '../utils/logger';
 
 export type SyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
@@ -75,6 +76,18 @@ class SyncEngine {
       this.state.error = null;
       this.notifyListeners();
 
+      // First sync catalog data from backend
+      if (connectivityMonitor.isOnline()) {
+        try {
+          logger.info('Starting catalog cache sync');
+          const catalogResult = await catalogCache.syncFromBackend();
+          logger.info('Catalog sync completed', catalogResult);
+        } catch (err) {
+          logger.error('Catalog sync failed:', err);
+        }
+      }
+
+      // Then sync operations
       const pending = operationJournal.getPending();
       if (pending.length === 0) {
         this.state.status = 'idle';

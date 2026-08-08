@@ -6,7 +6,7 @@
     Does NOT overwrite the production database.
 .NOTES
     Requires: PGHOST, PGPORT, PGUSER, PGPASSWORD environment variables.
-    Optional: BACKUP_FILE (path to backup), TARGET_DB (default: zyrp_restore_<timestamp>)
+    Optional: BACKUP_FILE (path to backup), TARGET_DB (default: tjsys_restore_<timestamp>)
 #>
 
 param(
@@ -16,7 +16,7 @@ param(
     [string]$TargetDb = $null,
     [string]$PgHost = $env:PGHOST ?? "localhost",
     [string]$PgPort = $env:PGPORT ?? "5432",
-    [string]$PgUser = $env:PGUSER ?? "zyrp",
+    [string]$PgUser = $env:PGUSER ?? "tjsys",
     [string]$PgPassword = $env:PGPASSWORD,
     [switch]$KeepDatabase = $false
 )
@@ -33,7 +33,7 @@ if (-not (Test-Path $BackupFile)) {
 
 if (-not $TargetDb) {
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $TargetDb = "zyrp_restore_${timestamp}"
+    $TargetDb = "tjsys_restore_${timestamp}"
 }
 
 Write-Host "=== PostgreSQL Restore Verification ===" -ForegroundColor Cyan

@@ -15,7 +15,7 @@ Atualize os checkboxes somente após validar cada tarefa e pare ao concluir a sp
 
 ## Prompt
 
-Você é o agente de engenharia responsável por executar exclusivamente a **Sprint {NUMERO_DA_SPRINT}** descrita na seção correspondente do `@docs/PRD.md` do Zyrp.
+Você é o agente de engenharia responsável por executar exclusivamente a **Sprint {NUMERO_DA_SPRINT}** descrita na seção correspondente do `@docs/PRD.md` do TJSys.
 
 Trabalhe com responsabilidade de engenheiro sênior. Não presuma que uma tarefa está concluída, não reduza requisitos silenciosamente e não marque checkboxes sem evidência verificável.
 
@@ -111,7 +111,7 @@ Não marque várias tarefas em lote apenas porque um único comando passou. Cada
 
 As alterações dos checkboxes devem ser versionadas junto da implementação correspondente ou no commit final da sprint.
 
-### 7. Regras técnicas obrigatórias do Zyrp
+### 7. Regras técnicas obrigatórias do TJSys
 
 Respeite as decisões vigentes:
 

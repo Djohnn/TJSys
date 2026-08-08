@@ -3,6 +3,7 @@ import type { ReactNode, FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
+import { isApiProblemError } from '@/api/problem'
 import {
   fetchChannelProfiles,
   createChannelProfile,
@@ -38,7 +39,7 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
 
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, string>>({})
-  const [publishError, setPublishError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
   const { data: profiles = [], isLoading, isError } = useQuery({
     queryKey: ['channel-profiles', tenantId, productId],
@@ -50,6 +51,10 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
     mutationFn: (data: Record<string, unknown>) => createChannelProfile(tenantId, productId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channel-profiles', tenantId, productId] })
+      setFeedback({ kind: 'success', text: 'Canal adicionado.' })
+    },
+    onError: (err) => {
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao adicionar canal.' })
     },
   })
 
@@ -59,6 +64,10 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channel-profiles', tenantId, productId] })
       setEditingSlug(null)
+      setFeedback({ kind: 'success', text: 'Perfil de canal salvo.' })
+    },
+    onError: (err) => {
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao salvar perfil de canal.' })
     },
   })
 
@@ -66,10 +75,10 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
     mutationFn: (slug: string) => publishChannel(tenantId, productId, slug),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channel-profiles', tenantId, productId] })
-      setPublishError(null)
+      setFeedback({ kind: 'success', text: 'Publicação solicitada.' })
     },
-    onError: () => {
-      setPublishError('Erro ao publicar no canal.')
+    onError: (err) => {
+      setFeedback({ kind: 'error', text: isApiProblemError(err) ? err.problem.detail : 'Erro ao publicar no canal.' })
     },
   })
 
@@ -107,7 +116,6 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
 
   const handlePublish = useCallback(
     (slug: string) => {
-      setPublishError(null)
       publishMutation.mutate(slug)
     },
     [publishMutation],
@@ -126,6 +134,12 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
   return (
     <div data-testid="product-channels-step" className="space-y-4">
       <h2 className="text-xl font-bold text-neutral-900 mb-6">Canais</h2>
+
+      {feedback && (
+        <div role={feedback.kind === 'error' ? 'alert' : 'status'} className={feedback.kind === 'error' ? 'text-danger text-sm' : 'text-success text-sm'} data-testid="channels-feedback">
+          {feedback.text}
+        </div>
+      )}
 
       {isLoading && (
         <div data-testid="channels-loading" className="text-sm text-neutral-500">
@@ -294,9 +308,9 @@ export default function ProductChannelsStep({ productId }: ProductChannelsStepPr
         </div>
       )}
 
-      {publishError && (
+      {publishMutation.isError && !feedback && (
         <div data-testid="channel-publish-error" className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
-          {publishError}
+          Erro ao publicar no canal.
         </div>
       )}
     </div>

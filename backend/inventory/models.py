@@ -310,10 +310,20 @@ class StockBalance(VersionedInventoryModel):
     def clean(self):
         super().clean()
         if self.quantity < 0:
-            raise ValidationError({'quantity': 'Quantity cannot be negative.'})
+            policy_allows_negative = ProductStockPolicy.all_objects.filter(
+                tenant_id=self.tenant_id,
+                product_id=self.product_id,
+                location_id=self.location_id,
+                is_active=True,
+                allow_negative=True,
+            ).exists()
+            if not policy_allows_negative:
+                raise ValidationError({'quantity': 'Negative inventory is not allowed.'})
         if self.reserved < 0:
             raise ValidationError({'reserved': 'Reserved cannot be negative.'})
-        if self.reserved > self.quantity:
+        if self.quantity < 0 and self.reserved != 0:
+            raise ValidationError({'reserved': 'Negative inventory cannot have reservations.'})
+        if self.quantity >= 0 and self.reserved > self.quantity:
             raise ValidationError({'reserved': 'Reserved cannot exceed quantity.'})
         if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
             raise ValidationError({'product': 'Product must belong to the same tenant.'})
@@ -369,3 +379,89 @@ class StockOperationReversal(VersionedInventoryModel):
             raise ValidationError(
                 {'reversal_operation': 'Reversal operation must belong to the same tenant.'}
             )
+
+
+class ProductStockPolicy(TimeStampedModel, TenantScopedModel):
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='stock_policies',
+    )
+    branch = models.ForeignKey(
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+    )
+    minimum_quantity = models.DecimalField(max_digits=18, decimal_places=6, default=0)
+    maximum_quantity = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    reorder_point = models.DecimalField(max_digits=18, decimal_places=6, default=0)
+    allow_negative = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'product', 'branch', 'location'],
+                name='uniq_product_stock_policy_location',
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.product_id and self.product.product_kind == 'servico':
+            errors['product'] = 'Services cannot track inventory.'
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.branch_id and self.tenant_id and self.branch.tenant_id != self.tenant_id:
+            errors['branch'] = 'Branch must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.location_id and self.branch_id and self.location.branch_id != self.branch_id:
+            errors['location'] = 'Location must belong to the selected branch.'
+        if self.maximum_quantity is not None and self.maximum_quantity < self.minimum_quantity:
+            errors['maximum_quantity'] = 'Maximum must be >= minimum.'
+        if self.minimum_quantity < 0:
+            errors['minimum_quantity'] = 'Minimum quantity cannot be negative.'
+        if self.reorder_point < 0:
+            errors['reorder_point'] = 'Reorder point cannot be negative.'
+        if errors:
+            raise ValidationError(errors)
+
+
+class ProductStockControlCommand(TimeStampedModel, TenantScopedModel):
+    """Idempotency receipt for stock control transitions (deactivate/reactivate)."""
+
+    ACTION_CHOICES = [
+        ('deactivate', 'Deactivate'),
+        ('reactivate', 'Reactivate'),
+    ]
+
+    command_id = models.CharField(max_length=80)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    payload_hash = models.CharField(max_length=64)
+    response_json = models.JSONField(default=dict, blank=True)
+    correlation_id = models.UUIDField()
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'command_id'],
+                name='uniq_product_stock_control_command_tenant_id',
+            ),
+        ]

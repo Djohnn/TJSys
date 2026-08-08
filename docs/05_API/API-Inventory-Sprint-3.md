@@ -86,7 +86,7 @@ Erros de domínio usam corpo problem-style:
 
 ```json
 {
-  "type": "https://zyrp.local/problems/insufficient_stock",
+  "type": "https://tjsys.local/problems/insufficient_stock",
   "title": "Stock operation rejected",
   "status": 409,
   "detail": "Insufficient stock..."

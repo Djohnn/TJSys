@@ -5,7 +5,7 @@ Estado: concluída
 
 ## Resultado
 
-A fundação técnica do Zyrp foi implementada e revalidada com Django, DRF, PostgreSQL, Redis, Celery, auditoria append-only, Transactional Outbox e isolamento multi-tenant em profundidade. O usuário de runtime do banco não possui `SUPERUSER` nem `BYPASSRLS`.
+A fundação técnica do TJSys foi implementada e revalidada com Django, DRF, PostgreSQL, Redis, Celery, auditoria append-only, Transactional Outbox e isolamento multi-tenant em profundidade. O usuário de runtime do banco não possui `SUPERUSER` nem `BYPASSRLS`.
 
 ## Evidências executadas
 

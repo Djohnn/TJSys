@@ -32,8 +32,8 @@ def django_db_setup(django_db_blocker):
     runtime_user = database['USER']
     env_path = Path(__file__).resolve().parents[2] / '.env'
     env_config = Config(RepositoryEnv(str(env_path))) if env_path.exists() else config
-    owner_user = env_config('POSTGRES_USER', default='zyrp')
-    owner_password = env_config('POSTGRES_PASSWORD', default='zyrp')
+    owner_user = env_config('POSTGRES_USER', default='tjsys')
+    owner_password = env_config('POSTGRES_PASSWORD', default='tjsys')
     conn = psycopg.connect(
         dbname=database['NAME'],
         user=owner_user,

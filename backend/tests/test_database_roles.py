@@ -21,7 +21,7 @@ class TestDatabaseRuntimeRole:
         assert bypasses_rls is False
 
     def test_runtime_role_is_unprivileged_and_does_not_own_tenant_tables(self):
-        runtime_role = config('POSTGRES_APP_USER', default='zyrp_app')
+        runtime_role = config('POSTGRES_APP_USER', default='tjsys_app')
         with connection.cursor() as cursor:
             cursor.execute(
                 """

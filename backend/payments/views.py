@@ -36,7 +36,7 @@ from .services import (
 def _problem(detail, code, status_code):
     return Response(
         {
-            'type': f'https://docs.zyrp.local/errors/{code}',
+            'type': f'https://docs.tjsys.local/errors/{code}',
             'title': code.replace('_', ' ').title(),
             'status': status_code,
             'detail': str(detail),

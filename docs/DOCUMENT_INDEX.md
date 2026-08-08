@@ -1,10 +1,10 @@
 # Documentation Index
 
-Registro oficial dos documentos do Zyrp.
+Registro oficial dos documentos do TJSys.
 
 | Código | Documento | Versão | Status | Caminho |
 |---|---|---:|---|---|
-| DESIGN-FOUNDATION-001 | Zyrp Foundation Design | 0.1.1 | Review | `superpowers/specs/2026-07-14-zyrp-foundation-design.md` |
+| DESIGN-FOUNDATION-001 | TJSys Foundation Design | 0.1.1 | Review | `superpowers/specs/2026-07-14-tjsys-foundation-design.md` |
 | DESIGN-CATALOG-002 | Sprint 2 Catalog Design | 1.0.0 | Approved | `superpowers/specs/2026-07-14-sprint-2-catalog-design.md` |
 | DESIGN-INVENTORY-003 | Sprint 3 Inventory Design | 1.0.0 | Approved | `superpowers/specs/2026-07-14-sprint-3-inventory-design.md` |
 | PLAN-CATALOG-002 | Sprint 2 Catalog Implementation Plan | 1.0.0 | Approved | `superpowers/plans/2026-07-14-sprint-2-catalog-implementation-plan.md` |
