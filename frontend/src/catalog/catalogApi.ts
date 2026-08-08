@@ -41,8 +41,21 @@ export interface ProductFiscalData {
 export interface ProductPriceTier {
   id: string
   product: string
+  price?: string | null
   min_quantity: string
   amount: string
+  is_active?: boolean
+  version?: number
+}
+
+export interface ProductPrice {
+  id: string
+  product: string
+  amount: string
+  valid_from: string
+  valid_to: string | null
+  is_active: boolean
+  version: number
 }
 
 export interface Category {
@@ -408,6 +421,42 @@ export function fetchProduct(
   return apiRequest<Product>(`/catalog/products/${id}/`, {
     tenantId,
   }) as Promise<Product>
+}
+
+export function fetchProductPrices(
+  tenantId: string,
+  productId: string,
+): Promise<PaginatedResponse<ProductPrice> | ProductPrice[]> {
+  return apiRequest<PaginatedResponse<ProductPrice> | ProductPrice[]>(productExtensionPath(productId, 'prices'), {
+    tenantId,
+  }) as Promise<PaginatedResponse<ProductPrice> | ProductPrice[]>
+}
+
+export function createProductPrice(
+  tenantId: string,
+  productId: string,
+  data: Pick<ProductPrice, 'amount'> & Partial<Pick<ProductPrice, 'valid_from' | 'valid_to'>>,
+): Promise<ProductPrice> {
+  return apiRequest<ProductPrice>(productExtensionPath(productId, 'prices'), {
+    method: 'POST',
+    tenantId,
+    body: { valid_from: new Date().toISOString(), ...data },
+  }) as Promise<ProductPrice>
+}
+
+export function updateProductPrice(
+  tenantId: string,
+  productId: string,
+  priceId: string,
+  data: Pick<ProductPrice, 'amount'> & Partial<Pick<ProductPrice, 'valid_from' | 'valid_to'>>,
+  version: number,
+): Promise<ProductPrice> {
+  return apiRequest<ProductPrice>(`${productExtensionPath(productId, 'prices')}${priceId}/`, {
+    method: 'PATCH',
+    tenantId,
+    headers: { 'If-Match': String(version) },
+    body: data,
+  }) as Promise<ProductPrice>
 }
 
 export function fetchProductCodes(

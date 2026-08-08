@@ -221,6 +221,33 @@ def test_overlapping_tenant_prices_are_rejected(pricing_tenant, pricing_product)
 
 
 @pytest.mark.django_db
+def test_effective_price_rejects_ambiguous_current_base_prices(
+    pricing_tenant, pricing_product, pricing_branch,
+):
+    now = timezone.now()
+    _run_in_tenant(
+        pricing_tenant,
+        lambda: ProductPrice.all_objects.create(
+            tenant=pricing_tenant,
+            product=pricing_product,
+            amount=Decimal('10.00'),
+            valid_from=now,
+        ),
+    )
+    _run_in_tenant(
+        pricing_tenant,
+        lambda: ProductPrice.all_objects.create(
+            tenant=pricing_tenant,
+            product=pricing_product,
+            amount=Decimal('11.00'),
+            valid_from=now,
+        ),
+    )
+    with pytest.raises(PriceNotAvailable):
+        resolve_effective_price(product=pricing_product, branch=pricing_branch, at=now)
+
+
+@pytest.mark.django_db
 def test_branch_price_tenant_must_match_branch_tenant():
     from django.core.exceptions import ValidationError
 

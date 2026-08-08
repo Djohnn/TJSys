@@ -2243,3 +2243,109 @@ describe('ProductChannelsStep', () => {
     })
   })
 })
+
+describe('ProductPricesStep base price contract', () => {
+  it('shows empty state when no ProductPrice exists and does not promote tiers', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'tier-1', product: 'p1', min_quantity: '1', amount: '9.00' }] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-empty')).toHaveTextContent('Nenhum preço base cadastrado')
+    expect(screen.queryByTestId('base-price-amount')).not.toHaveValue('9.00')
+  })
+
+  it('signals multiple ProductPrice records while keeping tiers optional', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 2, next: null, previous: null, results: [
+        { id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 3 },
+        { id: 'price-2', product: 'p1', amount: '12.00', valid_from: '2026-02-01T00:00:00Z', valid_to: null, is_active: true, version: 1 },
+      ] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-conflict')).toHaveRole('alert')
+    expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
+  })
+
+  it('updates ProductPrice with If-Match version', async () => {
+    let patchHeaders: Headers | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 3 }] })),
+      http.patch(`${BASE}/catalog/products/p1/prices/price-1/`, async ({ request }) => {
+        patchHeaders = request.headers
+        return HttpResponse.json({ id: 'price-1', product: 'p1', amount: '11.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 4 })
+      }),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    const amount = await screen.findByTestId('base-price-amount')
+    await user.clear(amount)
+    await user.type(amount, '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+    await waitFor(() => expect(patchHeaders).not.toBeNull())
+    expect((patchHeaders as Headers | null)?.get('If-Match')).toBe('3')
+  })
+
+  it('creates a ProductPrice when the base price is absent', async () => {
+    let payload: Record<string, unknown> | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.post(`${BASE}/catalog/products/p1/prices/`, async ({ request }) => {
+        payload = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ id: 'price-new', product: 'p1', amount: '11.00', valid_from: '2026-08-08T00:00:00Z', valid_to: null, is_active: true, version: 1 }, { status: 201 })
+      }),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    const amount = await screen.findByTestId('base-price-amount')
+    await user.type(amount, '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+    await waitFor(() => expect(payload).not.toBeNull())
+    expect((payload as unknown as Record<string, unknown>).amount).toBe('11.00')
+    expect((payload as unknown as Record<string, unknown>).valid_from).toEqual(expect.any(String))
+  })
+
+  it('uses only the effective ProductPrice when history is also returned', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 2, next: null, previous: null, results: [
+        { id: 'price-old', product: 'p1', amount: '9.00', valid_from: '2026-01-01T00:00:00Z', valid_to: '2026-02-01T00:00:00Z', is_active: true, version: 1 },
+        { id: 'price-current', product: 'p1', amount: '11.00', valid_from: '2026-03-01T00:00:00Z', valid_to: null, is_active: true, version: 2 },
+      ] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-amount')).toHaveValue('11.00')
+    expect(screen.queryByTestId('base-price-conflict')).not.toBeInTheDocument()
+  })
+
+  it('does not offer create when the base-price query fails', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ detail: 'unavailable' }, { status: 503 })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-load-error')).toHaveRole('alert')
+    expect(screen.queryByTestId('base-price-empty')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('save-base-price')).not.toBeInTheDocument()
+    expect(screen.getByTestId('add-tier-button')).toBeDisabled()
+  })
+})

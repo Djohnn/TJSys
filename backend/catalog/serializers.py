@@ -122,7 +122,7 @@ class ProductSerializer(FullCleanModelSerializer):
 
     def get_price(self, obj):
         now = timezone.now()
-        price = (
+        prices = list(
             ProductPrice.all_objects.filter(
                 tenant=obj.tenant,
                 product=obj,
@@ -131,9 +131,14 @@ class ProductSerializer(FullCleanModelSerializer):
             )
             .filter(Q(valid_to__isnull=True) | Q(valid_to__gt=now))
             .order_by('-valid_from')
-            .first()
+            [:2]
         )
-        return f'{price.amount:.2f}' if price else None
+        # A tier is never a substitute for the canonical ProductPrice. If
+        # the base contract is absent or ambiguous, expose no sellable price
+        # rather than silently selecting an arbitrary record.
+        if len(prices) != 1:
+            return None
+        return f'{prices[0].amount:.2f}'
 
     def get_barcode(self, obj):
         code = obj.codes.filter(code_type='ean', is_active=True).order_by('-is_principal', 'id').first()
@@ -170,6 +175,11 @@ class ProductCodeSerializer(FullCleanModelSerializer):
 
 
 class ProductPriceSerializer(FullCleanModelSerializer):
+    # A base-price write starts now unless the caller explicitly supplies a
+    # historical/future effective date. This keeps the ProductPrice endpoint
+    # the canonical contract while leaving tiers optional.
+    valid_from = serializers.DateTimeField(required=False, default=timezone.now)
+
     class Meta:
         model = ProductPrice
         fields = [
@@ -221,6 +231,25 @@ class ProductFiscalDataSerializer(FullCleanModelSerializer):
 
 
 class ProductPriceTierSerializer(FullCleanModelSerializer):
+    def validate(self, attrs):
+        price = attrs.get('price')
+        if price is None:
+            # Tiers are optional extensions and can be drafted before a base
+            # price exists; they never become Product.price themselves.
+            return attrs
+        request = self.context.get('request')
+        path_product_id = None
+        if request is not None:
+            path_product_id = request.parser_context.get('kwargs', {}).get('product_pk')
+        if path_product_id is not None and str(price.product_id) != str(path_product_id):
+            raise serializers.ValidationError({'price': 'Price must belong to the requested product.'})
+        if request is not None and getattr(request, 'tenant', None) is not None:
+            if price.tenant_id != request.tenant.id:
+                raise serializers.ValidationError({'price': 'Price must belong to the active tenant.'})
+        if not price.is_active:
+            raise serializers.ValidationError({'price': 'Price must be active.'})
+        return attrs
+
     class Meta:
         model = ProductPriceTier
         fields = [

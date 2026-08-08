@@ -519,6 +519,130 @@ def test_price_tier_min_quantity_unique(catalog_context):
     assert response.status_code == 400
 
 
+@pytest.mark.django_db
+def test_product_price_create_defaults_valid_from_and_patch_requires_version(catalog_context):
+    ctx = catalog_context
+    product_id = ctx['product2'].id
+    response = ctx['client'].post(
+        f'/api/v1/products/{product_id}/prices/',
+        {'amount': '11.00'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert response.status_code == 201, response.json()
+    created = response.json()
+    assert created['amount'] == '11.0000'
+    assert created['valid_from']
+
+    price = _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPrice.all_objects.filter(id=created['id']).get(),
+    )
+    stale = ctx['client'].patch(
+        f'/api/v1/products/{product_id}/prices/{price.id}/',
+        {'amount': '12.00'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        HTTP_IF_MATCH='0',
+    )
+    assert stale.status_code == 409
+
+    updated = ctx['client'].patch(
+        f'/api/v1/products/{product_id}/prices/{price.id}/',
+        {'amount': '12.00'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        HTTP_IF_MATCH=str(price.version),
+    )
+    assert updated.status_code == 200, updated.json()
+    assert updated.json()['version'] == price.version + 1
+
+
+@pytest.mark.django_db
+def test_product_serializer_returns_no_price_for_zero_or_ambiguous_base_prices(catalog_context):
+    ctx = catalog_context
+    # Remove the fixture base price: an optional tier must not masquerade as
+    # Product.price in the PDV/search contract.
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPrice.all_objects.filter(product=ctx['product']).delete(),
+    )
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPriceTier.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            min_quantity=Decimal('1'),
+            amount=Decimal('8.00'),
+        ),
+    )
+    response = ctx['client'].get(
+        f'/api/v1/products/{ctx["product"].id}/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert response.status_code == 200
+    assert response.json()['price'] is None
+
+    def _ambiguous():
+        ProductPrice.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            amount=Decimal('10.00'),
+            valid_from=timezone.now(),
+        )
+        ProductPrice.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            amount=Decimal('11.00'),
+            valid_from=timezone.now(),
+        )
+    _run_in_tenant(ctx['tenant'], _ambiguous)
+    response = ctx['client'].get(
+        f'/api/v1/products/{ctx["product"].id}/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert response.status_code == 200
+    assert response.json()['price'] is None
+
+
+@pytest.mark.django_db
+def test_price_tier_rejects_base_price_from_another_product_or_inactive(catalog_context):
+    ctx = catalog_context
+    other_price = _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPrice.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product2'],
+            amount=Decimal('5.00'),
+            valid_from=timezone.now(),
+        ),
+    )
+    wrong_product = ctx['client'].post(
+        f'/api/v1/products/{ctx["product"].id}/price-tiers/',
+        {'price': str(other_price.id), 'min_quantity': '5', 'amount': '4.00'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert wrong_product.status_code == 400
+
+    inactive_price = _run_in_tenant(
+        ctx['tenant'],
+        lambda: ProductPrice.all_objects.create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            amount=Decimal('6.00'),
+            valid_from=timezone.now(),
+            is_active=False,
+        ),
+    )
+    inactive = ctx['client'].post(
+        f'/api/v1/products/{ctx["product"].id}/price-tiers/',
+        {'price': str(inactive_price.id), 'min_quantity': '6', 'amount': '4.00'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert inactive.status_code == 400
+
 # ---------------------------------------------------------------------------
 # Scenario 12 — Inactive product rejects price tier creation
 # ---------------------------------------------------------------------------
