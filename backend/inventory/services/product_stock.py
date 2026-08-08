@@ -2,7 +2,8 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from uuid import UUID
 
 from django.db import transaction
 
@@ -327,16 +328,48 @@ def reactivate_product_stock_control(
     if initial_stocks is None:
         initial_stocks = []
 
+    validated_stocks = []
+    for index, stock_entry in enumerate(initial_stocks):
+        if not isinstance(stock_entry, dict):
+            raise ProductStockControlError(
+                f'Estoque inicial inválido na posição {index}.',
+                code='INVALID_INITIAL_STOCK',
+                status_code=400,
+            )
+        try:
+            location_id = UUID(str(stock_entry.get('location_id', '')))
+        except (TypeError, ValueError, AttributeError):
+            raise ProductStockControlError(
+                f'Localização inválida na posição {index}.',
+                code='INVALID_INITIAL_STOCK',
+                status_code=400,
+            ) from None
+        try:
+            quantity = Decimal(str(stock_entry.get('quantity', '')))
+        except (InvalidOperation, ValueError, TypeError):
+            raise ProductStockControlError(
+                f'Quantidade inválida na posição {index}.',
+                code='INVALID_INITIAL_STOCK',
+                status_code=400,
+            ) from None
+        if not quantity.is_finite() or quantity <= 0:
+            raise ProductStockControlError(
+                f'Quantidade deve ser positiva na posição {index}.',
+                code='INVALID_INITIAL_STOCK',
+                status_code=400,
+            )
+        validated_stocks.append({'location_id': location_id, 'quantity': quantity})
+
     payload = {
         'product_id': str(product.id),
         'action': 'reactivate',
         'initial_stocks': sorted(
             [
                 {
-                    'location_id': str(s.get('location_id', '')),
-                    'quantity': str(s.get('quantity', 0)),
+                    'location_id': str(s['location_id']),
+                    'quantity': str(s['quantity']),
                 }
-                for s in initial_stocks
+                for s in validated_stocks
             ],
             key=lambda x: x['location_id'],
         ),
@@ -373,13 +406,18 @@ def reactivate_product_stock_control(
             status_code=400,
         )
 
-    if initial_stocks:
+    for index, stock_entry in enumerate(validated_stocks):
+        if not policies.filter(location_id=stock_entry['location_id']).exists():
+            raise ProductStockControlError(
+                f'Localização não pertence às políticas do produto na posição {index}.',
+                code='INVALID_INITIAL_STOCK',
+                status_code=400,
+            )
+
+    if validated_stocks:
         locations_with_history = []
-        for stock_entry in initial_stocks:
-            location_id = stock_entry.get('location_id')
-            quantity = Decimal(str(stock_entry.get('quantity', 0)))
-            if quantity <= 0:
-                continue
+        for stock_entry in validated_stocks:
+            location_id = stock_entry['location_id']
             has_movements = StockMovement.all_objects.filter(
                 tenant=tenant, product=product, location_id=location_id,
             ).exists()
@@ -400,13 +438,11 @@ def reactivate_product_stock_control(
     first_policy = policies.first()
 
     operations_created = 0
-    if initial_stocks:
+    if validated_stocks:
         from inventory.services.operations import create_receipt
-        for stock_entry in initial_stocks:
-            location_id = stock_entry.get('location_id')
-            quantity = Decimal(str(stock_entry.get('quantity', 0)))
-            if quantity <= 0:
-                continue
+        for stock_entry in validated_stocks:
+            location_id = stock_entry['location_id']
+            quantity = stock_entry['quantity']
             policy = policies.filter(location_id=location_id).first()
             if not policy:
                 continue

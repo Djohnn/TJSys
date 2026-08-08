@@ -126,9 +126,12 @@ def get_available_stock(tenant, product, location, lot=None, exclude_reserved=Fa
     return balance.quantity
 
 
+@transaction.atomic
 def reserve_stock(tenant, product, location, quantity, lot=None):
-    balance = _get_balance(tenant, product, location, lot, for_update=True)
     quantity = normalize_quantity(quantity, product.base_unit)
+    if quantity <= 0:
+        raise ValueError('Reservation quantity must be positive.')
+    balance = _get_balance(tenant, product, location, lot, for_update=True)
     if balance.reserved + quantity > balance.quantity:
         raise InsufficientStock(
             f'Cannot reserve {quantity}. Available: {balance.available}'
@@ -140,9 +143,12 @@ def reserve_stock(tenant, product, location, quantity, lot=None):
     return balance
 
 
+@transaction.atomic
 def release_reservation(tenant, product, location, quantity, lot=None):
-    balance = _get_balance(tenant, product, location, lot, for_update=True)
     quantity = normalize_quantity(quantity, product.base_unit)
+    if quantity <= 0:
+        raise ValueError('Reservation quantity must be positive.')
+    balance = _get_balance(tenant, product, location, lot, for_update=True)
     balance.reserved = max(balance.reserved - quantity, Decimal('0'))
     balance.version += 1
     balance.full_clean()
@@ -509,15 +515,16 @@ def reverse_operation(operation, reason='', idempotency_key='', actor=None):
         },
     )
     for movement in operation.movements.all():
+        original_quantity = movement.quantity / movement.factor
         create_stock_movement(
             operation=reversal,
             product=movement.product,
             location=movement.location,
             lot=movement.lot,
             direction='out' if movement.direction == 'in' else 'in',
-            quantity=movement.quantity,
+            quantity=original_quantity,
             unit=movement.unit,
-            factor=1,
+            factor=movement.factor,
             unit_cost=movement.unit_cost,
             notes=f'Reversal of {operation.id}',
             allow_expired_lot=True,

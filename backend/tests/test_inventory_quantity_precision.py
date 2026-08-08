@@ -5,9 +5,16 @@ import pytest
 from django.db import connection
 
 from catalog.models import Product, Unit
-from inventory.models import StockLocation
+from inventory.models import StockBalance, StockLocation
 from inventory.serializers import StockMovementSerializer
-from inventory.services import create_receipt
+from inventory.services import (
+    ProductStockControlError,
+    create_receipt,
+    reactivate_product_stock_control,
+    release_reservation,
+    reserve_stock,
+    reverse_operation,
+)
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant
 
@@ -133,3 +140,84 @@ def test_kg_unit_rejects_more_than_three_decimal_places():
             Decimal('1'),
             idempotency_key='kg-too-precise',
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('reservation_operation', [reserve_stock, release_reservation])
+def test_reservation_operations_reject_non_positive_quantity(reservation_operation):
+    tenant, unit, product, _branch, location = _stock_context(precision=3)
+
+    with _tenant_context(tenant), pytest.raises(ValueError, match='positive'):
+        reservation_operation(
+            tenant,
+            product,
+            location,
+            Decimal('-0.500'),
+        )
+
+
+@pytest.mark.django_db
+def test_reservation_rejects_invalid_precision_before_creating_balance():
+    tenant, unit, product, _branch, location = _stock_context(precision=3)
+
+    with _tenant_context(tenant), pytest.raises(ValueError, match='at most 3 decimal places'):
+        reserve_stock(tenant, product, location, Decimal('0.5001'))
+
+    assert not StockBalance.all_objects.filter(
+        tenant=tenant,
+        product=product,
+        location=location,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_reversal_reuses_original_quantity_and_factor_for_integer_units():
+    tenant, unit, product, branch, location = _stock_context(precision=0)
+
+    with _tenant_context(tenant):
+        receipt = create_receipt(
+            tenant,
+            branch,
+            product,
+            location,
+            Decimal('1'),
+            unit,
+            Decimal('0.5'),
+            idempotency_key='reverse-factor-receipt',
+        )
+        reversal = reverse_operation(
+            receipt,
+            reason='undo',
+            idempotency_key='reverse-factor-reversal',
+        )
+        assert reversal.movements.get().quantity == Decimal('0.500000')
+        assert StockBalance.all_objects.get(
+            tenant=tenant,
+            product=product,
+            location=location,
+        ).quantity == Decimal('0')
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'initial_stock, message',
+    [
+        ({'location_id': 'not-a-uuid', 'quantity': '1'}, 'Localização inválida'),
+        ({'location_id': '00000000-0000-0000-0000-000000000001', 'quantity': '0'}, 'positiva'),
+        (
+            {'location_id': '00000000-0000-0000-0000-000000000001', 'quantity': 'not-a-number'},
+            'Quantidade inválida',
+        ),
+    ],
+)
+def test_reactivate_rejects_malformed_initial_stock(initial_stock, message):
+    tenant, _unit, product, _branch, _location = _stock_context(precision=3)
+    with _tenant_context(tenant):
+        with pytest.raises(ProductStockControlError, match=message):
+            reactivate_product_stock_control(
+                tenant=tenant,
+                product=product,
+                actor=None,
+                command_id='reactivate-invalid-input',
+                initial_stocks=[initial_stock],
+            )
