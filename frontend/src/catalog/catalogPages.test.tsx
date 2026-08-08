@@ -1937,7 +1937,7 @@ describe('LabelsPage', () => {
       expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
     expect(screen.getByTestId('product-media-panel')).toBeInTheDocument()
-    const mediaError = screen.getByTestId('media-load-error')
+    const mediaError = await waitFor(() => screen.getByTestId('media-load-error'))
     expect(mediaError).toHaveRole('alert')
     expect(mediaError).toHaveTextContent('Não foi possível carregar as imagens. O restante do cadastro permanece disponível.')
   })
