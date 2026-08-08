@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -33,6 +35,18 @@ class FullCleanModelSerializer(serializers.ModelSerializer):
         self._full_clean(instance)
         instance.save()
         return instance
+
+
+class NormalizedDecimalField(serializers.DecimalField):
+    """Render decimals without insignificant trailing zeroes."""
+
+    def to_representation(self, value):
+        rendered = super().to_representation(value)
+        if rendered in ('', None):
+            return rendered
+        if isinstance(rendered, Decimal):
+            return rendered.normalize()
+        return format(Decimal(str(rendered)).normalize(), 'f')
 
 
 class StockLocationSerializer(FullCleanModelSerializer):
@@ -105,6 +119,10 @@ class StockOperationSerializer(FullCleanModelSerializer):
 
 
 class StockMovementSerializer(FullCleanModelSerializer):
+    quantity = NormalizedDecimalField(
+        max_digits=18,
+        decimal_places=6,
+    )
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     location_code = serializers.CharField(source='location.code', read_only=True)
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
@@ -136,12 +154,26 @@ class StockMovementSerializer(FullCleanModelSerializer):
 
 
 class StockBalanceSerializer(FullCleanModelSerializer):
+    quantity = NormalizedDecimalField(
+        max_digits=18,
+        decimal_places=6,
+        read_only=True,
+    )
+    reserved = NormalizedDecimalField(
+        max_digits=18,
+        decimal_places=6,
+        read_only=True,
+    )
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     location_code = serializers.CharField(source='location.code', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
-    available = serializers.DecimalField(max_digits=18, decimal_places=6, read_only=True)
+    available = NormalizedDecimalField(
+        max_digits=18,
+        decimal_places=6,
+        read_only=True,
+    )
 
     class Meta:
         model = StockBalance

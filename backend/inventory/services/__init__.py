@@ -1,0 +1,28 @@
+from inventory.services.operations import (  # noqa: F401
+    DuplicateIdempotencyKey,
+    ExpiredLotError,
+    InsufficientStock,
+    InvalidLotError,
+    create_adjustment,
+    create_issue,
+    create_operation,
+    create_receipt,
+    create_stock_movement,
+    create_transfer,
+    get_available_stock,
+    get_stock_balance,
+    normalize_quantity,
+    process_operation,
+    reconcile_stock_balances,
+    release_reservation,
+    reserve_stock,
+    reverse_operation,
+)
+from inventory.services.product_stock import (  # noqa: F401
+    ProductStockControlError,
+    ProductStockControlResult,
+    ProductStockResult,
+    apply_initial_product_stock,
+    deactivate_product_stock_control,
+    reactivate_product_stock_control,
+)
