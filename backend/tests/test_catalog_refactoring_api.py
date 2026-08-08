@@ -4,6 +4,7 @@ Scenarios for Product new fields, ProductFiscalData (1:1),
 and ProductPriceTier nested endpoints.
 """
 
+import json
 from decimal import Decimal
 
 import pytest
@@ -540,8 +541,8 @@ def test_product_price_create_defaults_valid_from_and_patch_requires_version(cat
     )
     stale = ctx['client'].patch(
         f'/api/v1/products/{product_id}/prices/{price.id}/',
-        {'amount': '12.00'},
-        format='json',
+        json.dumps({'amount': '12.00'}),
+        content_type='application/json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
         HTTP_IF_MATCH='0',
     )
@@ -549,8 +550,8 @@ def test_product_price_create_defaults_valid_from_and_patch_requires_version(cat
 
     updated = ctx['client'].patch(
         f'/api/v1/products/{product_id}/prices/{price.id}/',
-        {'amount': '12.00'},
-        format='json',
+        json.dumps({'amount': '12.00'}),
+        content_type='application/json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
         HTTP_IF_MATCH=str(price.version),
     )

@@ -242,10 +242,14 @@ class ProductPriceTierSerializer(FullCleanModelSerializer):
         if request is not None:
             path_product_id = request.parser_context.get('kwargs', {}).get('product_pk')
         if path_product_id is not None and str(price.product_id) != str(path_product_id):
-            raise serializers.ValidationError({'price': 'Price must belong to the requested product.'})
+            raise serializers.ValidationError(
+                {'price': 'Price must belong to the requested product.'}
+            )
         if request is not None and getattr(request, 'tenant', None) is not None:
             if price.tenant_id != request.tenant.id:
-                raise serializers.ValidationError({'price': 'Price must belong to the active tenant.'})
+                raise serializers.ValidationError(
+                    {'price': 'Price must belong to the active tenant.'}
+                )
         if not price.is_active:
             raise serializers.ValidationError({'price': 'Price must be active.'})
         return attrs
