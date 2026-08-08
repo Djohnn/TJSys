@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Product } from './catalogApi'
+import type { Product, ProductStockData, ProductStockSummary } from './catalogApi'
 
 const decimal = z
   .string()
@@ -65,8 +65,13 @@ export type ProductFormData = Omit<z.infer<typeof productSchema>, 'stock'> & {
 }
 
 /** Maps a persisted product resource into the identity form representation. */
-export function productToFormData(product: Product): ProductFormData {
-  const persistedStock = product.stock ?? product.stock_summary
+export function productToFormData(
+  product: Product,
+  stockSummary?: ProductStockSummary | ProductStockSummary[] | null,
+): ProductFormData {
+  const summary = Array.isArray(stockSummary) ? stockSummary[0] : stockSummary
+  const persistedStock = product.stock ?? product.stock_summary ?? summary
+  const stockRecord = persistedStock as (Partial<ProductStockData> & Partial<ProductStockSummary>) | null | undefined
   return {
     name: product.name ?? '',
     description: product.description ?? '',
@@ -83,14 +88,14 @@ export function productToFormData(product: Product): ProductFormData {
     tracks_inventory: product.tracks_inventory ?? false,
     stock: product.tracks_inventory
       ? {
-          branch: persistedStock?.branch ?? '',
-          location: persistedStock?.location ?? '',
-          current_quantity: persistedStock?.current_quantity ?? '0',
-          initial_quantity: persistedStock?.initial_quantity ?? '0',
-          minimum_quantity: persistedStock?.minimum_quantity ?? '0',
-          maximum_quantity: persistedStock?.maximum_quantity ?? '',
-          reorder_point: persistedStock?.reorder_point ?? '0',
-          allow_negative: persistedStock?.allow_negative ?? false,
+          branch: stockRecord?.branch ?? '',
+          location: stockRecord?.location ?? '',
+          current_quantity: stockRecord?.current_quantity ?? stockRecord?.quantity ?? '0',
+          initial_quantity: stockRecord?.initial_quantity ?? '0',
+          minimum_quantity: stockRecord?.minimum_quantity ?? '0',
+          maximum_quantity: stockRecord?.maximum_quantity ?? '',
+          reorder_point: stockRecord?.reorder_point ?? '0',
+          allow_negative: stockRecord?.allow_negative ?? false,
         }
       : null,
   }

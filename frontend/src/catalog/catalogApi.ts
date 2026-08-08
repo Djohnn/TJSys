@@ -96,6 +96,16 @@ export interface ProductStockData {
   allow_negative: boolean
 }
 
+export interface ProductCode {
+  id: string
+  product: string
+  code_type: string
+  value: string
+  is_principal: boolean
+  is_active: boolean
+  version: number
+}
+
 export async function uploadProductImage(
   tenantId: string,
   productId: string,
@@ -400,6 +410,15 @@ export function fetchProduct(
   }) as Promise<Product>
 }
 
+export function fetchProductCodes(
+  tenantId: string,
+  productId: string,
+): Promise<ProductCode[]> {
+  return apiRequest<PaginatedResponse<ProductCode> | ProductCode[]>(`/catalog/products/${productId}/codes/`, {
+    tenantId,
+  }).then((payload) => collectionItems<ProductCode>(payload))
+}
+
 export function createProductCode(
   tenantId: string,
   productId: string,
@@ -410,6 +429,19 @@ export function createProductCode(
     tenantId,
     body,
   }) as Promise<unknown>
+}
+
+export function updateProductCode(
+  tenantId: string,
+  productId: string,
+  codeId: string,
+  body: Partial<Pick<ProductCode, 'value' | 'is_principal' | 'is_active'>>,
+): Promise<ProductCode> {
+  return apiRequest<ProductCode>(`/catalog/products/${productId}/codes/${codeId}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<ProductCode>
 }
 
 export function fetchBrands(

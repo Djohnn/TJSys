@@ -26,7 +26,7 @@ import LabelsPage from './LabelsPage'
 import { persistServiceExtensions } from './catalogApi'
 
 const BASE = '/api/v1'
-let capturedProductCode: { productId: string; value: string } | null = null
+let capturedProductCode: { method: string; productId: string; value?: string; is_active?: boolean; is_principal?: boolean } | null = null
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
@@ -294,10 +294,16 @@ beforeEach(() => {
         { id: params.id, ...body, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
       )
     }),
+    http.get(`${BASE}/catalog/products/:id/codes/`, ({ params }) => HttpResponse.json({ count: 1, next: null, previous: null, results: params.id === 'p1' ? [{ id: 'code-1', product: 'p1', code_type: 'ean', value: '123', is_principal: true, is_active: true, version: 1 }] : [] })),
     http.post(`${BASE}/catalog/products/:id/codes/`, async ({ request, params }) => {
-      const body = await request.json() as { value?: string }
-      capturedProductCode = { productId: params.id as string, value: body.value ?? '' }
+      const body = await request.json() as { value?: string; is_active?: boolean; is_principal?: boolean }
+      capturedProductCode = { method: 'POST', productId: params.id as string, value: body.value ?? '', is_active: body.is_active, is_principal: body.is_principal }
       return HttpResponse.json({ id: 'code-1', product: params.id, value: body.value ?? '' }, { status: 201 })
+    }),
+    http.patch(`${BASE}/catalog/products/:productId/codes/:codeId/`, async ({ request, params }) => {
+      const body = await request.json() as { value?: string; is_active?: boolean; is_principal?: boolean }
+      capturedProductCode = { method: 'PATCH', productId: params.productId as string, value: body.value, is_active: body.is_active, is_principal: body.is_principal }
+      return HttpResponse.json({ id: params.codeId, product: params.productId, code_type: 'ean', value: body.value ?? '123', is_active: body.is_active ?? true, is_principal: body.is_principal ?? true, version: 2 })
     }),
     http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
     http.post(`${BASE}/catalog/categories/`, async ({ request }) => {
@@ -407,7 +413,7 @@ beforeEach(() => {
     http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
       if (params.id === 'p1' || params.id === 'p-new') {
         return HttpResponse.json({
-          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', stock: { branch: 'b1', location: 'l1', current_quantity: '25.000000', initial_quantity: '25.000000', minimum_quantity: '5.000000', maximum_quantity: '100.000000', reorder_point: '10.000000', allow_negative: false }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
         })
       }
       return HttpResponse.json(
@@ -1188,7 +1194,7 @@ describe('ProductEditorPage – persisted identity', () => {
     renderProductEditorEdit('p1')
     const user = userEvent.setup()
 
-    await screen.findByTestId('product-stock-fields')
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
@@ -1199,13 +1205,26 @@ describe('ProductEditorPage – persisted identity', () => {
     const user = userEvent.setup()
 
     await screen.findByTestId('product-identity-step')
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
     const barcode = await screen.findByLabelText('Código de Barras')
     await user.clear(barcode)
     await user.type(barcode, '999999')
     await user.click(screen.getByTestId('product-tracks-inventory-checkbox'))
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
-    await waitFor(() => expect(capturedProductCode).toEqual({ productId: 'p1', value: '999999' }))
+    await waitFor(() => expect(capturedProductCode).toMatchObject({ method: 'PATCH', productId: 'p1', value: '999999' }))
+  })
+
+  it('deactivates the principal barcode when the edit barcode is cleared', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
+    const barcode = await screen.findByLabelText('Código de Barras')
+    await user.clear(barcode)
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedProductCode).toMatchObject({ method: 'PATCH', productId: 'p1', is_active: false, is_principal: false }))
   })
 })
 

@@ -5,7 +5,15 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { isApiProblemError } from '@/api/problem'
-import { createProductCode, applyProduct, fetchProduct, updateProduct } from './catalogApi'
+import {
+  createProductCode,
+  applyProduct,
+  fetchProduct,
+  fetchProductCodes,
+  fetchProductStockSummary,
+  updateProduct,
+  updateProductCode,
+} from './catalogApi'
 import type { ApplyProductResponse } from './catalogApi'
 import { productToFormData, toProductPayload } from './catalogSchemas'
 import type { ProductFormData } from './catalogSchemas'
@@ -49,6 +57,11 @@ export default function ProductEditorPage(): ReactNode {
     queryFn: () => fetchProduct(tenantId, urlProductId!),
     enabled: Boolean(tenantId && urlProductId),
   })
+  const { data: persistedStockSummary } = useQuery({
+    queryKey: ['catalog-product-stock-summary', tenantId, urlProductId],
+    queryFn: () => fetchProductStockSummary(tenantId, urlProductId!),
+    enabled: Boolean(tenantId && urlProductId && persistedProduct?.tracks_inventory),
+  })
 
   const productId = urlProductId
   const tabsReady = isEditing || !!productId
@@ -84,16 +97,25 @@ export default function ProductEditorPage(): ReactNode {
       if (!urlProductId) throw new Error('Produto inválido.')
       const payload = toProductPayload(data)
       const result = await updateProduct(tenantId, urlProductId, payload.product)
-      if (payload.barcode) {
-        try {
-          await createProductCode(tenantId, urlProductId, {
-            code_type: 'ean',
-            value: payload.barcode,
-            is_principal: true,
-          })
-        } catch {
-          // Keep the identity update successful when the code endpoint rejects a duplicate.
-        }
+      const codes = await fetchProductCodes(tenantId, urlProductId)
+      const principal = codes.find((code) => code.code_type === 'ean' && code.is_principal && code.is_active)
+      if (payload.barcode && principal) {
+        await updateProductCode(tenantId, urlProductId, principal.id, {
+          value: payload.barcode,
+          is_principal: true,
+          is_active: true,
+        })
+      } else if (payload.barcode) {
+        await createProductCode(tenantId, urlProductId, {
+          code_type: 'ean',
+          value: payload.barcode,
+          is_principal: true,
+        })
+      } else if (principal) {
+        await updateProductCode(tenantId, urlProductId, principal.id, {
+          is_principal: false,
+          is_active: false,
+        })
       }
       return result
     },
@@ -132,7 +154,7 @@ export default function ProductEditorPage(): ReactNode {
 
     switch (activeTab) {
       case 'identity':
-        return <ProductIdentityStep initialData={persistedProduct ? productToFormData(persistedProduct) : undefined} onSubmit={handleIdentitySubmit} />
+        return <ProductIdentityStep initialData={persistedProduct ? productToFormData(persistedProduct, persistedStockSummary) : undefined} onSubmit={handleIdentitySubmit} />
       case 'prices':
         return <ProductPricesStep productId={productId} />
       case 'inventory':
@@ -149,6 +171,7 @@ export default function ProductEditorPage(): ReactNode {
   }
 
   const identityReady = !isEditing || (!productLoading && !!persistedProduct)
+  const identityFormKey = `${urlProductId ?? 'new'}-${persistedStockSummary ? 'stock-loaded' : 'stock-pending'}`
 
   return (
     <div data-testid="product-editor-page" className="mx-auto max-w-[1440px]">
@@ -201,7 +224,8 @@ export default function ProductEditorPage(): ReactNode {
         <section aria-label="Identificação do produto" className="min-w-0 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
           {activeTab === 'identity' && identityReady ? (
             <ProductIdentityStep
-              initialData={persistedProduct ? productToFormData(persistedProduct) : undefined}
+              key={identityFormKey}
+              initialData={persistedProduct ? productToFormData(persistedProduct, persistedStockSummary) : undefined}
               onSubmit={handleIdentitySubmit}
             />
           ) : activeTab === 'identity' && productLoadError ? (
