@@ -5,6 +5,7 @@ import { collectionItems } from '@/api/collections'
 export interface Product {
   id: string
   name: string
+  description?: string
   sku: string
   barcode: string
   category: string | null

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Product } from './catalogApi'
 
 const decimal = z
   .string()
@@ -61,6 +62,26 @@ export const productSchema = z
 
 export type ProductFormData = Omit<z.infer<typeof productSchema>, 'stock'> & {
   stock: ProductStockFormData | null
+}
+
+/** Maps a persisted product resource into the identity form representation. */
+export function productToFormData(product: Product): ProductFormData {
+  return {
+    name: product.name ?? '',
+    description: product.description ?? '',
+    sku: product.sku ?? '',
+    barcode: product.barcode ?? '',
+    category: product.category ?? null,
+    unit: product.unit ?? null,
+    is_active: product.is_active ?? true,
+    product_kind: product.product_kind ?? '',
+    brand: product.brand ?? '',
+    model: product.model ?? '',
+    tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
+    scale_code: product.scale_code ?? '',
+    tracks_inventory: product.tracks_inventory ?? false,
+    stock: null,
+  }
 }
 
 /** Maps form data to backend Product payload, separating barcode for ProductCode creation. */

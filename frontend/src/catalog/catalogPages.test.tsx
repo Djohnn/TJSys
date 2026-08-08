@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { toProductPayload } from './catalogSchemas'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -212,12 +212,18 @@ function renderProductEditor(initialRoute = '/catalog/products/new') {
           <TenantContext.Provider value={tenantValue}>
             <Routes>
               <Route path="/catalog/products/new" element={<ProductEditorPage />} />
+              <Route path="/catalog/products/:productId/edit" element={<><ProductEditorPage /><LocationProbe /></>} />
             </Routes>
           </TenantContext.Provider>
         </AuthContext.Provider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location-path">{location.pathname}</output>
 }
 
 beforeEach(() => {
@@ -392,9 +398,9 @@ beforeEach(() => {
       return new HttpResponse(null, { status: 204 })
     }),
     http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
-      if (params.id === 'p1') {
+      if (params.id === 'p1' || params.id === 'p-new') {
         return HttpResponse.json({
-          id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
         })
       }
       return HttpResponse.json(
@@ -1112,6 +1118,21 @@ describe('ProductEditorPage', () => {
       expect(screen.getByTestId('step-tab-fiscal')).not.toBeDisabled()
     })
   })
+
+  it('replaces the create URL with the persisted edit URL and opens prices', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByTestId('product-identity-step')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Nome'), 'Produto Novo Teste')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path')).toHaveTextContent('/catalog/products/p-new/edit')
+    })
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('product-prices-step')).toBeInTheDocument()
+  })
 })
 
 function renderProductEditorEdit(productId = 'p1', initialRoute = `/catalog/products/${productId}/edit`) {
@@ -1130,6 +1151,32 @@ function renderProductEditorEdit(productId = 'p1', initialRoute = `/catalog/prod
     </QueryClientProvider>,
   )
 }
+
+describe('ProductEditorPage – persisted identity', () => {
+  it('loads identity fields from the product addressed by the edit URL', async () => {
+    renderProductEditorEdit('p1')
+
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveValue('Produto A'))
+    expect(screen.getByLabelText('SKU')).toHaveValue('SKU-A')
+    expect(screen.getByLabelText('Código de Barras')).toHaveValue('123')
+    expect(screen.getByTestId('product-kind-select')).toHaveValue('kit')
+    expect(screen.getByTestId('product-tracks-inventory-checkbox')).toBeChecked()
+  })
+
+  it('persists identity changes through the edit mutation', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    const name = await screen.findByLabelText('Nome')
+    await user.clear(name)
+    await user.type(name, 'Produto Editado')
+    await user.click(screen.getByTestId('product-tracks-inventory-checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
+  })
+})
 
 describe('ProductEditorPage – quick create category', () => {
   it('quick-created category appears in dropdown without reloading', async () => {
