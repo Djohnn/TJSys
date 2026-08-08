@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const axiosMocks = vi.hoisted(() => {
   const instance = Object.assign(vi.fn(), {
@@ -28,6 +28,10 @@ describe('API do renderer', () => {
   beforeEach(() => {
     localStorage.clear();
     axiosMocks.instance.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -50,7 +54,11 @@ describe('API do renderer', () => {
       config: originalRequest,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/devices/refresh/', expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/devices/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: 'refresh-antigo' }),
+    });
     expect(localStorage.getItem('access_token')).toBe('access-novo');
     expect(localStorage.getItem('refresh_token')).toBe('refresh-novo');
     expect(axiosMocks.instance).toHaveBeenCalledWith(originalRequest);
@@ -72,5 +80,36 @@ describe('API do renderer', () => {
         localStorage.getItem(key)
       )
     ).toEqual([null, null, null, null, null, null]);
+  });
+
+  it('limpa a sessão quando a resposta não contém os dois tokens válidos', async () => {
+    localStorage.setItem('refresh_token', 'refresh-antigo');
+    localStorage.setItem('tenant_id', 'tenant-1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ token: 'access-novo', refresh_token: '   ' }),
+      })
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = { response: { status: 401 }, config: { headers: {} } };
+
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    expect(axiosMocks.instance).not.toHaveBeenCalled();
+    expect(localStorage.getItem('access_token')).toBeNull();
+    expect(localStorage.getItem('refresh_token')).toBeNull();
+    expect(localStorage.getItem('tenant_id')).toBeNull();
+  });
+
+  it('rejeita o erro original sem tentar refresh quando config está ausente', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const error = { response: { status: 401 } };
+
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

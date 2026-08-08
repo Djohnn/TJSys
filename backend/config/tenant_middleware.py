@@ -27,7 +27,10 @@ class TenantMiddleware:
                 logger.warning('Device JWT authentication failed: %s', exc)
 
     def __call__(self, request):
-        if request.path.startswith('/api/v1/fiscal/webhook/'):
+        if (
+            request.path.startswith('/api/v1/fiscal/webhook/')
+            or request.path == '/api/v1/devices/refresh/'
+        ):
             return self.get_response(request)
 
         tenant = None

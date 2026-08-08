@@ -80,4 +80,25 @@ describe('API do processo principal', () => {
       'api_key',
     ]);
   });
+
+  it('limpa a sessão quando a resposta não contém os dois tokens válidos', async () => {
+    storageMocks.getItem.mockReturnValue('refresh-antigo');
+    axiosMocks.post.mockResolvedValue({ data: { token: 'access-novo', refresh_token: '' } });
+    const error = { response: { status: 401 }, config: { headers: {} } };
+
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    expect(axiosMocks.instance).not.toHaveBeenCalled();
+    expect(storageMocks.setItem).not.toHaveBeenCalled();
+    expect(storageMocks.removeItem).toHaveBeenCalledWith('tenant_id');
+    expect(storageMocks.removeItem).toHaveBeenCalledWith('api_key');
+  });
+
+  it('rejeita o erro original sem tentar refresh quando config está ausente', async () => {
+    const error = { response: { status: 401 } };
+
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+  });
 });

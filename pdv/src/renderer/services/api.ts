@@ -27,35 +27,36 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const refreshHeaders: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        const tid = localStorage.getItem('tenant_id');
-        if (tid) refreshHeaders['X-Tenant-ID'] = tid;
         const response = await fetch(apiUrl(API_BASE_URL, '/devices/refresh/'), {
           method: 'POST',
-          headers: refreshHeaders,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
 
         if (!response.ok) throw new Error('Refresh failed');
 
         const data = await response.json();
-        if (data.token) localStorage.setItem('access_token', data.token);
-        if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+        if (
+          typeof data.token !== 'string' ||
+          data.token.trim().length === 0 ||
+          typeof data.refresh_token !== 'string' ||
+          data.refresh_token.trim().length === 0
+        ) {
+          throw new Error('Invalid refresh response');
+        }
+        localStorage.setItem('access_token', data.token);
+        localStorage.setItem('refresh_token', data.refresh_token);
 
-        if (data.token && originalRequest.headers) {
+        if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${data.token}`;
         }
         return api(originalRequest);

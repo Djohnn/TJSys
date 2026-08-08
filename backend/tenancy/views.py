@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
@@ -125,7 +126,8 @@ class DeviceValidateView(APIView):
 
 
 class DeviceRefreshView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         from rest_framework_simplejwt.tokens import RefreshToken
@@ -140,12 +142,22 @@ class DeviceRefreshView(APIView):
 
         try:
             refresh = RefreshToken(refresh_token)
-            device_id = refresh.get('device_id')
-            branch_id = refresh.get('branch_id')
+            device_id_claim = refresh.get('device_id')
+            tenant_id_claim = refresh.get('tenant_id')
+            if not device_id_claim or not tenant_id_claim:
+                raise TokenError('Refresh token scope is incomplete')
 
-            # Verify device is still active
+            try:
+                device_id = uuid.UUID(str(device_id_claim))
+                tenant_id = uuid.UUID(str(tenant_id_claim))
+            except (TypeError, ValueError, AttributeError) as exc:
+                raise TokenError('Refresh token scope is invalid') from exc
+
             device = Device.all_objects.filter(
-                id=device_id, tenant=request.tenant, status='active'
+                id=device_id,
+                tenant_id=tenant_id,
+                tenant__is_active=True,
+                status='active',
             ).first()
             if not device:
                 return Response(
@@ -155,16 +167,17 @@ class DeviceRefreshView(APIView):
                 )
 
             new_refresh = RefreshToken()
-            new_refresh['device_id'] = str(device_id)
-            new_refresh['branch_id'] = str(branch_id) if branch_id else None
-            new_refresh['tenant_id'] = str(request.tenant.id)
+            new_refresh['device_id'] = str(device.id)
+            new_refresh['branch_id'] = str(device.branch_id) if device.branch_id else None
+            new_refresh['tenant_id'] = str(device.tenant_id)
 
             return Response(
                 {
                     'token': str(new_refresh.access_token),
                     'refresh_token': str(new_refresh),
-                    'device_id': str(device_id),
-                    'branch_id': str(branch_id) if branch_id else None,
+                    'device_id': str(device.id),
+                    'branch_id': str(device.branch_id) if device.branch_id else None,
+                    'tenant_id': str(device.tenant_id),
                 }
             )
         except TokenError:

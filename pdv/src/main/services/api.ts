@@ -30,11 +30,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
-      _retry?: boolean;
-    };
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -46,10 +44,18 @@ api.interceptors.response.use(
         });
 
         const { token, refresh_token: newRefreshToken } = response.data;
-        if (token) setItem('access_token', token);
-        if (newRefreshToken) setItem('refresh_token', newRefreshToken);
+        if (
+          typeof token !== 'string' ||
+          token.trim().length === 0 ||
+          typeof newRefreshToken !== 'string' ||
+          newRefreshToken.trim().length === 0
+        ) {
+          throw new Error('Invalid refresh response');
+        }
+        setItem('access_token', token);
+        setItem('refresh_token', newRefreshToken);
 
-        if (token && originalRequest.headers) {
+        if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${token}`;
         }
         return api(originalRequest);

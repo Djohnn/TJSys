@@ -233,15 +233,12 @@ def test_device_register_preserves_explicit_device_id(client):
 
 @pytest.mark.django_db
 def test_device_refresh_requires_refresh_token(client):
-    tenant, _, _, device = _tenant_setup()
-    access_token, _ = _access_token_for(device)
+    _tenant_setup()
 
     response = client.post(
         '/api/v1/devices/refresh/',
         {},
         content_type='application/json',
-        HTTP_AUTHORIZATION=f'Bearer {access_token}',
-        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert response.status_code == 400
@@ -250,15 +247,12 @@ def test_device_refresh_requires_refresh_token(client):
 
 @pytest.mark.django_db
 def test_device_refresh_rejects_invalid_refresh_token(client):
-    tenant, _, _, device = _tenant_setup()
-    access_token, _ = _access_token_for(device)
+    _tenant_setup()
 
     response = client.post(
         '/api/v1/devices/refresh/',
         {'refresh_token': 'invalid-token'},
         content_type='application/json',
-        HTTP_AUTHORIZATION=f'Bearer {access_token}',
-        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert response.status_code == 401
@@ -266,29 +260,32 @@ def test_device_refresh_rejects_invalid_refresh_token(client):
 
 
 @pytest.mark.django_db
-def test_device_refresh_returns_new_tokens_for_active_device(client):
-    tenant, _, _, device = _tenant_setup()
-    access_token, refresh_token = _access_token_for(device)
+def test_device_refresh_returns_new_tokens_without_valid_access_token(client):
+    tenant, _, branch, device = _tenant_setup()
+    _, refresh_token = _access_token_for(device)
 
+    # Given a signed refresh token and an unusable access token
     response = client.post(
         '/api/v1/devices/refresh/',
         {'refresh_token': refresh_token},
         content_type='application/json',
-        HTTP_AUTHORIZATION=f'Bearer {access_token}',
+        HTTP_AUTHORIZATION='Bearer access-expirado-ou-invalido',
         HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body['device_id'] == str(device.id)
+    assert body['tenant_id'] == str(tenant.id)
+    assert body['branch_id'] == str(branch.id)
     assert body['token']
     assert body['refresh_token']
 
 
 @pytest.mark.django_db
 def test_device_refresh_rejects_inactive_device(client):
-    tenant, _, _, device = _tenant_setup()
-    access_token, refresh_token = _access_token_for(device)
+    _, _, _, device = _tenant_setup()
+    _, refresh_token = _access_token_for(device)
     device.status = 'revoked'
     device.save(update_fields=['status'])
 
@@ -296,9 +293,47 @@ def test_device_refresh_rejects_inactive_device(client):
         '/api/v1/devices/refresh/',
         {'refresh_token': refresh_token},
         content_type='application/json',
-        HTTP_AUTHORIZATION=f'Bearer {access_token}',
-        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert response.status_code == 401
     assert response.json()['code'] == 'device_not_found'
+
+
+@pytest.mark.django_db
+def test_device_refresh_rejects_token_scoped_to_another_tenant(client):
+    tenant_a, _, _, device_a = _tenant_setup(email='refresh-a@test.local')
+    tenant_b, _, _, _ = _tenant_setup(email='refresh-b@test.local')
+    refresh = RefreshToken()
+    refresh['device_id'] = str(device_a.id)
+    refresh['tenant_id'] = str(tenant_b.id)
+    refresh['branch_id'] = str(device_a.branch_id)
+
+    # When the signed claims pair a device with a tenant that does not own it
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': str(refresh)},
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant_a.id),
+    )
+
+    # Then the endpoint must not disclose or renew the other tenant's device
+    assert response.status_code == 401
+    assert response.json()['code'] == 'device_not_found'
+
+
+@pytest.mark.django_db
+def test_device_refresh_rejects_token_without_tenant_scope(client):
+    _, _, _, device = _tenant_setup()
+    refresh = RefreshToken()
+    refresh['device_id'] = str(device.id)
+
+    # When a signed refresh token lacks the tenant scope
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': str(refresh)},
+        content_type='application/json',
+    )
+
+    # Then it is invalid for device authentication
+    assert response.status_code == 401
+    assert response.json()['code'] == 'invalid_refresh_token'
