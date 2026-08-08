@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import Client
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from tenancy.authentication import DeviceJWTAuthentication
 from tenancy.models import Branch, Company, Device, Tenant, TenantMembership
@@ -56,6 +56,14 @@ def _access_token_for(device):
     return str(refresh.access_token), str(refresh)
 
 
+def _device_claims(device):
+    return {
+        'device_id': str(device.id),
+        'tenant_id': str(device.tenant_id),
+        'branch_id': str(device.branch_id) if device.branch_id else None,
+    }
+
+
 @pytest.mark.django_db
 def test_device_jwt_requires_device_id_claim():
     with pytest.raises(AuthenticationFailed, match='No device_id'):
@@ -78,7 +86,7 @@ def test_device_jwt_rejects_unknown_device():
 def test_device_jwt_returns_registered_active_user():
     _, user, _, device = _tenant_setup()
 
-    authenticated = DeviceJWTAuthentication().get_user({'device_id': str(device.id)})
+    authenticated = DeviceJWTAuthentication().get_user(_device_claims(device))
 
     assert authenticated == user
 
@@ -89,7 +97,7 @@ def test_device_jwt_falls_back_to_active_tenant_member():
     fallback = User.objects.create_user(email='fallback-device@test.local', password='pass123')
     TenantMembership.objects.create(user=fallback, tenant=tenant, role='manager', is_active=True)
 
-    authenticated = DeviceJWTAuthentication().get_user({'device_id': str(device.id)})
+    authenticated = DeviceJWTAuthentication().get_user(_device_claims(device))
 
     assert authenticated == fallback
     assert authenticated != user
@@ -101,7 +109,7 @@ def test_device_jwt_rejects_device_without_active_user_or_member():
     TenantMembership.objects.filter(tenant=tenant).update(is_active=False)
 
     with pytest.raises(AuthenticationFailed, match='Device has no registered user'):
-        DeviceJWTAuthentication().get_user({'device_id': str(device.id)})
+        DeviceJWTAuthentication().get_user(_device_claims(device))
 
 
 @pytest.mark.django_db
@@ -421,6 +429,128 @@ def test_device_refresh_ignores_tenant_and_branch_from_request(client):
     # Then
     assert response.status_code == 200
     body = response.json()
+    assert body['device_id'] == str(device.id)
+    assert body['tenant_id'] == str(tenant.id)
+    assert body['branch_id'] == str(branch.id)
+
+
+@pytest.mark.django_db
+def test_device_access_token_cannot_switch_tenant_after_refresh(client):
+    # Given a device user who is also a member of another tenant
+    tenant, user, branch, device = _tenant_setup(email='device-bound@test.local')
+    other_tenant, _, _, _ = _tenant_setup(email='device-other@test.local')
+    TenantMembership.objects.create(
+        user=user,
+        tenant=other_tenant,
+        role='admin',
+        is_active=True,
+    )
+    _, refresh_token = _access_token_for(device)
+    refresh_response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': refresh_token},
+        content_type='application/json',
+    )
+    access_token = refresh_response.json()['token']
+
+    # When the same access token is sent with the correct and a different tenant header
+    correct_tenant = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {access_token}',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    wrong_tenant = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {access_token}',
+        HTTP_X_TENANT_ID=str(other_tenant.id),
+    )
+    correct_tenant_again = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {access_token}',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+
+    # Then only the tenant bound to the signed token is accepted and request context recovers
+    assert refresh_response.status_code == 200
+    assert correct_tenant.status_code == 200
+    assert wrong_tenant.status_code in {401, 403}
+    assert correct_tenant_again.status_code == 200
+    claims = AccessToken(access_token)
+    assert claims['tenant_id'] == str(tenant.id)
+    assert claims['branch_id'] == str(branch.id)
+
+
+@pytest.mark.django_db
+def test_device_access_token_rejects_branch_claim_not_owned_by_device(client):
+    # Given a signed access token whose branch claim differs from the device FK
+    tenant, _, _, device = _tenant_setup(email='device-branch@test.local')
+    _, _, other_branch, _ = _tenant_setup(email='device-branch-other@test.local')
+    refresh = RefreshToken()
+    refresh['device_id'] = str(device.id)
+    refresh['tenant_id'] = str(tenant.id)
+    refresh['branch_id'] = str(other_branch.id)
+
+    # When it reaches a protected route
+    response = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+
+    # Then authentication is rejected before tenant data can be read
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
+def test_device_access_token_rejects_tenant_claim_not_owned_by_device(client):
+    # Given a signed access token whose tenant claim differs from the device tenant
+    tenant, _, _, device = _tenant_setup(email='device-tenant@test.local')
+    other_tenant, _, _, _ = _tenant_setup(email='device-tenant-other@test.local')
+    refresh = RefreshToken()
+    refresh['device_id'] = str(device.id)
+    refresh['tenant_id'] = str(other_tenant.id)
+    refresh['branch_id'] = str(device.branch_id)
+
+    # When it reaches a protected route using the device's real tenant header
+    response = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+
+    # Then authentication is rejected before tenant data can be read
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
+def test_device_refresh_rotates_and_rejects_reuse_of_previous_token(client):
+    # Given a valid single-use device refresh token
+    tenant, _, branch, device = _tenant_setup(email='device-rotation@test.local')
+    _, original_refresh = _access_token_for(device)
+
+    # When it is rotated, reused, and the newly issued token is rotated
+    first = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': original_refresh},
+        content_type='application/json',
+    )
+    reused = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': original_refresh},
+        content_type='application/json',
+    )
+    second = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': first.json()['refresh_token']},
+        content_type='application/json',
+    )
+
+    # Then only the unused tokens work and device scope remains unchanged
+    assert first.status_code == 200
+    assert reused.status_code == 401
+    assert reused.json()['code'] == 'invalid_refresh_token'
+    assert second.status_code == 200
+    body = second.json()
     assert body['device_id'] == str(device.id)
     assert body['tenant_id'] == str(tenant.id)
     assert body['branch_id'] == str(branch.id)

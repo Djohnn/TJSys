@@ -1,12 +1,14 @@
 import hashlib
 import uuid
 
+from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from audit.services import create_audit_record
@@ -153,33 +155,46 @@ class DeviceRefreshView(APIView):
             except (TypeError, ValueError, AttributeError) as exc:
                 raise TokenError('Refresh token scope is invalid') from exc
 
-            device = Device.all_objects.filter(
-                id=device_id,
-                tenant_id=tenant_id,
-                tenant__is_active=True,
-                status='active',
-            ).first()
-            if not device:
-                return Response(
-                    {'detail': 'Device not found or inactive', 'code': 'device_not_found'},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                    content_type='application/problem+json',
+            with transaction.atomic():
+                device = (
+                    Device.all_objects.select_for_update()
+                    .filter(
+                        id=device_id,
+                        tenant_id=tenant_id,
+                        tenant__is_active=True,
+                        status='active',
+                    )
+                    .first()
                 )
+                if not device:
+                    return Response(
+                        {'detail': 'Device not found or inactive', 'code': 'device_not_found'},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                        content_type='application/problem+json',
+                    )
 
-            new_refresh = RefreshToken()
-            new_refresh['device_id'] = str(device.id)
-            new_refresh['branch_id'] = str(device.branch_id) if device.branch_id else None
-            new_refresh['tenant_id'] = str(device.tenant_id)
+                outstanding, _ = refresh.outstand()
+                outstanding = OutstandingToken.objects.select_for_update().get(
+                    pk=outstanding.pk
+                )
+                if BlacklistedToken.objects.filter(token=outstanding).exists():
+                    raise TokenError('Refresh token was already used')
+                BlacklistedToken.objects.create(token=outstanding)
 
-            return Response(
-                {
+                new_refresh = RefreshToken()
+                new_refresh['device_id'] = str(device.id)
+                new_refresh['branch_id'] = str(device.branch_id) if device.branch_id else None
+                new_refresh['tenant_id'] = str(device.tenant_id)
+
+                response_data = {
                     'token': str(new_refresh.access_token),
                     'refresh_token': str(new_refresh),
                     'device_id': str(device.id),
                     'branch_id': str(device.branch_id) if device.branch_id else None,
                     'tenant_id': str(device.tenant_id),
                 }
-            )
+
+            return Response(response_data)
         except TokenError:
             return Response(
                 {'detail': 'Invalid or expired refresh token', 'code': 'invalid_refresh_token'},
