@@ -1,15 +1,38 @@
 import logging
 import uuid
 
+from django.db import connection, transaction
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
-from tenancy.models import Device, TenantMembership
+from tenancy.models import Branch, Device, TenantMembership
 
 logger = logging.getLogger(__name__)
 
 
 class DeviceJWTAuthentication(JWTAuthentication):
+    @staticmethod
+    def _load_branch(device):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('app.current_tenant_id', TRUE)")
+                previous_tenant_id = cursor.fetchone()[0] or ''
+                cursor.execute(
+                    "SELECT set_config('app.current_tenant_id', %s, true)",
+                    [str(device.tenant_id)],
+                )
+            try:
+                return Branch.all_objects.get(
+                    id=device.branch_id,
+                    tenant_id=device.tenant_id,
+                )
+            finally:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT set_config('app.current_tenant_id', %s, true)",
+                        [previous_tenant_id],
+                    )
+
     def authenticate(self, request):
         result = super().authenticate(request)
         if result is None:
@@ -69,6 +92,12 @@ class DeviceJWTAuthentication(JWTAuthentication):
                 raise AuthenticationFailed('Invalid branch scope') from exc
             if branch_id != device.branch_id:
                 raise AuthenticationFailed('Device token branch does not match device')
+            try:
+                device.branch = self._load_branch(device)
+            except Branch.DoesNotExist as exc:
+                raise AuthenticationFailed('Device branch does not match tenant') from exc
+            if not device.branch.is_active:
+                raise AuthenticationFailed('Device branch is inactive')
 
         logger.info('Device found: %s (registered_by=%s)', device.id, device.registered_by)
 

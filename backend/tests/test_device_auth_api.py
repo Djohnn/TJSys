@@ -523,6 +523,27 @@ def test_device_access_token_rejects_tenant_claim_not_owned_by_device(client):
 
 
 @pytest.mark.django_db
+def test_device_access_token_rejects_inactive_branch(client):
+    # Given a valid device token whose bound branch was deactivated
+    tenant, _, branch, device = _tenant_setup(email='device-inactive-branch@test.local')
+    access_token, _ = _access_token_for(device)
+    _set_tenant_context(tenant)
+    branch.is_active = False
+    branch.save(update_fields=['is_active'])
+    _set_tenant_context(None)
+
+    # When it reaches a protected route
+    response = client.get(
+        '/api/v1/devices/list/',
+        HTTP_AUTHORIZATION=f'Bearer {access_token}',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+
+    # Then authentication is rejected before tenant data can be read
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
 def test_device_refresh_rotates_and_rejects_reuse_of_previous_token(client):
     # Given a valid single-use device refresh token
     tenant, _, branch, device = _tenant_setup(email='device-rotation@test.local')
