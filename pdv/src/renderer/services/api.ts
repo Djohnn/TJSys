@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { apiUrl, normalizeApiBaseUrl } from '../../shared/apiUrl';
 
-const API_BASE_URL = '/api/v1/';
+const API_BASE_URL = normalizeApiBaseUrl('/api/v1/');
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -26,7 +27,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -35,10 +38,12 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const refreshHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        const refreshHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
         const tid = localStorage.getItem('tenant_id');
         if (tid) refreshHeaders['X-Tenant-ID'] = tid;
-        const response = await fetch(`${API_BASE_URL}/devices/refresh/`, {
+        const response = await fetch(apiUrl(API_BASE_URL, '/devices/refresh/'), {
           method: 'POST',
           headers: refreshHeaders,
           body: JSON.stringify({ refresh_token: refreshToken }),
@@ -47,18 +52,20 @@ api.interceptors.response.use(
         if (!response.ok) throw new Error('Refresh failed');
 
         const data = await response.json();
-        localStorage.setItem('access_token', data.token);
-        localStorage.setItem('refresh_token', data.refresh_token);
+        if (data.token) localStorage.setItem('access_token', data.token);
+        if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
 
-        if (originalRequest.headers) {
+        if (data.token && originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${data.token}`;
         }
-        return axios(originalRequest);
+        return api(originalRequest);
       } catch {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('device_id');
         localStorage.removeItem('branch_id');
+        localStorage.removeItem('tenant_id');
+        localStorage.removeItem('api_key');
         window.location.href = '/login';
         return Promise.reject(error);
       }
