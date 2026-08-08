@@ -6,12 +6,15 @@ export interface Product {
   id: string
   name: string
   description?: string
+  price?: string | null
   sku: string
   barcode: string
   category: string | null
   category_name: string
   unit: string | null
   unit_name: string
+  unit_symbol?: string
+  unit_precision?: number
   is_active: boolean
   product_kind: string
   tracks_inventory: boolean
@@ -19,6 +22,8 @@ export interface Product {
   model: string
   tags: string[]
   scale_code: string
+  stock?: Partial<ProductStockData> | null
+  stock_summary?: Partial<ProductStockData> | null
   created_at: string
   updated_at: string
 }
@@ -78,6 +83,17 @@ export async function fetchProductImages(tenantId: string, productId: string): P
     tenantId,
   })
   return collectionItems<ProductImage>(payload)
+}
+
+export interface ProductStockData {
+  branch: string
+  location: string
+  current_quantity: string
+  initial_quantity: string
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+  allow_negative: boolean
 }
 
 export async function uploadProductImage(

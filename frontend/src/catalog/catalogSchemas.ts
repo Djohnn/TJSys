@@ -66,6 +66,7 @@ export type ProductFormData = Omit<z.infer<typeof productSchema>, 'stock'> & {
 
 /** Maps a persisted product resource into the identity form representation. */
 export function productToFormData(product: Product): ProductFormData {
+  const persistedStock = product.stock ?? product.stock_summary
   return {
     name: product.name ?? '',
     description: product.description ?? '',
@@ -80,7 +81,18 @@ export function productToFormData(product: Product): ProductFormData {
     tags: Array.isArray(product.tags) ? product.tags.join(', ') : '',
     scale_code: product.scale_code ?? '',
     tracks_inventory: product.tracks_inventory ?? false,
-    stock: null,
+    stock: product.tracks_inventory
+      ? {
+          branch: persistedStock?.branch ?? '',
+          location: persistedStock?.location ?? '',
+          current_quantity: persistedStock?.current_quantity ?? '0',
+          initial_quantity: persistedStock?.initial_quantity ?? '0',
+          minimum_quantity: persistedStock?.minimum_quantity ?? '0',
+          maximum_quantity: persistedStock?.maximum_quantity ?? '',
+          reorder_point: persistedStock?.reorder_point ?? '0',
+          allow_negative: persistedStock?.allow_negative ?? false,
+        }
+      : null,
   }
 }
 

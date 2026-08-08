@@ -44,7 +44,7 @@ export default function ProductEditorPage(): ReactNode {
   )
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
-  const { data: persistedProduct, isLoading: productLoading, isError: productLoadError } = useQuery({
+  const { data: persistedProduct, isLoading: productLoading, isError: productLoadError, refetch: refetchProduct } = useQuery({
     queryKey: ['catalog-product', tenantId, urlProductId],
     queryFn: () => fetchProduct(tenantId, urlProductId!),
     enabled: Boolean(tenantId && urlProductId),
@@ -68,6 +68,7 @@ export default function ProductEditorPage(): ReactNode {
     },
     onSuccess: (result) => {
       setFeedback({ kind: 'success', text: 'Produto criado com sucesso.' })
+      setActiveTab('prices')
       navigate(`/catalog/products/${result.product.id}/edit`, { replace: true })
     },
     onError: (err) => {
@@ -82,7 +83,19 @@ export default function ProductEditorPage(): ReactNode {
     mutationFn: async (data: ProductFormData) => {
       if (!urlProductId) throw new Error('Produto inválido.')
       const payload = toProductPayload(data)
-      return updateProduct(tenantId, urlProductId, payload.product)
+      const result = await updateProduct(tenantId, urlProductId, payload.product)
+      if (payload.barcode) {
+        try {
+          await createProductCode(tenantId, urlProductId, {
+            code_type: 'ean',
+            value: payload.barcode,
+            is_principal: true,
+          })
+        } catch {
+          // Keep the identity update successful when the code endpoint rejects a duplicate.
+        }
+      }
+      return result
     },
     onSuccess: () => {
       setFeedback({ kind: 'success', text: 'Produto atualizado com sucesso.' })
@@ -191,6 +204,18 @@ export default function ProductEditorPage(): ReactNode {
               initialData={persistedProduct ? productToFormData(persistedProduct) : undefined}
               onSubmit={handleIdentitySubmit}
             />
+          ) : activeTab === 'identity' && productLoadError ? (
+            <div className="space-y-3 p-6 text-center text-sm text-red-700">
+              <p>Não foi possível carregar o produto.</p>
+              <button
+                type="button"
+                onClick={() => refetchProduct()}
+                className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium hover:bg-red-50"
+                data-testid="product-retry-button"
+              >
+                Tentar novamente
+              </button>
+            </div>
           ) : activeTab === 'identity' ? (
             <div className="p-6 text-center text-sm text-neutral-500">Carregando produto...</div>
           ) : productId ? (

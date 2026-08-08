@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
-import { toProductPayload } from './catalogSchemas'
+import { productToFormData, toProductPayload } from './catalogSchemas'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
@@ -26,6 +26,7 @@ import LabelsPage from './LabelsPage'
 import { persistServiceExtensions } from './catalogApi'
 
 const BASE = '/api/v1'
+let capturedProductCode: { productId: string; value: string } | null = null
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
@@ -227,6 +228,7 @@ function LocationProbe() {
 }
 
 beforeEach(() => {
+  capturedProductCode = null
   server.use(
     http.get(`${BASE}/catalog/products/`, ({ request }) => {
       const url = new URL(request.url)
@@ -291,6 +293,11 @@ beforeEach(() => {
       return HttpResponse.json(
         { id: params.id, ...body, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
       )
+    }),
+    http.post(`${BASE}/catalog/products/:id/codes/`, async ({ request, params }) => {
+      const body = await request.json() as { value?: string }
+      capturedProductCode = { productId: params.id as string, value: body.value ?? '' }
+      return HttpResponse.json({ id: 'code-1', product: params.id, value: body.value ?? '' }, { status: 201 })
     }),
     http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
     http.post(`${BASE}/catalog/categories/`, async ({ request }) => {
@@ -400,7 +407,7 @@ beforeEach(() => {
     http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
       if (params.id === 'p1' || params.id === 'p-new') {
         return HttpResponse.json({
-          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', stock: { branch: 'b1', location: 'l1', current_quantity: '25.000000', initial_quantity: '25.000000', minimum_quantity: '5.000000', maximum_quantity: '100.000000', reorder_point: '10.000000', allow_negative: false }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
         })
       }
       return HttpResponse.json(
@@ -1130,7 +1137,7 @@ describe('ProductEditorPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('location-path')).toHaveTextContent('/catalog/products/p-new/edit')
     })
-    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(screen.getByTestId('step-tab-prices')).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByTestId('product-prices-step')).toBeInTheDocument()
   })
 })
@@ -1175,6 +1182,62 @@ describe('ProductEditorPage – persisted identity', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
+  })
+
+  it('maps persisted stock defaults so a stock-controlled product can be submitted', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await screen.findByTestId('product-stock-fields')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
+  })
+
+  it('persists a changed barcode through the product-code API in edit mode', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await screen.findByTestId('product-identity-step')
+    const barcode = await screen.findByLabelText('Código de Barras')
+    await user.clear(barcode)
+    await user.type(barcode, '999999')
+    await user.click(screen.getByTestId('product-tracks-inventory-checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedProductCode).toEqual({ productId: 'p1', value: '999999' }))
+  })
+})
+
+describe('ProductEditorPage â€“ product load errors', () => {
+  it('shows an actionable error instead of an endless loading state', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p404/`, () => HttpResponse.json({ detail: 'Not found.' }, { status: 404 })),
+    )
+    renderProductEditorEdit('p404')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('NÃ£o foi possÃ­vel carregar o produto.')
+    expect(screen.getByTestId('product-retry-button')).toBeInTheDocument()
+    expect(screen.queryByText('Carregando produto...')).not.toBeInTheDocument()
+  })
+})
+
+describe('productToFormData', () => {
+  it('preserves product commercial metadata', () => {
+    const result = productToFormData({
+      id: 'p1', name: 'Produto', description: 'Desc', sku: 'SKU', barcode: '123', category: null,
+      category_name: '', unit: 'u1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00',
+      is_active: true, product_kind: 'revenda', tracks_inventory: false, brand: '', model: '', tags: ['a'],
+      scale_code: '', created_at: '', updated_at: '',
+    })
+    expect(result).toMatchObject({ name: 'Produto', tags: 'a', stock: null })
+
+    const stockResult = productToFormData({
+      id: 'p-stock', name: 'Estoque', sku: '', barcode: '', category: null, category_name: '', unit: null,
+      unit_name: '', is_active: true, product_kind: 'revenda', tracks_inventory: true, brand: '', model: '',
+      tags: [], scale_code: '', stock: { branch: 'b1', location: 'l1' }, created_at: '', updated_at: '',
+    })
+    expect(stockResult.stock).toMatchObject({ branch: 'b1', location: 'l1' })
   })
 })
 
