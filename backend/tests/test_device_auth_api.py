@@ -337,3 +337,90 @@ def test_device_refresh_rejects_token_without_tenant_scope(client):
     # Then it is invalid for device authentication
     assert response.status_code == 401
     assert response.json()['code'] == 'invalid_refresh_token'
+
+
+@pytest.mark.django_db
+def test_device_refresh_rejects_malformed_device_id_claim(client):
+    # Given
+    tenant, _, _, _ = _tenant_setup()
+    refresh = RefreshToken()
+    refresh['device_id'] = 'device-id-malformado'
+    refresh['tenant_id'] = str(tenant.id)
+
+    # When
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': str(refresh)},
+        content_type='application/json',
+    )
+
+    # Then
+    assert response.status_code == 401
+    assert response.json()['code'] == 'invalid_refresh_token'
+
+
+@pytest.mark.django_db
+def test_device_refresh_rejects_malformed_tenant_id_claim(client):
+    # Given
+    _, _, _, device = _tenant_setup()
+    refresh = RefreshToken()
+    refresh['device_id'] = str(device.id)
+    refresh['tenant_id'] = 'tenant-id-malformado'
+
+    # When
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': str(refresh)},
+        content_type='application/json',
+    )
+
+    # Then
+    assert response.status_code == 401
+    assert response.json()['code'] == 'invalid_refresh_token'
+
+
+@pytest.mark.django_db
+def test_device_refresh_rejects_device_from_inactive_tenant(client):
+    # Given
+    tenant, _, _, device = _tenant_setup()
+    _, refresh_token = _access_token_for(device)
+    tenant.is_active = False
+    tenant.save(update_fields=['is_active'])
+
+    # When
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {'refresh_token': refresh_token},
+        content_type='application/json',
+    )
+
+    # Then
+    assert response.status_code == 401
+    assert response.json()['code'] == 'device_not_found'
+
+
+@pytest.mark.django_db
+def test_device_refresh_ignores_tenant_and_branch_from_request(client):
+    # Given
+    tenant, _, branch, device = _tenant_setup(email='refresh-source@test.local')
+    other_tenant, _, other_branch, _ = _tenant_setup(email='refresh-other@test.local')
+    _, refresh_token = _access_token_for(device)
+
+    # When
+    response = client.post(
+        '/api/v1/devices/refresh/',
+        {
+            'refresh_token': refresh_token,
+            'tenant_id': str(other_tenant.id),
+            'branch_id': str(other_branch.id),
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(other_tenant.id),
+    )
+
+    # Then
+    assert response.status_code == 200
+    body = response.json()
+    assert body['device_id'] == str(device.id)
+    assert body['tenant_id'] == str(tenant.id)
+    assert body['branch_id'] == str(branch.id)

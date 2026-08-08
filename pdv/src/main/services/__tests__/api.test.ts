@@ -101,4 +101,32 @@ describe('API do processo principal', () => {
 
     expect(axiosMocks.post).not.toHaveBeenCalled();
   });
+
+  it('não tenta renovar novamente uma requisição já marcada com _retry', async () => {
+    // Given
+    const error = { response: { status: 401 }, config: { headers: {}, _retry: true } };
+
+    // When
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    // Then
+    expect(axiosMocks.post).not.toHaveBeenCalled();
+    expect(axiosMocks.instance).not.toHaveBeenCalled();
+  });
+
+  it('limpa a sessão quando o access token renovado está vazio', async () => {
+    // Given
+    storageMocks.getItem.mockReturnValue('refresh-antigo');
+    axiosMocks.post.mockResolvedValue({ data: { token: '   ', refresh_token: 'refresh-novo' } });
+    const error = { response: { status: 401 }, config: { headers: {} } };
+
+    // When
+    await expect(getRejectedResponseHandler()(error)).rejects.toBe(error);
+
+    // Then
+    expect(axiosMocks.instance).not.toHaveBeenCalled();
+    expect(storageMocks.setItem).not.toHaveBeenCalled();
+    expect(storageMocks.removeItem).toHaveBeenCalledWith('access_token');
+    expect(storageMocks.removeItem).toHaveBeenCalledWith('refresh_token');
+  });
 });
