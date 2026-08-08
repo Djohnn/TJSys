@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client'
 import { getCsrfToken } from '@/api/client'
+import { collectionItems } from '@/api/collections'
 
 export interface Product {
   id: string
@@ -71,10 +72,11 @@ export interface ProductImage {
   position: number
 }
 
-export function fetchProductImages(tenantId: string, productId: string): Promise<ProductImage[]> {
-  return apiRequest<ProductImage[]>(`/catalog/products/${productId}/images/`, {
+export async function fetchProductImages(tenantId: string, productId: string): Promise<ProductImage[]> {
+  const payload = await apiRequest<unknown>(`/catalog/products/${productId}/images/`, {
     tenantId,
-  }) as Promise<ProductImage[]>
+  })
+  return collectionItems<ProductImage>(payload)
 }
 
 export async function uploadProductImage(

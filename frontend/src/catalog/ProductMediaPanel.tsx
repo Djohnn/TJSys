@@ -25,7 +25,7 @@ export default function ProductMediaPanel({ productId }: ProductMediaPanelProps)
   const [error, setError] = useState<string | null>(null)
   const [previews, setPreviews] = useState<PreviewImage[]>([])
   const queryClient = useQueryClient()
-  const { data: images = [] } = useQuery({
+  const { data: images = [], isError: mediaLoadFailed } = useQuery({
     queryKey: ['product-images', tenantId, productId],
     queryFn: () => fetchProductImages(tenantId, productId!),
     enabled: !!tenantId && !!productId,
@@ -99,6 +99,11 @@ export default function ProductMediaPanel({ productId }: ProductMediaPanelProps)
             />
           ))}
         </div>
+      )}
+      {mediaLoadFailed && (
+        <p data-testid="media-load-error" role="alert" className="text-xs text-red-600 mt-2">
+          Não foi possível carregar as imagens. O restante do cadastro permanece disponível.
+        </p>
       )}
       <svg className="w-10 h-10 text-neutral-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />

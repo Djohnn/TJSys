@@ -1895,7 +1895,12 @@ describe('LabelsPage', () => {
   it('uploads and displays a valid product image when editing', async () => {
     const images: Array<Record<string, unknown>> = []
     server.use(
-      http.get(`${BASE}/catalog/products/p1/images/`, () => HttpResponse.json(images)),
+      http.get(`${BASE}/catalog/products/p1/images/`, () => HttpResponse.json({
+        count: images.length,
+        next: null,
+        previous: null,
+        results: images,
+      })),
       http.post(`${BASE}/catalog/products/p1/images/`, () => {
         const image = {
           id: 'img-1', product: 'p1', object_key: 'produto.png',
@@ -1917,6 +1922,40 @@ describe('LabelsPage', () => {
     expect(screen.getByRole('img', { name: 'produto' })).toHaveAttribute(
       'src', '/media/catalog/products/produto.png',
     )
+  })
+
+  it('keeps the product editor usable when the media collection fails', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/images/`, () =>
+        HttpResponse.json({ detail: 'media unavailable' }, { status: 503 }),
+      ),
+    )
+
+    renderProductEditorEdit()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('product-media-panel')).toBeInTheDocument()
+    const mediaError = screen.getByTestId('media-load-error')
+    expect(mediaError).toHaveRole('alert')
+    expect(mediaError).toHaveTextContent('Não foi possível carregar as imagens. O restante do cadastro permanece disponível.')
+  })
+
+  it('isolates malformed media collections without disabling editor controls', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/images/`, () =>
+        HttpResponse.json({ count: 1, next: null, previous: null, results: null }),
+      ),
+    )
+
+    renderProductEditorEdit()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('media-load-error')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('media-load-error')).toHaveRole('alert')
+    expect(screen.getByLabelText('Nome')).not.toBeDisabled()
   })
 
   it('shows a PDF preview before offering the final download', async () => {
