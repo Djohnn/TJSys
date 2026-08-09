@@ -24,7 +24,7 @@ const sizes: Record<Size, string> = {
   lg: 'px-6 py-3 text-base gap-2',
 }
 
-export default function Button({ variant = 'primary', size = 'md', loading, children, className = '', disabled, ...props }: ButtonProps): ReactNode {
+export function Button({ variant = 'primary', size = 'md', loading, children, className = '', disabled, ...props }: ButtonProps): ReactNode {
   return (
     <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} disabled={disabled || loading} {...props}>
       {loading && <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />}
