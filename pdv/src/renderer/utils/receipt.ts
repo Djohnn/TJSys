@@ -1,3 +1,5 @@
+import { formatQuantity, QuantityFormatOptions } from '../../shared/quantity';
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&')
@@ -7,16 +9,49 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;');
 }
 
-export function formatReceiptQuantity(quantity: string | number): string {
-  const value = Number(quantity);
-  if (!Number.isFinite(value)) return String(quantity);
-  return value.toFixed(1);
+export function formatReceiptQuantity(
+  quantity: string | number,
+  unit: QuantityFormatOptions = {},
+): string {
+  return formatQuantity(quantity, unit);
 }
 
 export interface ReceiptItem {
-  product?: { name?: string } | string | null;
+  product?: {
+    name?: string;
+    base_unit?: { symbol?: string | null; precision?: number | null } | string | null;
+    unit_symbol?: string | null;
+    unit_precision?: number | null;
+  } | string | null;
+  unit?: { symbol?: string | null; precision?: number | null } | string | null;
+  unit_symbol?: string | null;
+  unit_precision?: number | null;
   quantity: string | number;
   line_total: string | number;
+}
+
+function quantityUnit(item: ReceiptItem): QuantityFormatOptions {
+  const product = typeof item.product === 'object' && item.product !== null ? item.product : null;
+  const flatSymbol = item.unit_symbol ?? product?.unit_symbol;
+  const flatPrecision = item.unit_precision ?? product?.unit_precision;
+  if (flatSymbol !== undefined || flatPrecision !== undefined) {
+    return { symbol: flatSymbol, precision: flatPrecision };
+  }
+
+  const unit = item.unit
+    ?? (product ? product.base_unit : null);
+  if (typeof unit === 'string') {
+    // SaleItemSerializer returns the unit primary key. It is not a printable
+    // symbol, so only accept string values that are not UUID-like ids.
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(unit);
+    return looksLikeUuid ? {} : { symbol: unit };
+  }
+  if (!unit) return {};
+  return {
+    symbol: unit.symbol,
+    precision: unit.precision ?? (unit as { quantity_precision?: number | null }).quantity_precision
+      ?? (unit as { decimal_places?: number | null }).decimal_places,
+  };
 }
 
 export interface ReceiptData {
@@ -44,7 +79,7 @@ export function buildReceiptHtml(
       <div class="item-row">
         <div>
           <div>${escapeHtml(productName)}</div>
-          <div class="muted">x${formatReceiptQuantity(item.quantity)}</div>
+          <div class="muted">${formatReceiptQuantity(item.quantity, quantityUnit(item))}</div>
         </div>
         <strong>R$ ${Number(item.line_total).toFixed(2)}</strong>
       </div>

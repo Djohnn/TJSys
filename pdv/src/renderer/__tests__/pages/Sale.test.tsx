@@ -69,6 +69,68 @@ describe('Sale', () => {
     });
   });
 
+  it('formats weighted cart quantities from flat product unit metadata', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-kg',
+          sku: 'PDV-KG',
+          name: 'Arroz por quilo',
+          base_unit: '123e4567-e89b-12d3-a456-426614174000',
+          unit_symbol: 'kg',
+          unit_precision: 3,
+          price: '15.00',
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Arroz por quilo' },
+    });
+    fireEvent.click(await screen.findByText('Arroz por quilo'));
+
+    await waitFor(() => expect(screen.getByText('Qtd: 1kg')).toBeInTheDocument());
+  });
+
+  it('keeps a product without a valid price visible but rejects it without changing the cart', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-no-price',
+          sku: 'PDV-002',
+          name: 'Produto sem preço',
+          base_unit: 'unit-1',
+          price: null,
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Produto sem preço' },
+    });
+
+    const result = await screen.findByText('Produto sem preço');
+    expect(screen.getByText('Sem preço')).toBeInTheDocument();
+    fireEvent.click(result);
+
+    await waitFor(() => {
+      expect(screen.getByText('Carrinho (0)')).toBeInTheDocument();
+      expect(screen.getByText('Produto sem preço não pode ser adicionado sem preço válido.')).toBeInTheDocument();
+    });
+  });
+
   it('shows printable receipt with product name and normalized quantity', async () => {
     const browserPrint = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     const printReceipt = vi.fn().mockResolvedValue({
@@ -131,7 +193,8 @@ describe('Sale', () => {
         }),
       );
     });
-    expect(printReceipt.mock.calls[0][0].html).toContain('x1.0');
+    expect(printReceipt.mock.calls[0][0].html).toContain('1');
+    expect(printReceipt.mock.calls[0][0].html).not.toContain('x1.0');
     expect(browserPrint).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,28 @@ import { useCashSession } from '../contexts/CashSessionContext';
 import { Card, Button, Input } from '../components/ui';
 import { SaleConfirmationToast } from '../components/SaleConfirmationToast';
 import { buildReceiptHtml } from '../utils/receipt';
+import { formatQuantity, QuantityFormatOptions } from '../../shared/quantity';
+
+function parseProductPrice(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function quantityOptionsForProduct(product: any): QuantityFormatOptions {
+  const unit = product?.base_unit && typeof product.base_unit === 'object'
+    ? product.base_unit
+    : product?.unit && typeof product.unit === 'object'
+      ? product.unit
+      : null;
+  const flatSymbol = product?.unit_symbol ?? product?.base_unit_symbol;
+  const flatPrecision = product?.unit_precision ?? product?.quantity_precision ?? product?.decimal_places;
+  if (!unit) return { symbol: flatSymbol, precision: flatPrecision };
+  return {
+    symbol: flatSymbol ?? unit.symbol,
+    precision: flatPrecision ?? unit.precision ?? unit.quantity_precision ?? unit.decimal_places,
+  };
+}
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -88,7 +110,12 @@ export function Sale() {
     setShowSearch(false);
     setSearchQuery('');
     setSearchResults([]);
-    const unitPrice = Number(product.price ?? 0);
+    const unitPrice = parseProductPrice(product.price);
+    if (unitPrice === null) {
+      setError(`${product.name || 'Produto'} não pode ser adicionado sem preço válido.`);
+      return;
+    }
+    setError('');
 
     const existingIndex = items.findIndex(item => item.product.id === product.id);
     if (existingIndex >= 0) {
@@ -108,8 +135,8 @@ export function Sale() {
         factor: 1,
         unitPrice,
         discount: 0,
-        lineTotal: unitPrice,
-      }]);
+          lineTotal: unitPrice,
+        }]);
     }
   };
 
@@ -135,7 +162,7 @@ export function Sale() {
   };
 
   const updateItemQuantity = (index: number, quantity: number) => {
-    if (quantity <= 0) {
+    if (quantity <= 0 || !Number.isFinite(quantity)) {
       setItems(prev => prev.filter((_, i) => i !== index));
       return;
     }
@@ -195,6 +222,10 @@ export function Sale() {
     }
     if (payments.length === 0) {
       setError('Adicione pelo menos um pagamento');
+      return;
+    }
+    if (items.some(item => parseProductPrice(item.product.price) === null)) {
+      setError('Todos os produtos devem ter um preço válido antes da venda.');
       return;
     }
     if (paymentTotal < parseFloat(netTotal.toFixed(2))) {
@@ -445,7 +476,9 @@ const paymentsPayload = payments.map(p => ({
                         <div style={{ fontSize: '0.75rem', color: '#757575' }}>SKU: {product.sku}</div>
                       </div>
                       <div style={{ fontWeight: 600, color: '#1976d2', fontSize: '0.875rem' }}>
-                        {product.price ? `R$ ${parseFloat(product.price).toFixed(2)}` : 'Sem preço'}
+                        {parseProductPrice(product.price) === null
+                          ? 'Sem preço'
+                          : `R$ ${parseProductPrice(product.price)!.toFixed(2)}`}
                       </div>
                     </div>
                   ))}
@@ -479,9 +512,11 @@ const paymentsPayload = payments.map(p => ({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '4px' }}>{item.product.name}</div>
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.75rem', color: '#757575' }}>Qtd:</span>
+                          <span style={{ fontSize: '0.75rem', color: '#757575' }}>
+                            Qtd: {formatQuantity(item.quantity, quantityOptionsForProduct(item.product))}
+                          </span>
                           <input type="number" min="1" value={item.quantity}
-                            onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateItemQuantity(index, parseFloat(e.target.value) || 1)}
                             style={{ width: '60px', padding: '4px 8px', fontSize: '0.875rem' }} />
                           <span style={{ fontSize: '0.75rem', color: '#757575' }}>Desc:</span>
                           <input type="number" min="0" step="0.01" value={item.discount.toFixed(2)}
