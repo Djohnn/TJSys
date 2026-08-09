@@ -178,6 +178,9 @@ def test_insufficient_stock_rolls_back_sale_payment_and_movement():
         before_movements = StockMovement.all_objects.filter(tenant=tenant).count()
         before_sales = Sale.all_objects.filter(tenant=tenant).count()
         before_payments = SalePayment.all_objects.filter(tenant=tenant).count()
+        before_cash_payments = CashMovement.all_objects.filter(
+            tenant=tenant, movement_type='sale_payment'
+        ).count()
         with pytest.raises(InsufficientStock):
             create_counter_sale(
                 tenant=tenant, branch=branch, operator=user, stock_location=location,
@@ -199,6 +202,9 @@ def test_insufficient_stock_rolls_back_sale_payment_and_movement():
         assert StockMovement.all_objects.filter(tenant=tenant).count() == before_movements
         assert Sale.all_objects.filter(tenant=tenant).count() == before_sales
         assert SalePayment.all_objects.filter(tenant=tenant).count() == before_payments
+        assert CashMovement.all_objects.filter(
+            tenant=tenant, movement_type='sale_payment'
+        ).count() == before_cash_payments
     finally:
         reset_current_tenant_id(token)
 
@@ -241,6 +247,9 @@ def test_mixed_sale_is_atomic_when_later_item_is_insufficient():
     )
     try:
         before = StockMovement.all_objects.filter(tenant=tenant).count()
+        before_cash_payments = CashMovement.all_objects.filter(
+            tenant=tenant, movement_type='sale_payment'
+        ).count()
         with pytest.raises(InsufficientStock):
             create_counter_sale(
                 tenant=tenant, branch=branch, operator=user, stock_location=location,
@@ -274,5 +283,8 @@ def test_mixed_sale_is_atomic_when_later_item_is_insufficient():
             tenant=tenant, idempotency_key='sale-mixed-atomic'
         ).exists()
         assert not SalePayment.all_objects.filter(tenant=tenant).exists()
+        assert CashMovement.all_objects.filter(
+            tenant=tenant, movement_type='sale_payment'
+        ).count() == before_cash_payments
     finally:
         reset_current_tenant_id(token)
