@@ -8,6 +8,9 @@ import {
 
 const authStatePath = path.resolve('test-results/.auth/e2e-user.json')
 
+export const productPdvArtifactPath =
+  process.env.E2E_ARTIFACT_PATH ?? path.resolve('..', 'test-results', 'product-pdv-flow.json')
+
 export { expect }
 
 export async function authenticatePage(

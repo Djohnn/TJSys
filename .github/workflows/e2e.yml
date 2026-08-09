@@ -45,6 +45,15 @@ jobs:
 
       - name: Install backend deps
         working-directory: ./backend
+        env:
+          POSTGRES_DB: tjsys
+          POSTGRES_APP_USER: tjsys
+          POSTGRES_APP_PASSWORD: tjsys
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          REDIS_URL: redis://localhost:6379
+          SECRET_KEY: ci-secret-key
+          DEBUG: 'true'
         run: |
           pip install -e .
           python manage.py migrate --noinput
@@ -54,6 +63,11 @@ jobs:
         working-directory: ./backend
         env:
           DATABASE_URL: postgres://tjsys:tjsys@localhost:5432/tjsys
+          POSTGRES_DB: tjsys
+          POSTGRES_APP_USER: tjsys
+          POSTGRES_APP_PASSWORD: tjsys
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
           REDIS_URL: redis://localhost:6379
           SECRET_KEY: ci-secret-key
           DEBUG: 'true'
@@ -68,29 +82,61 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
 
       - name: Start frontend
         working-directory: ./frontend
         env:
           VITE_API_BASE_URL: /api/v1
         run: |
-          npx vite --host 0.0.0.0 --port 5173 &
+          npx vite --host 0.0.0.0 --port 5174 &
           sleep 3
 
       - name: Wait for backend
         run: |
           for i in $(seq 1 30); do
-            curl -s http://localhost:8000/api/v1/health/ && break
+            if curl --fail --silent http://localhost:8000/api/v1/health/; then
+              exit 0
+            fi
             sleep 2
           done
+          echo "Backend health check failed after 60 seconds"
+          exit 1
 
       - name: Run Playwright E2E
         working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+          FRONTEND_BASE_URL: http://localhost:5174
+          E2E_USER_EMAIL: web-admin@tjsys.local
+          E2E_USER_PASSWORD: e2e-test-pwd-2026
+          E2E_RECOVERY_CODE: e2e0000001
+          E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
         run: npx playwright test --reporter=html,json
+
+      - name: Install PDV deps and browsers
+        working-directory: ./pdv
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run PDV vertical acceptance
+        working-directory: ./pdv
+        env:
+          PLAYWRIGHT_RETRIES: '0'
+          E2E_PDV_API_KEY: e2e-test-key-2026
+          E2E_USER_EMAIL: web-admin@tjsys.local
+          E2E_USER_PASSWORD: e2e-test-pwd-2026
+          E2E_RECOVERY_CODE: e2e0000001
+          E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
+        run: npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
-          path: frontend/playwright-report/
+          path: |
+            frontend/playwright-report/
+            pdv/playwright-report/
+            test-results/

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5174'
 const devPort = new URL(baseURL).port || '5173'
 const webCommand = process.env.PLAYWRIGHT_USE_PREVIEW
   ? `npm run preview -- --port ${devPort}`
@@ -11,7 +11,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: Number(process.env.PLAYWRIGHT_RETRIES ?? (process.env.CI ? 2 : 0)),
   workers: process.env.CI ? 1 : undefined,
   reporter: [['html', { outputFolder: 'playwright-report' }]],
   use: {
@@ -37,6 +37,7 @@ export default defineConfig({
   webServer: {
     command: webCommand,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // CI starts Vite in the workflow; reuse it instead of binding 5174 twice.
+    reuseExistingServer: true,
   },
 })
