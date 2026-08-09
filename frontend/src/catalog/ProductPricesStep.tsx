@@ -75,8 +75,10 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
   })
 
   const tierCreateMutation = useMutation({
-    mutationFn: (data: PriceTierFormData) =>
-      createProductPriceTier(tenantId, productId, data),
+    mutationFn: (data: PriceTierFormData) => {
+      if (!basePrice) throw new Error('Cadastre um preço base antes das faixas.')
+      return createProductPriceTier(tenantId, productId, { ...data, price: basePrice.id })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-price-tiers', tenantId, productId] })
       resetTier()
@@ -245,7 +247,7 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
                 variant="secondary"
                 size="sm"
                 onClick={handleAddTier}
-                disabled={basePriceError || tierCreateMutation.isPending}
+                disabled={basePriceError || !basePrice || tierCreateMutation.isPending}
                 loading={tierCreateMutation.isPending}
                 data-testid="add-tier-button"
               >

@@ -286,6 +286,25 @@ describe('ReceiptDetailPage', () => {
 })
 
 describe('SupplierReturnPage', () => {
+  it('formats ordered kilogram quantities in the return form', async () => {
+    server.use(
+      http.get(`${BASE}/purchasing/orders/:id/`, ({ params }) => HttpResponse.json({
+        id: params.id,
+        number: 'PO-KG',
+        supplier: 's1',
+        supplier_name: 'Fornecedor KG',
+        status: 'approved',
+        items: [{ id: 'kg-1', product: 'prod-kg', product_name: 'Produto KG', quantity: '0.500000', unit_symbol: 'KG', unit_precision: 3 }],
+      })),
+    )
+    renderWithProviders(<SupplierReturnPage />)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /nova devolução/i }))
+    await user.selectOptions(screen.getByLabelText(/pedido/i), 'order-1')
+    expect(await screen.findByText(/Qtd\. Pedida: 0\.500kg/)).toBeInTheDocument()
+    expect(screen.queryByText(/0\.500000/)).not.toBeInTheDocument()
+  })
+
   it('displays return list', async () => {
     renderWithProviders(<SupplierReturnPage />)
     await waitFor(() => {

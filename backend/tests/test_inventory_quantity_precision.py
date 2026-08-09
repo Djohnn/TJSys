@@ -1,3 +1,4 @@
+import importlib
 from contextlib import contextmanager
 from decimal import Decimal
 
@@ -9,12 +10,15 @@ from inventory.models import StockBalance, StockLocation
 from inventory.serializers import StockMovementSerializer
 from inventory.services import (
     ProductStockControlError,
+    QuantityPrecisionError,
     create_receipt,
     reactivate_product_stock_control,
     release_reservation,
     reserve_stock,
     reverse_operation,
 )
+from inventory.views import StockOperationViewSet
+from sales.views import SaleViewSet
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Tenant
 
@@ -140,6 +144,45 @@ def test_kg_unit_rejects_more_than_three_decimal_places():
             Decimal('1'),
             idempotency_key='kg-too-precise',
         )
+
+
+def test_quantity_precision_error_has_stable_inventory_and_sales_problem_code():
+    error = QuantityPrecisionError('too many decimal places')
+
+    inventory_response = StockOperationViewSet()._handle_stock_error(error)
+    sales_response = SaleViewSet()._handle_sales_error(error)
+
+    assert inventory_response.status_code == 400
+    assert inventory_response.data['type'].endswith('/invalid_quantity_precision')
+    assert sales_response.status_code == 400
+    assert sales_response.data['type'].endswith('/invalid_quantity_precision')
+
+
+@pytest.mark.django_db
+def test_kg_data_migration_updates_all_tenants_without_renaming_units():
+    tenant_a, unit_a, *_ = _stock_context(precision=0)
+    tenant_b, unit_b, *_ = _stock_context(precision=3)
+    with _tenant_context(tenant_a):
+        unit_a.symbol = 'KG'
+        unit_a.name = 'Quilo legado A'
+        unit_a.save(update_fields=['symbol', 'name'])
+    with _tenant_context(tenant_b):
+        unit_b.symbol = 'kg'
+        unit_b.name = 'Quilo legado B'
+        unit_b.precision = 0
+        unit_b.save(update_fields=['symbol', 'name', 'precision'])
+
+    migration = importlib.import_module('catalog.migrations.0016_normalize_known_unit_precision')
+    migration.set_kg_precision(importlib.import_module('django.apps').apps, None)
+
+    with _tenant_context(tenant_a):
+        unit_a.refresh_from_db()
+        assert unit_a.precision == 3
+        assert unit_a.name == 'Quilo legado A'
+    with _tenant_context(tenant_b):
+        unit_b.refresh_from_db()
+        assert unit_b.precision == 3
+        assert unit_b.name == 'Quilo legado B'
 
 
 @pytest.mark.django_db

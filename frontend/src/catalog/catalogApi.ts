@@ -7,6 +7,7 @@ export interface Product {
   name: string
   description?: string
   price?: string | null
+  price_status?: 'priced' | 'missing'
   sku: string
   barcode: string
   category: string | null

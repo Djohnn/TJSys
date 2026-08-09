@@ -42,6 +42,14 @@ def add_product_price_tier(*, tenant, product, min_quantity, amount, price=None)
     """
     if not product.is_active:
         raise ValidationError({'product': 'Cannot add price tiers to an inactive product.'})
+    if price is None:
+        raise ValidationError({'price': 'Base price is required.'})
+    if price.tenant_id != tenant.id:
+        raise ValidationError({'price': 'Base price must belong to the same tenant.'})
+    if price.product_id != product.id:
+        raise ValidationError({'price': 'Base price must belong to the same product.'})
+    if not price.is_active:
+        raise ValidationError({'price': 'Base price must be active.'})
 
     tier = ProductPriceTier(
         tenant=tenant,

@@ -16,25 +16,28 @@ export function formatQuantity(
 ): string {
   if (value === null || value === undefined || value === '') return '--';
 
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) return String(value);
+  const source = String(value).trim();
+  const parsed = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(source);
+  if (!parsed) return String(value);
+  const [, sign, whole, rawFraction = ''] = parsed;
 
   const precision = options.precision == null
     ? null
     : Math.max(0, Math.min(6, Math.trunc(options.precision)));
 
+  const meaningfulFraction = rawFraction.replace(/0+$/, '');
   let rendered: string;
   if (precision === null) {
-    rendered = numberValue.toFixed(6).replace(/\.?0+$/, '');
-  } else if (precision === 0 || Number.isInteger(numberValue)) {
-    rendered = numberValue.toFixed(0);
+    rendered = meaningfulFraction ? `${sign}${whole}.${meaningfulFraction}` : `${sign}${whole}`;
+  } else if (precision === 0 || !meaningfulFraction) {
+    rendered = `${sign}${whole}`;
   } else {
-    rendered = numberValue.toFixed(precision);
+    rendered = `${sign}${whole}.${rawFraction.slice(0, precision).padEnd(precision, '0')}`;
   }
 
   const rawSymbol = options.symbol?.trim() ?? '';
   const normalizedSymbol = rawSymbol.toLowerCase();
-  const symbol = normalizedSymbol === 'un'
+  const symbol = precision === 0 || normalizedSymbol === 'un'
     ? ''
     : normalizedSymbol === 'kg'
       ? 'kg'

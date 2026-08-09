@@ -39,7 +39,7 @@ from inventory.services import (
     InsufficientStock,
     InvalidLotError,
     ProductStockControlError,
-    ProductStockControlResult,
+    QuantityPrecisionError,
     create_adjustment,
     create_issue,
     create_receipt,
@@ -263,6 +263,8 @@ class StockOperationViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
         if isinstance(exc, InsufficientStock):
             return _problem(exc, 'insufficient_stock', status.HTTP_409_CONFLICT)
+        if isinstance(exc, QuantityPrecisionError):
+            return _problem(exc, 'invalid_quantity_precision', status.HTTP_400_BAD_REQUEST)
         if isinstance(exc, (InvalidLotError, ExpiredLotError, ValueError)):
             return _problem(exc)
         raise exc

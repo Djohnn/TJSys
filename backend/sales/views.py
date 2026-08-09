@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from catalog.models import Product, Unit
 from inventory.models import StockLocation
-from inventory.services import InsufficientStock
+from inventory.services import InsufficientStock, QuantityPrecisionError
 from people.models import Person
 from sales.models import CashSession, Sale, SaleReturn
 from sales.permissions import SalesCapabilityPermission
@@ -225,6 +225,8 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
         if isinstance(exc, InsufficientStock):
             return _problem(exc, 'insufficient_stock', status.HTTP_409_CONFLICT)
+        if isinstance(exc, QuantityPrecisionError):
+            return _problem(exc, 'invalid_quantity_precision', status.HTTP_400_BAD_REQUEST)
         if isinstance(exc, CashSessionRequired):
             return _problem(exc, 'cash_session_required', status.HTTP_409_CONFLICT)
         if isinstance(exc, PaymentMismatch):

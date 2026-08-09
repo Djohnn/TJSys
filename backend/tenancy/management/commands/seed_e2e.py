@@ -18,6 +18,20 @@ User = get_user_model()
 
 E2E_API_KEY = 'e2e-test-key-2026'
 E2E_PASSWORD = 'e2e-test-pwd-2026'  # noqa: S105
+E2E_RECOVERY_CODES = ('e2e0000001', 'e2e0000002')
+
+
+def ensure_e2e_recovery_codes(device):
+    """Provision separate single-use codes for the admin and PDV E2E stages."""
+    from accounts.models import RecoveryCode
+    from accounts.security import digest_value
+
+    for code in E2E_RECOVERY_CODES:
+        RecoveryCode.objects.update_or_create(
+            device=device,
+            digest=digest_value(code),
+            defaults={'consumed_at': None},
+        )
 
 
 class Command(BaseCommand):
@@ -182,7 +196,8 @@ class Command(BaseCommand):
                     c.execute(
                         'INSERT INTO fiscal_fiscalemitter '
                         '(id, tenant_id, branch_id, provider, cpf_cnpj, ie, '
-                        'registered_at_provider, registration_source, is_active, created_at, updated_at) '
+                        'registered_at_provider, registration_source, is_active, '
+                        'created_at, updated_at) '
                         "SELECT %s, %s, %s, 'plugnotas', '00000000000000', "
                         "'111111111111', true, 'manual', true, NOW(), NOW() "
                         'WHERE NOT EXISTS ('
@@ -374,8 +389,7 @@ class Command(BaseCommand):
             web_admin.save()
 
             # Set up TOTP MFA device + recovery codes for web-admin
-            from accounts.models import MFADevice, RecoveryCode
-            from accounts.security import digest_value
+            from accounts.models import MFADevice
             from accounts.services.mfa import regenerate_recovery_codes
 
             totp_device, _ = MFADevice.objects.get_or_create(
@@ -386,11 +400,7 @@ class Command(BaseCommand):
             totp_device.verified_at = timezone.now()
             totp_device.save(update_fields=['verified_at'])
             regenerate_recovery_codes(device=totp_device)
-            RecoveryCode.objects.update_or_create(
-                device=totp_device,
-                digest=digest_value('e2e0000001'),
-                defaults={'consumed_at': None},
-            )
+            ensure_e2e_recovery_codes(totp_device)
 
             # Also set up for e2e admin
             from accounts.services.mfa import regenerate_recovery_codes as _rrc

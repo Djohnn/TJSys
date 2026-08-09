@@ -3,6 +3,7 @@ from inventory.services.operations import (  # noqa: F401
     ExpiredLotError,
     InsufficientStock,
     InvalidLotError,
+    QuantityPrecisionError,
     create_adjustment,
     create_issue,
     create_operation,

@@ -8,6 +8,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src/renderer'),
       '@shared': path.resolve(__dirname, './src/shared'),
+      // Keep Vitest on a Node-ABI build while Electron uses the production
+      // better-sqlite3 package rebuilt for its own ABI.
+      'better-sqlite3': 'better-sqlite3-node',
     },
   },
   server: {

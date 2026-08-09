@@ -3,11 +3,28 @@ import path from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 const artifactPath = process.env.E2E_ARTIFACT_PATH ?? path.resolve('..', 'test-results', 'product-pdv-flow.json')
-const apiKey = process.env.E2E_PDV_API_KEY ?? 'e2e-test-key-2026'
+type ProductArtifact = {
+  id: string
+  name: string
+  sku: string
+  price: string
+  unitSymbol: string
+  initialQuantity: string
+  stockLocationId: string
+  branchId: string
+}
+
+type FlowArtifact = {
+  createdAt: string
+  adminBaseUrl: string
+  products: { unit: ProductArtifact; kilogram: ProductArtifact; withoutPrice: ProductArtifact }
+}
+
+const apiKey = process.env.E2E_PDV_API_KEY
 
 async function readArtifact() {
   try {
-    return JSON.parse(await fs.readFile(artifactPath, 'utf8')) as any
+    return JSON.parse(await fs.readFile(artifactPath, 'utf8')) as FlowArtifact
   } catch (error) {
     throw new Error(`Artefato do fluxo admin não encontrado em ${artifactPath}; execute o E2E frontend antes do PDV. ${String(error)}`)
   }
@@ -24,6 +41,7 @@ async function stubElectron(page: Page) {
 }
 
 async function login(page: Page) {
+  if (!apiKey) throw new Error('Defina E2E_PDV_API_KEY para autenticar o PDV.')
   await page.goto('/login')
   await page.getByLabel('Chave de API (API Key)').fill(apiKey)
   await page.getByRole('button', { name: 'Entrar' }).click()
@@ -90,8 +108,8 @@ test.describe('PDV — venda baixa estoque e protege preço ausente', () => {
     const admin = await adminContext.newPage()
     const email = process.env.E2E_USER_EMAIL
     const password = process.env.E2E_USER_PASSWORD
-    const recoveryCode = process.env.E2E_RECOVERY_CODE
-    if (!email || !password || !recoveryCode) throw new Error('Defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_RECOVERY_CODE para validar o saldo administrativo.')
+    const recoveryCode = process.env.E2E_ADMIN_RECOVERY_CODE
+    if (!email || !password || !recoveryCode) throw new Error('Defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_ADMIN_RECOVERY_CODE para validar o saldo administrativo.')
     await admin.goto('/login')
     await admin.fill('[name="email"]', email)
     await admin.fill('[name="password"]', password)

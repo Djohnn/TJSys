@@ -70,6 +70,7 @@ class CategorySerializer(FullCleanModelSerializer):
 
 class ProductSerializer(FullCleanModelSerializer):
     price = serializers.SerializerMethodField()
+    price_status = serializers.SerializerMethodField()
     unit = serializers.UUIDField(source='base_unit_id', read_only=True)
     unit_name = serializers.CharField(source='base_unit.name', read_only=True)
     unit_symbol = serializers.CharField(source='base_unit.symbol', read_only=True)
@@ -97,6 +98,7 @@ class ProductSerializer(FullCleanModelSerializer):
             'is_active',
             'version',
             'price',
+            'price_status',
             # Sprint 22 fields
             'product_kind',
             'tracks_inventory',
@@ -108,7 +110,7 @@ class ProductSerializer(FullCleanModelSerializer):
             'billing_unit',
             'duration_minutes',
         ]
-        read_only_fields = ['id', 'version', 'price']
+        read_only_fields = ['id', 'version', 'price', 'price_status']
 
     def validate(self, data):
         if data.get('product_kind') == 'servico':
@@ -144,8 +146,15 @@ class ProductSerializer(FullCleanModelSerializer):
             return None
         return f'{prices[0].amount:.2f}'
 
+    def get_price_status(self, obj):
+        return 'priced' if self.get_price(obj) is not None else 'missing'
+
     def get_barcode(self, obj):
-        code = obj.codes.filter(code_type='ean', is_active=True).order_by('-is_principal', 'id').first()
+        code = (
+            obj.codes.filter(code_type='ean', is_active=True)
+            .order_by('-is_principal', 'id')
+            .first()
+        )
         return code.value if code else ''
 
 
@@ -238,9 +247,7 @@ class ProductPriceTierSerializer(FullCleanModelSerializer):
     def validate(self, attrs):
         price = attrs.get('price')
         if price is None:
-            # Tiers are optional extensions and can be drafted before a base
-            # price exists; they never become Product.price themselves.
-            return attrs
+            raise serializers.ValidationError({'price': 'Base price is required.'})
         request = self.context.get('request')
         path_product_id = None
         if request is not None:
@@ -300,7 +307,16 @@ class ProductImageSerializer(FullCleanModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'product', 'object_key', 'file', 'file_url', 'alt_text', 'is_primary', 'position']
+        fields = [
+            'id',
+            'product',
+            'object_key',
+            'file',
+            'file_url',
+            'alt_text',
+            'is_primary',
+            'position',
+        ]
         read_only_fields = ['id', 'product']
 
 
@@ -430,7 +446,12 @@ class ApplyProductInputSerializer(serializers.Serializer):
     sku = serializers.CharField(max_length=64, required=False, allow_blank=True, default='')
     name = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True, default='')
-    product_kind = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    product_kind = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        default='',
+    )
     base_unit = serializers.UUIDField()
     category = serializers.UUIDField(required=False, allow_null=True)
     brand = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')

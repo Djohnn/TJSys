@@ -30,6 +30,10 @@ class DuplicateIdempotencyKey(Exception):
     pass
 
 
+class QuantityPrecisionError(ValueError):
+    pass
+
+
 def normalize_quantity(quantity, unit):
     """Validate and normalize a quantity according to its unit precision."""
     value = Decimal(str(quantity))
@@ -37,7 +41,7 @@ def normalize_quantity(quantity, unit):
     quantum = Decimal(1).scaleb(-precision)
     normalized = value.quantize(quantum)
     if value != normalized:
-        raise ValueError(
+        raise QuantityPrecisionError(
             f'Quantity for {unit.symbol} supports at most {precision} decimal places.'
         )
     return normalized

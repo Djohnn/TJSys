@@ -9,7 +9,7 @@ from django.utils import timezone
 from audit.services import create_audit_record
 from catalog.services.pricing import resolve_effective_price
 from inventory.models import StockLocation, StockMovement
-from inventory.services import create_issue, create_receipt
+from inventory.services import create_issue, create_receipt, normalize_quantity
 from outbox.services import create_outbox_message
 from sales.models import (
     CashMovement,
@@ -266,6 +266,8 @@ def create_counter_sale(
         raise PaymentMismatch('Sale must have at least one payment.')
 
     normalized_items = [_normalize_item(item) for item in items]
+    for item in normalized_items:
+        item['quantity'] = normalize_quantity(item['quantity'], item['unit'])
     normalized_payments = [_normalize_payment(payment) for payment in payments]
     payload = {
         'branch': branch,

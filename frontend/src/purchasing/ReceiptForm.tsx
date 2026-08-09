@@ -250,7 +250,10 @@ export default function ReceiptForm({ onSuccess: _onSuccess, onCancel }: Receipt
                           )}
                           {exceeds && (
                             <span data-testid={`qty-error-${item.id}`} className="text-xs text-red-600 mt-1 block">
-                              Quantidade excede a quantidade pedida ({item.quantity})
+                              Quantidade excede a quantidade pedida ({formatQuantity(item.quantity, {
+                                precision: item.unit_precision,
+                                symbol: item.unit_symbol,
+                              })})
                             </span>
                           )}
                         </td>

@@ -5,11 +5,13 @@ from decimal import Decimal
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.utils import timezone
 
 from catalog.models import (
     Category,
     Product,
     ProductFiscalData,
+    ProductPrice,
     ProductPriceTier,
     Unit,
 )
@@ -42,6 +44,18 @@ def _in_tenant(tenant, fn):
     result = fn()
     reset_current_tenant_id(token)
     return result
+
+
+def _base_price(tenant, product, amount='10.00'):
+    return _in_tenant(
+        tenant,
+        lambda: ProductPrice.objects.create(
+            tenant=tenant,
+            product=product,
+            amount=Decimal(amount),
+            valid_from=timezone.now(),
+        ),
+    )
 
 
 # =============================================================================
@@ -114,11 +128,13 @@ def test_upsert_fiscal_data_allows_nil_origin():
 def test_add_price_tier_creates_for_active_product():
     """Given active product, when adding tier, then persists."""
     tenant, product = _setup('S22-AS-PT01')
+    price = _base_price(tenant, product)
     tier = _in_tenant(
         tenant,
         lambda: add_product_price_tier(
             tenant=tenant,
             product=product,
+            price=price,
             min_quantity=Decimal('10'),
             amount=Decimal('9.99'),
         ),
@@ -131,16 +147,25 @@ def test_add_price_tier_creates_for_active_product():
 def test_add_price_tier_quantity_below_existing():
     """Given tier at q=10, when adding q=5, then both exist."""
     tenant, product = _setup('S22-AS-PT02')
+    price = _base_price(tenant, product)
     _in_tenant(
         tenant,
         lambda: add_product_price_tier(
-            tenant=tenant, product=product, min_quantity=Decimal('10'), amount=Decimal('9.00')
+            tenant=tenant,
+            product=product,
+            price=price,
+            min_quantity=Decimal('10'),
+            amount=Decimal('9.00'),
         ),
     )
     t2 = _in_tenant(
         tenant,
         lambda: add_product_price_tier(
-            tenant=tenant, product=product, min_quantity=Decimal('5'), amount=Decimal('12.00')
+            tenant=tenant,
+            product=product,
+            price=price,
+            min_quantity=Decimal('5'),
+            amount=Decimal('12.00'),
         ),
     )
     assert t2.min_quantity == Decimal('5')
@@ -162,12 +187,31 @@ def test_add_price_tier_rejects_inactive_product():
             is_active=False,
         ),
     )
+    price = _base_price(tenant, inactive)
     with pytest.raises(ValidationError):
         _in_tenant(
             tenant,
             lambda: add_product_price_tier(
                 tenant=tenant,
                 product=inactive,
+                price=price,
+                min_quantity=Decimal('1'),
+                amount=Decimal('5.00'),
+            ),
+        )
+
+
+@pytest.mark.django_db
+def test_add_price_tier_requires_base_price():
+    """Given product without linked price, when adding tier, then reject it."""
+    tenant, product = _setup('S22-AS-PT04')
+
+    with pytest.raises(ValidationError, match='Base price is required'):
+        _in_tenant(
+            tenant,
+            lambda: add_product_price_tier(
+                tenant=tenant,
+                product=product,
                 min_quantity=Decimal('1'),
                 amount=Decimal('5.00'),
             ),

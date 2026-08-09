@@ -380,6 +380,7 @@ def test_create_price_tier(catalog_context):
     """
     ctx = catalog_context
     payload = {
+        'price': str(ctx['price'].id),
         'min_quantity': '5',
         'amount': '8.50',
     }
@@ -510,6 +511,7 @@ def test_price_tier_min_quantity_unique(catalog_context):
     response = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/',
         {
+            'price': str(ctx['price'].id),
             'product': str(ctx['product'].id),
             'min_quantity': '5',
             'amount': '9.00',
@@ -583,6 +585,7 @@ def test_product_serializer_returns_no_price_for_zero_or_ambiguous_base_prices(c
     )
     assert response.status_code == 200
     assert response.json()['price'] is None
+    assert response.json()['price_status'] == 'missing'
 
     def _ambiguous():
         ProductPrice.all_objects.create(
@@ -604,6 +607,31 @@ def test_product_serializer_returns_no_price_for_zero_or_ambiguous_base_prices(c
     )
     assert response.status_code == 200
     assert response.json()['price'] is None
+    assert response.json()['price_status'] == 'missing'
+
+
+@pytest.mark.django_db
+def test_product_serializer_marks_single_effective_base_price_as_priced(catalog_context):
+    ctx = catalog_context
+    response = ctx['client'].get(
+        f'/api/v1/products/{ctx["product"].id}/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert response.status_code == 200
+    assert response.json()['price_status'] == 'priced'
+
+
+@pytest.mark.django_db
+def test_price_tier_requires_explicit_base_price(catalog_context):
+    ctx = catalog_context
+    response = ctx['client'].post(
+        f'/api/v1/products/{ctx["product"].id}/price-tiers/',
+        {'min_quantity': '5', 'amount': '8.50'},
+        format='json',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+    assert response.status_code == 400
+    assert 'price' in response.json()
 
 
 @pytest.mark.django_db
@@ -663,6 +691,7 @@ def test_inactive_product_rejects_tier(catalog_context):
     response = ctx['client'].post(
         f'/api/v1/products/{ctx["product"].id}/price-tiers/',
         {
+            'price': str(ctx['price'].id),
             'product': str(ctx['product'].id),
             'min_quantity': '1',
             'amount': '5.00',

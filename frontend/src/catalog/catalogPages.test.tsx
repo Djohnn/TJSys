@@ -2245,6 +2245,27 @@ describe('ProductChannelsStep', () => {
 })
 
 describe('ProductPricesStep base price contract', () => {
+  it('links a new quantity tier to the effective ProductPrice', async () => {
+    let tierPayload: Record<string, unknown> | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1 }] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.post(`${BASE}/catalog/products/p1/price-tiers/`, async ({ request }) => {
+        tierPayload = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ id: 'tier-new', product: 'p1', price: 'price-1', min_quantity: '5', amount: '9.00' }, { status: 201 })
+      }),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    await user.type(await screen.findByTestId('tier-min-quantity-input'), '5')
+    await user.type(screen.getByTestId('tier-amount-input'), '9.00')
+    await user.click(screen.getByTestId('add-tier-button'))
+    await waitFor(() => expect(tierPayload).not.toBeNull())
+    expect(tierPayload).toMatchObject({ price: 'price-1', min_quantity: '5', amount: '9.00' })
+  })
+
   it('shows empty state when no ProductPrice exists and does not promote tiers', async () => {
     server.use(
       http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),

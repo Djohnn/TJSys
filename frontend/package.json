@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
+    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",

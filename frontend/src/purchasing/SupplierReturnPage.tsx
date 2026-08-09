@@ -7,6 +7,7 @@ import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse } from '@/organization/organizationApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
+import { formatQuantity } from '@/components/formatQuantity'
 import { fetchReturns, createReturn } from './receivingApi'
 
 interface OrderSummary {
@@ -23,6 +24,8 @@ interface OrderDetail {
     product: string
     product_name: string
     quantity: string
+    unit_symbol?: string
+    unit_precision?: number
   }[]
 }
 
@@ -122,7 +125,12 @@ function ReturnForm({ onSuccess }: { onSuccess: () => void }) {
             <p>Itens do pedido (serão incluídos na devolução):</p>
             <ul>
               {items.map((item) => (
-                <li key={item.id}>{item.product_name} - Qtd. Pedida: {item.quantity}</li>
+                <li key={item.id}>
+                  {item.product_name} - Qtd. Pedida: {formatQuantity(item.quantity, {
+                    precision: item.unit_precision,
+                    symbol: item.unit_symbol,
+                  })}
+                </li>
               ))}
             </ul>
           </div>

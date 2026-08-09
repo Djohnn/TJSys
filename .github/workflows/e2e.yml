@@ -1,7 +1,7 @@
 name: E2E
 on:
   push:
-    branches: [master, 'feat/**']
+    branches: [master, 'feat/**', 'codex/**']
   pull_request:
     branches: [master]
 
@@ -112,8 +112,11 @@ jobs:
           E2E_USER_EMAIL: web-admin@tjsys.local
           E2E_USER_PASSWORD: e2e-test-pwd-2026
           E2E_RECOVERY_CODE: e2e0000001
+          E2E_ADMIN_RECOVERY_CODE: e2e0000002
           E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
-        run: npx playwright test --reporter=html,json
+        run: |
+          npm run typecheck:e2e
+          npx playwright test e2e/product-pdv-stock-flow.spec.ts --project=chromium --reporter=html,json
 
       - name: Install PDV deps and browsers
         working-directory: ./pdv
@@ -128,9 +131,11 @@ jobs:
           E2E_PDV_API_KEY: e2e-test-key-2026
           E2E_USER_EMAIL: web-admin@tjsys.local
           E2E_USER_PASSWORD: e2e-test-pwd-2026
-          E2E_RECOVERY_CODE: e2e0000001
+          E2E_ADMIN_RECOVERY_CODE: e2e0000002
           E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
-        run: npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
+        run: |
+          npm run typecheck:e2e
+          npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
 
       - uses: actions/upload-artifact@v4
         if: failure()
