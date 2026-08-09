@@ -103,6 +103,15 @@ describe('AppShell', () => {
     renderShell()
     await user.click(screen.getByRole('button', { name: 'Vendas' }))
     expect(screen.getByRole('menu', { name: 'Vendas' })).toBeVisible()
+
+    // Contracto: item planned (ex.: Serviços no flyout Vendas) NÃO navega.
+    // No HTML de referência, Serviços é um <button> dentro do flyout, não um link
+    // com href/rota. Esta assertiva falha em RED (flyout não implementado) e é o
+    // comportamento a entregar na Task 2: planned não dispara navigate.
+    const flyout = screen.getByRole('menu', { name: 'Vendas' })
+    expect(within(flyout).getByRole('menuitem', { name: 'Serviços' })).toBeInTheDocument()
+    expect(within(flyout).getByRole('menuitem', { name: 'Serviços' }).closest('a')).toBeNull()
+
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu', { name: 'Vendas' })).not.toBeInTheDocument()
   })
