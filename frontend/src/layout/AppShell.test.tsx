@@ -98,6 +98,15 @@ describe('AppShell', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('fecha o flyout com Escape e não navega para item planned', async () => {
+    const user = userEvent.setup()
+    renderShell()
+    await user.click(screen.getByRole('button', { name: 'Vendas' }))
+    expect(screen.getByRole('menu', { name: 'Vendas' })).toBeVisible()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu', { name: 'Vendas' })).not.toBeInTheDocument()
+  })
+
   it('highlights active route', async () => {
     renderShell('/financial')
     const financialLink = await screen.findByText('Financeiro')
