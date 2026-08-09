@@ -20,5 +20,7 @@ describe('formatQuantity', () => {
   it('does not append count-unit symbols', () => {
     expect(formatQuantity('10.000000', { precision: 0, symbol: 'UN' })).toBe('10')
     expect(formatQuantity('1.2345', { precision: 3, symbol: 'kg' })).toBe('1.235kg')
+    expect(formatQuantity('2.000', { precision: 0, symbol: 'L' })).toBe('2L')
+    expect(formatQuantity('3.000', { precision: 0, symbol: 'SC' })).toBe('3SC')
   })
 })

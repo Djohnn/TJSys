@@ -41,7 +41,8 @@ export function formatQuantity(
     rendered = decimal.toFixed(precision)
   }
 
-  const normalizedSymbol = options.symbol?.trim().toLowerCase()
-  const symbol = normalizedSymbol === 'kg' ? 'kg' : ''
+  const rawSymbol = options.symbol?.trim() ?? ''
+  const normalizedSymbol = rawSymbol.toLowerCase()
+  const symbol = normalizedSymbol === 'un' ? '' : normalizedSymbol === 'kg' ? 'kg' : rawSymbol
   return symbol ? `${rendered}${symbol}` : rendered
 }
