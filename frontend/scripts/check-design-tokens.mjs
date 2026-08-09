@@ -1,8 +1,8 @@
 export const forbiddenHex = /#[0-9a-fA-F]{3,8}\b/g
 
-export function findLiteralColors(path, source) {
-  if (path.endsWith('tokens.css') || path.includes('/test/') || path.endsWith('.test.ts') || path.endsWith('.test.tsx')) return []
-  return [...source.matchAll(forbiddenHex)].map(match => ({ path, value: match[0] }))
+export function findLiteralColors(filePath, source) {
+  if (filePath.endsWith('tokens.css') || filePath.includes('/test/') || filePath.includes('\\test\\') || filePath.endsWith('.test.ts') || filePath.endsWith('.test.tsx')) return []
+  return [...source.matchAll(forbiddenHex)].map(match => ({ path: filePath, value: match[0] }))
 }
 
 // CLI entry point
@@ -24,7 +24,7 @@ function main() {
       if (entry.isDirectory()) {
         scanDir(fullPath)
       } else if (entry.isFile()) {
-        const relPath = path.relative(process.cwd(), fullPath)
+        const relPath = path.relative(process.cwd(), fullPath).split(path.sep).join('/')
         if (!relPath.endsWith('tokens.css') && !relPath.includes('/test/') && !relPath.endsWith('.test.ts') && !relPath.endsWith('.test.tsx')) {
           const source = fs.readFileSync(fullPath, 'utf-8')
           const matches = findLiteralColors(relPath, source)
