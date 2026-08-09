@@ -137,6 +137,10 @@ jobs:
           npm run typecheck:e2e
           npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
 
+      - name: Check Design Tokens
+        working-directory: ./frontend
+        run: node scripts/check-design-tokens.mjs
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
