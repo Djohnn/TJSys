@@ -5,6 +5,46 @@ import uuid
 from django.db import migrations, models
 
 
+RLS_TABLES = [
+    'catalog_productapplycommand',
+]
+
+
+def enable_catalog_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
+    with schema_editor.connection.cursor() as cursor:
+        for table in RLS_TABLES:
+            policy = f'{table}_tenant_isolation'
+            cursor.execute(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY')
+            cursor.execute(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY')
+            cursor.execute(f'DROP POLICY IF EXISTS "{policy}" ON "{table}"')
+            cursor.execute(
+                f'''
+                CREATE POLICY "{policy}" ON "{table}"
+                USING (
+                    tenant_id::text = current_setting('app.current_tenant_id', true)
+                    AND current_setting('app.current_tenant_id', true) <> ''
+                )
+                WITH CHECK (
+                    tenant_id::text = current_setting('app.current_tenant_id', true)
+                    AND current_setting('app.current_tenant_id', true) <> ''
+                )
+                '''
+            )
+
+
+def disable_catalog_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
+    with schema_editor.connection.cursor() as cursor:
+        for table in reversed(RLS_TABLES):
+            policy = f'{table}_tenant_isolation'
+            cursor.execute(f'DROP POLICY IF EXISTS "{policy}" ON "{table}"')
+            cursor.execute(f'ALTER TABLE "{table}" NO FORCE ROW LEVEL SECURITY')
+            cursor.execute(f'ALTER TABLE "{table}" DISABLE ROW LEVEL SECURITY')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -29,4 +69,5 @@ class Migration(migrations.Migration):
                 'constraints': [models.UniqueConstraint(fields=('tenant', 'command_id'), name='uniq_product_apply_command_tenant_id')],
             },
         ),
+        migrations.RunPython(enable_catalog_rls, disable_catalog_rls),
     ]
