@@ -305,9 +305,18 @@ class ProductImageSerializer(FullCleanModelSerializer):
 
 
 class ProductCompositionSerializer(FullCleanModelSerializer):
+    unit_name = serializers.CharField(source='component.base_unit.name', read_only=True)
+    unit_symbol = serializers.CharField(source='component.base_unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(
+        source='component.base_unit.precision', read_only=True,
+    )
+
     class Meta:
         model = ProductComposition
-        fields = ['id', 'kit', 'component', 'quantity', 'version', 'is_active']
+        fields = [
+            'id', 'kit', 'component', 'quantity', 'unit_name', 'unit_symbol',
+            'unit_precision', 'version', 'is_active',
+        ]
         read_only_fields = ['id', 'version']
 
 

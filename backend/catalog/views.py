@@ -565,7 +565,9 @@ class ProductCompositionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         product_id = self.kwargs['product_pk']
-        return ProductComposition.all_objects.filter(tenant=self.request.tenant, kit_id=product_id)
+        return ProductComposition.all_objects.select_related(
+            'component', 'component__base_unit',
+        ).filter(tenant=self.request.tenant, kit_id=product_id)
 
     def perform_create(self, serializer):
         kit = get_object_or_404(

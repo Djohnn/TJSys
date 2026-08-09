@@ -14,5 +14,11 @@ describe('formatQuantity', () => {
     expect(formatQuantity('1.000000', { precision: 3, symbol: 'kg' })).toBe('1kg')
     expect(formatQuantity('0.500000', { precision: 3, symbol: 'kg' })).toBe('0.500kg')
     expect(formatQuantity('1.250000', { precision: 3, symbol: 'kg' })).toBe('1.250kg')
+    expect(formatQuantity('1.000000', { precision: 3, symbol: 'KG' })).toBe('1kg')
+  })
+
+  it('does not append count-unit symbols', () => {
+    expect(formatQuantity('10.000000', { precision: 0, symbol: 'UN' })).toBe('10')
+    expect(formatQuantity('1.2345', { precision: 3, symbol: 'kg' })).toBe('1.235kg')
   })
 })

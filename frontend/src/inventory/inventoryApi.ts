@@ -29,6 +29,7 @@ export interface StockMovement {
   product_name: string
   branch: string
   branch_name: string
+  location_name?: string
   type: 'in' | 'out' | 'transfer' | 'adjust'
   quantity: string
   unit_symbol?: string

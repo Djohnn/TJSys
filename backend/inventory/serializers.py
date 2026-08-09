@@ -132,6 +132,7 @@ class StockMovementSerializer(FullCleanModelSerializer):
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
     unit_symbol = serializers.CharField(source='unit.symbol', read_only=True)
     unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
+    branch_name = serializers.CharField(source='location.branch.name', read_only=True)
 
     class Meta:
         model = StockMovement
@@ -149,6 +150,7 @@ class StockMovementSerializer(FullCleanModelSerializer):
             'unit',
             'unit_symbol',
             'unit_precision',
+            'branch_name',
             'factor',
             'unit_cost',
             'notes',
@@ -175,6 +177,7 @@ class StockBalanceSerializer(FullCleanModelSerializer):
     unit_name = serializers.CharField(source='product.base_unit.name', read_only=True)
     unit_symbol = serializers.CharField(source='product.base_unit.symbol', read_only=True)
     unit_precision = serializers.IntegerField(source='product.base_unit.precision', read_only=True)
+    branch_name = serializers.CharField(source='location.branch.name', read_only=True)
     location_code = serializers.CharField(source='location.code', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
@@ -194,6 +197,7 @@ class StockBalanceSerializer(FullCleanModelSerializer):
             'unit_name',
             'unit_symbol',
             'unit_precision',
+            'branch_name',
             'location',
             'location_code',
             'location_name',

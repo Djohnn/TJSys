@@ -9,6 +9,7 @@ import type { PaginatedResponse } from '@/organization/organizationApi'
 import LoadingState from '@/components/LoadingState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
 import Badge from '@/components/ui/Badge'
 import type { PurchaseReceipt } from './receivingApi'
 import { createReceipt } from './receivingApi'
@@ -33,6 +34,8 @@ interface OrderDetail {
     quantity: string
     unit_price: string
     total: string
+    unit_symbol?: string
+    unit_precision?: number
   }[]
 }
 
@@ -152,8 +155,8 @@ export default function ReceiptForm({ onSuccess: _onSuccess, onCancel }: Receipt
                 {createdReceipt.items.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
-                    <td className="px-4 py-3 text-neutral-700">{item.ordered_quantity}</td>
-                    <td className="px-4 py-3 text-neutral-700">{item.received_quantity}</td>
+                    <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.ordered_quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
+                    <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.received_quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                     <td className="px-4 py-3 text-neutral-700">{item.unit_name}</td>
                   </tr>
                 ))}
@@ -226,7 +229,7 @@ export default function ReceiptForm({ onSuccess: _onSuccess, onCancel }: Receipt
                     return (
                       <tr key={item.id} className="border-b border-border last:border-0">
                         <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
-                        <td className="px-4 py-3 text-neutral-700">{item.quantity}</td>
+                        <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                         <td className="px-4 py-3">
                           <input
                             type="number"
@@ -251,7 +254,7 @@ export default function ReceiptForm({ onSuccess: _onSuccess, onCancel }: Receipt
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-neutral-700">UN</td>
+                        <td className="px-4 py-3 text-neutral-700">{item.unit_symbol ?? '--'}</td>
                       </tr>
                     )
                   })}

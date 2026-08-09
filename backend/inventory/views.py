@@ -177,7 +177,9 @@ class StockLotViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        return StockLot.objects.select_related('product').filter(tenant=self.request.tenant)
+        return StockLot.objects.select_related(
+            'product', 'product__base_unit',
+        ).filter(tenant=self.request.tenant)
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
@@ -399,7 +401,9 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         qs = StockMovement.objects.select_related(
             'operation',
             'product',
+            'product__base_unit',
             'location',
+            'location__branch',
             'lot',
             'unit',
         ).filter(tenant=self.request.tenant)
@@ -426,6 +430,7 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = StockBalance.objects.select_related(
             'product',
+            'product__base_unit',
             'location',
             'location__branch',
             'lot',
