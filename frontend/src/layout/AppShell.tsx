@@ -7,25 +7,43 @@ import Navigation from './Navigation'
 export default function AppShell(): ReactNode {
   const auth = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [openFlyout, setOpenFlyout] = useState<string | null>(null)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const flyoutTriggerRef = useRef<HTMLElement | null>(null)
 
   const closeMenu = () => {
     setMenuOpen(false)
     window.setTimeout(() => menuTriggerRef.current?.focus(), 0)
   }
 
+  const closeFlyout = () => {
+    setOpenFlyout(null)
+    window.setTimeout(() => flyoutTriggerRef.current?.focus(), 0)
+  }
+
+  const toggleFlyout = (id: string, trigger: HTMLElement) => {
+    flyoutTriggerRef.current = trigger
+    setOpenFlyout((prev) => (prev === id ? null : id))
+  }
+
   useEffect(() => {
-    if (!menuOpen) return
+    if (!menuOpen && !openFlyout) return
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu()
+      if (event.key !== 'Escape') return
+      if (openFlyout) closeFlyout()
+      else closeMenu()
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [menuOpen])
+  }, [menuOpen, openFlyout])
 
   return (
     <div data-testid="app-shell" className="flex min-h-screen overflow-x-hidden">
-      <Navigation />
+      <Navigation
+        openFlyout={openFlyout}
+        onToggleFlyout={toggleFlyout}
+        onFlyoutClose={closeFlyout}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <header role="banner" className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-white px-4 sm:px-6">
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:border focus:rounded">

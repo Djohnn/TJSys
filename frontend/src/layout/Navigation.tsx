@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
-import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationItem } from './navigationModel'
+import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationIcon, type NavigationItem } from './navigationModel'
 
-function ModuleIcon({ type }: { type: NavigationItem['icon'] }): ReactNode {
-  const paths: Record<NavigationItem['icon'], string> = {
+function ModuleIcon({ type }: { type: NavigationIcon }): ReactNode {
+  const paths: Record<NavigationIcon, string> = {
     home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
     star: 'm12 3 2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.35l-5.4 2.84 1.03-6.02L3.26 9.35l6.04-.88z',
     catalog: 'M4 5.5h16v13H4zM8 5.5v13M16 5.5v13',
@@ -18,7 +18,61 @@ function ModuleIcon({ type }: { type: NavigationItem['icon'] }): ReactNode {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6"><path strokeLinecap="round" strokeLinejoin="round" d={paths[type]} /></svg>
 }
 
-function ModuleRail({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): ReactNode {
+interface FlyoutProps {
+  item: NavigationItem
+  openFlyout: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
+  onNavigate?: () => void
+}
+
+function FlyoutTrigger({ item, openFlyout, onToggleFlyout, onFlyoutClose, onNavigate }: FlyoutProps): ReactNode {
+  const isOpen = openFlyout === item.id
+  return (
+    <div className="relative">
+      <a
+        role="button"
+        href={item.route ?? '#'}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={(event) => {
+          event.preventDefault()
+          if (isOpen) onFlyoutClose?.()
+          else onToggleFlyout?.(item.id, event.currentTarget)
+        }}
+        className={`group flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors ${isOpen ? 'bg-[var(--shell-active)] text-white ring-1 ring-white/25' : 'text-blue-100/75 hover:bg-white/10 hover:text-white'}`}>
+        <ModuleIcon type={item.icon ?? 'sales'} />
+        <span className="text-[10px] font-semibold leading-tight">{item.label}</span>
+      </a>
+      {isOpen && item.children && (
+        <div role="menu" aria-label={item.label} data-testid={`flyout-${item.id}`} className="absolute left-full top-0 z-50 ml-1 w-56 rounded-xl border border-white/10 bg-[var(--shell-ink)] p-2 shadow-2xl">
+          {item.children.map((child) => {
+            if (child.status === 'planned' || !child.route) {
+              return (
+                <span key={child.id} role="menuitem" aria-disabled="true" className="flex min-h-10 cursor-default items-center rounded-lg px-4 text-sm font-semibold text-blue-100/45">
+                  {child.label}
+                </span>
+              )
+            }
+            return (
+              <Link key={child.id} role="menuitem" to={child.route} onClick={onNavigate ?? onFlyoutClose} className="flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white">
+                {child.label}
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ModuleRail({ pathname, openFlyout, onToggleFlyout, onFlyoutClose, onNavigate }: {
+  pathname: string
+  openFlyout: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
+  onNavigate?: () => void
+}): ReactNode {
   return (
     <div data-testid="module-navigation" className="flex w-[88px] shrink-0 flex-col bg-[var(--shell-ink)] text-white">
       <h1 aria-label="TJSys ERP" className="flex h-[78px] flex-col items-center justify-center border-b border-white/10">
@@ -27,15 +81,27 @@ function ModuleRail({ pathname, onNavigate }: { pathname: string; onNavigate?: (
       </h1>
       <div className="shell-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-3">
         {MODULE_ITEMS.map((item) => {
+          if (item.children) {
+            return (
+              <FlyoutTrigger
+                key={item.id}
+                item={item}
+                openFlyout={openFlyout}
+                onToggleFlyout={onToggleFlyout}
+                onFlyoutClose={onFlyoutClose}
+                onNavigate={onNavigate}
+              />
+            )
+          }
           const active = item.id === 'catalog'
             ? pathname.startsWith('/catalog')
             : item.id === 'favorites'
               ? false
-              : isRouteActive(pathname, item.to)
+              : isRouteActive(pathname, item.route ?? '')
           return (
-            <Link key={item.id} to={item.to} onClick={onNavigate} aria-current={active ? 'page' : undefined}
+            <Link key={item.id} to={item.route ?? '#'} onClick={onNavigate} aria-current={active ? 'page' : undefined}
               className={`group flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors ${active ? 'bg-[var(--shell-active)] text-white ring-1 ring-white/25' : 'text-blue-100/75 hover:bg-white/10 hover:text-white'}`}>
-              <ModuleIcon type={item.icon} />
+              <ModuleIcon type={item.icon ?? 'home'} />
               <span className="text-[10px] font-semibold leading-tight">{item.label}</span>
             </Link>
           )
@@ -72,12 +138,15 @@ function CatalogContext({ pathname, onNavigate }: { pathname: string; onNavigate
 interface NavigationProps {
   variant?: 'desktop' | 'drawer'
   onNavigate?: () => void
+  openFlyout?: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
 }
 
-export default function Navigation({ variant = 'desktop', onNavigate }: NavigationProps): ReactNode {
+export default function Navigation({ variant = 'desktop', onNavigate, openFlyout = null, onToggleFlyout, onFlyoutClose }: NavigationProps): ReactNode {
   const { pathname } = useLocation()
   const className = variant === 'desktop'
     ? 'hidden min-h-screen shrink-0 lg:flex'
     : 'flex h-full min-h-0 w-full shrink-0'
-  return <nav data-testid={variant === 'desktop' ? 'main-navigation' : undefined} aria-label={variant === 'desktop' ? 'Navegação principal' : 'Navegação móvel'} className={className}><ModuleRail pathname={pathname} onNavigate={onNavigate} /><CatalogContext pathname={pathname} onNavigate={onNavigate} /></nav>
+  return <nav data-testid={variant === 'desktop' ? 'main-navigation' : undefined} aria-label={variant === 'desktop' ? 'Navegação principal' : 'Navegação móvel'} className={className}><ModuleRail pathname={pathname} openFlyout={openFlyout} onToggleFlyout={onToggleFlyout} onFlyoutClose={onFlyoutClose} onNavigate={onNavigate} /><CatalogContext pathname={pathname} onNavigate={onNavigate} /></nav>
 }
