@@ -9,6 +9,7 @@ import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
 import Badge from '@/components/ui/Badge'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -153,7 +154,7 @@ export default function MovementsPage() {
                     <td className="px-4 py-3">
                       <Badge testId="movement-type-badge" variant={TYPE_BADGE[mov.type] ?? 'neutral'}>{TYPE_LABELS[mov.type] ?? mov.type}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-neutral-700">{mov.quantity}</td>
+                    <td className="px-4 py-3 text-neutral-700">{formatQuantity(mov.quantity, { precision: mov.unit_precision, symbol: mov.unit_symbol })}</td>
                     <td className="px-4 py-3 text-neutral-700">{mov.reason}</td>
                     <td className="px-4 py-3 text-neutral-700">{mov.created_by_name}</td>
                   </tr>

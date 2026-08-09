@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { fetchReceiptDetail, cancelReceipt } from './receivingApi'
+import { formatQuantity } from '@/components/formatQuantity'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Rascunho',
@@ -83,8 +84,8 @@ export default function ReceiptDetailPage() {
               {receipt.items.map((item) => (
                 <tr key={item.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
-                  <td className="px-4 py-3 text-neutral-700">{item.ordered_quantity}</td>
-                  <td className="px-4 py-3 text-neutral-700">{item.received_quantity}</td>
+                  <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.ordered_quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
+                  <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.received_quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                   <td className="px-4 py-3 text-neutral-700">{item.unit_name}</td>
                 </tr>
               ))}

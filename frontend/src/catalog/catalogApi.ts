@@ -107,6 +107,9 @@ export interface ProductStockData {
   maximum_quantity: string | null
   reorder_point: string
   allow_negative: boolean
+  unit_name?: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export interface ProductCode {
@@ -200,6 +203,9 @@ export interface ProductStockSummary {
   minimum_quantity: string
   maximum_quantity: string | null
   reorder_point: string
+  unit_name?: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export interface ApplyProductResponse {
@@ -379,6 +385,8 @@ export interface CompositionItem {
   component_sku: string
   component_name: string
   quantity: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export function fetchComposition(

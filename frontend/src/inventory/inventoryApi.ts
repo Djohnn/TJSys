@@ -18,6 +18,8 @@ export interface StockBalance {
   location_name: string
   quantity: string
   unit_name: string
+  unit_symbol?: string
+  unit_precision?: number
   updated_at: string
 }
 
@@ -29,6 +31,8 @@ export interface StockMovement {
   branch_name: string
   type: 'in' | 'out' | 'transfer' | 'adjust'
   quantity: string
+  unit_symbol?: string
+  unit_precision?: number
   reason: string
   reference_id: string | null
   created_at: string
@@ -42,6 +46,8 @@ export interface InventoryLot {
   product_sku: string
   lot_number: string
   quantity: string
+  unit_symbol?: string
+  unit_precision?: number
   expiry_date: string | null
   branch: string
   branch_name: string
@@ -204,6 +210,9 @@ export interface ProductStockSummary {
   minimum_quantity: string
   maximum_quantity: string | null
   reorder_point: string
+  unit_name?: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export function fetchBranches(

@@ -201,6 +201,8 @@ def test_balance_search_accepts_product_name_or_sku(api_context):
     assert response.status_code == 200
     assert response.json()['count'] == 1
     assert response.json()['results'][0]['product_sku'] == 'API-PROD'
+    assert response.json()['results'][0]['unit_precision'] == ctx['unit'].precision
+    assert response.json()['results'][0]['unit_symbol'] == ctx['unit'].symbol
 
 
 @pytest.mark.django_db

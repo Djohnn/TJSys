@@ -9,6 +9,7 @@ import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
 
 export default function LotsPage() {
   const { selectedTenant } = useTenant()
@@ -121,7 +122,7 @@ export default function LotsPage() {
                     <td className="px-4 py-3 text-neutral-700">{lot.product_name}</td>
                     <td className="px-4 py-3 text-neutral-700">{lot.lot_number}</td>
                     <td className="px-4 py-3 text-neutral-700">{lot.expiry_date ? new Date(lot.expiry_date).toLocaleDateString('pt-BR') : '-'}</td>
-                    <td className="px-4 py-3 text-neutral-700">{lot.quantity}</td>
+                    <td className="px-4 py-3 text-neutral-700">{formatQuantity(lot.quantity, { precision: lot.unit_precision, symbol: lot.unit_symbol })}</td>
                   </tr>
                 ))}
               </tbody>

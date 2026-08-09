@@ -306,12 +306,17 @@ class CloseCashSessionSerializer(serializers.Serializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
+    unit_symbol = serializers.CharField(source='unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
+
     class Meta:
         model = SaleItem
         fields = [
             'id',
             'product',
             'unit',
+            'unit_symbol',
+            'unit_precision',
             'stock_operation',
             'quantity',
             'factor',

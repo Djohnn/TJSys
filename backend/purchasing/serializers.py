@@ -60,6 +60,7 @@ class PurchaseOrderItemSerializer(FullCleanModelSerializer):
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     unit_symbol = serializers.CharField(source='unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
     line_total = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -76,6 +77,7 @@ class PurchaseOrderItemSerializer(FullCleanModelSerializer):
             'product_name',
             'unit',
             'unit_symbol',
+            'unit_precision',
             'quantity',
             'unit_cost',
             'factor',
@@ -158,6 +160,9 @@ class PurchaseReceiptItemSerializer(FullCleanModelSerializer):
         source='purchase_order_item.product.sku',
         read_only=True,
     )
+    unit_name = serializers.CharField(source='purchase_order_item.unit.name', read_only=True)
+    unit_symbol = serializers.CharField(source='purchase_order_item.unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='purchase_order_item.unit.precision', read_only=True)
     line_total = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -172,6 +177,9 @@ class PurchaseReceiptItemSerializer(FullCleanModelSerializer):
             'purchase_order_item',
             'product_name',
             'product_sku',
+            'unit_name',
+            'unit_symbol',
+            'unit_precision',
             'quantity_received',
             'unit_cost',
             'line_total',

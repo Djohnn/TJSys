@@ -23,6 +23,8 @@ export interface ReceiptItem {
   ordered_quantity: string
   received_quantity: string
   unit_name: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export interface SupplierReturn {

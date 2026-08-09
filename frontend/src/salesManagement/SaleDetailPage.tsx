@@ -13,6 +13,7 @@ import RefundDialog from './RefundDialog'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
+import { formatQuantity } from '@/components/formatQuantity'
 
 export default function SaleDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -80,7 +81,7 @@ export default function SaleDetailPage() {
                   {sale.items.map((item) => (
                     <tr key={item.id} className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
-                      <td className="px-4 py-3 text-neutral-700">{item.quantity}</td>
+                      <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                       <td className="px-4 py-3 text-neutral-700">{item.unit_price}</td>
                       <td className="px-4 py-3 text-neutral-700">{item.total}</td>
                     </tr>

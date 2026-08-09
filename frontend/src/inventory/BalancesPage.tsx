@@ -9,6 +9,7 @@ import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
 
 export default function BalancesPage() {
   const { selectedTenant } = useTenant()
@@ -122,7 +123,7 @@ export default function BalancesPage() {
                     <td className="px-4 py-3 text-neutral-700">{bal.product_sku}</td>
                     <td className="px-4 py-3 text-neutral-700">{bal.branch_name}</td>
                     <td className="px-4 py-3 text-neutral-700">{bal.location_name}</td>
-                    <td className="px-4 py-3 text-neutral-700">{bal.quantity}</td>
+                    <td className="px-4 py-3 text-neutral-700">{formatQuantity(bal.quantity, { precision: bal.unit_precision, symbol: bal.unit_symbol })}</td>
                     <td className="px-4 py-3 text-neutral-700">{bal.unit_name}</td>
                     <td className="px-4 py-3 text-neutral-700">{new Date(bal.updated_at).toLocaleString('pt-BR')}</td>
                   </tr>

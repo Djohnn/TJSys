@@ -16,6 +16,8 @@ export interface PurchaseOrderItem {
   quantity: string
   unit_price: string
   total: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export interface PurchaseOrder {

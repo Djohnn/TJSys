@@ -12,6 +12,7 @@ import {
 } from '@/inventory/inventoryApi'
 import { stockPolicySchema, type StockPolicyFormData } from '@/inventory/inventorySchemas'
 import type { ProductStockSummary } from '@/inventory/inventoryApi'
+import { formatQuantity } from '@/components/formatQuantity'
 
 const STATUS_LABEL: Record<string, string> = {
   negative: 'Negativo',
@@ -29,10 +30,6 @@ const STATUS_CLASS: Record<string, string> = {
 
 interface ProductInventoryStepProps {
   productId: string
-}
-
-function formatQuantity(value: string | null | undefined): string {
-  return value != null ? value.replace('.', ',') : '--'
 }
 
 export default function ProductInventoryStep({ productId }: ProductInventoryStepProps): ReactNode {
@@ -102,7 +99,7 @@ export default function ProductInventoryStep({ productId }: ProductInventoryStep
             <div>
               <p className="text-sm text-neutral-500">Disponível em estoque</p>
               <p className="text-3xl font-black text-neutral-900 mt-1" data-testid="stock-available-value">
-                {formatQuantity(summary.available)}
+                {formatQuantity(summary.available, { precision: summary.unit_precision, symbol: summary.unit_symbol })}
               </p>
             </div>
             <div
@@ -117,19 +114,19 @@ export default function ProductInventoryStep({ productId }: ProductInventoryStep
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl border border-border bg-white p-4">
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Quantidade atual</p>
-              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-current-value">{formatQuantity(summary.quantity)}</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-current-value">{formatQuantity(summary.quantity, { precision: summary.unit_precision, symbol: summary.unit_symbol })}</p>
             </div>
             <div className="rounded-xl border border-border bg-white p-4">
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Reservada</p>
-              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-reserved-value">{formatQuantity(summary.reserved)}</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-reserved-value">{formatQuantity(summary.reserved, { precision: summary.unit_precision, symbol: summary.unit_symbol })}</p>
             </div>
             <div className="rounded-xl border border-border bg-white p-4">
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Mínima</p>
-              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-minimum-value">{formatQuantity(summary.minimum_quantity)}</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-minimum-value">{formatQuantity(summary.minimum_quantity, { precision: summary.unit_precision, symbol: summary.unit_symbol })}</p>
             </div>
             <div className="rounded-xl border border-border bg-white p-4">
               <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Ponto de reposição</p>
-              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-reorder-value">{formatQuantity(summary.reorder_point)}</p>
+              <p className="mt-1 text-xl font-bold text-neutral-900" data-testid="stock-reorder-value">{formatQuantity(summary.reorder_point, { precision: summary.unit_precision, symbol: summary.unit_symbol })}</p>
             </div>
           </div>
 

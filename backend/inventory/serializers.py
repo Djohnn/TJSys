@@ -73,6 +73,8 @@ class StockLocationSerializer(FullCleanModelSerializer):
 class StockLotSerializer(FullCleanModelSerializer):
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
+    unit_symbol = serializers.CharField(source='product.base_unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='product.base_unit.precision', read_only=True)
     is_expired = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -82,6 +84,8 @@ class StockLotSerializer(FullCleanModelSerializer):
             'product',
             'product_sku',
             'product_name',
+            'unit_symbol',
+            'unit_precision',
             'lot_number',
             'manufacture_date',
             'expiry_date',
@@ -127,6 +131,7 @@ class StockMovementSerializer(FullCleanModelSerializer):
     location_code = serializers.CharField(source='location.code', read_only=True)
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
     unit_symbol = serializers.CharField(source='unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
 
     class Meta:
         model = StockMovement
@@ -143,6 +148,7 @@ class StockMovementSerializer(FullCleanModelSerializer):
             'quantity',
             'unit',
             'unit_symbol',
+            'unit_precision',
             'factor',
             'unit_cost',
             'notes',
@@ -166,6 +172,9 @@ class StockBalanceSerializer(FullCleanModelSerializer):
     )
     product_sku = serializers.CharField(source='product.sku', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
+    unit_name = serializers.CharField(source='product.base_unit.name', read_only=True)
+    unit_symbol = serializers.CharField(source='product.base_unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='product.base_unit.precision', read_only=True)
     location_code = serializers.CharField(source='location.code', read_only=True)
     location_name = serializers.CharField(source='location.name', read_only=True)
     lot_number = serializers.CharField(source='lot.lot_number', read_only=True)
@@ -182,6 +191,9 @@ class StockBalanceSerializer(FullCleanModelSerializer):
             'product',
             'product_sku',
             'product_name',
+            'unit_name',
+            'unit_symbol',
+            'unit_precision',
             'location',
             'location_code',
             'location_name',

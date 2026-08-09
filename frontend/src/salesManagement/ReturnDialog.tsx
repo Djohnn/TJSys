@@ -6,6 +6,7 @@ import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
 import { useTenant } from '@/tenant/TenantProvider'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
 
 interface SaleItem {
   id: string
@@ -14,6 +15,8 @@ interface SaleItem {
   quantity: string
   unit_price: string
   total: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 interface Sale {
@@ -155,7 +158,7 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
                   {sale.items.map((item) => (
                     <tr key={item.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
-                      <td className="px-4 py-3 text-neutral-700">{item.quantity}</td>
+                      <td className="px-4 py-3 text-neutral-700">{formatQuantity(item.quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                       <td className="px-4 py-3">
                         <input
                           type="number"

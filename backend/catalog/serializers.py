@@ -72,6 +72,8 @@ class ProductSerializer(FullCleanModelSerializer):
     price = serializers.SerializerMethodField()
     unit = serializers.UUIDField(source='base_unit_id', read_only=True)
     unit_name = serializers.CharField(source='base_unit.name', read_only=True)
+    unit_symbol = serializers.CharField(source='base_unit.symbol', read_only=True)
+    unit_precision = serializers.IntegerField(source='base_unit.precision', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True, default='')
     barcode = serializers.SerializerMethodField()
 
@@ -87,6 +89,8 @@ class ProductSerializer(FullCleanModelSerializer):
             'base_unit',
             'unit',
             'unit_name',
+            'unit_symbol',
+            'unit_precision',
             'barcode',
             'requires_lot',
             'requires_expiry',
