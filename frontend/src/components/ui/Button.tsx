@@ -32,3 +32,5 @@ export function Button({ variant = 'primary', size = 'md', loading, children, cl
     </button>
   )
 }
+
+export default Button
