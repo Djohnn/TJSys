@@ -44,6 +44,8 @@ Registro oficial dos documentos do TJSys.
 | DESIGN-CATALOG-NEXT | Especificação Sprints 31–33 | 1.0.0 | Approved | `superpowers/specs/2026-08-01-catalog-next-sprints-design.md` |
 | PLAN-CATALOG-NEXT | Plano Sprints 31–33 | 1.0.0 | Approved | `superpowers/plans/2026-08-01-catalog-next-sprints-implementation-plan.md` |
 | DESIGN-SYSTEM-MANIFEST | Design System Reference Manifest | 1.0.0 | Approved | `02_Architecture/design-system/reference/manifest.json` |
+| DESIGN-R1-TOKENS | Sprint R1 Tokens e Componentes Fundamentais (Design) | 1.0.0 | Approved | `superpowers/specs/2026-08-09-sprint-r1-tokens-e-componentes-fundamentais-design.md` |
+| PLAN-R1-TOKENS | Sprint R1 Tokens e Componentes Fundamentais (Plano) | 1.0.0 | Approved | `superpowers/plans/2026-08-09-sprint-r1-tokens-e-componentes-fundamentais-implementation-plan.md` |
 
 ## Material histórico
 
