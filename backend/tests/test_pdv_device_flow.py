@@ -9,8 +9,9 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from catalog.models import Product, ProductPrice, Unit
-from inventory.models import StockLocation
+from inventory.models import StockBalance, StockLocation, StockMovement
 from inventory.services import create_receipt
+from sales.models import CashMovement, Sale, SalePayment
 from sales.services import open_cash_session
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Device, Tenant, TenantMembership
@@ -162,3 +163,50 @@ def test_pdv_device_can_confirm_counter_sale_without_csrf(pdv_device_context):
 
     assert response.status_code == 201
     assert response.json()['net_total'] == '12.50'
+
+
+@pytest.mark.django_db
+def test_pdv_counter_sale_idempotency_replay_has_no_second_stock_or_payment_effect(
+    pdv_device_context,
+):
+    ctx = pdv_device_context
+    client = _pdv_client(ctx)
+    payload = {
+        'branch': str(ctx['branch'].id),
+        'stock_location': str(ctx['location'].id),
+        'items': [
+            {
+                'product': str(ctx['product'].id),
+                'unit': str(ctx['unit'].id),
+                'quantity': '1.000000',
+                'factor': '1.000000',
+            }
+        ],
+        'payments': [{'method': 'cash', 'amount': '12.50'}],
+    }
+    headers = {'HTTP_HOST': 'localhost', 'HTTP_IDEMPOTENCY_KEY': 'pdv-device-idempotent-sale'}
+
+    first = client.post('/api/v1/sales/counter/', payload, format='json', **headers)
+    assert first.status_code == 201
+    sale_id = first.json()['id']
+    balance = StockBalance.all_objects.get(
+        tenant=ctx['tenant'], product=ctx['product'], location=ctx['location'], lot=None
+    )
+    movement_count = StockMovement.all_objects.filter(tenant=ctx['tenant']).count()
+    payment_count = SalePayment.all_objects.filter(tenant=ctx['tenant']).count()
+    cash_movement_count = CashMovement.all_objects.filter(
+        tenant=ctx['tenant'], movement_type='sale_payment'
+    ).count()
+
+    replay = client.post('/api/v1/sales/counter/', payload, format='json', **headers)
+
+    balance.refresh_from_db()
+    assert replay.status_code == 201
+    assert replay.json()['id'] == sale_id
+    assert balance.quantity == Decimal('4.000000')
+    assert StockMovement.all_objects.filter(tenant=ctx['tenant']).count() == movement_count
+    assert SalePayment.all_objects.filter(tenant=ctx['tenant']).count() == payment_count
+    assert CashMovement.all_objects.filter(
+        tenant=ctx['tenant'], movement_type='sale_payment'
+    ).count() == cash_movement_count
+    assert Sale.all_objects.filter(tenant=ctx['tenant']).count() == 1
