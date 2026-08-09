@@ -207,6 +207,9 @@ capacidade de migrá-los é requisito de qualidade para produção futura.
 
 Cada sprint inclui:
 
+- execução obrigatória com `subagent-driven-development`, usando um implementador novo por task;
+- revisão independente de conformidade com a spec e, depois, revisão independente de qualidade;
+- correção e re-revisão de todo achado antes da próxima task, além de revisão final da sprint completa;
 - testes unitários de domínio e componentes;
 - testes de API positivos, negativos, concorrência, idempotência e isolamento tenant;
 - testes de migrations com dados anteriores;

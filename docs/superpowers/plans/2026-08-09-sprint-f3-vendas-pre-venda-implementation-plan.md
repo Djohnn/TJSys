@@ -1,12 +1,26 @@
 # Sprint F3 — Vendas pré-venda Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Fresh implementer, spec reviewer and quality reviewer subagents are mandatory for every task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** criar orçamento pedido e conversão idempotente em venda.
 
 **Architecture:** Quote e SalesOrder usam máquina de estados e linhas versionadas. Serviço de conversão chama o fluxo canônico de venda.
 
 **Tech Stack:** Django, DRF, React, PostgreSQL
+
+---
+
+## Protocolo obrigatório de subagentes
+
+1. O agente controlador lê o plano inteiro, extrai todas as tasks e entrega ao subagente somente o texto completo da task atual, o contexto indispensável e os critérios de aceite.
+2. Cada task recebe um subagente implementador novo. Tasks da mesma sprint são executadas sequencialmente; implementadores paralelos não podem editar o mesmo worktree.
+3. O implementador usa `test-driven-development`: escreve RED, confirma a falha esperada, implementa GREEN, executa os gates, faz auto-revisão e cria o commit da task.
+4. Depois do implementador, um subagente novo e independente revisa conformidade com a spec. Ausência, excesso de escopo ou divergência bloqueia a task.
+5. O mesmo implementador corrige os achados de spec; o revisor de spec revisa novamente até aprovar.
+6. Somente após aprovação da spec, outro subagente novo revisa qualidade, segurança, testes, legibilidade e riscos de regressão.
+7. O implementador corrige os achados de qualidade e o revisor repete a revisão. A próxima task só começa quando as duas revisões estiverem aprovadas e os testes estiverem verdes.
+8. Depois de todas as tasks, um subagente final revisa a sprint completa contra esta spec, o plano, migrations, RLS, integrações e evidências de teste.
+9. O controlador registra hashes dos commits, saídas raw dos testes, preocupações e decisão dos revisores; auto-revisão do implementador nunca substitui as duas revisões independentes.
 
 ---
 

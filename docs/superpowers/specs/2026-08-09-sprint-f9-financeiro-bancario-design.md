@@ -5,6 +5,10 @@
 **Estado:** `planned-future`
 **Dependências:** F3, F8
 
+## Processo obrigatório de implementação e revisão
+
+A sprint deve ser executada com `subagent-driven-development` em worktree isolado. Cada task recebe um subagente implementador novo, seguido obrigatoriamente por um subagente revisor de conformidade com esta spec e, somente depois da aprovação funcional, um subagente revisor de qualidade. Achados são corrigidos pelo implementador e revisados novamente; nenhuma task avança com issue aberta. Ao final, um quarto papel independente revisa a integração completa da sprint. Execução manual sem essas revisões não satisfaz o gate de conclusão.
+
 ## Objetivo
 
 Entregar financeiro bancário como incremento vertical, tenant-safe, acessível e verificável, sem quebrar os fluxos já publicados.

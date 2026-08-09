@@ -30,12 +30,13 @@ Este índice é o ponto de entrada para execução. A Onda A segue estritamente 
 
 ## Regras de promoção
 
-1. `planned-future` não autoriza implementação nem criação de páginas simuladas.
-2. Uma sprint vira `ready` somente quando dependências estão `done`, a spec foi revalidada e dados/integrações foram inventariados.
-3. A execução usa TDD, commits pequenos e o gate vertical descrito no plano individual.
-4. Um destino do flyout só muda de `planned` para rota ativa depois que backend, UI, permissão e E2E estiverem verdes.
-5. Reset de banco não substitui migration; novas tabelas tenant-scoped exigem RLS.
+1. Todas as tasks usam um subagente implementador novo, revisão independente de spec e revisão independente de qualidade; nenhuma revisão pode ser pulada ou substituída por auto-revisão.
+2. `planned-future` não autoriza implementação nem criação de páginas simuladas.
+3. Uma sprint vira `ready` somente quando dependências estão `done`, a spec foi revalidada e dados/integrações foram inventariados.
+4. A execução usa TDD, commits pequenos e o gate vertical descrito no plano individual.
+5. Um destino do flyout só muda de `planned` para rota ativa depois que backend, UI, permissão e E2E estiverem verdes.
+6. Reset de banco não substitui migration; novas tabelas tenant-scoped exigem RLS.
 
 ## Handoff de execução
 
-Para cada sprint, abra seu plano e execute com `subagent-driven-development` ou `executing-plans`. Não misture duas sprints com dependência entre si no mesmo lote. Registre o hash do commit de fechamento neste índice ao promover o estado.
+Para cada sprint, abra seu plano e execute obrigatoriamente com `subagent-driven-development`. Não misture duas sprints com dependência entre si no mesmo lote. Registre o implementador, os dois revisores, o revisor final, hashes dos commits e saída raw dos testes antes de promover o estado.
