@@ -105,7 +105,7 @@ export interface Sale {
 
 export interface SaleItem {
   id: string;
-  product: Product;
+  product: Product | string;
   quantity: string;
   unit: Unit;
   factor: string;

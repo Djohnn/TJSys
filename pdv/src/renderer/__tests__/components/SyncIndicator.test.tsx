@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { SyncIndicator } from '../../components/SyncIndicator';
+import { getElectronAPI } from '../../../shared/electron';
 
 beforeEach(() => {
   window.electronAPI = {
+    ...getElectronAPI(),
     getConnectivityStatus: vi.fn(),
     checkConnectivity: vi.fn(),
     getSyncStatus: vi.fn(),
@@ -17,10 +19,10 @@ afterEach(() => {
 
 describe('SyncIndicator', () => {
   it('shows online state with enabled button when connected and no pending', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -31,10 +33,10 @@ describe('SyncIndicator', () => {
   });
 
   it('shows offline state with ENABLED button when disconnected (click to check)', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: false, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -46,10 +48,10 @@ describe('SyncIndicator', () => {
   });
 
   it('shows pending count when there are pending items', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 3, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -59,10 +61,10 @@ describe('SyncIndicator', () => {
   });
 
   it('shows singular pending label for single item', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 1, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -72,10 +74,10 @@ describe('SyncIndicator', () => {
   });
 
   it('shows syncing state with disabled button during sync', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'syncing', pendingCount: 5, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -86,13 +88,13 @@ describe('SyncIndicator', () => {
   });
 
   it('triggers sync on click when online with pending items', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 2, lastSyncAt: null, error: null },
     });
-    window.electronAPI.startSync.mockResolvedValue({
+    vi.mocked(window.electronAPI.startSync).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -105,10 +107,10 @@ describe('SyncIndicator', () => {
   });
 
   it('does not trigger sync when offline', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: false, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 2, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -121,13 +123,13 @@ describe('SyncIndicator', () => {
   });
 
   it('triggers connectivity check when clicking offline button', async () => {
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: false, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
-    window.electronAPI.checkConnectivity.mockResolvedValue({
+    vi.mocked(window.electronAPI.checkConnectivity).mockResolvedValue({
       success: true, data: { isOnline: true },
     });
     render(<SyncIndicator />);
@@ -144,10 +146,10 @@ describe('SyncIndicator', () => {
 
   it('updates state on polling interval', async () => {
     vi.useFakeTimers();
-    window.electronAPI.getConnectivityStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockResolvedValue({
       success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null },
     });
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
@@ -156,7 +158,7 @@ describe('SyncIndicator', () => {
       expect(screen.queryByText('Online')).toBeInTheDocument();
     }, { interval: 50, timeout: 3000 });
 
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 7, lastSyncAt: null, error: null },
     });
 
@@ -171,8 +173,8 @@ describe('SyncIndicator', () => {
   });
 
   it('falls back to offline when connectivity fetch fails', async () => {
-    window.electronAPI.getConnectivityStatus.mockRejectedValue(new Error('fail'));
-    window.electronAPI.getSyncStatus.mockResolvedValue({
+    vi.mocked(window.electronAPI.getConnectivityStatus).mockRejectedValue(new Error('fail'));
+    vi.mocked(window.electronAPI.getSyncStatus).mockResolvedValue({
       success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null },
     });
     render(<SyncIndicator />);
