@@ -147,6 +147,16 @@ dist/
 !frontend/e2e/*-snapshots/
 !frontend/e2e/*-snapshots/**
 
+# Backend tests are source artifacts and must be versioned, excluding Python
+# bytecode and test caches.
+!backend/
+!backend/tests/
+!backend/tests/**/
+!backend/tests/*.py
+!backend/tests/**/*.py
+backend/tests/__pycache__/
+*.pyc
+
 graphify-out/cost.json       
 # local only
 # graphify-out/cache/        
