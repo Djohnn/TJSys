@@ -53,6 +53,7 @@ from catalog.serializers import (
     UnitSerializer,
 )
 from catalog.services.events import emit_catalog_event
+from catalog.services.product_identity import create_product_ean
 from catalog.services.label_pdf import generate_label_pdf
 from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
 from inventory.services.product_stock import apply_initial_product_stock
@@ -921,6 +922,14 @@ class ProductApplyView(APIView):
         category = None
         if product_data.get('category'):
             category = Category.all_objects.get(tenant=tenant, id=product_data['category'])
+        brand_name = product_data.get('brand', '').strip()
+        brand_ref = None
+        if brand_name:
+            brand_ref, _ = Brand.all_objects.get_or_create(
+                tenant=tenant,
+                name=brand_name,
+                defaults={'is_active': True},
+            )
 
         product = Product.all_objects.create(
             tenant=tenant,
@@ -930,13 +939,21 @@ class ProductApplyView(APIView):
             category=category,
             base_unit=base_unit,
             product_kind=product_data.get('product_kind', ''),
-            brand=product_data.get('brand', ''),
+            brand=brand_name,
+            brand_ref=brand_ref,
+            subcategory=product_data.get('subcategory', ''),
             model=product_data.get('model', ''),
             tags=product_data.get('tags', []),
             tracks_inventory=product_data.get('tracks_inventory', False),
         )
         product.full_clean()
         product.save()
+
+        create_product_ean(
+            tenant=tenant,
+            product=product,
+            requested_value=product_data.get('barcode', ''),
+        )
 
         emit_catalog_event(
             action='catalog.product.created',

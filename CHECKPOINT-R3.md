@@ -1,6 +1,6 @@
 # Checkpoint — Sprint R3 (Produto: identidade, mídia e EAN automático)
 
-**Data:** 2026-08-09
+**Data:** 2026-08-10
 **Branch:** `codex/frontend-redesign-wave-a`
 **Worktree:** `C:\ERP\.worktrees\frontend-redesign-wave-a`
 

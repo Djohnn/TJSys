@@ -103,6 +103,7 @@ class ProductSerializer(FullCleanModelSerializer):
             'product_kind',
             'tracks_inventory',
             'brand',
+            'subcategory',
             'model',
             'tags',
             'scale_code',
@@ -455,6 +456,8 @@ class ApplyProductInputSerializer(serializers.Serializer):
     base_unit = serializers.UUIDField()
     category = serializers.UUIDField(required=False, allow_null=True)
     brand = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+    subcategory = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+    barcode = serializers.CharField(max_length=13, required=False, allow_blank=True, default='')
     model = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
     tags = serializers.JSONField(required=False, default=list)
     tracks_inventory = serializers.BooleanField(required=False, default=False)

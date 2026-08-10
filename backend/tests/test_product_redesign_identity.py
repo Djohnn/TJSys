@@ -93,7 +93,7 @@ def base_unit(tenant):
     ))
 
 
-def _apply_payload(command_id=None, barcode='', name=None, base_unit_id=None):
+def _apply_payload(command_id=None, barcode='', name=None, base_unit_id=None, brand='', subcategory=''):
     """Helper para montar o payload do POST /products/apply/.
     Gera SKU único automaticamente para evitar UniqueViolation."""
     if command_id is None:
@@ -106,6 +106,10 @@ def _apply_payload(command_id=None, barcode='', name=None, base_unit_id=None):
     }
     if barcode:
         product['barcode'] = barcode
+    if brand:
+        product['brand'] = brand
+    if subcategory:
+        product['subcategory'] = subcategory
     if base_unit_id:
         product['base_unit'] = str(base_unit_id)
     return {'command_id': command_id, 'product': product}
@@ -233,3 +237,17 @@ def test_r3_ean_is_tenant_isolated(client, user):
     # serem independentes entre tenants. Em RED, ambos vazios — falha legítima.
     assert len(barcode_a) == 13 and len(barcode_b) == 13
     assert barcode_a != barcode_b, f'EANs entre tenants devem ser independentes: {barcode_a!r} vs {barcode_b!r}'
+
+
+@pytest.mark.django_db(transaction=True)
+def test_r3_brand_and_subcategory_are_persisted(authed_client, tenant, base_unit):
+    response = _post_apply(authed_client, tenant, base_unit_id=base_unit.id, brand='Marca R3', subcategory='Bebidas')
+    assert response.status_code == status.HTTP_201_CREATED
+    from catalog.models import Brand, Product
+
+    product_id = response.json()['product']['id']
+    product = Product.all_objects.get(id=product_id)
+    assert product.brand == 'Marca R3'
+    assert product.subcategory == 'Bebidas'
+    assert product.brand_ref.name == 'Marca R3'
+    assert Brand.all_objects.filter(tenant=tenant, name='Marca R3').exists()
