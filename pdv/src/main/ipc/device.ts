@@ -1,13 +1,21 @@
-import { ipcMain } from 'electron';
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
-import type { DeviceInfo, ElectronResult } from '../../shared/electron';
+import type {
+  DeviceInfo,
+  DeviceTokenResponse,
+  ElectronResult,
+  RegisterDeviceInput,
+} from '../../shared/electron';
 
-export function setupDeviceHandlers() {
-  ipcMain.handle('device:register', async (_event, data: { name: string; branch: string; platform?: string; appVersion?: string; osVersion?: string }) => {
+export function setupDeviceHandlers(): void {
+  ipcMain.handle('device:register', async (
+    _event: IpcMainInvokeEvent,
+    data: RegisterDeviceInput,
+  ): Promise<ElectronResult<{ device_id: string }>> => {
     logger.info('Registering device', { name: data.name });
     try {
-      const res = await api.post('/devices/register/', data);
+      const res = await api.post<{ device_id: string }>('/devices/register/', data);
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to register device:', error);
@@ -15,9 +23,12 @@ export function setupDeviceHandlers() {
     }
   });
 
-  ipcMain.handle('device:validate', async (_event, apiKey: string) => {
+  ipcMain.handle('device:validate', async (
+    _event: IpcMainInvokeEvent,
+    apiKey: string,
+  ): Promise<ElectronResult<DeviceTokenResponse>> => {
     try {
-      const res = await api.post('/devices/validate/', { api_key: apiKey });
+      const res = await api.post<DeviceTokenResponse>('/devices/validate/', { api_key: apiKey });
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to validate device:', error);
@@ -25,9 +36,9 @@ export function setupDeviceHandlers() {
     }
   });
 
-  ipcMain.handle('device:refresh', async () => {
+  ipcMain.handle('device:refresh', async (): Promise<ElectronResult<DeviceTokenResponse>> => {
     try {
-      const res = await api.post('/devices/refresh/', {});
+      const res = await api.post<DeviceTokenResponse>('/devices/refresh/', {});
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to refresh device token:', error);

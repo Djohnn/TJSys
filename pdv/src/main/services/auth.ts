@@ -1,18 +1,12 @@
 import { api } from './api';
 import { getItem, setItem, removeItem } from '../utils/storage';
+import type { DeviceTokenResponse } from '../../shared/electron';
 
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const DEVICE_ID_KEY = 'device_id';
 const BRANCH_ID_KEY = 'branch_id';
 const API_KEY_KEY = 'api_key';
-
-export interface DeviceTokenResponse {
-  token: string;
-  refresh_token: string;
-  device_id: string;
-  branch_id: string | null;
-}
 
 export const auth = {
   async validateApiKey(apiKey: string): Promise<DeviceTokenResponse> {
@@ -30,13 +24,13 @@ export const auth = {
     return data;
   },
 
-  async refreshToken(): Promise<{ token: string; refresh_token: string }> {
+  async refreshToken(): Promise<DeviceTokenResponse> {
     const refreshToken = getItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    const response = await api.post<{ token: string; refresh_token: string }>('/devices/refresh/', {
+    const response = await api.post<DeviceTokenResponse>('/devices/refresh/', {
       refresh_token: refreshToken,
     });
 

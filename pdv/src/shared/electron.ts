@@ -21,9 +21,17 @@ export interface AuthTokenSyncInput {
   token: string;
   refresh_token: string;
   device_id: string;
-  branch_id?: string;
+  branch_id?: string | null;
   tenant_id?: string;
   api_key: string;
+}
+
+export interface DeviceTokenResponse {
+  token: string;
+  refresh_token: string;
+  device_id: string;
+  tenant_id: string;
+  branch_id: string | null;
 }
 
 export interface RegisterDeviceInput {
@@ -83,16 +91,16 @@ export interface ProductCachePriceInput {
 
 export interface ElectronAPI {
   // Auth
-  login(apiKey: string): Promise<ElectronResult<{ token: string; tenant_id: string; branch_id: string }>>;
+  login(apiKey: string): Promise<ElectronResult<DeviceTokenResponse>>;
   syncAuthTokens(data: AuthTokenSyncInput): Promise<ElectronResult<void>>;
   logout(): Promise<ElectronResult<void>>;
   checkAuth(): Promise<ElectronResult<{ isAuthenticated: boolean }>>;
-  refreshToken(): Promise<ElectronResult<{ token: string }>>;
+  refreshToken(): Promise<ElectronResult<DeviceTokenResponse>>;
 
   // Device
   registerDevice(data: RegisterDeviceInput): Promise<ElectronResult<{ device_id: string }>>;
-  validateDevice(apiKey: string): Promise<ElectronResult<{ token: string; tenant_id: string; branch_id: string }>>;
-  refreshDeviceToken(): Promise<ElectronResult<void>>;
+  validateDevice(apiKey: string): Promise<ElectronResult<DeviceTokenResponse>>;
+  refreshDeviceToken(): Promise<ElectronResult<DeviceTokenResponse>>;
   getDeviceInfo(): Promise<ElectronResult<DeviceInfo | null>>;
 
   // Cash Session
@@ -155,20 +163,50 @@ const mockElectronAPI: ElectronAPI = {
   // Auth
   login: async (_apiKey) => ({
     success: true,
-    data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' },
+    data: {
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      device_id: 'mock-device',
+      tenant_id: 'mock-tenant',
+      branch_id: null,
+    },
   }),
   syncAuthTokens: async (_data) => ({ success: true, data: undefined }),
   logout: async () => ({ success: true, data: undefined }),
   checkAuth: async () => ({ success: true, data: { isAuthenticated: true } }),
-  refreshToken: async () => ({ success: true, data: { token: 'mock-token' } }),
+  refreshToken: async () => ({
+    success: true,
+    data: {
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      device_id: 'mock-device',
+      tenant_id: 'mock-tenant',
+      branch_id: null,
+    },
+  }),
 
   // Device
   registerDevice: async (_data) => ({ success: true, data: { device_id: 'mock-device' } }),
   validateDevice: async (_apiKey) => ({
     success: true,
-    data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' },
+    data: {
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      device_id: 'mock-device',
+      tenant_id: 'mock-tenant',
+      branch_id: null,
+    },
   }),
-  refreshDeviceToken: async () => ({ success: true, data: undefined }),
+  refreshDeviceToken: async () => ({
+    success: true,
+    data: {
+      token: 'mock-token',
+      refresh_token: 'mock-refresh-token',
+      device_id: 'mock-device',
+      tenant_id: 'mock-tenant',
+      branch_id: null,
+    },
+  }),
   getDeviceInfo: async () => ({ success: true, data: { name: 'Mock Device', branch: 'Mock Branch' } }),
 
   // Cash Session
