@@ -4,6 +4,13 @@
 **Branch:** `codex/frontend-redesign-wave-a`
 **Worktree:** `C:\ERP\.worktrees\frontend-redesign-wave-a`
 
+## Continuação verificada — 2026-08-10
+
+- Backend R3: EAN tenant-scoped, `brand_ref`, `subcategory`, ProductCode atômico e remoção física de imagens.
+- Frontend R3: barcode enviado no comando atômico; layout e fluxo de mídia preservados.
+- Task 6: catálogo E2E `4 passed`; axe `11 passed`; Vitest catálogo `87 passed`; typecheck e build verdes.
+- Commits desta continuação: `662b5ce`, `b9c8a60`, `6761363`, `b8d3099`, `9ec6e77`.
+
 ---
 
 ## Status da Sprint R3
