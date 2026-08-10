@@ -216,7 +216,6 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
     ProductPrice.all_objects.filter(
         tenant_id=tenant.id,
         product_id=product.id,
-        is_active=True,
         valid_from__lt=valid_from,
         valid_to__isnull=True,
     ).update(valid_to=valid_from)

@@ -238,6 +238,38 @@ def test_r4_acceptance_contract_replays_command_id(r4_pricing_context):
 
 
 @pytest.mark.django_db
+def test_r4_closes_open_inactive_legacy_price(r4_pricing_context):
+    """An open inactive legacy price must be closed by the R4 write."""
+    api_client, tenant, product = r4_pricing_context
+    legacy_price = ProductPrice.all_objects.create(
+        tenant=tenant,
+        product=product,
+        amount=Decimal('95.00'),
+        valid_from=datetime(2026, 1, 15, 12, tzinfo=UTC),
+        is_active=False,
+    )
+    new_valid_from = datetime(2026, 2, 1, 12, tzinfo=UTC)
+    command_id = '72e4d1f2-0d3e-4f2c-9f4e-8d4c10f7a401'
+
+    response = api_client.post(
+        f'/api/v1/catalog/products/{product.id}/prices/',
+        {
+            'command_id': command_id,
+            'product_id': str(product.id),
+            'amount': '120.00',
+            'valid_from': new_valid_from.isoformat().replace('+00:00', 'Z'),
+            'tiers': [{'min_quantity': '10', 'amount': '100.00'}],
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+
+    assert response.status_code == 201
+    legacy_price.refresh_from_db()
+    assert legacy_price.valid_to == new_valid_from
+
+
+@pytest.mark.django_db
 def test_r4_command_rejects_product_url_mismatch(r4_pricing_context):
     api_client, tenant, product = r4_pricing_context
     response = api_client.post(
