@@ -146,9 +146,12 @@ def _command_hash(payload):
 
 def _decimal_value(value, field_name):
     try:
-        return Decimal(str(value))
+        decimal_value = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError(f'{field_name} must be a valid decimal') from exc
+    if not decimal_value.is_finite():
+        raise ValueError(f'{field_name} must be a finite decimal')
+    return decimal_value
 
 
 @transaction.atomic

@@ -293,6 +293,25 @@ def test_r4_command_rejects_invalid_tier_decimal(r4_pricing_context):
     assert ProductPrice.all_objects.filter(product=product).count() == 1
 
 
+@pytest.mark.parametrize('invalid_value', ['NaN', 'Infinity', '-Infinity'])
+@pytest.mark.django_db
+def test_r4_command_rejects_non_finite_decimal(invalid_value, r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    response = api_client.post(
+        f'/api/v1/catalog/products/{product.id}/prices/',
+        {
+            'command_id': str(uuid4()),
+            'product_id': str(product.id),
+            'amount': '120.00',
+            'tiers': [{'min_quantity': invalid_value, 'amount': '100.00'}],
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 400
+    assert ProductPrice.all_objects.filter(product=product).count() == 1
+
+
 @pytest.mark.django_db(transaction=True)
 def test_r4_command_concurrent_replay_is_single_write(monkeypatch):
     """Two PostgreSQL transactions racing the same command replay one result."""
