@@ -546,6 +546,8 @@ class ProductImageViewSet(viewsets.ModelViewSet):
         return instance
 
     def perform_destroy(self, instance):
+        if instance.file:
+            instance.file.delete(save=False)
         emit_catalog_event(
             action='catalog.productimage.deleted',
             event_type='catalog.productimage.deleted',

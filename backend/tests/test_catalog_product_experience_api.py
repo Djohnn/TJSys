@@ -1,9 +1,10 @@
 """Sprint 24 — BDD tests for Brand CRUD and ProductImage nested routes."""
 
 import pytest
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from catalog.models import Brand, Product, Unit
+from catalog.models import Brand, Product, ProductImage, Unit
 from tenancy.models import Tenant
 
 
@@ -134,3 +135,34 @@ def test_product_image_accepts_valid_upload_and_rejects_invalid_type(brand_conte
         **{HEADERS_TEMPLATE: str(ctx['tenant'].id)},
     )
     assert invalid.status_code == 400
+
+
+@pytest.mark.django_db
+def test_product_image_delete_removes_uploaded_file(brand_context):
+    """Given an uploaded product image, deleting it shall remove DB and storage state."""
+    ctx = brand_context
+    unit = _make_unit(ctx['tenant'])
+    product = _make_product(ctx['tenant'], unit)
+    upload = SimpleUploadedFile('cleanup.png', b'fake-png', content_type='image/png')
+
+    # Given an existing uploaded image
+    created = ctx['client'].post(
+        f'/api/v1/catalog/products/{product.id}/images/',
+        {'file': upload, 'alt_text': 'Cleanup'},
+        **{HEADERS_TEMPLATE: str(ctx['tenant'].id)},
+    )
+    assert created.status_code == 201
+    image = ProductImage.all_objects.get(id=created.json()['id'])
+    stored_name = image.file.name
+    assert default_storage.exists(stored_name)
+
+    # When the owner deletes the image
+    deleted = ctx['client'].delete(
+        f'/api/v1/catalog/products/{product.id}/images/{image.id}/',
+        **{HEADERS_TEMPLATE: str(ctx['tenant'].id)},
+    )
+
+    # Then both persistent representations are gone
+    assert deleted.status_code == 204
+    assert not ProductImage.all_objects.filter(id=image.id).exists()
+    assert not default_storage.exists(stored_name)
