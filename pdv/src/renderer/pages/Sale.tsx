@@ -255,10 +255,15 @@ const paymentsPayload = payments.map(p => ({
         reference: p.reference || undefined
       }));
 
-      const electronAPI = (window as any).electronAPI;
+      const electronAPI = window.electronAPI;
+      const branch = localStorage.getItem('branch_id');
+      const stockLocation = localStorage.getItem('stock_location_id');
+      if (!branch || !stockLocation) {
+        throw new Error('Filial e local de estoque devem estar configurados.');
+      }
       const saleData = {
-        branch: localStorage.getItem('branch_id'),
-        stock_location: localStorage.getItem('stock_location_id'),
+        branch,
+        stock_location: stockLocation,
         items: itemsPayload,
         payments: paymentsPayload,
       };
@@ -322,7 +327,7 @@ const paymentsPayload = payments.map(p => ({
     if (!confirmationSale) return;
     const html = buildReceiptHtml(confirmationSale.data);
     const fileName = `cupom_balcao_${confirmationSale.saleNumber}`;
-    const electronAPI = (window as any).electronAPI;
+    const electronAPI = window.electronAPI;
     if (electronAPI?.printBalcaoReceipt) {
       await electronAPI.printBalcaoReceipt({ html, fileName });
     } else if (electronAPI?.printReceipt) {
@@ -357,7 +362,7 @@ const paymentsPayload = payments.map(p => ({
             chaveAcesso: statusData.xml_url || '',
           });
           const fileName = `cupom_fiscal_${confirmationSale.saleNumber}`;
-          const electronAPI = (window as any).electronAPI;
+          const electronAPI = window.electronAPI;
           if (electronAPI?.printFiscalReceipt) {
             await electronAPI.printFiscalReceipt({ html, fileName });
           } else if (electronAPI?.printReceipt) {

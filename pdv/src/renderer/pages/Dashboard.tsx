@@ -103,7 +103,7 @@ export function Dashboard() {
     setReprinting(saleId);
     setReprintMessage('');
     try {
-      const electronAPI = (window as any).electronAPI;
+      const electronAPI = window.electronAPI;
       const detailResult = await electronAPI.getSaleDetail(saleId);
       if (!detailResult?.success) {
         setReprintMessage(`Erro ao buscar venda: ${detailResult?.error || 'falha desconhecida'}`);

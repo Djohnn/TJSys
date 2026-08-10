@@ -15,7 +15,7 @@ import type {
 
 export type ElectronResult<T> =
   | ({ success: true; error?: string } & ([T] extends [void] ? { data?: T } : { data: T }))
-  | { success: false; data?: T | null; error?: string };
+  | { success: false; data?: T | null; error?: string; code?: string };
 
 export interface AuthTokenSyncInput {
   token: string;
@@ -104,9 +104,9 @@ export interface ElectronAPI {
   getDeviceInfo(): Promise<ElectronResult<DeviceInfo | null>>;
 
   // Cash Session
-  openCashSession(data: CashSessionOpenInput): Promise<ElectronResult<{ id: string; status: string }>>;
+  openCashSession(data: CashSessionOpenInput): Promise<ElectronResult<CashSession>>;
   getCurrentCashSession(branchId: string): Promise<ElectronResult<CashSession | null>>;
-  closeCashSession(data: CashSessionCloseInput): Promise<ElectronResult<{ status: string }>>;
+  closeCashSession(data: CashSessionCloseInput): Promise<ElectronResult<CashSession>>;
   listCashSessions(params?: { branch?: string }): Promise<ElectronResult<CashSession[]>>;
   getCashMovements(sessionId: string): Promise<ElectronResult<CashMovement[]>>;
 
@@ -121,7 +121,7 @@ export interface ElectronAPI {
   // Catalog
   searchProducts(query: string): Promise<ElectronResult<Product[]>>;
   getProduct(productId: string): Promise<ElectronResult<Pick<Product, 'id' | 'name'> | null>>;
-  getProductPrice(data: ProductPriceInput): Promise<ElectronResult<{ amount: string }>>;
+  getProductPrice(data: ProductPriceInput): Promise<ElectronResult<ProductPrice | null>>;
   listUnits(): Promise<ElectronResult<Unit[]>>;
   listProducts(params?: { search?: string; page?: number }): Promise<ElectronResult<Product[]>>;
   getProductPrices(productId: string): Promise<ElectronResult<ProductPrice[]>>;
@@ -210,9 +210,35 @@ const mockElectronAPI: ElectronAPI = {
   getDeviceInfo: async () => ({ success: true, data: { name: 'Mock Device', branch: 'Mock Branch' } }),
 
   // Cash Session
-  openCashSession: async (_data) => ({ success: true, data: { id: 'mock-session', status: 'open' } }),
+  openCashSession: async (_data) => ({
+    success: true,
+    data: {
+      id: 'mock-session',
+      branch: 'mock-branch',
+      operator: 'mock-operator',
+      status: 'open',
+      opening_amount: '0.00',
+      expected_amount: '0.00',
+      closing_amount: null,
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+    },
+  }),
   getCurrentCashSession: async (_branchId) => ({ success: true, data: null }),
-  closeCashSession: async (_data) => ({ success: true, data: { status: 'closed' } }),
+  closeCashSession: async (_data) => ({
+    success: true,
+    data: {
+      id: 'mock-session',
+      branch: 'mock-branch',
+      operator: 'mock-operator',
+      status: 'closed',
+      opening_amount: '0.00',
+      expected_amount: '0.00',
+      closing_amount: '0.00',
+      opened_at: new Date().toISOString(),
+      closed_at: new Date().toISOString(),
+    },
+  }),
   listCashSessions: async (_params) => ({ success: true, data: [] }),
   getCashMovements: async (_sessionId) => ({ success: true, data: [] }),
 
@@ -221,14 +247,14 @@ const mockElectronAPI: ElectronAPI = {
     success: true,
     data: {
       id: 'mock-sale',
-      branch: { id: 'mock-branch', name: 'Mock Branch', code: 'MOCK' },
-      cashSession: 'mock-session',
+      branch: 'mock-branch',
+      cash_session: 'mock-session',
       operator: 'mock',
       status: 'confirmed',
-      grossTotal: '0.00',
-      discountTotal: '0.00',
-      netTotal: '0.00',
-      createdAt: new Date().toISOString(),
+      gross_total: '0.00',
+      discount_total: '0.00',
+      net_total: '0.00',
+      created_at: new Date().toISOString(),
     },
   }),
   listSales: async (_params) => ({ success: true, data: [] }),
@@ -236,14 +262,14 @@ const mockElectronAPI: ElectronAPI = {
     success: true,
     data: {
       id: saleId,
-      branch: { id: 'mock-branch', name: 'Mock Branch', code: 'MOCK' },
-      cashSession: 'mock-session',
+      branch: 'mock-branch',
+      cash_session: 'mock-session',
       operator: 'mock',
       status: 'confirmed',
-      grossTotal: '0.00',
-      discountTotal: '0.00',
-      netTotal: '0.00',
-      createdAt: new Date().toISOString(),
+      gross_total: '0.00',
+      discount_total: '0.00',
+      net_total: '0.00',
+      created_at: new Date().toISOString(),
       items: [],
       payments: [],
     },
@@ -255,7 +281,7 @@ const mockElectronAPI: ElectronAPI = {
   // Catalog
   searchProducts: async (_query) => ({ success: true, data: [] }),
   getProduct: async (_productId) => ({ success: true, data: null }),
-  getProductPrice: async (_data) => ({ success: true, data: { amount: '0.00' } }),
+  getProductPrice: async (_data) => ({ success: true, data: null }),
   listUnits: async () => ({ success: true, data: [] }),
   listProducts: async (_params) => ({ success: true, data: [] }),
   getProductPrices: async (_productId) => ({ success: true, data: [] }),

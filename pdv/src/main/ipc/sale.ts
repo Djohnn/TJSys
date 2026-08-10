@@ -1,27 +1,18 @@
 import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
+import type { ElectronResult, SaleInput } from '../../shared/electron';
+import type { Sale, SaleDetail } from '../../shared/types';
+import { unwrapResults, type PaginatedResponse } from './response';
 
 export function setupSaleHandlers() {
-  ipcMain.handle('sale:create', async (_event, data: {
-    branch: string;
-    stock_location: string;
-    items: Array<{
-      product: string;
-      unit: string;
-      quantity: string;
-      factor: string;
-      discount_amount?: string;
-    }>;
-    payments: Array<{
-      method: string;
-      amount: string;
-      reference?: string;
-    }>;
-  }) => {
+  ipcMain.handle('sale:create', async (
+    _event,
+    data: SaleInput,
+  ): Promise<ElectronResult<Sale>> => {
     logger.info('Creating counter sale', { branch: data.branch, itemsCount: data.items.length });
     try {
-      const res = await api.post('/sales/counter/', data, {
+      const res = await api.post<Sale>('/sales/counter/', data, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
       return { success: true, data: res.data };
@@ -38,19 +29,25 @@ export function setupSaleHandlers() {
     }
   });
 
-  ipcMain.handle('sale:list', async (_event, params?: { branch?: string; limit?: number; offset?: number }) => {
+  ipcMain.handle('sale:list', async (
+    _event,
+    params?: { branch?: string; limit?: number; offset?: number },
+  ): Promise<ElectronResult<Sale[]>> => {
     try {
-      const res = await api.get('/sales/', { params });
-      return { success: true, data: res.data };
+      const res = await api.get<Sale[] | PaginatedResponse<Sale>>('/sales/', { params });
+      return { success: true, data: unwrapResults(res.data) };
     } catch (error) {
       logger.error('Failed to list sales:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to list sales' };
     }
   });
 
-  ipcMain.handle('sale:detail', async (_event, saleId: string) => {
+  ipcMain.handle('sale:detail', async (
+    _event,
+    saleId: string,
+  ): Promise<ElectronResult<SaleDetail>> => {
     try {
-      const res = await api.get(`/sales/${saleId}/`);
+      const res = await api.get<SaleDetail>(`/sales/${saleId}/`);
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to get sale detail:', error);

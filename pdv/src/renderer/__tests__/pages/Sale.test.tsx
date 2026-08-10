@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Sale } from '../../pages/Sale';
+import { getElectronAPI } from '../../../shared/electron';
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ isAuthenticated: true }),
@@ -150,7 +151,12 @@ describe('Sale', () => {
           }],
       },
     });
-    (window as any).electronAPI = { createSale, printReceipt };
+    window.electronAPI = {
+      ...getElectronAPI(),
+      createSale,
+      printReceipt,
+      printBalcaoReceipt: printReceipt,
+    };
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
         results: [{

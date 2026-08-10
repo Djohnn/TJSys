@@ -42,10 +42,11 @@ describe('browser Electron bridge mock', () => {
     });
     expect(saleResult.success).toBe(true);
     if (saleResult.success) {
-      expect(saleResult.data.branch).toEqual({
-        id: 'mock-branch',
-        name: 'Mock Branch',
-        code: 'MOCK',
+      expect(saleResult.data).toMatchObject({
+        branch: 'mock-branch',
+        cash_session: 'mock-session',
+        gross_total: '0.00',
+        net_total: '0.00',
       });
     }
   });
