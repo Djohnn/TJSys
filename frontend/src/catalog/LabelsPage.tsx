@@ -250,6 +250,7 @@ export default function LabelsPage() {
                   <th className="px-4 py-3 text-left font-semibold text-neutral-600 w-12">
                     <input
                       type="checkbox"
+                      aria-label="Selecionar todos os produtos"
                       onChange={() => {
                         const allSelected = filteredProducts.length === selectedItems.size
                         setSelectedItems(() => {
@@ -280,6 +281,7 @@ export default function LabelsPage() {
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
+                        aria-label={`Selecionar produto ${product.name}`}
                         checked={selectedItems.has(product.id)}
                         onChange={() => toggleItem(product.id)}
                         data-testid={`label-checkbox-${product.id}`}
@@ -292,6 +294,7 @@ export default function LabelsPage() {
                     <td className="px-4 py-3">
                       <input
                         type="number"
+                        aria-label={`Quantidade de etiquetas para ${product.name}`}
                         min={1}
                         value={selectedItems.get(product.id)?.quantity ?? 1}
                         onChange={(e) => setQuantity(product.id, parseInt(e.target.value, 10) || 1)}

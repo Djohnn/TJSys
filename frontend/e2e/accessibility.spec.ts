@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect } from '@playwright/test'
-import { authenticatePage, test } from './fixtures'
+import { test } from './fixtures'
 
 test.describe('Acessibilidade (axe-core)', () => {
   test('Página de login não possui violações críticas ou sérias', async ({ page }) => {
@@ -44,8 +44,9 @@ test.describe('Acessibilidade (axe-core)', () => {
     })
   }
 
-  test('Shell autenticado não possui violações críticas ou sérias', async ({ page }) => {
-    await authenticatePage(page)
+  test('Shell autenticado não possui violações críticas ou sérias', async ({ authenticatedPage }) => {
+    const page = authenticatedPage
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     const results = await new AxeBuilder({ page })

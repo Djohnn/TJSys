@@ -13,7 +13,7 @@ export default function CatalogHomePage(): ReactNode {
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-blue-100/80">Centralize a identificação, precificação e organização comercial dos itens vendidos pela sua empresa.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/catalog/products" className="rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-sm">Ver produtos</Link>
-            <Link to="/catalog/products/new" className="rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm">Novo produto</Link>
+            <Link to="/catalog/products/new" className="rounded-lg bg-cyan-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm">Novo produto</Link>
             <Link to="/catalog/labels" className="rounded-lg border border-white/30 px-4 py-2.5 text-sm font-bold text-white">Imprimir etiquetas</Link>
           </div>
         </div>
