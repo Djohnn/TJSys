@@ -1,16 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { ConnectivityState, SyncState } from '../../shared/types';
-
-declare global {
-  interface Window {
-    electronAPI: {
-      getConnectivityStatus: () => Promise<{ success: boolean; data: ConnectivityState }>;
-      checkConnectivity: () => Promise<{ success: boolean; data: { isOnline: boolean } }>;
-      getSyncStatus: () => Promise<{ success: boolean; data: SyncState }>;
-      startSync: () => Promise<{ success: boolean; data: SyncState }>;
-    };
-  }
-}
 
 const indicatorStyle: React.CSSProperties = {
   display: 'inline-flex',

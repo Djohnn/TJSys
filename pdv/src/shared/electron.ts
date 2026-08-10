@@ -18,38 +18,38 @@ export const getElectronAPI = () => {
   // Mock API for browser/non-Electron environment
   return {
     // Auth
-    login: async (apiKey: string) => ({ success: true, data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' } }),
+    login: async (_apiKey: string) => ({ success: true, data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' } }),
     syncAuthTokens: async (_data: any) => ({ success: true }),
     logout: async () => ({ success: true }),
     checkAuth: async () => ({ success: true, data: { isAuthenticated: true } }),
     refreshToken: async () => ({ success: true, data: { token: 'mock-token' } }),
     
     // Device
-    registerDevice: async (data: any) => ({ success: true, data: { device_id: 'mock-device' } }),
-    validateDevice: async (apiKey: string) => ({ success: true, data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' } }),
+    registerDevice: async (_data: any) => ({ success: true, data: { device_id: 'mock-device' } }),
+    validateDevice: async (_apiKey: string) => ({ success: true, data: { token: 'mock-token', tenant_id: 'mock-tenant', branch_id: 'mock-branch' } }),
     refreshDeviceToken: async () => ({ success: true }),
     getDeviceInfo: async () => ({ success: true, data: { name: 'Mock Device', branch: 'Mock Branch' } }),
     
     // Cash Session
-    openCashSession: async (data: any) => ({ success: true, data: { id: 'mock-session', status: 'open' } }),
-    getCurrentCashSession: async (branchId: string) => ({ success: true, data: null }),
-    closeCashSession: async (data: any) => ({ success: true, data: { status: 'closed' } }),
-    listCashSessions: async (params?: any) => ({ success: true, data: [] }),
-    getCashMovements: async (sessionId: string) => ({ success: true, data: [] }),
+    openCashSession: async (_data: any) => ({ success: true, data: { id: 'mock-session', status: 'open' } }),
+    getCurrentCashSession: async (_branchId: string) => ({ success: true, data: null }),
+    closeCashSession: async (_data: any) => ({ success: true, data: { status: 'closed' } }),
+    listCashSessions: async (_params?: any) => ({ success: true, data: [] }),
+    getCashMovements: async (_sessionId: string) => ({ success: true, data: [] }),
     
     // Sales
-    createSale: async (data: any) => ({ success: true, data: { id: 'mock-sale', net_total: '0.00' } }),
-    listSales: async (params?: any) => ({ success: true, data: [] }),
+    createSale: async (_data: any) => ({ success: true, data: { id: 'mock-sale', net_total: '0.00' } }),
+    listSales: async (_params?: any) => ({ success: true, data: [] }),
     getSaleDetail: async (saleId: string) => ({ success: true, data: { id: saleId, items: [], net_total: '0.00' } }),
-    printReceipt: async (data: any) => ({ success: true }),
+    printReceipt: async (_data: any) => ({ success: true }),
     
     // Catalog
-    searchProducts: async (query: string) => ({ success: true, data: [] }),
-    getProduct: async (productId: string) => ({ success: true, data: null }),
-    getProductPrice: async (data: any) => ({ success: true, data: { amount: '0.00' } }),
+    searchProducts: async (_query: string) => ({ success: true, data: [] }),
+    getProduct: async (_productId: string) => ({ success: true, data: null }),
+    getProductPrice: async (_data: any) => ({ success: true, data: { amount: '0.00' } }),
     listUnits: async () => ({ success: true, data: [] }),
-    listProducts: async (params?: any) => ({ success: true, data: [] }),
-    getProductPrices: async (productId: string) => ({ success: true, data: [] }),
+    listProducts: async (_params?: any) => ({ success: true, data: [] }),
+    getProductPrices: async (_productId: string) => ({ success: true, data: [] }),
     
     // Branch
     listBranches: async () => ({ success: true, data: [] }),
@@ -74,7 +74,7 @@ export const getElectronAPI = () => {
 
 declare global {
   interface Window {
-    electronAPI: ReturnType<typeof getElectronAPI>;
+    electronAPI: any;
   }
 }
 

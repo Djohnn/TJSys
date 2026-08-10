@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
 
 export function setupApiHandlers() {
-  ipcMain.handle('catalog:product-prices', async (event: IpcMainInvokeEvent, productId: string) => {
+  ipcMain.handle('catalog:product-prices', async (_event, productId: string) => {
     try {
       const res = await api.get(`/products/${productId}/prices/`);
       return { success: true, data: res.data };

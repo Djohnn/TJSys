@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { SyncStatusBar } from '../../components/SyncStatusBar';
 
 const MOCK_NOW = new Date('2025-06-15T10:00:00Z');

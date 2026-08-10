@@ -1,11 +1,10 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
-import { api } from '../services/api';
+import { ipcMain } from 'electron';
 import { auth } from '../services/auth';
-import { setItem, removeItem } from '../utils/storage';
+import { setItem } from '../utils/storage';
 import { logger } from '../utils/logger';
 
 export function setupAuthHandlers() {
-  ipcMain.handle('auth:login', async (event: IpcMainInvokeEvent, apiKey: string) => {
+  ipcMain.handle('auth:login', async (_event, apiKey: string) => {
     logger.info('Attempting login with API key');
     try {
       const result = await auth.validateApiKey(apiKey);

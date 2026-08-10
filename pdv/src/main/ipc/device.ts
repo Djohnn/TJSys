@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
 
 export function setupDeviceHandlers() {
-  ipcMain.handle('device:register', async (event: IpcMainInvokeEvent, data: { name: string; branch: string; platform?: string; appVersion?: string; osVersion?: string }) => {
+  ipcMain.handle('device:register', async (_event, data: { name: string; branch: string; platform?: string; appVersion?: string; osVersion?: string }) => {
     logger.info('Registering device', { name: data.name });
     try {
       const res = await api.post('/devices/register/', data);
@@ -14,7 +14,7 @@ export function setupDeviceHandlers() {
     }
   });
 
-  ipcMain.handle('device:validate', async (event: IpcMainInvokeEvent, apiKey: string) => {
+  ipcMain.handle('device:validate', async (_event, apiKey: string) => {
     try {
       const res = await api.post('/devices/validate/', { api_key: apiKey });
       return { success: true, data: res.data };

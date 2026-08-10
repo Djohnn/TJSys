@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
 
 export function setupSaleHandlers() {
-  ipcMain.handle('sale:create', async (event: IpcMainInvokeEvent, data: {
+  ipcMain.handle('sale:create', async (_event, data: {
     branch: string;
     stock_location: string;
     items: Array<{
@@ -38,7 +38,7 @@ export function setupSaleHandlers() {
     }
   });
 
-  ipcMain.handle('sale:list', async (event: IpcMainInvokeEvent, params?: { branch?: string; limit?: number; offset?: number }) => {
+  ipcMain.handle('sale:list', async (_event, params?: { branch?: string; limit?: number; offset?: number }) => {
     try {
       const res = await api.get('/sales/', { params });
       return { success: true, data: res.data };
@@ -48,7 +48,7 @@ export function setupSaleHandlers() {
     }
   });
 
-  ipcMain.handle('sale:detail', async (event: IpcMainInvokeEvent, saleId: string) => {
+  ipcMain.handle('sale:detail', async (_event, saleId: string) => {
     try {
       const res = await api.get(`/sales/${saleId}/`);
       return { success: true, data: res.data };

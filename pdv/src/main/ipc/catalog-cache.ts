@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { catalogCache } from '../services/catalogCache';
 import { logger } from '../utils/logger';
 
 export function setupCatalogCacheHandlers() {
-  ipcMain.handle('catalog-cache:search', async (event: IpcMainInvokeEvent, query: string) => {
+  ipcMain.handle('catalog-cache:search', async (_event, query: string) => {
     logger.info('Searching catalog cache', { query });
     try {
       const results = catalogCache.searchProducts(query);
@@ -14,7 +14,7 @@ export function setupCatalogCacheHandlers() {
     }
   });
 
-  ipcMain.handle('catalog-cache:get-product', async (event: IpcMainInvokeEvent, productId: string) => {
+  ipcMain.handle('catalog-cache:get-product', async (_event, productId: string) => {
     try {
       const product = catalogCache.getProductById(productId);
       return { success: true, data: product };
@@ -24,7 +24,7 @@ export function setupCatalogCacheHandlers() {
     }
   });
 
-  ipcMain.handle('catalog-cache:get-product-by-sku', async (event: IpcMainInvokeEvent, sku: string) => {
+  ipcMain.handle('catalog-cache:get-product-by-sku', async (_event, sku: string) => {
     try {
       const product = catalogCache.getProductBySku(sku);
       return { success: true, data: product };
@@ -34,7 +34,7 @@ export function setupCatalogCacheHandlers() {
     }
   });
 
-  ipcMain.handle('catalog-cache:get-price', async (event: IpcMainInvokeEvent, data: { productId: string; at?: string }) => {
+  ipcMain.handle('catalog-cache:get-price', async (_event, data: { productId: string; at?: string }) => {
     try {
       const at = data.at ? new Date(data.at) : new Date();
       const price = catalogCache.getPrice(data.productId, at);

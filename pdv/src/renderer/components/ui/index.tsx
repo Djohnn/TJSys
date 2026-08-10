@@ -381,7 +381,7 @@ interface TableProps {
   hoverable?: boolean;
 }
 
-export function Table({ children, striped, hoverable }: TableProps) {
+export function Table({ children }: TableProps) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>

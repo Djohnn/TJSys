@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
 
 export function setupCatalogHandlers() {
-  ipcMain.handle('catalog:search-products', async (event: IpcMainInvokeEvent, query: string) => {
+  ipcMain.handle('catalog:search-products', async (_event, query: string) => {
     logger.info('Searching products', { query });
     try {
       const res = await api.get('/products/', { params: { search: query } });
@@ -14,7 +14,7 @@ export function setupCatalogHandlers() {
     }
   });
 
-  ipcMain.handle('catalog:get-product', async (event: IpcMainInvokeEvent, productId: string) => {
+  ipcMain.handle('catalog:get-product', async (_event, productId: string) => {
     try {
       const res = await api.get(`/products/${productId}/`);
       return { success: true, data: res.data };
@@ -24,7 +24,7 @@ export function setupCatalogHandlers() {
     }
   });
 
-  ipcMain.handle('catalog:get-price', async (event: IpcMainInvokeEvent, data: { productId: string; branchId?: string }) => {
+  ipcMain.handle('catalog:get-price', async (_event, data: { productId: string; branchId?: string }) => {
     try {
       const res = await api.get(`/products/${data.productId}/prices/`, {
         params: { branch: data.branchId },

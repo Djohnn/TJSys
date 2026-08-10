@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCashSession } from '../contexts/CashSessionContext';
@@ -556,7 +556,6 @@ const paymentsPayload = payments.map(p => ({
                     <input type="radio" name="pendingMethod" value={method}
                       checked={pendingMethod === method}
                       onChange={() => {
-                        const prev = pendingMethod;
                         setPendingMethod(method);
                         if (method !== 'cash') {
                           setPendingReceived('');

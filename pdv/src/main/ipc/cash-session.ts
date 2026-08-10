@@ -1,9 +1,9 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
 
 export function setupCashSessionHandlers() {
-  ipcMain.handle('cash-session:open', async (event: IpcMainInvokeEvent, data: { branch: string; openingAmount: string }) => {
+  ipcMain.handle('cash-session:open', async (_event, data: { branch: string; openingAmount: string }) => {
     logger.info('Opening cash session', { branch: data.branch });
     try {
       const res = await api.post('/cash-sessions/open/', {
@@ -19,7 +19,7 @@ export function setupCashSessionHandlers() {
     }
   });
 
-  ipcMain.handle('cash-session:current', async (event: IpcMainInvokeEvent, branchId: string) => {
+  ipcMain.handle('cash-session:current', async (_event, branchId: string) => {
     logger.info('Getting current cash session', { branchId });
     try {
       const res = await api.get('/cash-sessions/current/', { params: { branch: branchId } });
@@ -30,7 +30,7 @@ export function setupCashSessionHandlers() {
     }
   });
 
-  ipcMain.handle('cash-session:close', async (event: IpcMainInvokeEvent, data: { sessionId: string; closingAmount: string }) => {
+  ipcMain.handle('cash-session:close', async (_event, data: { sessionId: string; closingAmount: string }) => {
     logger.info('Closing cash session', { sessionId: data.sessionId });
     try {
       const res = await api.post(`/cash-sessions/${data.sessionId}/close/`, {
@@ -45,7 +45,7 @@ export function setupCashSessionHandlers() {
     }
   });
 
-  ipcMain.handle('cash-session:list', async (event: IpcMainInvokeEvent, params?: { branch?: string }) => {
+  ipcMain.handle('cash-session:list', async (_event, params?: { branch?: string }) => {
     try {
       const res = await api.get('/cash-sessions/', { params });
       return { success: true, data: res.data };
@@ -55,7 +55,7 @@ export function setupCashSessionHandlers() {
     }
   });
 
-  ipcMain.handle('cash-session:movements', async (event: IpcMainInvokeEvent, sessionId: string) => {
+  ipcMain.handle('cash-session:movements', async (_event, sessionId: string) => {
     try {
       const res = await api.get(`/cash-sessions/${sessionId}/movements/`);
       return { success: true, data: res.data };
