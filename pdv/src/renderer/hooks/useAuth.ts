@@ -1,7 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useCashSession } from '../contexts/CashSessionContext';
-import { api } from '../services/api';
+import { useEffect, useState } from 'react';
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,21 +10,27 @@ export function useAuth() {
 
   const checkAuth = async () => {
     const token = localStorage.getItem('access_token');
-    if (token) {
-      try {
-        // Verify token is still valid
-        const response = await fetch('/api/v1/devices/validate/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: localStorage.getItem('api_key') || '' }),
-        });
-        if (response.ok) {
-          setIsAuthenticated(true);
-        } else {
+    try {
+      if (token) {
+        try {
+          // Verify token is still valid
+          const response = await fetch('/api/v1/devices/validate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: localStorage.getItem('api_key') || '' }),
+          });
+          if (response.ok) {
+            setIsAuthenticated(true);
+          } else {
+            localStorage.clear();
+            setIsAuthenticated(false);
+          }
+        } catch {
           localStorage.clear();
+          setIsAuthenticated(false);
         }
-      } catch {
-        localStorage.clear();
+      } else {
+        setIsAuthenticated(false);
       }
     } finally {
       setLoading(false);
@@ -52,6 +55,7 @@ export function useAuth() {
       localStorage.setItem('refresh_token', data.refresh_token);
       localStorage.setItem('device_id', data.device_id);
       localStorage.setItem('branch_id', data.branch_id || '');
+      setIsAuthenticated(true);
 
       return { success: true };
     } catch (error) {
@@ -64,7 +68,8 @@ export function useAuth() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('device_id');
     localStorage.removeItem('branch_id');
+    setIsAuthenticated(false);
   };
 
-  return { isAuthenticated: false, loading: true, login, logout };
+  return { isAuthenticated, loading, login, logout };
 }
