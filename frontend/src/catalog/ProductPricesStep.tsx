@@ -31,6 +31,7 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
   const queryClient = useQueryClient()
   const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   const [baseAmount, setBaseAmount] = useState('')
+  const [r4CommandId] = useState(createCommandId)
 
   const basePriceQuery = useQuery({
     queryKey: ['product-prices', tenantId, productId],
@@ -58,6 +59,7 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
     enabled: Boolean(tenantId && productId),
   })
   const priceTiers: TierRecord[] = r4Snapshot?.tiers ?? collectionResults<ProductPriceTier>(tiersQuery.data)
+  const shouldUseR4Write = r4Snapshot !== null || effectiveBasePrices.length === 0
 
   const {
     register: registerTier,
@@ -93,9 +95,9 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
 
   const basePriceMutation = useMutation({
     mutationFn: () => {
-      if (r4Snapshot) {
+      if (shouldUseR4Write) {
         return createProductPricingSnapshot(tenantId, productId, {
-          command_id: createCommandId(),
+          command_id: r4CommandId,
           product_id: productId,
           amount: baseAmount,
           tiers: priceTiers.map((tier) => ({ min_quantity: tier.min_quantity, amount: tier.amount })),
@@ -148,11 +150,16 @@ export default function ProductPricesStep({ productId }: ProductPricesStepProps)
 
       <section className="space-y-4" aria-labelledby="wholesale-heading">
         <h3 id="wholesale-heading" className="border-b border-border pb-2 text-lg font-semibold text-neutral-800">Venda atacado por quantidade</h3>
-        {tiersQuery.isLoading && !r4Snapshot ? <p role="status" aria-live="polite" className="text-sm text-neutral-500">Carregando faixas de atacado...</p> : (
+        {tiersQuery.isLoading && !r4Snapshot ? <p role="status" aria-live="polite" className="text-sm text-neutral-500">Carregando faixas de atacado...</p> : !r4Snapshot && tiersQuery.isError ? (
+          <div role="alert" aria-live="assertive" data-testid="price-tiers-load-error" className="text-sm text-danger">
+            {problemMessage(tiersQuery.error, 'Não foi possível carregar as faixas de atacado.')}
+            <Button type="button" variant="ghost" size="sm" onClick={() => tiersQuery.refetch()}>Tentar novamente</Button>
+          </div>
+        ) : (
           <div data-testid="price-tiers-section">
-            {priceTiers.length > 0 && <table data-testid="price-tiers-table" className="w-full border border-border text-sm"><thead><tr className="border-b border-border bg-neutral-50"><th className="px-3 py-2 text-left font-medium text-neutral-600">Qtd. mínima</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Venda atacado</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Margem</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Ações</th></tr></thead><tbody>{priceTiers.map((tier) => <tr key={tier.id} data-testid="price-tier-row" className="border-b border-border last:border-0"><td className="px-3 py-2">{tier.min_quantity}</td><td className="px-3 py-2">{tier.amount}</td><td className="px-3 py-2">{'margin' in tier ? formatPercent(tier.margin ?? marginFromValues(tier.amount, r4Snapshot?.cost)) : 'Não informado'}</td><td className="px-3 py-2"><Button type="button" variant="ghost" size="sm" onClick={() => tierDeleteMutation.mutate(tier.id)} disabled={Boolean(basePriceQuery.isError || r4Snapshot || tierDeleteMutation.isPending)} data-testid={`delete-tier-${tier.id}`}>Remover</Button></td></tr>)}</tbody></table>}
-            {!r4Snapshot && <div className="mt-4 flex items-end gap-3 rounded-lg border border-border bg-neutral-50 p-3"><div><label htmlFor="tier-min-quantity" className="mb-1 block text-sm font-medium text-neutral-700">Qtd. mínima</label><input id="tier-min-quantity" {...registerTier('min_quantity')} className="w-28 rounded-lg border border-border px-3 py-2 text-sm" data-testid="tier-min-quantity-input" placeholder="1" />{tierErrors.min_quantity && <span role="alert" className="mt-1 block text-xs text-danger">{tierErrors.min_quantity.message}</span>}</div><div><label htmlFor="tier-amount" className="mb-1 block text-sm font-medium text-neutral-700">Venda atacado</label><input id="tier-amount" {...registerTier('amount')} className="w-28 rounded-lg border border-border px-3 py-2 text-sm" data-testid="tier-amount-input" placeholder="0.00" />{tierErrors.amount && <span role="alert" className="mt-1 block text-xs text-danger">{tierErrors.amount.message}</span>}</div><Button type="button" variant="secondary" size="sm" onClick={handleAddTier} disabled={Boolean(basePriceQuery.isError || !basePrice || tierCreateMutation.isPending)} loading={tierCreateMutation.isPending} data-testid="add-tier-button">Adicionar</Button></div>}
-            {r4Snapshot && priceTiers.length === 0 && <p data-testid="price-tiers-empty" className="text-sm text-neutral-500">Nenhuma faixa de venda atacado cadastrada.</p>}
+            {priceTiers.length > 0 && <table data-testid="price-tiers-table" className="w-full border border-border text-sm"><thead><tr className="border-b border-border bg-neutral-50"><th className="px-3 py-2 text-left font-medium text-neutral-600">Qtd. mínima</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Venda atacado</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Margem</th><th className="px-3 py-2 text-left font-medium text-neutral-600">Ações</th></tr></thead><tbody>{priceTiers.map((tier) => <tr key={tier.id} data-testid="price-tier-row" className="border-b border-border last:border-0"><td className="px-3 py-2">{tier.min_quantity}</td><td className="px-3 py-2">{tier.amount}</td><td className="px-3 py-2">{'margin' in tier ? formatPercent(tier.margin ?? marginFromValues(tier.amount, r4Snapshot?.cost)) : 'Não informado'}</td><td className="px-3 py-2"><Button type="button" variant="ghost" size="sm" aria-label={`Remover faixa de atacado a partir de ${tier.min_quantity} unidades`} onClick={() => tierDeleteMutation.mutate(tier.id)} disabled={Boolean(basePriceQuery.isError || r4Snapshot || tierDeleteMutation.isPending)} data-testid={`delete-tier-${tier.id}`}>Remover</Button></td></tr>)}</tbody></table>}
+            {priceTiers.length === 0 && <p data-testid="price-tiers-empty" className="text-sm text-neutral-500">Nenhuma faixa de venda atacado cadastrada.</p>}
+            {!r4Snapshot && <div className="mt-4 flex items-end gap-3 rounded-lg border border-border bg-neutral-50 p-3"><div><label htmlFor="tier-min-quantity" className="mb-1 block text-sm font-medium text-neutral-700">Qtd. mínima</label><input id="tier-min-quantity" {...registerTier('min_quantity')} aria-invalid={Boolean(tierErrors.min_quantity)} aria-describedby={tierErrors.min_quantity ? 'tier-min-quantity-error' : undefined} className="w-28 rounded-lg border border-border px-3 py-2 text-sm" data-testid="tier-min-quantity-input" placeholder="1" />{tierErrors.min_quantity && <span id="tier-min-quantity-error" role="alert" className="mt-1 block text-xs text-danger">{tierErrors.min_quantity.message}</span>}</div><div><label htmlFor="tier-amount" className="mb-1 block text-sm font-medium text-neutral-700">Venda atacado</label><input id="tier-amount" {...registerTier('amount')} aria-invalid={Boolean(tierErrors.amount)} aria-describedby={tierErrors.amount ? 'tier-amount-error' : undefined} className="w-28 rounded-lg border border-border px-3 py-2 text-sm" data-testid="tier-amount-input" placeholder="0.00" />{tierErrors.amount && <span id="tier-amount-error" role="alert" className="mt-1 block text-xs text-danger">{tierErrors.amount.message}</span>}</div><Button type="button" variant="secondary" size="sm" onClick={handleAddTier} disabled={Boolean(basePriceQuery.isError || !basePrice || tierCreateMutation.isPending)} loading={tierCreateMutation.isPending} data-testid="add-tier-button">Adicionar</Button></div>}
           </div>
         )}
       </section>
