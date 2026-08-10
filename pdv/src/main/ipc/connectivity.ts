@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { logger } from '../utils/logger';
 

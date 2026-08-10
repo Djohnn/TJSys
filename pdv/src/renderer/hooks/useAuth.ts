@@ -55,6 +55,7 @@ export function useAuth() {
       localStorage.setItem('refresh_token', data.refresh_token);
       localStorage.setItem('device_id', data.device_id);
       localStorage.setItem('branch_id', data.branch_id || '');
+      localStorage.setItem('api_key', apiKey);
       setIsAuthenticated(true);
 
       return { success: true };
@@ -68,6 +69,7 @@ export function useAuth() {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('device_id');
     localStorage.removeItem('branch_id');
+    localStorage.removeItem('api_key');
     setIsAuthenticated(false);
   };
 

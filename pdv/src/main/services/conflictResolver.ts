@@ -16,8 +16,8 @@ export interface ConflictResolution {
 
 export function resolveConflict(
   operationType: string,
-  _localPayload: Record<string, unknown>,
-  _serverResponse: Record<string, unknown>
+  localPayload: Record<string, unknown>,
+  serverResponse: Record<string, unknown>
 ): ConflictResolution {
   const strategy = CONFLICT_STRATEGIES[operationType] || 'server-wins';
 

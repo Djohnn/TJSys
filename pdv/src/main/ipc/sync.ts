@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { operationJournal } from '../services/operationJournal';
 import { syncEngine } from '../services/syncEngine';
 import { logger } from '../utils/logger';

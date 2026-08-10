@@ -34,6 +34,11 @@ export interface RegisterDeviceInput {
   osVersion?: string;
 }
 
+export interface DeviceInfo {
+  name: string;
+  branch: string;
+}
+
 export interface CashSessionOpenInput {
   branch: string;
   openingAmount: string;
@@ -88,7 +93,7 @@ export interface ElectronAPI {
   registerDevice(data: RegisterDeviceInput): Promise<ElectronResult<{ device_id: string }>>;
   validateDevice(apiKey: string): Promise<ElectronResult<{ token: string; tenant_id: string; branch_id: string }>>;
   refreshDeviceToken(): Promise<ElectronResult<void>>;
-  getDeviceInfo(): Promise<ElectronResult<{ name: string; branch: string }>>;
+  getDeviceInfo(): Promise<ElectronResult<DeviceInfo | null>>;
 
   // Cash Session
   openCashSession(data: CashSessionOpenInput): Promise<ElectronResult<{ id: string; status: string }>>;

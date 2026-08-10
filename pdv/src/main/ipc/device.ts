@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { logger } from '../utils/logger';
+import type { DeviceInfo, ElectronResult } from '../../shared/electron';
 
 export function setupDeviceHandlers() {
   ipcMain.handle('device:register', async (_event, data: { name: string; branch: string; platform?: string; appVersion?: string; osVersion?: string }) => {
@@ -34,7 +35,7 @@ export function setupDeviceHandlers() {
     }
   });
 
-  ipcMain.handle('device:get-info', async () => {
+  ipcMain.handle('device:get-info', async (): Promise<ElectronResult<DeviceInfo | null>> => {
     // This would return local device info
     return { success: true, data: null };
   });

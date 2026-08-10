@@ -119,6 +119,9 @@ describe('operationJournal', () => {
       uuid: 'old-one', type: 'sale:create', payload: {}, idempotencyKey: 'k-old',
     });
     operationJournal.markSynced('old-one');
+    const past = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+    operationJournal.getByUuid('old-one')!.synced_at; 
+    const db = (operationJournal as unknown as { db: { prepare: (s: string) => { run: (...args: unknown[]) => { changes: number } } } });
     const removed = operationJournal.cleanup(7);
     expect(removed).toBe(0);
   });

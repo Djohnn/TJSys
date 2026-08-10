@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import { auth } from '../services/auth';
 import { setItem } from '../utils/storage';
 import { logger } from '../utils/logger';
+import type { ElectronResult } from '../../shared/electron';
 
 export function setupAuthHandlers() {
   ipcMain.handle('auth:login', async (_event, apiKey: string) => {
@@ -37,9 +38,10 @@ export function setupAuthHandlers() {
     return { success: true };
   });
 
-  ipcMain.handle('auth:check', async () => {
-    return { success: true, authenticated: auth.isAuthenticated(), deviceId: auth.getDeviceId(), branchId: auth.getBranchId() };
-  });
+  ipcMain.handle('auth:check', async (): Promise<ElectronResult<{ isAuthenticated: boolean }>> => ({
+    success: true,
+    data: { isAuthenticated: auth.isAuthenticated() },
+  }));
 
   ipcMain.handle('auth:refresh', async () => {
     try {
