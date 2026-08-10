@@ -59,6 +59,26 @@ export interface ProductPrice {
   version: number
 }
 
+export interface ProductPricingTierSnapshot {
+  id: string
+  min_quantity: string
+  amount: string
+  margin: string | null
+}
+
+export interface ProductPricingSnapshot {
+  id: string
+  product: string
+  amount: string
+  cost: string | null
+  currency: string
+  retail_margin: string | null
+  tiers: ProductPricingTierSnapshot[]
+  valid_from?: string | null
+  valid_to?: string | null
+  version: number
+}
+
 export interface Category {
   id: string
   name: string
@@ -435,10 +455,22 @@ export function fetchProduct(
 export function fetchProductPrices(
   tenantId: string,
   productId: string,
-): Promise<PaginatedResponse<ProductPrice> | ProductPrice[]> {
-  return apiRequest<PaginatedResponse<ProductPrice> | ProductPrice[]>(productExtensionPath(productId, 'prices'), {
+): Promise<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot> {
+  return apiRequest<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot>(productExtensionPath(productId, 'prices'), {
     tenantId,
-  }) as Promise<PaginatedResponse<ProductPrice> | ProductPrice[]>
+  }) as Promise<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot>
+}
+
+export function createProductPricingSnapshot(
+  tenantId: string,
+  productId: string,
+  data: { command_id: string; product_id: string; amount: string; tiers: Array<{ min_quantity: string; amount: string }> },
+): Promise<unknown> {
+  return apiRequest<unknown>(productExtensionPath(productId, 'prices'), {
+    method: 'POST',
+    tenantId,
+    body: data,
+  }) as Promise<unknown>
 }
 
 export function createProductPrice(
