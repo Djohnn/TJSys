@@ -141,6 +141,12 @@ dist/
 !src/
 !src/**
 
+# Playwright visual baselines are test fixtures and must be versioned.
+!frontend/
+!frontend/e2e/
+!frontend/e2e/*-snapshots/
+!frontend/e2e/*-snapshots/**
+
 graphify-out/cost.json       
 # local only
 # graphify-out/cache/        

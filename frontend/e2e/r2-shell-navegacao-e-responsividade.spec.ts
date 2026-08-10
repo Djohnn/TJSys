@@ -1,13 +1,15 @@
-import { test, expect, devices } from '@playwright/test'
+import { devices } from '@playwright/test'
+import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 
 test.describe('R2 - Shell, navegacao e responsividade', () => {
-  test('r2 visual and keyboard contract', async ({ page }) => {
+  test('r2 visual and keyboard contract', async ({ authenticatedPage }) => {
+    const page = authenticatedPage
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()
 
     // Visual regression baseline (desktop)
-    await expect(page.locator('body')).toHaveScreenshot('r2-shell-navegacao-e-responsividade.png')
+    await expect(page).toHaveScreenshot('r2-shell-navegacao-e-responsividade.png')
 
     // No element should have visible focus ring on initial load
     await expect(page.locator(':focus-visible')).toHaveCount(0)
@@ -23,9 +25,11 @@ test.describe('R2 - Shell, navegacao e responsividade', () => {
     expect(criticalViolations).toEqual([])
   })
 
-  test('r2 mobile viewport renders drawer', async ({ browser }) => {
+  test('r2 mobile viewport renders drawer', async ({ browser, baseURL }) => {
     const mobileContext = await browser.newContext({
       ...devices['iPhone 13'],
+      baseURL,
+      storageState: 'test-results/.auth/e2e-user.json',
     })
     const page = await mobileContext.newPage()
     await page.goto('/')
@@ -46,7 +50,8 @@ test.describe('R2 - Shell, navegacao e responsividade', () => {
     await mobileContext.close()
   })
 
-  test('r2 flyout opens on click and closes on Escape', async ({ page }) => {
+  test('r2 flyout opens on click and closes on Escape', async ({ authenticatedPage }) => {
+    const page = authenticatedPage
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()
 

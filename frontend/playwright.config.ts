@@ -5,6 +5,7 @@ const devPort = new URL(baseURL).port || '5173'
 const webCommand = process.env.PLAYWRIGHT_USE_PREVIEW
   ? `npm run preview -- --port ${devPort}`
   : `npm run dev -- --port ${devPort}`
+const useExternalServer = process.env.PLAYWRIGHT_EXTERNAL_SERVER === '1'
 
 export default defineConfig({
   testDir: './e2e',
@@ -34,10 +35,11 @@ export default defineConfig({
       use: { ...devices['Desktop Safari'] },
     },
   ],
-  webServer: {
-    command: webCommand,
-    url: baseURL,
-    // CI starts Vite in the workflow; reuse it instead of binding 5174 twice.
-    reuseExistingServer: true,
-  },
+  webServer: useExternalServer
+    ? undefined
+    : {
+        command: webCommand,
+        url: baseURL,
+        reuseExistingServer: true,
+      },
 })

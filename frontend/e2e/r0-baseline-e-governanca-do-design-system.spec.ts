@@ -1,13 +1,14 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import AxeBuilder from '@axe-core/playwright'
 
 test.describe('R0 - Baseline e Governança do Design System', () => {
-  test('r0 visual and keyboard contract', async ({ page }) => {
+  test('r0 visual and keyboard contract', async ({ authenticatedPage }) => {
+    const page = authenticatedPage
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()
 
     // Visual regression: compare against baseline
-    await expect(page.locator('body')).toHaveScreenshot('r0-baseline-e-governanca-do-design-system.png')
+    await expect(page).toHaveScreenshot('r0-baseline-e-governanca-do-design-system.png')
 
     // Accessibility check
     const accessibilityScanResults = await new AxeBuilder({ page })

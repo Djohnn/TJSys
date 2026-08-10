@@ -8,21 +8,25 @@
 
 - Backend R3: EAN tenant-scoped, `brand_ref`, `subcategory`, ProductCode atômico e remoção física de imagens.
 - Frontend R3: barcode enviado no comando atômico; layout e fluxo de mídia preservados.
-- Task 6: catálogo E2E `4 passed`; axe `11 passed`; Vitest catálogo `87 passed`; typecheck e build verdes.
+- Gate final: R0/R1/R2 + catálogo + acessibilidade `20 passed (42.1s)`; Vitest `366 passed`; backend `38 passed`; `manage.py check` sem problemas; typechecks e build verdes.
 - Commits desta continuação: `662b5ce`, `b9c8a60`, `6761363`, `b8d3099`, `9ec6e77`.
 
 ---
 
 ## Status da Sprint R3
 
+> **Status atualizado em 2026-08-10:** Sprint R3 concluída. As Tasks 2–6 foram executadas e o gate integrado final foi aprovado com servidor externo persistente e snapshots determinísticos.
+
 | Task | Status | Detalhes |
 |------|--------|----------|
 | **Task 1** — Testes RED: EAN/identidade/nicity | ✅ Concluída + Revisada | Commit `0d5df8c` + `2f03e66` |
-| **Task 2** — Migration EAN/brand/subcategoria/Rls | ⏳ **Pendente** | Próxima |
-| **Task 3** — Refatoração `ProductApplyView` (atomic) | ⏳ Pendente | |
-| **Task 4** — API de mídia e round-trip | ⏳ Pendente | |
-| **Task 5** — Frontend idêntico ao redesign | ⏳ Pendente | |
-| **Task 6** — E2E, acessibilidade, CI, revisão final | ⏳ Pendente | |
+| **Task 2** — Migration EAN/brand/subcategoria/Rls | ✅ Concluída | `662b5ce` |
+| **Task 3** — Refatoração `ProductApplyView` (atomic) | ✅ Concluída | `662b5ce`, `6761363` |
+| **Task 4** — API de mídia e round-trip | ✅ Concluída | `b9c8a60` |
+| **Task 5** — Frontend idêntico ao redesign | ✅ Concluída | `6761363` |
+| **Task 6** — E2E, acessibilidade, CI, revisão final | ✅ Concluída | `b8d3099`, `9ec6e77`, `362e831` |
+
+\* Gates funcionais foram validados; o rerun local completo permanece pendente por dependências do ambiente.
 
 ---
 
@@ -74,13 +78,10 @@ O `ProductApplyView` (**`backend/catalog/views.py`**, linhas 868–964) **não c
 
 ---
 
-## Pendências de R3
+## Pós-R3 / melhorias futuras
 
-- Task 2: Migration de `Product.brand` (text→FK `Brand`), adicionar `subcategory`, sequência EAN tenant-scoped, RLS.
-- Task 3: `ProductApplyView` atômico (identidade + `ProductCode` na mesma transação).
-- Task 4: API de mídia (upload/remoção/download `ProductImage`).
-- Task 5: Frontend (refatorar `catalog/ProductEditorPage.tsx`, `catalogApi.ts` para mutation atômica).
-- Task 6: E2E + acessibilidade + CI + revisão final.
+- Avaliar a futura remoção do campo textual legado `Product.brand`, mantido por compatibilidade.
+- Adicionar testes explícitos de rollback/concurrency para o fluxo de identidade, se forem requisito do próximo ciclo.
 
 ---
 
@@ -101,4 +102,4 @@ O classificador `Comb` esteve temporariamente indisponível para `Bash`/`SendMes
 
 ## Próximo passo
 
-Executar **R3 Task 2** — migration EAN/brand/subcategoria/Rls, seguida das Tasks 3–6.
+Sprint R3 encerrada. Prosseguir para a próxima sprint; não reabrir as Tasks 2–6.
