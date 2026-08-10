@@ -48,6 +48,7 @@ Registro oficial dos documentos do TJSys.
 | PLAN-R1-TOKENS | Sprint R1 Tokens e Componentes Fundamentais (Plano) | 1.0.0 | Approved | `superpowers/plans/2026-08-09-sprint-r1-tokens-e-componentes-fundamentais-implementation-plan.md` |
 | DESIGN-R2-SHELL | Sprint R2 Shell Navegacao e Responsividade (Design) | 1.0.0 | Approved | `superpowers/specs/2026-08-09-sprint-r2-shell-navegacao-e-responsividade-design.md` |
 | PLAN-R2-SHELL | Sprint R2 Shell Navegacao e Responsividade (Plano) | 1.0.0 | Approved | `superpowers/plans/2026-08-09-sprint-r2-shell-navegacao-e-responsividade-implementation-plan.md` |
+| TEST-R4-VERTICAL | Fechamento vertical R4 — produto, custo, varejo, atacado e margens | 1.0.0 | Complete | `../frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts` |
 
 ## Material histórico
 
