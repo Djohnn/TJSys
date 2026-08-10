@@ -71,12 +71,9 @@ export default function ProductEditorPage(): ReactNode {
       const payload = toProductPayload(data)
       const result = await applyProduct(tenantId, {
         command_id: commandId,
-        product: payload.product,
+        product: { ...payload.product, barcode: payload.barcode },
         stock: payload.stock ?? null,
       })
-      if (payload.barcode && result.product) {
-        try { await createProductCode(tenantId, result.product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
-      }
       return result as ApplyProductResponse
     },
     onSuccess: (result) => {

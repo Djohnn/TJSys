@@ -27,6 +27,7 @@ import { persistServiceExtensions } from './catalogApi'
 
 const BASE = '/api/v1'
 let capturedProductCode: { method: string; productId: string; value?: string; is_active?: boolean; is_principal?: boolean } | null = null
+let capturedApplyProduct: Record<string, unknown> | null = null
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
@@ -229,6 +230,7 @@ function LocationProbe() {
 
 beforeEach(() => {
   capturedProductCode = null
+  capturedApplyProduct = null
   server.use(
     http.get(`${BASE}/catalog/products/`, ({ request }) => {
       const url = new URL(request.url)
@@ -258,7 +260,8 @@ beforeEach(() => {
       )
     }),
     http.post(`${BASE}/catalog/products/apply/`, async ({ request }) => {
-      const body = (await request.json()) as { product?: { name?: string; tracks_inventory?: boolean } }
+      const body = (await request.json()) as { product?: { name?: string; tracks_inventory?: boolean; barcode?: string } }
+      capturedApplyProduct = body.product ?? null
       const name = body.product?.name ?? ''
       if (!name) {
         return HttpResponse.json(
@@ -1075,6 +1078,19 @@ describe('CatalogHomePage', () => {
 })
 
 describe('ProductEditorPage', () => {
+  it('sends barcode inside the atomic apply command without a follow-up code mutation', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByTestId('product-identity-step')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Nome'), 'Produto Com EAN')
+    await user.type(screen.getByRole('textbox', { name: /Barras/ }), '7891234567890')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedApplyProduct).toMatchObject({ barcode: '7891234567890' }))
+    expect(capturedProductCode).toBeNull()
+  })
+
   it('renders editor layout for new product', async () => {
     renderProductEditor()
     await waitFor(() => {
