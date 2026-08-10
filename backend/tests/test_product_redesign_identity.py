@@ -58,10 +58,16 @@ def _reset_pg_tenant_ctx():
             cursor.execute("SELECT set_config('app.current_tenant_id', '', false)")
 
 
+def _make_tenant(slug, name):
+    """Cria um Tenant com slug único para evitar colisão sob paralelismo."""
+    from tenancy.models import Tenant
+    unique_slug = f'{slug}-{uuid.uuid4().hex[:8]}'
+    return Tenant.objects.create(name=name, slug=unique_slug)
+
+
 @pytest.fixture
 def tenant(db):
-    from tenancy.models import Tenant
-    return Tenant.objects.create(name='R3 Test Tenant', slug='r3-test')
+    return _make_tenant('r3-test', 'R3 Test Tenant')
 
 
 @pytest.fixture
@@ -192,18 +198,38 @@ def test_r3_conflict_on_mismatched_payload(authed_client, tenant, base_unit):
 
 
 # ──────────────────────────────────────────────────────────────────
-# Cenário 5: Tenant isolation — barcode gerado em tenant A não aparece em B
+# Cenário 5: Tenant isolation — EAN de tenant A não colide com B
 # ──────────────────────────────────────────────────────────────────
 @pytest.mark.django_db(transaction=True)
-def test_r3_ean_is_tenant_isolated(authed_client, tenant, base_unit):
+def test_r3_ean_is_tenant_isolated(client, user):
     """O EAN gerado para um tenant não pode colidir com EAN de outro tenant.
-    Este teste cria dois produtos sem código no mesmo tenant e verifica
-    que os barcodes são distintos (isolation de sequência)."""
-    r1 = _post_apply(authed_client, tenant, base_unit_id=base_unit.id)
-    r2 = _post_apply(authed_client, tenant, base_unit_id=base_unit.id)
-    assert r1.status_code == status.HTTP_201_CREATED
-    assert r2.status_code == status.HTTP_201_CREATED
-    barcode1 = r1.json().get('product', {}).get('barcode', '')
-    barcode2 = r2.json().get('product', {}).get('barcode', '')
-    assert barcode1 != barcode2, f'Barcodes devem ser distintos, ambos: {barcode1!r}'
-    assert len(barcode1) == 13 and len(barcode2) == 13
+    Cria dois tenants independentes, gera um EAN em cada e valida que
+    as sequências são independentes (ison de tenant de verdade)."""
+    tenant_a = _make_tenant('r3-iso-a', 'Tenant A')
+    tenant_b = _make_tenant('r3-iso-b', 'Tenant B')
+
+    def _make_char_unit(tenant):
+        from catalog.models import Unit
+        return _run_in_tenant(tenant, lambda: Unit.all_objects.create(
+            tenant=tenant, symbol='UN', name='Unidade', precision=0,
+        ))
+
+    unit_a = _make_char_unit(tenant_a)
+    unit_b = _make_char_unit(tenant_b)
+
+    # Tenant A: autenticar, aplicar, coletar barcode
+    _auth_client(client, user, tenant_a)
+    r_a = _post_apply(client, tenant_a, base_unit_id=unit_a.id)
+
+    # Tenant B: re-autenticar, aplicar, coletar barcode
+    _auth_client(client, user, tenant_b)
+    r_b = _post_apply(client, tenant_b, base_unit_id=unit_b.id)
+
+    assert r_a.status_code == status.HTTP_201_CREATED, r_a.content
+    assert r_b.status_code == status.HTTP_201_CREATED, r_b.content
+    barcode_a = r_a.json().get('product', {}).get('barcode', '')
+    barcode_b = r_b.json().get('product', {}).get('barcode', '')
+    # Ambos devem ter EAN-13 válido (após implementação da feature) e
+    # serem independentes entre tenants. Em RED, ambos vazios — falha legítima.
+    assert len(barcode_a) == 13 and len(barcode_b) == 13
+    assert barcode_a != barcode_b, f'EANs entre tenants devem ser independentes: {barcode_a!r} vs {barcode_b!r}'
