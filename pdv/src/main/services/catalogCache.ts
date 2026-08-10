@@ -29,6 +29,31 @@ export interface SearchResult {
   fromCache: boolean;
 }
 
+interface BackendProduct {
+  id: string;
+  sku: string;
+  name: string;
+  base_unit: string;
+  requires_lot?: boolean;
+  requires_expiry?: boolean;
+  is_active?: boolean;
+  updated_at?: string;
+}
+
+interface BackendProductPrice {
+  id: string;
+  amount: string | number;
+  valid_from: string;
+  valid_to?: string | null;
+  updated_at?: string;
+  is_active?: boolean;
+}
+
+interface PaginatedResponse<T> {
+  results?: T[];
+  next?: string | null;
+}
+
 class CatalogCache {
   private db: Database.Database | null = null;
   private lastSync: Date | null = null;
@@ -91,7 +116,8 @@ class CatalogCache {
           params: { page: nextPage, page_size: pageSize, is_active: 'true' },
         });
 
-        const results = response.data.results || [];
+        const page = response.data as PaginatedResponse<BackendProduct>;
+        const results = page.results || [];
         if (results.length === 0) {
           hasMore = false;
           break;
@@ -104,7 +130,7 @@ class CatalogCache {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        const insertMany = this.db.transaction((products: any[]) => {
+        const insertMany = this.db.transaction((products: BackendProduct[]) => {
           for (const p of products) {
             insertProduct.run(
               p.id,
@@ -125,36 +151,37 @@ class CatalogCache {
         // Fetch prices for each product
         for (const product of results) {
           try {
-            const priceResponse = await api.get(`/products/${product.id}/price-tiers/`, {
+            const priceResponse = await api.get(`/products/${product.id}/prices/`, {
               params: { is_active: 'true' },
             });
 
-            const priceTiers = priceResponse.data.results || priceResponse.data || [];
+            const priceData = priceResponse.data as PaginatedResponse<BackendProductPrice> | BackendProductPrice[];
+            const prices = Array.isArray(priceData) ? priceData : priceData.results || [];
 
-            if (priceTiers.length > 0) {
+            if (prices.length > 0) {
               const insertPrice = this.db.prepare(`
                 INSERT OR REPLACE INTO prices
                 (id, product_id, amount, valid_from, valid_to, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?)
               `);
 
-              const insertPricesTx = this.db.transaction((tiers: any[]) => {
-                for (const tier of tiers) {
-                  if (tier.price !== undefined && tier.is_active) {
+              const insertPricesTx = this.db.transaction((productPrices: BackendProductPrice[]) => {
+                for (const productPrice of productPrices) {
+                  if (productPrice.amount !== undefined && productPrice.is_active !== false) {
                     insertPrice.run(
-                      tier.id,
+                      productPrice.id,
                       product.id,
-                      tier.price,
-                      tier.updated_at || new Date().toISOString(), // valid_from
-                      null, // valid_to
-                      tier.updated_at || new Date().toISOString()
+                      productPrice.amount,
+                      productPrice.valid_from,
+                      productPrice.valid_to ?? null,
+                      productPrice.updated_at || new Date().toISOString()
                     );
                     totalPrices++;
                   }
                 }
               });
 
-              insertPricesTx(priceTiers);
+              insertPricesTx(prices);
             }
           } catch (priceError) {
             // Product might not have prices, continue
@@ -163,7 +190,7 @@ class CatalogCache {
         }
 
         // Check if there are more pages
-        if (response.data.next) {
+        if (page.next) {
           nextPage++;
         } else {
           hasMore = false;
@@ -216,7 +243,7 @@ class CatalogCache {
       LIMIT 1
     `);
     const atStr = at.toISOString();
-    return stmt.get(productId, atStr, atStr) as CachedPrice | null;
+    return (stmt.get(productId, atStr, atStr) as CachedPrice | undefined) ?? null;
   }
 
   updateProduct(product: CachedProduct): void {
