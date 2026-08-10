@@ -312,6 +312,8 @@ class ProductPriceViewSet(CatalogViewSetBase):
         return super().get_queryset().filter(product_id=self.kwargs.get('product_pk'))
 
     def list(self, request, *args, **kwargs):
+        if not request.path.startswith('/api/v1/catalog/'):
+            return super().list(request, *args, **kwargs)
         product = Product.objects.filter(
             id=self.kwargs.get('product_pk'), tenant=request.tenant,
         ).first()
@@ -326,6 +328,9 @@ class ProductPriceViewSet(CatalogViewSetBase):
         if 'command_id' not in request.data:
             return super().create(request, *args, **kwargs)
         try:
+            product_pk = self.kwargs.get('product_pk')
+            if str(request.data.get('product_id')) != str(product_pk):
+                raise ValueError('product_id must match the product in the URL')
             command = SprintR4Command(
                 tenant_id=request.tenant.id,
                 command_id=uuid.UUID(str(request.data['command_id'])),

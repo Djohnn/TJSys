@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from uuid import UUID
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -157,19 +157,41 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
 
     tenant = Tenant.objects.get(id=command.tenant_id)
     payload_hash = _command_hash(command.payload)
-    receipt = (
-        ProductApplyCommand.all_objects.select_for_update()
-        .filter(tenant_id=tenant.id, command_id=str(command.command_id))
-        .first()
-    )
+    receipt = ProductApplyCommand.all_objects.select_for_update().filter(
+        tenant_id=tenant.id,
+        command_id=str(command.command_id),
+    ).first()
     if receipt is not None:
         if receipt.payload_hash != payload_hash:
             raise R4CommandConflict('The command id was already used with a different payload.')
         return receipt.response_json
 
-    product = Product.all_objects.select_for_update().get(
-        id=command.payload['product_id'], tenant_id=tenant.id,
-    )
+    try:
+        with transaction.atomic():
+            receipt = ProductApplyCommand.all_objects.create(
+                tenant=tenant,
+                command_id=str(command.command_id),
+                payload_hash=payload_hash,
+                response_json={},
+                correlation_id=command.command_id,
+            )
+    except IntegrityError:
+        receipt = ProductApplyCommand.all_objects.select_for_update().get(
+            tenant_id=tenant.id,
+            command_id=str(command.command_id),
+        )
+        if receipt.payload_hash != payload_hash:
+            raise R4CommandConflict(
+                'The command id was already used with a different payload.'
+            ) from None
+        return receipt.response_json
+
+    try:
+        product = Product.all_objects.select_for_update().get(
+            id=command.payload['product_id'], tenant_id=tenant.id,
+        )
+    except Product.DoesNotExist as exc:
+        raise ValueError('product_id does not belong to the active tenant') from exc
     try:
         amount = Decimal(str(command.payload['amount']))
     except (InvalidOperation, TypeError) as exc:
@@ -216,11 +238,6 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
         'product_id': str(product.id),
         'price_id': str(price.id),
     }
-    ProductApplyCommand.all_objects.create(
-        tenant=tenant,
-        command_id=str(command.command_id),
-        payload_hash=payload_hash,
-        response_json=response,
-        correlation_id=command.command_id,
-    )
+    receipt.response_json = response
+    receipt.save(update_fields=['response_json', 'updated_at'])
     return response

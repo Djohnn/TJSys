@@ -2,12 +2,13 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
 
-from catalog.models import Product, ProductPrice, Unit
+from catalog.models import Product, ProductPrice, ProductPriceTier, Unit
 from purchasing.models import (
     PurchaseOrder,
     PurchaseOrderItem,
@@ -115,6 +116,17 @@ def test_r4_acceptance_contract(r4_pricing_context):
 
 
 @pytest.mark.django_db
+def test_r4_preserves_legacy_price_list_contract(r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    response = api_client.get(
+        f'/api/v1/products/{product.id}/prices/',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 200
+    assert response.json()['results'][0]['amount'] == '100.0000'
+
+
+@pytest.mark.django_db
 def test_r4_acceptance_contract_isolates_tenant(r4_pricing_context):
     """Given tenant B's product, tenant A cannot retrieve it by identifier."""
     # Given an authenticated tenant A and a product owned by tenant B
@@ -196,3 +208,41 @@ def test_r4_acceptance_contract_replays_command_id(r4_pricing_context):
     assert first.status_code == second.status_code == 201
     assert first.json() == second.json()
     assert ProductPrice.all_objects.filter(product=product).count() == 2
+
+
+@pytest.mark.django_db
+def test_r4_command_rejects_product_url_mismatch(r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    response = api_client.post(
+        f'/api/v1/catalog/products/{product.id}/prices/',
+        {
+            'command_id': str(uuid4()),
+            'product_id': str(uuid4()),
+            'amount': '120.00',
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 400
+    assert ProductPrice.all_objects.filter(product=product).count() == 1
+
+
+@pytest.mark.django_db
+def test_r4_command_rolls_back_price_and_tiers_on_invalid_tier(r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    payload = {
+        'command_id': str(uuid4()),
+        'product_id': str(product.id),
+        'amount': '120.00',
+        'valid_from': '2027-01-01T12:00:00Z',
+        'tiers': [{'min_quantity': '0', 'amount': '100.00'}],
+    }
+    response = api_client.post(
+        f'/api/v1/catalog/products/{product.id}/prices/',
+        payload,
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 400
+    assert ProductPrice.all_objects.filter(product=product).count() == 1
+    assert not ProductPriceTier.all_objects.filter(product=product).exists()
