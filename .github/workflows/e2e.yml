@@ -137,6 +137,14 @@ jobs:
           npm run typecheck:e2e
           npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
 
+      - name: Run R2 shell visual regression
+        working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+        run: |
+          npx playwright test e2e/r2-shell-navegacao-e-responsividade.spec.ts --project=chromium --retries=0
+
       - name: Check Design Tokens
         working-directory: ./frontend
         run: node scripts/check-design-tokens.mjs
