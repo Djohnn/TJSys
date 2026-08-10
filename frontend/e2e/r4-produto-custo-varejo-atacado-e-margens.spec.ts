@@ -8,15 +8,26 @@ const e2eCredentialsConfigured = Boolean(
     process.env.E2E_RECOVERY_CODE,
 )
 
+const r4CommandId = '0f7d2a2e-3a77-4ab5-9c2c-6f7763380a31'
+const r4PricingPayload = {
+  command_id: r4CommandId,
+  amount: '120.00',
+  valid_from: '2026-08-01T00:00:00Z',
+  tiers: [
+    { min_quantity: '10', amount: '100.00' },
+    { min_quantity: '20', amount: '90.00' },
+  ],
+}
+
 test.describe('R4 - produto, custo, varejo, atacado e margens', () => {
   test.describe.configure({ retries: 0 })
 
-  test('r4 vertical acceptance', async ({ authenticatedPage }) => {
-    test.skip(
-      !e2eCredentialsConfigured && !process.env.CI,
-      'E2E não executado: defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_RECOVERY_CODE; em CI a ausência deve falhar o setup.',
-    )
+  test.skip(
+    !e2eCredentialsConfigured && !process.env.CI,
+    'E2E não executado: defina E2E_USER_EMAIL, E2E_USER_PASSWORD e E2E_RECOVERY_CODE; em CI a ausência deve falhar o setup.',
+  )
 
+  test('r4 vertical acceptance', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     const meResponse = await page.request.get('/api/v1/auth/me/')
     await expect(meResponse).toBeOK()
@@ -35,6 +46,41 @@ test.describe('R4 - produto, custo, varejo, atacado e margens', () => {
     const product = products.results.find(({ sku }) => sku === 'E2E-PROD-001')
     expect(product, 'O seed E2E deve fornecer o produto E2E-PROD-001.').toBeTruthy()
 
+    const csrfResponse = await page.request.get('/api/v1/auth/csrf/')
+    await expect(csrfResponse).toBeOK()
+    const csrfToken = (await page.context().cookies()).find(
+      (cookie) => cookie.name === 'csrftoken',
+    )?.value
+    expect(csrfToken, 'A sessão E2E deve possuir cookie CSRF antes da escrita R4.').toBeTruthy()
+
+    const setupResponse = await page.request.post(
+      `/api/v1/catalog/products/${product!.id}/prices/`,
+      {
+        headers: { 'X-Tenant-ID': tenantId!, 'X-CSRFToken': csrfToken! },
+        data: { ...r4PricingPayload, product_id: product!.id },
+      },
+    )
+    const setupStatus = setupResponse.status()
+    if (![200, 201].includes(setupStatus)) {
+      throw new Error(
+        `R4 setup POST falhou; o seed/ambiente não permite escrita. ` +
+          `status=${setupStatus} body=${await setupResponse.text()}`,
+      )
+    }
+    expect([200, 201], 'O setup R4 deve aceitar criação (201) ou replay idempotente (200).').toContain(setupStatus)
+    const setupResult = (await setupResponse.json()) as {
+      command_id: string
+      status: string
+      product_id: string
+      price_id: string
+    }
+    expect(setupResult).toMatchObject({
+      command_id: r4CommandId,
+      status: 'applied',
+      product_id: product!.id,
+    })
+    expect(setupResult.price_id).toBeTruthy()
+
     await page.goto(`/catalog/products/${product!.id}/prices`)
 
     await expect(page).toHaveURL(new RegExp(`/catalog/products/${product!.id}/prices$`))
@@ -44,10 +90,21 @@ test.describe('R4 - produto, custo, varejo, atacado e margens', () => {
     await expect(pricingStep).toBeVisible()
     const pricingSummary = page.getByTestId('r4-pricing-summary')
     await expect(pricingSummary).toBeVisible()
-    await expect(pricingSummary.getByText('BRL 49.90')).toBeVisible()
+    await expect(pricingSummary.getByText('BRL 120.00')).toBeVisible()
+    await expect(pricingSummary.getByText('Custo')).toBeVisible()
+    await expect(pricingSummary.getByText('Venda varejo')).toBeVisible()
+    await expect(pricingSummary.getByText('Atacado')).toBeVisible()
+    await expect(pricingSummary.getByText('Margem varejo')).toBeVisible()
+    await expect(pricingSummary.getByText('2 faixa(s)')).toBeVisible()
+    // seed_e2e creates inventory stock, not a confirmed purchase receipt; cost-derived margins are explicit.
     await expect(pricingSummary.getByText('Não informado')).toHaveCount(2)
-    await expect(pricingSummary.getByText('Nenhuma faixa')).toBeVisible()
-    await expect(page.getByTestId('price-tiers-empty')).toBeVisible()
+    await expect(page.getByTestId('price-tier-row')).toHaveCount(2)
+    await expect(page.getByTestId('price-tier-row').nth(0)).toContainText('10')
+    await expect(page.getByTestId('price-tier-row').nth(0)).toContainText('100.00')
+    await expect(page.getByTestId('price-tier-row').nth(1)).toContainText('20')
+    await expect(page.getByTestId('price-tier-row').nth(1)).toContainText('90.00')
+    await expect(page.getByTestId('price-tier-row').nth(0)).toContainText('Não informado')
+    await expect(page.getByTestId('price-tier-row').nth(1)).toContainText('Não informado')
     await expect(page.getByRole('alert')).toHaveCount(0)
 
     const accessibilityScanResults = await new AxeBuilder({ page })

@@ -54,6 +54,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           SECRET_KEY: ci-secret-key
           DEBUG: 'true'
+          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
         run: |
           pip install -e .
           python manage.py migrate --noinput
@@ -109,10 +110,10 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:5174
           PLAYWRIGHT_RETRIES: '0'
           FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: web-admin@tjsys.local
-          E2E_USER_PASSWORD: e2e-test-pwd-2026
-          E2E_RECOVERY_CODE: e2e0000001
-          E2E_ADMIN_RECOVERY_CODE: e2e0000002
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
           E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
         run: |
           npm run typecheck:e2e
@@ -128,10 +129,10 @@ jobs:
         working-directory: ./pdv
         env:
           PLAYWRIGHT_RETRIES: '0'
-          E2E_PDV_API_KEY: e2e-test-key-2026
-          E2E_USER_EMAIL: web-admin@tjsys.local
-          E2E_USER_PASSWORD: e2e-test-pwd-2026
-          E2E_ADMIN_RECOVERY_CODE: e2e0000002
+          E2E_PDV_API_KEY: ${{ secrets.E2E_PDV_API_KEY }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
           E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
         run: |
           npm run typecheck:e2e
@@ -151,10 +152,10 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:5174
           PLAYWRIGHT_RETRIES: '0'
           FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: web-admin@tjsys.local
-          E2E_USER_PASSWORD: e2e-test-pwd-2026
-          E2E_RECOVERY_CODE: e2e0000001
-          E2E_ADMIN_RECOVERY_CODE: e2e0000002
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
         run: |
           npx playwright test e2e/catalog-sprints-23-30.spec.ts e2e/accessibility.spec.ts --project=chromium --retries=0
 
@@ -183,4 +184,4 @@ jobs:
           path: |
             frontend/playwright-report/
             pdv/playwright-report/
-            test-results/
+            test-results/product-pdv-flow.json
