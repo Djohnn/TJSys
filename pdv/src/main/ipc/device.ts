@@ -1,5 +1,6 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { api } from '../services/api';
+import { auth } from '../services/auth';
 import { logger } from '../utils/logger';
 import type {
   DeviceInfo,
@@ -28,8 +29,8 @@ export function setupDeviceHandlers(): void {
     apiKey: string,
   ): Promise<ElectronResult<DeviceTokenResponse>> => {
     try {
-      const res = await api.post<DeviceTokenResponse>('/devices/validate/', { api_key: apiKey });
-      return { success: true, data: res.data };
+      const result = await auth.validateApiKey(apiKey);
+      return { success: true, data: result };
     } catch (error) {
       logger.error('Failed to validate device:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to validate device' };
@@ -38,8 +39,8 @@ export function setupDeviceHandlers(): void {
 
   ipcMain.handle('device:refresh', async (): Promise<ElectronResult<DeviceTokenResponse>> => {
     try {
-      const res = await api.post<DeviceTokenResponse>('/devices/refresh/', {});
-      return { success: true, data: res.data };
+      const result = await auth.refreshToken();
+      return { success: true, data: result };
     } catch (error) {
       logger.error('Failed to refresh device token:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to refresh token' };

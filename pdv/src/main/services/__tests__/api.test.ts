@@ -42,6 +42,22 @@ describe('API do processo principal', () => {
     storageMocks.removeItem.mockReset();
   });
 
+  it('envia o tenant persistido no header de cada requisição', () => {
+    storageMocks.getItem.mockImplementation((key: string) => {
+      if (key === 'access_token') return 'access-token';
+      if (key === 'tenant_id') return 'tenant-1';
+      return null;
+    });
+    const requestHandler = axiosMocks.instance.interceptors.request.use.mock.calls[0][0];
+
+    expect(requestHandler({ headers: {} })).toMatchObject({
+      headers: {
+        Authorization: 'Bearer access-token',
+        'X-Tenant-ID': 'tenant-1',
+      },
+    });
+  });
+
   it('renova os dois tokens em uma URL sem barra duplicada e repete pela instância configurada', async () => {
     storageMocks.getItem.mockImplementation((key: string) => (key === 'refresh_token' ? 'refresh-antigo' : null));
     axiosMocks.post.mockResolvedValue({

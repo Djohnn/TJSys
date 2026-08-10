@@ -6,7 +6,16 @@ const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const DEVICE_ID_KEY = 'device_id';
 const BRANCH_ID_KEY = 'branch_id';
+const TENANT_ID_KEY = 'tenant_id';
 const API_KEY_KEY = 'api_key';
+
+function persistDeviceContext(data: DeviceTokenResponse): void {
+  setItem(ACCESS_TOKEN_KEY, data.token);
+  setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+  setItem(DEVICE_ID_KEY, data.device_id);
+  setItem(BRANCH_ID_KEY, data.branch_id ?? '');
+  setItem(TENANT_ID_KEY, data.tenant_id);
+}
 
 export const auth = {
   async validateApiKey(apiKey: string): Promise<DeviceTokenResponse> {
@@ -15,10 +24,7 @@ export const auth = {
     });
 
     const data = response.data;
-    setItem(ACCESS_TOKEN_KEY, data.token);
-    setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-    setItem(DEVICE_ID_KEY, data.device_id);
-    setItem(BRANCH_ID_KEY, data.branch_id ?? '');
+    persistDeviceContext(data);
     setItem(API_KEY_KEY, apiKey);
 
     return data;
@@ -34,8 +40,7 @@ export const auth = {
       refresh_token: refreshToken,
     });
 
-    setItem(ACCESS_TOKEN_KEY, response.data.token);
-    setItem(REFRESH_TOKEN_KEY, response.data.refresh_token);
+    persistDeviceContext(response.data);
 
     return response.data;
   },
@@ -65,6 +70,7 @@ export const auth = {
     removeItem(REFRESH_TOKEN_KEY);
     removeItem(DEVICE_ID_KEY);
     removeItem(BRANCH_ID_KEY);
+    removeItem(TENANT_ID_KEY);
     removeItem(API_KEY_KEY);
   },
 
