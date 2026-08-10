@@ -153,7 +153,7 @@ class SyncEngine {
 
     for (let attempt = 0; attempt < 10; attempt++) {
       try {
-        const response = await api.post(endpoint, payload, {
+        await api.post(endpoint, payload, {
           headers: { 'Idempotency-Key': entry.idempotency_key },
         });
 
@@ -173,13 +173,13 @@ class SyncEngine {
             payload,
             axiosErr.response.data || {}
           );
-          operationJournal.markConflict(entry.uuid, resolution);
+          operationJournal.markConflict(entry.uuid, { ...resolution });
           logger.warn('Conflict resolved', { uuid: entry.uuid, resolution });
           return;
         }
 
         if (axiosErr.response && axiosErr.response.status >= 400 && axiosErr.response.status < 500) {
-          const msg = axiosErr.response.data?.detail || axiosErr.message || 'Client error';
+          const msg = (axiosErr.response.data?.detail as string | undefined) || axiosErr.message || 'Client error';
           if (axiosErr.response.status === 422 || axiosErr.response.status === 400) {
             operationJournal.markFailed(entry.uuid, msg);
             logger.error('Operation failed permanently', { uuid: entry.uuid, error: msg });
