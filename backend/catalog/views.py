@@ -311,46 +311,6 @@ class ProductPriceViewSet(CatalogViewSetBase):
     def get_queryset(self):
         return super().get_queryset().filter(product_id=self.kwargs.get('product_pk'))
 
-    def list(self, request, *args, **kwargs):
-        if not request.path.startswith('/api/v1/catalog/'):
-            return super().list(request, *args, **kwargs)
-        product = Product.objects.filter(
-            id=self.kwargs.get('product_pk'), tenant=request.tenant,
-        ).first()
-        if product is None:
-            return super().list(request, *args, **kwargs)
-        snapshot = pricing_snapshot(product=product)
-        if snapshot is None:
-            return Response({'results': []})
-        return Response(snapshot)
-
-    def create(self, request, *args, **kwargs):
-        if 'command_id' not in request.data:
-            return super().create(request, *args, **kwargs)
-        try:
-            product_pk = self.kwargs.get('product_pk')
-            if str(request.data.get('product_id')) != str(product_pk):
-                raise ValueError('product_id must match the product in the URL')
-            command = SprintR4Command(
-                tenant_id=request.tenant.id,
-                command_id=uuid.UUID(str(request.data['command_id'])),
-                payload=dict(request.data),
-            )
-            result = execute_r4_command(command)
-        except R4CommandConflict as exc:
-            return Response(
-                {'type': 'about:blank', 'title': 'Conflict', 'status': 409, 'detail': str(exc)},
-                status=status.HTTP_409_CONFLICT,
-                content_type='application/problem+json',
-            )
-        except (DjangoValidationError, KeyError, TypeError, ValueError) as exc:
-            return Response(
-                {'type': 'about:blank', 'title': 'Bad Request', 'status': 400, 'detail': str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-                content_type='application/problem+json',
-            )
-        return Response(result, status=status.HTTP_201_CREATED)
-
     def perform_create(self, serializer):
         product = get_object_or_404(
             Product,
@@ -377,6 +337,46 @@ class ProductPriceViewSet(CatalogViewSetBase):
             request=self.request,
         )
         return instance
+
+
+class R4ProductPriceViewSet(ProductPriceViewSet):
+    """Explicit R4 price contract; legacy ProductPriceViewSet stays unchanged."""
+
+    def list(self, request, *args, **kwargs):
+        product = Product.objects.filter(
+            id=self.kwargs.get('product_pk'), tenant=request.tenant,
+        ).first()
+        if product is None:
+            return Response({'results': []})
+        snapshot = pricing_snapshot(product=product)
+        if snapshot is None:
+            return Response({'results': []})
+        return Response(snapshot)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            product_pk = self.kwargs.get('product_pk')
+            if str(request.data.get('product_id')) != str(product_pk):
+                raise ValueError('product_id must match the product in the URL')
+            command = SprintR4Command(
+                tenant_id=request.tenant.id,
+                command_id=uuid.UUID(str(request.data['command_id'])),
+                payload=dict(request.data),
+            )
+            result = execute_r4_command(command)
+        except R4CommandConflict as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Conflict', 'status': 409, 'detail': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+                content_type='application/problem+json',
+            )
+        except (DjangoValidationError, KeyError, TypeError, ValueError) as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Bad Request', 'status': 400, 'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+                content_type='application/problem+json',
+            )
+        return Response(result, status=status.HTTP_201_CREATED)
 
 
 class BranchPriceViewSet(CatalogViewSetBase):

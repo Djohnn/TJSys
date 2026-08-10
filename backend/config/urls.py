@@ -51,6 +51,7 @@ urlpatterns = [
     path('api/v1/', include('payments.urls')),
     path('api/v1/', include('platform_admin.urls')),
     # Module-prefixed mounts for frontend compatibility
+    path('api/v1/catalog/', include('catalog.r4_urls')),
     path('api/v1/catalog/', include('catalog.urls')),
     path('api/v1/inventory/', include('inventory.urls')),
     path('api/v1/purchasing/', include('purchasing.urls')),

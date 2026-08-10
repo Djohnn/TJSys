@@ -2,13 +2,21 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from threading import Barrier, Thread
 from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import connection
+from django.db import close_old_connections, connection
 
-from catalog.models import Product, ProductPrice, ProductPriceTier, Unit
+from catalog.models import (
+    Product,
+    ProductApplyCommand,
+    ProductPrice,
+    ProductPriceTier,
+    Unit,
+)
+from catalog.services.pricing import SprintR4Command, execute_r4_command
 from purchasing.models import (
     PurchaseOrder,
     PurchaseOrderItem,
@@ -124,6 +132,25 @@ def test_r4_preserves_legacy_price_list_contract(r4_pricing_context):
     )
     assert response.status_code == 200
     assert response.json()['results'][0]['amount'] == '100.0000'
+
+
+@pytest.mark.django_db
+def test_legacy_price_write_does_not_activate_r4_command_flow(r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    command_id = str(uuid4())
+    response = api_client.post(
+        f'/api/v1/products/{product.id}/prices/',
+        {
+            'command_id': command_id,
+            'amount': '110.00',
+            'valid_from': '2025-01-01T12:00:00Z',
+            'valid_to': '2025-12-31T12:00:00Z',
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 201
+    assert not ProductApplyCommand.all_objects.filter(command_id=command_id).exists()
 
 
 @pytest.mark.django_db
@@ -246,3 +273,116 @@ def test_r4_command_rolls_back_price_and_tiers_on_invalid_tier(r4_pricing_contex
     assert response.status_code == 400
     assert ProductPrice.all_objects.filter(product=product).count() == 1
     assert not ProductPriceTier.all_objects.filter(product=product).exists()
+
+
+@pytest.mark.django_db
+def test_r4_command_rejects_invalid_tier_decimal(r4_pricing_context):
+    api_client, tenant, product = r4_pricing_context
+    response = api_client.post(
+        f'/api/v1/catalog/products/{product.id}/prices/',
+        {
+            'command_id': str(uuid4()),
+            'product_id': str(product.id),
+            'amount': '120.00',
+            'tiers': [{'min_quantity': 'not-a-decimal', 'amount': '100.00'}],
+        },
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert response.status_code == 400
+    assert ProductPrice.all_objects.filter(product=product).count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_r4_command_concurrent_replay_is_single_write(monkeypatch):
+    """Two PostgreSQL transactions racing the same command replay one result."""
+    tenant = Tenant.objects.create(name='R4 Concurrent', slug=f'r4-concurrent-{uuid4().hex}')
+    token = set_current_tenant_id(tenant.id)
+    with connection.cursor() as cursor:
+        cursor.execute('SET app.current_tenant_id = %s', [str(tenant.id)])
+    unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
+    product = Product.all_objects.create(
+        tenant=tenant,
+        sku='R4-CONCURRENT',
+        name='Produto concorrente',
+        base_unit=unit,
+    )
+    ProductPrice.all_objects.create(
+        tenant=tenant,
+        product=product,
+        amount=Decimal('100.00'),
+        valid_from=FIXED_PRICING_INSTANT,
+    )
+    reset_current_tenant_id(token)
+    command_id = uuid4()
+    payload = {
+        'product_id': str(product.id),
+        'amount': '130.00',
+        'valid_from': '2028-01-01T12:00:00Z',
+        'tiers': [{'min_quantity': '10', 'amount': '110.00'}],
+    }
+    command = SprintR4Command(tenant.id, command_id, payload)
+    original_create = ProductApplyCommand.all_objects.create
+    insert_barrier = Barrier(2)
+
+    def coordinated_create(**kwargs):
+        if kwargs.get('command_id') == str(command_id):
+            insert_barrier.wait(timeout=10)
+        return original_create(**kwargs)
+
+    monkeypatch.setattr(ProductApplyCommand.all_objects, 'create', coordinated_create)
+    before = ProductPrice.all_objects.filter(product=product).count()
+    results = []
+    errors = []
+
+    def invoke():
+        close_old_connections()
+        token = set_current_tenant_id(tenant.id)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SET app.current_tenant_id = %s', [str(tenant.id)])
+            results.append(execute_r4_command(command))
+        except Exception as exc:  # pragma: no cover - assertion reports the real error
+            errors.append(exc)
+        finally:
+            reset_current_tenant_id(token)
+            close_old_connections()
+
+    threads = [Thread(target=invoke), Thread(target=invoke)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=15)
+
+    assert not errors, errors
+    assert len(results) == 2
+    assert results[0] == results[1]
+    assert ProductPrice.all_objects.filter(product=product).count() == before + 1
+
+
+@pytest.mark.django_db
+def test_r4_existing_rls_policies_cover_price_and_command_receipt():
+    """R4 relies on existing policies from catalog migrations 0004 and 0015."""
+    if connection.vendor != 'postgresql':
+        pytest.skip('R4 RLS evidence requires PostgreSQL')
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT tablename, policyname, qual, with_check
+            FROM pg_policies
+            WHERE schemaname = 'public'
+              AND tablename IN ('catalog_productprice', 'catalog_productapplycommand')
+            ORDER BY tablename
+            """
+        )
+        policies = cursor.fetchall()
+
+    assert [row[0] for row in policies] == [
+        'catalog_productapplycommand',
+        'catalog_productprice',
+    ]
+    for _, _, qual, with_check in policies:
+        assert 'current_setting' in qual
+        assert 'tenant_id' in qual
+        assert 'current_setting' in with_check
+        assert 'tenant_id' in with_check

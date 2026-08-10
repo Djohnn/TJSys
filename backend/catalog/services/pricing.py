@@ -144,6 +144,13 @@ def _command_hash(payload):
     ).hexdigest()
 
 
+def _decimal_value(value, field_name):
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} must be a valid decimal') from exc
+
+
 @transaction.atomic
 def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
     """Persist a retail price and optional wholesale tiers atomically."""
@@ -192,10 +199,7 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
         )
     except Product.DoesNotExist as exc:
         raise ValueError('product_id does not belong to the active tenant') from exc
-    try:
-        amount = Decimal(str(command.payload['amount']))
-    except (InvalidOperation, TypeError) as exc:
-        raise ValueError('amount must be a valid decimal') from exc
+    amount = _decimal_value(command.payload['amount'], 'amount')
     if amount < 0:
         raise ValueError('amount must not be negative')
 
@@ -226,8 +230,8 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
             tenant=tenant,
             product=product,
             price=price,
-            min_quantity=Decimal(str(tier_data['min_quantity'])),
-            amount=Decimal(str(tier_data['amount'])),
+            min_quantity=_decimal_value(tier_data['min_quantity'], 'min_quantity'),
+            amount=_decimal_value(tier_data['amount'], 'tier amount'),
         )
         tier.full_clean()
         tier.save()
