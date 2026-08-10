@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, devices } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 test.describe('R2 - Shell, navegacao e responsividade', () => {
@@ -6,7 +6,7 @@ test.describe('R2 - Shell, navegacao e responsividade', () => {
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()
 
-    // Visual regression baseline
+    // Visual regression baseline (desktop)
     await expect(page.locator('body')).toHaveScreenshot('r2-shell-navegacao-e-responsividade.png')
 
     // No element should have visible focus ring on initial load
@@ -21,6 +21,29 @@ test.describe('R2 - Shell, navegacao e responsividade', () => {
       (v) => v.impact === 'critical' || v.impact === 'serious',
     )
     expect(criticalViolations).toEqual([])
+  })
+
+  test('r2 mobile viewport renders drawer', async ({ browser }) => {
+    const mobileContext = await browser.newContext({
+      ...devices['iPhone 13'],
+    })
+    const page = await mobileContext.newPage()
+    await page.goto('/')
+
+    // Mobile: the drawer trigger should be visible
+    const trigger = page.getByRole('button', { name: /abrir menu/i })
+    await expect(trigger).toBeVisible()
+
+    // Click opens the drawer
+    await trigger.click()
+    const drawer = page.getByTestId('mobile-navigation-drawer')
+    await expect(drawer).toBeVisible()
+
+    // Escape closes the drawer
+    await page.keyboard.press('Escape')
+    await expect(drawer).not.toBeVisible()
+
+    await mobileContext.close()
   })
 
   test('r2 flyout opens on click and closes on Escape', async ({ page }) => {
