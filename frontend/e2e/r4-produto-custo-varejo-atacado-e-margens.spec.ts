@@ -84,7 +84,7 @@ test.describe('R4 - produto, custo, varejo, atacado e margens', () => {
     await page.goto(`/catalog/products/${product!.id}/prices`)
 
     await expect(page).toHaveURL(new RegExp(`/catalog/products/${product!.id}/prices$`))
-    await expect(page.getByRole('heading', { name: 'Venda varejo' })).toBeVisible()
+    await expect(page.getByRole('main', { name: 'Venda varejo' })).toBeVisible()
 
     const pricingStep = page.getByTestId('product-prices-step')
     await expect(pricingStep).toBeVisible()

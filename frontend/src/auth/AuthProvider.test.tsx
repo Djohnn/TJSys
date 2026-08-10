@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest'
 import { server } from '../test/server'
 
 import { AuthProvider, useAuth } from './AuthProvider'
+import { fetchCsrf } from './authApi'
 
 const BASE = '/api/v1'
 
@@ -71,6 +72,20 @@ function renderWithClient(ui: ReactNode) {
 }
 
 describe('AuthProvider', () => {
+  it('deduplicates concurrent CSRF initialization requests', async () => {
+    let requestCount = 0
+    server.use(
+      http.get(`${BASE}/auth/csrf/`, () => {
+        requestCount += 1
+        return HttpResponse.json({ detail: 'CSRF cookie set' })
+      }),
+    )
+
+    await Promise.all([fetchCsrf(), fetchCsrf()])
+
+    expect(requestCount).toBe(1)
+  })
+
   it('starts in loading state', () => {
     renderWithClient(<TestDisplay />)
     expect(screen.getByTestId('auth-state')).toHaveTextContent('loading')

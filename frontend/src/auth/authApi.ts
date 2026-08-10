@@ -28,8 +28,17 @@ export interface LoginResponse {
   refresh?: string
 }
 
-export async function fetchCsrf(): Promise<void> {
-  await apiRequest('/auth/csrf/')
+let csrfRequest: Promise<void> | null = null
+
+export function fetchCsrf(): Promise<void> {
+  if (!csrfRequest) {
+    csrfRequest = apiRequest('/auth/csrf/')
+      .then(() => undefined)
+      .finally(() => {
+        csrfRequest = null
+      })
+  }
+  return csrfRequest
 }
 
 export async function loginApi(
