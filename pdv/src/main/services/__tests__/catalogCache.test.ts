@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getPath: vi.fn(),
   get: vi.fn(),
+  getItem: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
@@ -19,6 +20,10 @@ vi.mock('../api', () => ({
 
 vi.mock('../../utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock('../../utils/storage', () => ({
+  getItem: () => mocks.getItem(),
 }));
 
 import { catalogCache } from '../catalogCache';
@@ -51,7 +56,8 @@ describe('CatalogCache.syncFromBackend', () => {
     databaseDirectory = mkdtempSync(join(tmpdir(), 'tjsys-catalog-cache-'));
     mocks.getPath.mockReturnValue(databaseDirectory);
     mocks.get.mockReset();
-    catalogCache.init();
+    mocks.getItem.mockReturnValue('tenant-a');
+    catalogCache.init('tenant-a');
   });
 
   afterEach(() => {
@@ -101,8 +107,32 @@ describe('CatalogCache.syncFromBackend', () => {
     // Then
     expect(mocks.get).toHaveBeenCalledTimes(2);
     expect(mocks.get).toHaveBeenNthCalledWith(1, '/products/', {
-      params: { page: 1, page_size: 100, is_active: 'true' },
+      params: { page_size: 100, is_active: 'true' },
     });
+  });
+
+  it('Given cursor pagination, When syncing, Then follows next URLs without incrementing page', async () => {
+    // Given
+    const secondProduct = { ...product, id: 'product-2', sku: 'SKU-002' };
+    mocks.get.mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      if (url === '/products/' && config?.params) {
+        return { data: { results: [product], next: 'https://api.test/products/?cursor=next' } };
+      }
+      if (url === 'https://api.test/products/?cursor=next') {
+        return { data: { results: [secondProduct], next: null } };
+      }
+      return { data: { results: [] } };
+    });
+
+    // When
+    await catalogCache.syncFromBackend();
+
+    // Then
+    expect(mocks.get).toHaveBeenNthCalledWith(1, '/products/', {
+      params: { page_size: 100, is_active: 'true' },
+    });
+    expect(mocks.get).toHaveBeenNthCalledWith(3, 'https://api.test/products/?cursor=next');
+    expect(catalogCache.getProductById('product-2')).not.toBeNull();
   });
 
   it('Given a product without prices, When the price list is empty, Then keeps the product without a price row', async () => {
@@ -121,5 +151,55 @@ describe('CatalogCache.syncFromBackend', () => {
     expect(result).toEqual({ products: 1, prices: 0 });
     expect(catalogCache.getProductById('product-1')).not.toBeNull();
     expect(catalogCache.getPrice('product-1')).toBeNull();
+  });
+
+  it('Given a cached product in tenant A, When tenant B syncs, Then tenant A data is not visible', async () => {
+    // Given
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/products/') return { data: { results: [product], next: null } };
+      return { data: { results: [price] } };
+    });
+    await catalogCache.syncFromBackend();
+    expect(catalogCache.getProductById('product-1')).not.toBeNull();
+
+    // When
+    mocks.getItem.mockReturnValue('tenant-b');
+    mocks.get.mockResolvedValue({ data: { results: [], next: null } });
+    await catalogCache.syncFromBackend();
+
+    // Then
+    expect(catalogCache.getProductById('product-1')).toBeNull();
+    expect(catalogCache.searchProducts('SKU-001')).toEqual([]);
+  });
+
+  it('Given an old cached price, When refresh returns an empty price list, Then removes obsolete prices', async () => {
+    // Given
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => ({ data: { results: [price] } }));
+    await catalogCache.syncFromBackend();
+    expect(catalogCache.getPrice('product-1', new Date('2026-08-15T12:00:00Z'))).not.toBeNull();
+
+    // When
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => ({ data: { results: [] } }));
+    await catalogCache.syncFromBackend();
+
+    // Then
+    expect(catalogCache.getPrice('product-1', new Date('2026-08-15T12:00:00Z'))).toBeNull();
+  });
+
+  it('Given a valid cached price, When price refresh fails, Then preserves the valid cache', async () => {
+    // Given
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => ({ data: { results: [price] } }));
+    await catalogCache.syncFromBackend();
+
+    // When
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => { throw new Error('backend unavailable'); });
+    await catalogCache.syncFromBackend();
+
+    // Then
+    expect(catalogCache.getPrice('product-1', new Date('2026-08-15T12:00:00Z'))).toMatchObject({ id: 'price-1' });
   });
 });

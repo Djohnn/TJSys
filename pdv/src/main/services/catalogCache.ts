@@ -3,6 +3,9 @@ import { app } from 'electron';
 import { join } from 'path';
 import { logger } from '../utils/logger';
 import { api } from './api';
+import { getItem } from '../utils/storage';
+
+const TENANT_ID_KEY = 'tenant_id';
 
 export interface CachedProduct {
   id: string;
@@ -56,13 +59,34 @@ interface PaginatedResponse<T> {
 
 class CatalogCache {
   private db: Database.Database | null = null;
+  private tenantId: string | null = null;
   private lastSync: Date | null = null;
 
-  init(): void {
-    const dbPath = join(app.getPath('userData'), 'catalog.db');
-    this.db = new Database(dbPath);
+  init(tenantId?: string): void {
+    this.close();
+    if (tenantId) this.ensureTenantDatabase(tenantId);
+  }
+
+  private databasePath(tenantId: string): string {
+    const safeTenantId = encodeURIComponent(tenantId).replace(/%/g, '_');
+    return join(app.getPath('userData'), `catalog-${safeTenantId}.db`);
+  }
+
+  private ensureTenantDatabase(tenantId: string | null = getItem(TENANT_ID_KEY) ?? this.tenantId): boolean {
+    if (!tenantId) {
+      this.close();
+      logger.warn('Catalog cache unavailable without tenant context');
+      return false;
+    }
+
+    if (this.db && this.tenantId === tenantId) return true;
+
+    this.close();
+    this.db = new Database(this.databasePath(tenantId));
     this.db.pragma('journal_mode = WAL');
+    this.tenantId = tenantId;
     this.createTables();
+    return true;
   }
 
   private createTables(): void {
@@ -102,24 +126,28 @@ class CatalogCache {
       return { products: 0, prices: 0 };
     }
 
+    if (!this.ensureTenantDatabase()) return { products: 0, prices: 0 };
+
     let totalProducts = 0;
     let totalPrices = 0;
 
     try {
       // Fetch products with pagination
-      let nextPage = 1;
-      const pageSize = 100;
-      let hasMore = true;
+      let nextUrl: string | null = '/products/';
+      let firstRequest = true;
+      const visitedUrls = new Set<string>();
 
-      while (hasMore) {
-        const response = await api.get('/products/', {
-          params: { page: nextPage, page_size: pageSize, is_active: 'true' },
-        });
+      while (nextUrl) {
+        if (visitedUrls.has(nextUrl)) throw new Error(`Repeated catalog cursor: ${nextUrl}`);
+        visitedUrls.add(nextUrl);
+        const response = firstRequest
+          ? await api.get(nextUrl, { params: { page_size: 100, is_active: 'true' } })
+          : await api.get(nextUrl);
+        firstRequest = false;
 
         const page = response.data as PaginatedResponse<BackendProduct>;
         const results = page.results || [];
         if (results.length === 0) {
-          hasMore = false;
           break;
         }
 
@@ -151,50 +179,59 @@ class CatalogCache {
         // Fetch prices for each product
         for (const product of results) {
           try {
-            const priceResponse = await api.get(`/products/${product.id}/prices/`, {
-              params: { is_active: 'true' },
-            });
+            const prices: BackendProductPrice[] = [];
+            let priceUrl: string | null = `/products/${product.id}/prices/`;
+            let firstPriceRequest = true;
+            const visitedPriceUrls = new Set<string>();
+            while (priceUrl) {
+              if (visitedPriceUrls.has(priceUrl)) throw new Error(`Repeated price cursor: ${priceUrl}`);
+              visitedPriceUrls.add(priceUrl);
+              const priceResponse = firstPriceRequest
+                ? await api.get(priceUrl, { params: { is_active: 'true' } })
+                : await api.get(priceUrl);
+              firstPriceRequest = false;
+              const priceData = priceResponse.data as PaginatedResponse<BackendProductPrice> | BackendProductPrice[];
+              if (Array.isArray(priceData)) {
+                prices.push(...priceData);
+                priceUrl = null;
+              } else {
+                prices.push(...(priceData.results || []));
+                priceUrl = priceData.next ?? null;
+              }
+            }
 
-            const priceData = priceResponse.data as PaginatedResponse<BackendProductPrice> | BackendProductPrice[];
-            const prices = Array.isArray(priceData) ? priceData : priceData.results || [];
-
-            if (prices.length > 0) {
-              const insertPrice = this.db.prepare(`
+            const replacePrices = this.db.transaction((productPrices: BackendProductPrice[]) => {
+              this.db!.prepare('DELETE FROM prices WHERE product_id = ?').run(product.id);
+              const insertPrice = this.db!.prepare(`
                 INSERT OR REPLACE INTO prices
                 (id, product_id, amount, valid_from, valid_to, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?)
               `);
-
-              const insertPricesTx = this.db.transaction((productPrices: BackendProductPrice[]) => {
-                for (const productPrice of productPrices) {
-                  if (productPrice.amount !== undefined && productPrice.is_active !== false) {
-                    insertPrice.run(
-                      productPrice.id,
-                      product.id,
-                      productPrice.amount,
-                      productPrice.valid_from,
-                      productPrice.valid_to ?? null,
-                      productPrice.updated_at || new Date().toISOString()
-                    );
-                    totalPrices++;
-                  }
+              let inserted = 0;
+              for (const productPrice of productPrices) {
+                if (productPrice.amount !== undefined && productPrice.is_active !== false) {
+                  insertPrice.run(
+                    productPrice.id,
+                    product.id,
+                    productPrice.amount,
+                    productPrice.valid_from,
+                    productPrice.valid_to ?? null,
+                    productPrice.updated_at || new Date().toISOString()
+                  );
+                  inserted++;
                 }
-              });
-
-              insertPricesTx(prices);
-            }
+              }
+              return inserted;
+            });
+            totalPrices += replacePrices(prices);
           } catch (priceError) {
-            // Product might not have prices, continue
-            logger.debug(`No prices found for product ${product.id}`);
+            // Preserve the last valid prices when the refresh fails.
+            logger.debug(`Prices unavailable for product ${product.id}; preserving cache`);
           }
         }
 
         // Check if there are more pages
-        if (page.next) {
-          nextPage++;
-        } else {
-          hasMore = false;
-        }
+        nextUrl = page.next ?? null;
       }
 
       this.lastSync = new Date();
@@ -208,9 +245,11 @@ class CatalogCache {
   }
 
   searchProducts(query: string): CachedProduct[] {
-    if (!this.db) return [];
+    if (!this.ensureTenantDatabase()) return [];
+    const db = this.db;
+    if (!db) return [];
 
-    const stmt = this.db.prepare(`
+    const stmt = db.prepare(`
       SELECT * FROM products 
       WHERE (sku LIKE ? OR name LIKE ?) AND is_active = 1
       ORDER BY sku
@@ -222,20 +261,26 @@ class CatalogCache {
   }
 
   getProductById(id: string): CachedProduct | null {
-    if (!this.db) return null;
-    const stmt = this.db.prepare('SELECT * FROM products WHERE id = ?');
-    return stmt.get(id) as CachedProduct | null;
+    if (!this.ensureTenantDatabase()) return null;
+    const db = this.db;
+    if (!db) return null;
+    const stmt = db.prepare('SELECT * FROM products WHERE id = ?');
+    return (stmt.get(id) as CachedProduct | undefined) ?? null;
   }
 
   getProductBySku(sku: string): CachedProduct | null {
-    if (!this.db) return null;
-    const stmt = this.db.prepare('SELECT * FROM products WHERE sku = ? AND is_active = 1');
-    return stmt.get(sku) as CachedProduct | null;
+    if (!this.ensureTenantDatabase()) return null;
+    const db = this.db;
+    if (!db) return null;
+    const stmt = db.prepare('SELECT * FROM products WHERE sku = ? AND is_active = 1');
+    return (stmt.get(sku) as CachedProduct | undefined) ?? null;
   }
 
   getPrice(productId: string, at: Date = new Date()): CachedPrice | null {
-    if (!this.db) return null;
-    const stmt = this.db.prepare(`
+    if (!this.ensureTenantDatabase()) return null;
+    const db = this.db;
+    if (!db) return null;
+    const stmt = db.prepare(`
       SELECT * FROM prices 
       WHERE product_id = ? AND valid_from <= ?
       AND (valid_to IS NULL OR valid_to > ?)
@@ -282,6 +327,7 @@ class CatalogCache {
       this.db.close();
       this.db = null;
     }
+    this.tenantId = null;
   }
 }
 
