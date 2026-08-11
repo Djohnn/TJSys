@@ -327,6 +327,7 @@ def sale_context(django_user_model):
         return {
             'tenant': tenant,
             'user': user,
+            'device': device,
             'unit': unit,
             'product': product,
             'branch': branch,

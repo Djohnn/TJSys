@@ -54,6 +54,7 @@ LOCAL_APPS = [
     'people',
     'payments',
     'platform_admin',
+    'pdv',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
