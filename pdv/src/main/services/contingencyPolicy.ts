@@ -36,6 +36,25 @@ export interface ContingencyAnchor {
   last_online_at: string;
   monotonic_ms: number;
   session_id: string;
+  device: ContingencyEligibilitySnapshot;
+  operator: ContingencyEligibilitySnapshot | null;
+}
+
+export interface ContingencyEligibilitySnapshot {
+  id: string;
+  active: boolean;
+  revoked: boolean;
+  validated_at: string;
+  expires_at: string;
+}
+
+export interface ContingencyHeartbeatInput {
+  operator_id?: string | null;
+  operator_active?: boolean;
+  operator_revoked?: boolean;
+  device_id?: string | null;
+  device_active?: boolean;
+  device_revoked?: boolean;
 }
 
 type AllowedSale = {
@@ -56,6 +75,8 @@ type BlockedSale = {
     | 'clock_rollback_detected'
     | 'restart_requires_new_anchor'
     | 'offline_window_exceeded'
+    | 'device_not_eligible'
+    | 'operator_not_eligible'
     | 'missing_cached_product'
     | 'stale_price_cache'
     | 'missing_cached_price'
@@ -107,17 +128,32 @@ export class ContingencyPolicy {
     this.getTenantId = deps.getTenantId ?? (() => getItem('tenant_id'));
   }
 
-  recordOnlineHeartbeat(serverTime: string | Date | null | undefined): boolean {
+  recordOnlineHeartbeat(serverTime: string | Date | null | undefined, heartbeat: ContingencyHeartbeatInput = {}): boolean {
     const parsed = this.parseServerTime(serverTime);
     if (!parsed) return false;
 
     const observedAt = this.now().toISOString();
+    const previousAnchor = this.getAnchor();
+    const deviceId = heartbeat.device_id ?? this.auth.getDeviceId();
+    if (!deviceId) return false;
+
+    const deviceEligibility: ContingencyEligibilitySnapshot = {
+      id: deviceId,
+      active: heartbeat.device_active ?? true,
+      revoked: heartbeat.device_revoked ?? false,
+      validated_at: parsed,
+      expires_at: new Date(Date.parse(parsed) + OFFLINE_WINDOW_MS).toISOString(),
+    };
+
+    const operatorEligibility = this.buildOperatorEligibility(parsed, heartbeat, previousAnchor);
     const anchor: ContingencyAnchor = {
       server_time: parsed,
       client_wall_time: observedAt,
       last_online_at: parsed,
       monotonic_ms: this.monotonicNow(),
       session_id: this.sessionId,
+      device: deviceEligibility,
+      operator: operatorEligibility,
     };
     setItem(CONTINGENCY_ANCHOR_KEY, JSON.stringify(anchor));
     return true;
@@ -133,7 +169,9 @@ export class ContingencyPolicy {
         typeof parsed.client_wall_time !== 'string' ||
         typeof parsed.last_online_at !== 'string' ||
         typeof parsed.monotonic_ms !== 'number' ||
-        typeof parsed.session_id !== 'string'
+        typeof parsed.session_id !== 'string' ||
+        !this.isEligibilitySnapshot(parsed.device) ||
+        (parsed.operator !== null && parsed.operator !== undefined && !this.isEligibilitySnapshot(parsed.operator))
       ) {
         return null;
       }
@@ -176,9 +214,27 @@ export class ContingencyPolicy {
       return this.block('restart_requires_new_anchor', 'Application restarted after last backend anchor; reconnect before new offline sales');
     }
 
-    const anchorOnlineMs = Date.parse(anchor.last_online_at);
-    if (!Number.isFinite(anchorOnlineMs) || wallNowMs - anchorOnlineMs > OFFLINE_WINDOW_MS) {
+    const monotonicNowMs = this.monotonicNow();
+    if (!Number.isFinite(monotonicNowMs) || monotonicNowMs < anchor.monotonic_ms) {
+      return this.block('clock_rollback_detected', 'Monotonic clock regression detected; offline contingency is fail-closed');
+    }
+
+    const monotonicElapsedMs = monotonicNowMs - anchor.monotonic_ms;
+    if (monotonicElapsedMs > OFFLINE_WINDOW_MS) {
       return this.block('offline_window_exceeded', 'Offline contingency exceeded the two-hour window');
+    }
+
+    const projectedNowMs = Date.parse(anchor.server_time) + monotonicElapsedMs;
+    if (!Number.isFinite(projectedNowMs)) {
+      return this.block('restart_requires_new_anchor', 'Offline contingency anchor is invalid after restart; reconnect first');
+    }
+
+    if (!this.isEligibilityValid(anchor.device, projectedNowMs, this.auth.getDeviceId())) {
+      return this.block('device_not_eligible', 'Device eligibility is missing, expired, inactive, revoked, or mismatched for offline contingency');
+    }
+
+    if (!this.isEligibilityValid(anchor.operator, projectedNowMs, input.operator_id)) {
+      return this.block('operator_not_eligible', 'Operator eligibility is missing, expired, inactive, revoked, or mismatched for offline contingency');
     }
 
     const saleTotalCents = this.calculateSaleTotal(input.items, now);
@@ -272,6 +328,48 @@ export class ContingencyPolicy {
 
   private block(code: BlockedSale['code'], reason: string): BlockedSale {
     return { allowed: false, code, reason };
+  }
+
+  private buildOperatorEligibility(
+    serverTimeIso: string,
+    heartbeat: ContingencyHeartbeatInput,
+    previousAnchor: ContingencyAnchor | null,
+  ): ContingencyEligibilitySnapshot | null {
+    const operatorId = heartbeat.operator_id?.trim();
+    if (operatorId) {
+      return {
+        id: operatorId,
+        active: heartbeat.operator_active ?? true,
+        revoked: heartbeat.operator_revoked ?? false,
+        validated_at: serverTimeIso,
+        expires_at: new Date(Date.parse(serverTimeIso) + OFFLINE_WINDOW_MS).toISOString(),
+      };
+    }
+
+    return previousAnchor?.operator ?? null;
+  }
+
+  private isEligibilitySnapshot(value: unknown): value is ContingencyEligibilitySnapshot {
+    if (!value || typeof value !== 'object') return false;
+    const snapshot = value as Partial<ContingencyEligibilitySnapshot>;
+    return typeof snapshot.id === 'string'
+      && typeof snapshot.active === 'boolean'
+      && typeof snapshot.revoked === 'boolean'
+      && typeof snapshot.validated_at === 'string'
+      && typeof snapshot.expires_at === 'string';
+  }
+
+  private isEligibilityValid(
+    snapshot: ContingencyEligibilitySnapshot | null,
+    projectedNowMs: number,
+    expectedId: string | null | undefined,
+  ): boolean {
+    if (!snapshot || !expectedId || snapshot.id !== expectedId) return false;
+    if (!snapshot.active || snapshot.revoked) return false;
+
+    const expiresAtMs = Date.parse(snapshot.expires_at);
+    if (!Number.isFinite(expiresAtMs) || projectedNowMs > expiresAtMs) return false;
+    return true;
   }
 
   private parseServerTime(serverTime: string | Date | null | undefined): string | null {

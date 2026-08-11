@@ -92,7 +92,9 @@ describe('ContingencyPolicy', () => {
   });
 
   it('Given anchor valida e caixa previamente aberto, When conclui venda offline em dinheiro, Then permite contingencia com troco', () => {
-    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z');
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+    });
     nowMs = Date.parse('2026-08-11T12:10:00.000Z');
     monotonicMs = 10_200;
 
@@ -115,8 +117,11 @@ describe('ContingencyPolicy', () => {
   });
 
   it('Given mais de duas horas sem ancora valida, When tenta concluir offline, Then bloqueia contingencia', () => {
-    policy.recordOnlineHeartbeat('2026-08-11T09:30:00.000Z');
+    policy.recordOnlineHeartbeat('2026-08-11T09:30:00.000Z', {
+      operator_id: 'operator-1',
+    });
     nowMs = Date.parse('2026-08-11T12:01:00.000Z');
+    monotonicMs = 9_000 + (2 * 60 * 60 * 1000) + 1;
 
     const result = policy.evaluateOfflineSale(saleInput());
 
@@ -127,7 +132,9 @@ describe('ContingencyPolicy', () => {
   });
 
   it('Given relogio local retrocedido, When tenta concluir offline, Then bloqueia por rollback', () => {
-    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z');
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+    });
     nowMs = Date.parse('2026-08-11T11:40:00.000Z');
 
     const result = policy.evaluateOfflineSale(saleInput());
@@ -139,6 +146,65 @@ describe('ContingencyPolicy', () => {
   });
 
   it('Given app reiniciou apos ultima ancora, When tenta concluir offline, Then bloqueia ate nova validacao online', () => {
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+    });
+    const restartedPolicy = new ContingencyPolicy({
+      sessionId: 'session-b',
+      now: () => new Date(Date.parse('2026-08-11T12:00:00.000Z')),
+      monotonicNow: () => 500,
+      auth: {
+        isAuthenticated: () => true,
+        getDeviceId: () => 'device-1',
+        getBranchId: () => 'branch-1',
+        getRefreshToken: () => 'refresh-1',
+      },
+      catalogCache: {
+        getProductById: () => ({
+          id: 'product-1',
+          sku: 'SKU-1',
+          name: 'Produto 1',
+          base_unit_id: 'unit-1',
+          requires_lot: false,
+          requires_expiry: false,
+          is_active: true,
+          updated_at: '2026-08-11T10:00:00.000Z',
+        }),
+        getPrice: () => ({
+          id: 'price-1',
+          product_id: 'product-1',
+          amount: '10.00',
+          valid_from: '2026-08-10T00:00:00.000Z',
+          valid_to: null,
+          updated_at: '2026-08-11T11:30:00.000Z',
+        }),
+      },
+    });
+
+    const result = restartedPolicy.evaluateOfflineSale(saleInput());
+
+    expect(result).toMatchObject({
+      allowed: false,
+      code: 'restart_requires_new_anchor',
+    });
+  });
+
+  it('Given relogio monotonic retrocedido na mesma sessao, When tenta concluir offline, Then bloqueia por regressao monotonic fail-closed', () => {
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+    });
+    nowMs = Date.parse('2026-08-11T12:00:00.000Z');
+    monotonicMs = 8_500;
+
+    const result = policy.evaluateOfflineSale(saleInput());
+
+    expect(result).toMatchObject({
+      allowed: false,
+      code: 'clock_rollback_detected',
+    });
+  });
+
+  it('Given ancora persistida sem elegibilidade de operador, When o app reinicia e tenta vender offline, Then bloqueia por ancora invalida apos restart', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z');
     const restartedPolicy = new ContingencyPolicy({
       sessionId: 'session-b',
@@ -180,6 +246,34 @@ describe('ContingencyPolicy', () => {
     });
   });
 
+  it('Given device elegivel foi revogado na ancora, When tenta concluir offline, Then bloqueia a contingencia', () => {
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+      device_revoked: true,
+    });
+
+    const result = policy.evaluateOfflineSale(saleInput());
+
+    expect(result).toMatchObject({
+      allowed: false,
+      code: 'device_not_eligible',
+    });
+  });
+
+  it('Given operador elegivel foi revogado na ancora, When tenta concluir offline, Then bloqueia a contingencia', () => {
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+      operator_revoked: true,
+    });
+
+    const result = policy.evaluateOfflineSale(saleInput());
+
+    expect(result).toMatchObject({
+      allowed: false,
+      code: 'operator_not_eligible',
+    });
+  });
+
   it('Given preco em cache com mais de vinte e quatro horas, When tenta concluir offline, Then bloqueia venda', () => {
     policy = new ContingencyPolicy({
       sessionId: 'session-a',
@@ -212,7 +306,9 @@ describe('ContingencyPolicy', () => {
         }),
       },
     });
-    policy.recordOnlineHeartbeat('2026-08-11T11:00:00.000Z');
+    policy.recordOnlineHeartbeat('2026-08-11T11:00:00.000Z', {
+      operator_id: 'operator-1',
+    });
 
     const result = policy.evaluateOfflineSale(saleInput());
 
@@ -223,7 +319,9 @@ describe('ContingencyPolicy', () => {
   });
 
   it('Given pagamento externo sem referencia auditavel, When tenta concluir offline, Then bloqueia contingencia', () => {
-    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z');
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      operator_id: 'operator-1',
+    });
 
     const result = policy.evaluateOfflineSale(saleInput({
       payments: [{ method: 'pix_external_confirmed', amount: '10.00' }],
