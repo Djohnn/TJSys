@@ -104,6 +104,7 @@ def pdv_device_context():
         return {
             'tenant': tenant,
             'user': user,
+            'device': device,
             'unit': unit,
             'product': product,
             'branch': branch,

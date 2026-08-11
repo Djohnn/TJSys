@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import pytest
+
+pytest_plugins = ('tests.test_pdv_device_flow',)
 from django.contrib.auth import get_user_model
 from django.db import connection
 

@@ -15,7 +15,7 @@ DATABASES = {
         'HOST': config('POSTGRES_HOST', default='127.0.0.1'),
         'PORT': config('POSTGRES_PORT', default='5433'),
         'OPTIONS': {'connect_timeout': 5},
-        'TEST': {'NAME': config('POSTGRES_TEST_DB', default='test_zyrp')},
+        'TEST': {'NAME': config('POSTGRES_TEST_DB', default='test_tjsys')},
     },
 }
 
