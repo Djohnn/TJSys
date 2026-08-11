@@ -1,7 +1,7 @@
 # Sprint 005 — PDV Electron Online — Relatório Final
 
 **Data:** 2026-08-10
-**Status:** Aceitação local e validação backend concluídas; E2E live pendente por ambiente/credenciais
+**Status:** Aceitação local e validação backend concluídas; E2E live de desenvolvimento pendente por ambiente seedado
 
 ## Escopo aceito
 
@@ -68,19 +68,19 @@ tests/test_session_auth.py::test_verified_login_creates_only_pre_mfa_session: 1 
 tests/test_session_auth.py tests/test_sales_api.py tests/test_web_sales_financial_api.py: 44 passed in 66.05s
 ```
 
-Os checks backend selecionados estão aprovados; este relatório não declara aprovação de um ambiente live. Para executar E2E live, configurar explicitamente:
+Os checks backend selecionados estão aprovados; este relatório não declara aprovação de um ambiente live. Para executar E2E live de desenvolvimento, usar apenas dados sintéticos e uma API key de teste dedicada:
 
 ```powershell
 $env:E2E_LIVE_PDV = "1"
 $env:E2E_LIVE_BASE_URL = "https://<ambiente-pdv>"
-$env:E2E_LIVE_API_KEY = "<chave-de-teste>"
+$env:E2E_LIVE_API_KEY = "<api-key-sintética-de-desenvolvimento>"
 ```
 
 O fluxo mockado não exige credenciais reais. A chave live deve permanecer somente em variável de ambiente/segredo de CI.
 
 ## Aceitação e pendências
 
-A aceitação local do pacote Electron online e a validação backend selecionada estão concluídas. A validação E2E live permanece pendente apenas por exigir ambiente e credenciais de teste reais.
+A aceitação local do pacote Electron online e a validação backend selecionada estão concluídas. A validação E2E live permanece pendente apenas por exigir um ambiente de desenvolvimento seedado e credenciais sintéticas dedicadas; nenhum dado real é necessário.
 
 Próximos limites de produto:
 
