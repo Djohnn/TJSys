@@ -3,6 +3,8 @@ import { operationJournal } from './operationJournal';
 import { connectivityMonitor } from './connectivityMonitor';
 import { resolveConflict } from './conflictResolver';
 import { getBackoffDelay, shouldRetry } from '../utils/backoff';
+import { catalogCache } from './catalogCache';
+import { batchSyncClient } from './batchSyncClient';
 import { logger } from '../utils/logger';
 
 export type SyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
@@ -75,6 +77,18 @@ class SyncEngine {
       this.state.error = null;
       this.notifyListeners();
 
+      // First sync catalog data from backend
+      if (connectivityMonitor.isOnline()) {
+        try {
+          logger.info('Starting catalog cache sync');
+          const catalogResult = await catalogCache.syncFromBackend();
+          logger.info('Catalog sync completed', catalogResult);
+        } catch (err) {
+          logger.error('Catalog sync failed:', err);
+        }
+      }
+
+      // Then sync operations
       const pending = operationJournal.getPending();
       if (pending.length === 0) {
         this.state.status = 'idle';
@@ -82,13 +96,29 @@ class SyncEngine {
         return this.getState();
       }
 
-      for (const entry of pending) {
-        if (!connectivityMonitor.isOnline()) {
-          logger.warn('Lost connectivity during sync, stopping');
-          break;
+      if (connectivityMonitor.isOnline()) {
+        logger.info('Starting bounded batch sync', { count: pending.length });
+        const batchResult = await batchSyncClient.syncBatch();
+        if (batchResult.success) {
+          logger.info('Batch sync applied', batchResult);
+        } else {
+          logger.error('Batch sync rejected; falling back to per-event sync', batchResult.error);
+          for (const entry of pending) {
+            if (!connectivityMonitor.isOnline()) {
+              logger.warn('Lost connectivity during sync, stopping');
+              break;
+            }
+            await this.processEntry(entry);
+          }
         }
-
-        await this.processEntry(entry);
+      } else {
+        for (const entry of pending) {
+          if (!connectivityMonitor.isOnline()) {
+            logger.warn('Lost connectivity during sync, stopping');
+            break;
+          }
+          await this.processEntry(entry);
+        }
       }
 
       if (connectivityMonitor.isOnline()) {
@@ -160,13 +190,13 @@ class SyncEngine {
             payload,
             axiosErr.response.data || {}
           );
-          operationJournal.markConflict(entry.uuid, resolution);
+          operationJournal.markConflict(entry.uuid, { ...resolution });
           logger.warn('Conflict resolved', { uuid: entry.uuid, resolution });
           return;
         }
 
         if (axiosErr.response && axiosErr.response.status >= 400 && axiosErr.response.status < 500) {
-          const msg = axiosErr.response.data?.detail || axiosErr.message || 'Client error';
+          const msg = String(axiosErr.response.data?.detail || axiosErr.message || 'Client error');
           if (axiosErr.response.status === 422 || axiosErr.response.status === 400) {
             operationJournal.markFailed(entry.uuid, msg);
             logger.error('Operation failed permanently', { uuid: entry.uuid, error: msg });

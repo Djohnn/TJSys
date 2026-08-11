@@ -16,7 +16,10 @@ class SyncBatchesView(APIView):
         serializer = SyncBatchSerializer(data=request.data)
         if not serializer.is_valid():
             if 'events' in serializer.errors:
-                return Response({'code': 'invalid_batch_size', 'detail': serializer.errors['events']}, status=400)
+                return Response(
+                    {'code': 'invalid_batch_size', 'detail': serializer.errors['events']},
+                    status=400,
+                )
             return Response({'code': 'invalid_batch', 'detail': serializer.errors}, status=400)
         tenant = getattr(request, 'tenant', None)
         raw_device_id = request.auth.get('device_id') if request.auth else None

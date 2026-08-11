@@ -1,6 +1,5 @@
 import uuid
 
-from django.conf import settings
 from django.db import models
 
 from tenancy.models import Device, Tenant
@@ -21,6 +20,9 @@ class PDVSyncBatch(models.Model):
                 name='uniq_pdv_batch_hash',
             ),
         ]
+
+    def __str__(self):
+        return f'{self.device_id}:{self.batch_hash}'
 
 
 class PDVSyncEvent(models.Model):
@@ -51,10 +53,18 @@ class PDVSyncEvent(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['device', 'event_id'], name='uniq_pdv_event_device_id'),
-            models.UniqueConstraint(fields=['device', 'local_sequence'], name='uniq_pdv_event_sequence'),
-            models.UniqueConstraint(fields=['tenant', 'device', 'idempotency_key'], name='uniq_pdv_event_idempotency'),
+            models.UniqueConstraint(
+                fields=['device', 'local_sequence'], name='uniq_pdv_event_sequence'
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'device', 'idempotency_key'],
+                name='uniq_pdv_event_idempotency',
+            ),
         ]
         ordering = ['local_sequence']
+
+    def __str__(self):
+        return f'{self.device_id}:{self.event_id}'
 
 
 class PDVSyncConflict(models.Model):
@@ -66,4 +76,7 @@ class PDVSyncConflict(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolution = models.JSONField(null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.event.event_id}:{self.code}'
 

@@ -63,7 +63,11 @@ def ingest_batch(*, tenant, device, events, batch_hash=None):
         existing = PDVSyncEvent.objects.filter(device=device, event_id=event_id).first()
         if existing:
             if existing.payload_hash != raw['payload_hash']:
-                _conflict(existing, 'event_payload_hash_mismatch', 'Event replay has a different payload hash.')
+                _conflict(
+                    existing,
+                    'event_payload_hash_mismatch',
+                    'Event replay has a different payload hash.',
+                )
             results.append(existing)
             continue
 
@@ -98,9 +102,17 @@ def ingest_batch(*, tenant, device, events, batch_hash=None):
             result={'accepted_at': timezone.now().isoformat(), 'effects_applied': False},
         )
         if raw['tenant_id'] != tenant.id or raw['device_id'] != device.device_id:
-            _conflict(event, 'identity_mismatch', 'Event identity does not match authenticated tenant/device.')
+            _conflict(
+                event,
+                'identity_mismatch',
+                'Event identity does not match authenticated tenant/device.',
+            )
         elif sha256_payload(raw['payload']) != raw['payload_hash']:
-            _conflict(event, 'payload_hash_mismatch', 'Payload hash does not match canonical payload.')
+            _conflict(
+                event,
+                'payload_hash_mismatch',
+                'Payload hash does not match canonical payload.',
+            )
         else:
             valid, code, detail = _device_sequence(
                 device,

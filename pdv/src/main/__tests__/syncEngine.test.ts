@@ -35,6 +35,12 @@ vi.mock('../services/conflictResolver', () => ({
   resolveConflict: vi.fn(),
 }));
 
+vi.mock('../services/batchSyncClient', () => ({
+  batchSyncClient: {
+    syncBatch: vi.fn(),
+  },
+}));
+
 vi.mock('../utils/backoff', () => ({
   getBackoffDelay: vi.fn(),
   shouldRetry: vi.fn(),
@@ -49,6 +55,7 @@ import { operationJournal } from '../services/operationJournal';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { api } from '../services/api';
 import { resolveConflict } from '../services/conflictResolver';
+import { batchSyncClient } from '../services/batchSyncClient';
 import { getBackoffDelay, shouldRetry } from '../utils/backoff';
 
 const mockEntry = (overrides = {}) => ({
@@ -75,6 +82,14 @@ function resetMocks() {
   vi.mocked(connectivityMonitor.onConnectivityChange).mockReturnValue(vi.fn());
   vi.mocked(getBackoffDelay).mockReturnValue(100);
   vi.mocked(shouldRetry).mockReturnValue(true);
+  vi.mocked(batchSyncClient.syncBatch).mockResolvedValue({
+    success: false,
+    eventsProcessed: 0,
+    eventsAccepted: 0,
+    eventsConflict: 0,
+    eventsFailed: 0,
+    error: 'unit test fallback',
+  });
 }
 
 describe('syncEngine', () => {
@@ -172,6 +187,9 @@ describe('syncEngine', () => {
     vi.mocked(api.post).mockRejectedValue({ message: 'Network error' });
     vi.mocked(shouldRetry).mockReturnValue(true);
     vi.mocked(connectivityMonitor.isOnline)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(false);
     
