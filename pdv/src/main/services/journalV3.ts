@@ -24,6 +24,14 @@ export interface AppendEventInput extends Omit<OfflineEvent, 'payload_hash'> {
   payload: string;
 }
 
+export interface MigrationReviewRecord {
+  event_id: string;
+  legacy_id: number | null;
+  reason: string;
+  raw_payload: string;
+  exported_at: string | null;
+}
+
 export function canonicalPayload(payload: string): string {
   try {
     return JSON.stringify(sortValue(JSON.parse(payload)));
@@ -104,6 +112,24 @@ export class JournalV3 {
   getEvents(): OfflineEvent[] { return this.db.prepare('SELECT * FROM offline_events ORDER BY occurred_at DESC').all() as OfflineEvent[]; }
   getProjection(eventId: string): { status: ProjectionStatus; retry_count: number; last_error: string | null; synced_at: string | null; conflict_resolution: string | null } | null {
     return (this.db.prepare('SELECT status,retry_count,last_error,synced_at,conflict_resolution FROM offline_event_projection WHERE event_id = ?').get(eventId) as { status: ProjectionStatus; retry_count: number; last_error: string | null; synced_at: string | null; conflict_resolution: string | null } | undefined) ?? null;
+  }
+
+  addMigrationReview(input: { event_id: string; legacy_id?: number | null; reason: string; raw_payload: string }): MigrationReviewRecord {
+    this.db.prepare(`INSERT INTO migration_review (event_id,legacy_id,reason,raw_payload) VALUES (@event_id,@legacy_id,@reason,@raw_payload)`).run({
+      event_id: input.event_id,
+      legacy_id: input.legacy_id ?? null,
+      reason: input.reason,
+      raw_payload: input.raw_payload,
+    });
+    return this.getMigrationReview(input.event_id)!;
+  }
+
+  getMigrationReview(eventId: string): MigrationReviewRecord | null {
+    return (this.db.prepare('SELECT event_id,legacy_id,reason,raw_payload,exported_at FROM migration_review WHERE event_id = ?').get(eventId) as MigrationReviewRecord | undefined) ?? null;
+  }
+
+  getMigrationReviews(): MigrationReviewRecord[] {
+    return this.db.prepare('SELECT event_id,legacy_id,reason,raw_payload,exported_at FROM migration_review ORDER BY rowid DESC').all() as MigrationReviewRecord[];
   }
 
   setProjection(eventId: string, status: ProjectionStatus, lastError?: string, conflictResolution?: string): void {

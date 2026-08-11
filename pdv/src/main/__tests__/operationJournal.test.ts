@@ -22,6 +22,17 @@ vi.mock('../utils/logger', () => ({
 import { app } from 'electron';
 import { operationJournal } from '../services/operationJournal';
 
+const validSalePayload = (overrides: Record<string, unknown> = {}) => ({
+  amount: 100,
+  device_id: 'device-1',
+  tenant_id: 'tenant-1',
+  branch_id: 'branch-1',
+  cash_session_id: 'cash-1',
+  operator_id: 'operator-1',
+  local_sequence: 1,
+  ...overrides,
+});
+
 describe('operationJournal', () => {
   let tempDir: string;
 
@@ -37,10 +48,11 @@ describe('operationJournal', () => {
   });
 
   it('adds and retrieves an operation', () => {
+    const payload = validSalePayload();
     const entry = operationJournal.addOperation({
       uuid: 'uuid-1',
       type: 'sale:create',
-      payload: { amount: 100 },
+      payload,
       idempotencyKey: 'idem-1',
     });
     expect(entry.uuid).toBe('uuid-1');
@@ -49,15 +61,15 @@ describe('operationJournal', () => {
 
     const retrieved = operationJournal.getByUuid('uuid-1');
     expect(retrieved).not.toBeNull();
-    expect(retrieved!.payload).toBe(JSON.stringify({ amount: 100 }));
+    expect(retrieved!.payload).toBe(JSON.stringify(payload));
   });
 
   it('getPending returns operations ordered by creation', () => {
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: { a: 1 }, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload({ amount: 10, local_sequence: 1 }), idempotencyKey: 'k1',
     });
     operationJournal.addOperation({
-      uuid: 'u2', type: 'cash-session:open', payload: { b: 2 }, idempotencyKey: 'k2',
+      uuid: 'u2', type: 'sale:create', payload: validSalePayload({ amount: 20, local_sequence: 2 }), idempotencyKey: 'k2',
     });
     const pending = operationJournal.getPending();
     expect(pending).toHaveLength(2);
@@ -67,14 +79,14 @@ describe('operationJournal', () => {
   it('getPendingCount returns correct count', () => {
     expect(operationJournal.getPendingCount()).toBe(0);
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     expect(operationJournal.getPendingCount()).toBe(1);
   });
 
   it('markSynced updates status and timestamp', () => {
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     operationJournal.markSynced('u1');
     const entry = operationJournal.getByUuid('u1')!;
@@ -84,7 +96,7 @@ describe('operationJournal', () => {
 
   it('markConflict updates status and resolution', () => {
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     operationJournal.markConflict('u1', { strategy: 'local' });
     const entry = operationJournal.getByUuid('u1')!;
@@ -94,7 +106,7 @@ describe('operationJournal', () => {
 
   it('markFailed updates status and increments retry', () => {
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     operationJournal.markFailed('u1', 'server error');
     const entry = operationJournal.getByUuid('u1')!;
@@ -105,7 +117,7 @@ describe('operationJournal', () => {
 
   it('markRetry resets to pending and increments retry', () => {
     operationJournal.addOperation({
-      uuid: 'u1', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'u1', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     operationJournal.markRetry('u1', 'timeout');
     const entry = operationJournal.getByUuid('u1')!;
@@ -116,7 +128,7 @@ describe('operationJournal', () => {
 
   it('cleanup removes synced entries older than specified days', () => {
     operationJournal.addOperation({
-      uuid: 'old-one', type: 'sale:create', payload: {}, idempotencyKey: 'k-old',
+      uuid: 'old-one', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k-old',
     });
     operationJournal.markSynced('old-one');
     const past = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
@@ -134,23 +146,60 @@ describe('operationJournal', () => {
 
   it('handles duplicate uuid gracefully', () => {
     operationJournal.addOperation({
-      uuid: 'dup', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'dup', type: 'sale:create', payload: validSalePayload(), idempotencyKey: 'k1',
     });
     expect(() => {
       operationJournal.addOperation({
-        uuid: 'dup', type: 'sale:create', payload: {}, idempotencyKey: 'k2',
+        uuid: 'dup', type: 'sale:create', payload: validSalePayload({ local_sequence: 2 }), idempotencyKey: 'k2',
       });
     }).toThrow();
   });
 
   it('getAll returns all entries sorted by creation desc', () => {
     operationJournal.addOperation({
-      uuid: 'first', type: 'sale:create', payload: {}, idempotencyKey: 'k1',
+      uuid: 'first', type: 'sale:create', payload: validSalePayload({ local_sequence: 1 }), idempotencyKey: 'k1',
     });
     operationJournal.addOperation({
-      uuid: 'second', type: 'cash-session:open', payload: {}, idempotencyKey: 'k2',
+      uuid: 'second', type: 'sale:create', payload: validSalePayload({ local_sequence: 2 }), idempotencyKey: 'k2',
     });
     const all = operationJournal.getAll();
     expect(all).toHaveLength(2);
+  });
+
+  it('quarantines sale:create sem identidade e nao deixa sincronizar', () => {
+    const entry = operationJournal.addOperation({
+      uuid: 'legacy-no-identity',
+      type: 'sale:create',
+      payload: { amount: 150 },
+      idempotencyKey: 'idem-legacy',
+    });
+
+    expect(entry.status).toBe('migration_review');
+    expect(entry.last_error).toContain('non_syncable:missing');
+    expect(entry.payload).toBe(JSON.stringify({ amount: 150 }));
+    expect(operationJournal.getPendingCount()).toBe(0);
+    expect(operationJournal.getPending()).toEqual([]);
+  });
+
+  it('quarantines cash-session legado mesmo com identidade e preserva payload auditavel', () => {
+    const payload = validSalePayload({ openingAmount: '250.00' });
+    const entry = operationJournal.addOperation({
+      uuid: 'legacy-cash-open',
+      type: 'cash-session:open',
+      payload,
+      idempotencyKey: 'idem-cash-open',
+    });
+
+    expect(entry.status).toBe('migration_review');
+    expect(entry.type).toBe('cash-session:open');
+    expect(entry.last_error).toContain('non_syncable:legacy cash-session operations stay audit-only and cannot sync');
+    expect(entry.payload).toBe(JSON.stringify(payload));
+    expect(operationJournal.getByUuid('legacy-cash-open')).toMatchObject({
+      uuid: 'legacy-cash-open',
+      status: 'migration_review',
+      type: 'cash-session:open',
+      payload: JSON.stringify(payload),
+    });
+    expect(operationJournal.getPending()).toEqual([]);
   });
 });
