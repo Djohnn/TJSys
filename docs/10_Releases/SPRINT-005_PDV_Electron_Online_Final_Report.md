@@ -1,7 +1,7 @@
 # Sprint 005 — PDV Electron Online — Relatório Final
 
 **Data:** 2026-08-10
-**Status:** Aceitação local concluída; validação backend/live pendente
+**Status:** Aceitação local e validação backend concluídas; E2E live pendente por ambiente/credenciais
 
 ## Escopo aceito
 
@@ -36,6 +36,7 @@ Commits relevantes do fechamento R5:
 | `bc9f72e` | Encerramento limpo do servidor Playwright no Windows |
 | `05a6598` | Job E2E mockado do PDV no CI |
 | `a40bbfe` | Respeito à URL configurada no modo live |
+| `7274c5d` | Fixture MFA alinhada ao cenário de login verificado |
 
 ## Verificação local registrada
 
@@ -58,13 +59,13 @@ O Graphify não foi atualizado nesta etapa porque o executável local retornou `
 
 ## Validação backend e modo live
 
-Os checks backend previstos foram tentados, mas não concluídos neste ambiente. O Python disponível (`C:\Program Files\PyManager\python.exe`) falhou antes de iniciar o Django/Pytest:
+Os checks backend foram executados com o runtime Python funcional fora do sandbox:
 
 ```text
-[ERROR] INTERNAL ERROR: PermissionError: [WinError 5] Acesso negado: 'C:\Users\johnn\AppData\Local\Python'
-CHECK_EXIT=1
-MIGRATIONS_EXIT=1
-PYTEST_EXIT=1
+manage.py check: exit 0 (0 issues)
+makemigrations --check --dry-run: exit 0 (No changes detected)
+tests/test_session_auth.py::test_verified_login_creates_only_pre_mfa_session: 1 passed
+tests/test_session_auth.py tests/test_sales_api.py tests/test_web_sales_financial_api.py: 44 passed in 66.05s
 ```
 
 Assim, este relatório não declara aprovação dos checks backend nem de um ambiente live. Para executar E2E live, configurar explicitamente:
@@ -79,7 +80,7 @@ O fluxo mockado não exige credenciais reais. A chave live deve permanecer somen
 
 ## Aceitação e pendências
 
-A aceitação local do pacote Electron online está concluída: contratos tipados, cache de catálogo, isolamento tenant, gates TypeScript/build, suíte Vitest e E2E mockado foram verificados com os resultados acima. A validação backend/live permanece uma pendência operacional por indisponibilidade do runtime Python e de credenciais/ambiente live neste contexto.
+A aceitação local do pacote Electron online e a validação backend selecionada estão concluídas. A validação E2E live permanece pendente apenas por exigir ambiente e credenciais de teste reais.
 
 Próximos limites de produto:
 
