@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 const API_KEY = 'e2e-test-key-2026';
 
-test.describe('QA Visual - Sprint 7', () => {
+test.describe('QA Visual @live - Sprint 7', () => {
+  test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e backend dedicado.');
   test.setTimeout(180000);
   test.use({ baseURL: 'http://localhost:5173' });
 

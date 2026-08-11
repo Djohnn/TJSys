@@ -68,7 +68,8 @@ async function selectProduct(page: Page, name: string) {
   await option.click()
 }
 
-test.describe('PDV — venda baixa estoque e protege preço ausente', () => {
+test.describe('PDV @live — venda baixa estoque e protege preço ausente', () => {
+  test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e dados/credenciais do ambiente dedicado.');
   test('vende 3 unidades, mostra KG 0.500 e bloqueia produto sem preço', async ({ page, browser }) => {
     const artifact = await readArtifact()
     await stubElectron(page)

@@ -2,7 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 
 const API_KEY = 'e2e-test-key-2026';
 
-test.describe('Sale flow (real backend)', () => {
+test.describe('Sale flow @live (real backend)', () => {
+  test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e API key do ambiente dedicado.');
   test.setTimeout(90000);
   test.use({ baseURL: 'http://localhost:5173' });
 
