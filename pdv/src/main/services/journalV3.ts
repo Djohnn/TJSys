@@ -69,7 +69,7 @@ export class JournalV3 {
         device_id TEXT NOT NULL, tenant_id TEXT NOT NULL, branch_id TEXT NOT NULL,
         cash_session_id TEXT NOT NULL, operator_id TEXT NOT NULL,
         local_sequence INTEGER NOT NULL CHECK(local_sequence > 0),
-        event_type TEXT NOT NULL, event_version INTEGER NOT NULL,
+        event_type TEXT NOT NULL CHECK(event_type IN ('offline.sale.completed','offline.sale.cancelled_before_sync','legacy.incompatible')), event_version INTEGER NOT NULL,
         idempotency_key TEXT NOT NULL, occurred_at TEXT NOT NULL,
         payload TEXT NOT NULL, payload_hash TEXT NOT NULL,
         UNIQUE(device_id, local_sequence),
@@ -77,7 +77,7 @@ export class JournalV3 {
       );
       CREATE TABLE IF NOT EXISTS offline_event_projection (
         event_id TEXT PRIMARY KEY NOT NULL REFERENCES offline_events(event_id),
-        status TEXT NOT NULL DEFAULT 'pending', retry_count INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','syncing','synced','conflict_requires_review','failed','migration_review')), retry_count INTEGER NOT NULL DEFAULT 0,
         last_error TEXT, synced_at TEXT, conflict_resolution TEXT, updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS migration_review (
@@ -114,12 +114,13 @@ export class JournalV3 {
     return (this.db.prepare('SELECT status,retry_count,last_error,synced_at,conflict_resolution FROM offline_event_projection WHERE event_id = ?').get(eventId) as { status: ProjectionStatus; retry_count: number; last_error: string | null; synced_at: string | null; conflict_resolution: string | null } | undefined) ?? null;
   }
 
-  addMigrationReview(input: { event_id: string; legacy_id?: number | null; reason: string; raw_payload: string }): MigrationReviewRecord {
-    this.db.prepare(`INSERT INTO migration_review (event_id,legacy_id,reason,raw_payload) VALUES (@event_id,@legacy_id,@reason,@raw_payload)`).run({
+  addMigrationReview(input: { event_id: string; legacy_id?: number | null; reason: string; raw_payload: string; exported_at?: string | null }): MigrationReviewRecord {
+    this.db.prepare(`INSERT INTO migration_review (event_id,legacy_id,reason,raw_payload,exported_at) VALUES (@event_id,@legacy_id,@reason,@raw_payload,@exported_at)`).run({
       event_id: input.event_id,
       legacy_id: input.legacy_id ?? null,
       reason: input.reason,
       raw_payload: input.raw_payload,
+      exported_at: input.exported_at ?? null,
     });
     return this.getMigrationReview(input.event_id)!;
   }

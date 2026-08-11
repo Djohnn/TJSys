@@ -60,6 +60,7 @@ class OperationJournal {
           idempotency_key: op.idempotencyKey,
           occurred_at: occurredAt,
         } satisfies ReviewEnvelope),
+        exported_at: occurredAt,
       });
       return this.toReviewEntry(op.uuid);
     }
@@ -135,7 +136,7 @@ class OperationJournal {
       payload: envelope ? JSON.stringify(envelope.payload) : review.raw_payload,
       idempotency_key: envelope?.idempotency_key ?? review.event_id,
       status: 'migration_review',
-      created_at: envelope?.occurred_at ?? new Date(0).toISOString(),
+      created_at: envelope?.occurred_at ?? review.exported_at ?? new Date(0).toISOString(),
       synced_at: null,
       retry_count: 0,
       last_error: review.reason,

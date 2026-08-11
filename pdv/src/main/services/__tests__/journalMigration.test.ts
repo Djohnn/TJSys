@@ -69,6 +69,42 @@ describe('Journal v3 migration (BDD)', () => {
     expect(readEvents(target)).toHaveLength(1);
   });
 
+  it('Given a crash after backup_created, when the live legacy journal changes before retry, then migrated rows still match the frozen snapshot', () => {
+    const legacy = legacyDb([{ uuid: 'sale-1', type: 'sale:create', payload: JSON.stringify({ total: '10.00', lines: [], tenant_id: 't-1', device_id: 'd-1', branch_id: 'b-1', cash_session_id: 'c-1', operator_id: 'o-1', local_sequence: 1 }), idempotency_key: 'id-1' }]);
+    const target = path.join(root, 'v3.db');
+
+    expect(() => migrateLegacyJournal({ legacyPath: legacy, targetPath: target, failAfterPhase: 'backup_created' })).toThrow('simulated migration interruption');
+
+    const db = new Database(legacy);
+    db.prepare(`INSERT INTO operation_journal (uuid,type,payload,idempotency_key,status,created_at) VALUES (?,?,?,?,?,?)`)
+      .run('sale-2', 'sale:create', JSON.stringify({ total: '99.00', lines: [], tenant_id: 't-1', device_id: 'd-1', branch_id: 'b-1', cash_session_id: 'c-1', operator_id: 'o-1', local_sequence: 2 }), 'id-2', 'pending', '2026-08-10T11:00:00.000Z');
+    db.close();
+
+    const result = migrateLegacyJournal({ legacyPath: legacy, targetPath: target });
+
+    expect(result.phase).toBe('activated');
+    expect(readEvents(target).map((event) => event.event_id)).toEqual(['sale-1']);
+  });
+
+  it('Given a crash after backup_created, when the live legacy journal becomes unavailable before retry, then replay resumes from the stored snapshot', () => {
+    const legacy = legacyDb([{ uuid: 'sale-1', type: 'sale:create', payload: JSON.stringify({ total: '10.00', lines: [], tenant_id: 't-1', device_id: 'd-1', branch_id: 'b-1', cash_session_id: 'c-1', operator_id: 'o-1', local_sequence: 1 }), idempotency_key: 'id-1' }]);
+    const target = path.join(root, 'v3.db');
+
+    expect(() => migrateLegacyJournal({ legacyPath: legacy, targetPath: target, failAfterPhase: 'backup_created' })).toThrow('simulated migration interruption');
+
+    fs.unlinkSync(legacy);
+    for (const suffix of ['-wal', '-shm']) {
+      const sidecar = `${legacy}${suffix}`;
+      if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+    }
+
+    const result = migrateLegacyJournal({ legacyPath: legacy, targetPath: target });
+
+    expect(result.phase).toBe('activated');
+    expect(readEvents(target)).toHaveLength(1);
+    expect(readEvents(target)[0].event_id).toBe('sale-1');
+  });
+
   it('Given a corrupted payload, when validated, then quarantines it without dropping the raw event', () => {
     const legacy = legacyDb([{ uuid: 'bad', type: 'sale:create', payload: '{bad-json', idempotency_key: 'bad-id' }]);
     const result = migrateLegacyJournal({ legacyPath: legacy, targetPath: path.join(root, 'v3.db') });

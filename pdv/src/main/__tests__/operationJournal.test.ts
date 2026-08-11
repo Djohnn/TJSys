@@ -202,4 +202,17 @@ describe('operationJournal', () => {
     });
     expect(operationJournal.getPending()).toEqual([]);
   });
+
+  it('preserves an audit timestamp for migration_review entries created locally', () => {
+    const entry = operationJournal.addOperation({
+      uuid: 'legacy-no-identity-with-timestamp',
+      type: 'sale:create',
+      payload: { amount: 150 },
+      idempotencyKey: 'idem-legacy-ts',
+    });
+
+    expect(entry.status).toBe('migration_review');
+    expect(entry.created_at).not.toBe('1970-01-01T00:00:00.000Z');
+    expect(Number.isNaN(Date.parse(entry.created_at))).toBe(false);
+  });
 });
