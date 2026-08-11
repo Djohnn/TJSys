@@ -68,7 +68,7 @@ tests/test_session_auth.py::test_verified_login_creates_only_pre_mfa_session: 1 
 tests/test_session_auth.py tests/test_sales_api.py tests/test_web_sales_financial_api.py: 44 passed in 66.05s
 ```
 
-Assim, este relatório não declara aprovação dos checks backend nem de um ambiente live. Para executar E2E live, configurar explicitamente:
+Os checks backend selecionados estão aprovados; este relatório não declara aprovação de um ambiente live. Para executar E2E live, configurar explicitamente:
 
 ```powershell
 $env:E2E_LIVE_PDV = "1"
