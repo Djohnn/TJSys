@@ -1,6 +1,6 @@
 # R6 Hardening — Matriz de gaps e migração segura
 
-**Base comparada:** especificação `docs/superpowers/specs/2026-07-16-sprint-6-pdv-offline-sync-design.md` contra o estado atual do `master` (`a36c8ee`).
+**Base comparada:** especificação normativa imutável `4ec4601` (`blob 464b85d84f015825e7af079d5f8db3c9961f5220`, arquivo `docs/superpowers/specs/2026-07-16-sprint-6-pdv-offline-sync-design.md`) contra o estado atual do `master` (`a36c8ee`). O arquivo normativo não está materializado neste branch; o commit/blob é a referência reproduzível. A especificação divergente de 17/07 fica apenas como contexto histórico.
 
 **Escopo:** remediar a contingência offline já existente. Esta matriz não reabre a R6 como sprint inédita e não autoriza ainda alterações de código.
 
@@ -25,14 +25,50 @@
 
 ## Migração segura do SQLite já instalado
 
-1. **Não alterar nem apagar `operation-journal.db` legado.** Criar backup lógico/arquivo antes da primeira abertura do schema novo.
-2. Criar `operation_journal_v3` com os campos da especificação e um `journal_migrations`/`schema_version` separado.
-3. Copiar cada linha legada como evento preservado, mantendo `legacy_id`, payload bruto e hash calculado do payload exatamente como lido.
-4. Atribuir `local_sequence` somente quando `device_id`, `tenant_id` e a ordenação forem determináveis. Linhas sem identidade suficiente ficam preservadas como pendência de migração e não podem sincronizar automaticamente.
-5. Mapear `sale:create` para `offline.sale.completed` apenas quando o payload contiver os campos mínimos da venda. `cash-session:open` e `cash-session:close` não serão convertidos em operações offline aceitas; permanecem auditáveis como legado incompatível.
-6. Não importar estados derivados como decisão de conflito. Status legado `conflict` vira `conflict_requires_review`; `synced` vira projeção informativa, sem remover o evento.
-7. Só trocar o ponteiro ativo para o schema novo após validação de contagem, hashes e unicidade. Em qualquer erro, manter o legado intacto e permitir retry da migração.
-8. A limpeza futura será apenas de projeções/artefatos explicitamente descartáveis; eventos originais permanecerão retidos conforme a política de auditoria.
+1. **Adquirir exclusão mútua por arquivo e conexão.** Antes de abrir o legado, obter lock exclusivo; impedir duas migrações/instâncias do PDV simultâneas e detectar lock ocupado sem sobrescrever.
+2. **Fazer checkpoint consistente do WAL.** Com a conexão exclusiva aberta, executar `PRAGMA wal_checkpoint(TRUNCATE)` somente após confirmar que não há outra conexão; copiar o conjunto `.db`, `-wal` e `-shm` para backup identificado. Se o checkpoint não for seguro, preservar os três arquivos e abortar de forma fail-closed.
+3. Criar `operation_journal_v3` e `journal_migrations` dentro de uma transação SQLite; persistir fases `backup_created`, `schema_created`, `rows_copied`, `validated` e `activated` com contagens e hashes.
+4. Copiar cada linha legada como evento preservado, mantendo `legacy_id`, payload bruto e hash calculado do payload exatamente como lido. O backup deve permitir restauração sem depender do schema novo.
+5. Atribuir `local_sequence` somente quando `device_id`, `tenant_id` e a ordenação forem determináveis. Linhas sem identidade suficiente ficam em `migration_review`, não sincronizam e aparecem em exportação/reconciliação administrativa.
+6. Mapear `sale:create` para `offline.sale.completed` apenas quando o payload contiver os campos mínimos da venda. `cash-session:open` e `cash-session:close` não serão convertidos em operações offline aceitas; permanecem auditáveis como legado incompatível.
+7. Não importar estados derivados como decisão de conflito. Status legado `conflict` vira `conflict_requires_review`; `synced` vira projeção informativa, sem remover o evento.
+8. Só trocar o ponteiro ativo para o schema novo após validar contagem, hashes, unicidade e leitura de amostra. Em qualquer erro ou queda, retomar pela fase persistida; se a validação falhar, manter o legado intacto e bloquear novas vendas financeiras offline até reconciliação.
+9. A limpeza futura será apenas de projeções/artefatos explicitamente descartáveis; eventos originais permanecerão retidos conforme a política de auditoria.
+
+## Fluxo operacional de eventos legados sem identidade
+
+- Exportar o evento bruto, seu `legacy_id`, hash, valor, data, tipo e motivo da pendência para uma tela/arquivo de reconciliação administrativa.
+- Bloquear somente novas conclusões offline que possam gerar efeito financeiro enquanto existir evento legado financeiro sem identidade; leitura do carrinho, catálogo e consulta de pendências continuam disponíveis.
+- Gerente/admin confirma a associação correta de tenant, dispositivo, filial e caixa, ou marca o evento como não reconciliável com justificativa auditada.
+- A confirmação gera evento de correção append-only e libera a sincronização/reconciliação daquele item; nunca altera o payload legado.
+- Exportação e confirmação são idempotentes e repetíveis após reinício ou queda durante a migração.
+
+## Decisões fechadas do protocolo batch
+
+- **Resultado parcial:** o batch é aceito atomicamente como envelope e cada evento recebe resultado independente; eventos válidos podem ser aplicados, conflitos ficam registrados e eventos posteriores não são descartados silenciosamente.
+- **Sequência:** toda sequência recebida é registrada no envelope, inclusive a que resulta em conflito. Uma sequência conflitante não é aplicada financeiramente, mas bloqueia avanço automático até decisão backend quando houver lacuna, duplicidade ou ordem inválida.
+- **Unicidades:** `event_id` é único por dispositivo; `(device_id, local_sequence)` é único; `idempotency_key` é único por tenant/dispositivo; `batch_hash` identifica o conteúdo canônico do envelope. Reuso com payload diferente retorna conflito de idempotência.
+- **Canonicalização:** JSON UTF-8 com chaves ordenadas, sem espaços insignificantes, números em representação decimal canônica e timestamps ISO-8601 UTC; hash SHA-256 em hexadecimal minúsculo.
+- **Replay divergente:** mesmo batch/hash retorna o resultado persistido; mesmo identificador com hash diferente é `idempotency_conflict` e nunca é reaplicado.
+- **Limite:** zero eventos é rejeitado; 1–50 eventos é permitido; acima de 50 é rejeitado antes de efeitos financeiros.
+
+## Âncora temporal e comportamento fail-closed
+
+- Cada validação online bem-sucedida persiste `server_time`, `client_wall_time`, `monotonic_elapsed` quando disponível e `last_online_at`.
+- Durante a execução, limites usam relógio monotônico; após reinício, usam a diferença entre o relógio de parede e a âncora do servidor.
+- Retrocesso do relógio local, âncora ausente, âncora inválida ou diferença impossível de validar tornam novas conclusões offline bloqueadas; pendências existentes continuam visíveis e sincronizáveis.
+- A validade de preço é calculada contra a âncora temporal confiável, nunca somente contra `Date.now()` sem validação.
+- Reconexão atualiza a âncora antes de liberar nova contingência; toda violação fica auditada com motivo e horário observado.
+
+## Testes BDD obrigatórios antes da implementação produtiva
+
+1. **Given** nenhum journal legado, **when** o app inicializa, **then** cria schema v3 vazio e marca a migração como `activated`.
+2. **Given** legado íntegro sem WAL, **when** migra, **then** cria backup, copia todas as linhas, valida contagem/hash e ativa v3 sem apagar o legado.
+3. **Given** legado com WAL pendente, **when** migra sob lock exclusivo, **then** incorpora o WAL por checkpoint consistente e o backup contém o estado completo.
+4. **Given** migração interrompida em cada fase, **when** o app reinicia, **then** retoma ou reverte de modo idempotente sem duplicar eventos nem ativar schema incompleto.
+5. **Given** payload legado corrompido, **when** a validação roda, **then** preserva o bruto, marca `migration_review`, bloqueia sync financeiro e não perde o restante do journal.
+6. **Given** evento sem tenant/device/ordenação determináveis, **when** migra, **then** exporta para reconciliação administrativa e não sincroniza automaticamente.
+7. **Given** relógio local retrocedido ou âncora temporal ausente, **when** o operador tenta concluir offline, **then** a venda é bloqueada fail-closed com motivo auditável.
 
 ## Ordem de implementação recomendada
 
