@@ -63,9 +63,11 @@ class CatalogCache {
   private tenantId: string | null = null;
   private lastSync: Date | null = null;
   private syncTail: Promise<void> = Promise.resolve();
+  private tenantEpoch = 0;
 
   init(tenantId?: string): void {
-    this.close();
+    this.tenantEpoch += 1;
+    this.close(false);
     if (tenantId) this.ensureTenantDatabase(tenantId);
   }
 
@@ -156,6 +158,11 @@ class CatalogCache {
 
     if (!this.ensureTenantDatabase()) return { products: 0, prices: 0 };
 
+    const syncEpoch = this.tenantEpoch;
+    const syncTenantId = this.tenantId;
+    const syncDb = this.db;
+    if (!syncTenantId || !syncDb) return { products: 0, prices: 0 };
+
     try {
       const products: BackendProduct[] = [];
       const pricesByProduct = new Map<string, BackendProductPrice[]>();
@@ -214,21 +221,30 @@ class CatalogCache {
         nextUrl = page.next ?? null;
       }
 
+      if (
+        this.tenantEpoch !== syncEpoch
+        || this.tenantId !== syncTenantId
+        || this.db !== syncDb
+        || !syncDb.open
+      ) {
+        throw new Error(`Catalog refresh discarded after tenant switch: ${syncTenantId}`);
+      }
+
       const productIds = new Set(products.map((product) => product.id));
-      const refresh = this.db.transaction(() => {
-        const deleteObsoletePrices = this.db!.prepare(
+      const refresh = syncDb.transaction(() => {
+        const deleteObsoletePrices = syncDb.prepare(
           `DELETE FROM prices${productIds.size ? ` WHERE product_id NOT IN (${Array.from(productIds, () => '?').join(',')})` : ''}`
         );
-        const deleteObsoleteProducts = this.db!.prepare(
+        const deleteObsoleteProducts = syncDb.prepare(
           `DELETE FROM products${productIds.size ? ` WHERE id NOT IN (${Array.from(productIds, () => '?').join(',')})` : ''}`
         );
-        const insertProduct = this.db!.prepare(`
+        const insertProduct = syncDb.prepare(`
           INSERT OR REPLACE INTO products
           (id, sku, name, base_unit_id, requires_lot, requires_expiry, is_active, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const deletePrices = this.db!.prepare('DELETE FROM prices WHERE product_id = ?');
-        const insertPrice = this.db!.prepare(`
+        const deletePrices = syncDb.prepare('DELETE FROM prices WHERE product_id = ?');
+        const insertPrice = syncDb.prepare(`
           INSERT OR REPLACE INTO prices
           (id, product_id, amount, valid_from, valid_to, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -238,7 +254,7 @@ class CatalogCache {
           deleteObsoletePrices.run(...Array.from(productIds));
           deleteObsoleteProducts.run(...Array.from(productIds));
         } else {
-          this.db!.prepare('DELETE FROM prices').run();
+          syncDb.prepare('DELETE FROM prices').run();
           deleteObsoleteProducts.run();
         }
 
@@ -357,7 +373,8 @@ class CatalogCache {
     return this.lastSync;
   }
 
-  close(): void {
+  close(invalidate = true): void {
+    if (invalidate) this.tenantEpoch += 1;
     if (this.db) {
       this.db.close();
       this.db = null;

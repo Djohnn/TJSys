@@ -253,6 +253,35 @@ describe('CatalogCache.syncFromBackend', () => {
     expect(catalogCache.getProductById('product-2')).not.toBeNull();
   });
 
+  it('Given tenant A has a pending refresh, When init switches to tenant B, Then discards A without writing B', async () => {
+    // Given
+    let releaseFirstPage!: () => void;
+    const firstPage = new Promise<void>((resolve) => { releaseFirstPage = resolve; });
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/products/') {
+        await firstPage;
+        return { data: { results: [product], next: null } };
+      }
+      if (url === '/products/product-1/prices/') {
+        return { data: { results: [price] } };
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+
+    // When
+    const refreshA = catalogCache.syncFromBackend();
+    await Promise.resolve();
+    mocks.getItem.mockReturnValue('tenant-b');
+    catalogCache.init('tenant-b');
+    releaseFirstPage();
+    const result = await refreshA;
+
+    // Then
+    expect(result).toEqual({ products: 0, prices: 0 });
+    expect(catalogCache.getProductById('product-1')).toBeNull();
+    expect(catalogCache.getPrice('product-1')).toBeNull();
+  });
+
   it('Given an old product in the same tenant, When the snapshot omits it, Then removes the obsolete product', async () => {
     // Given
     mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
