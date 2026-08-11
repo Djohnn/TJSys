@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { app } from 'electron';
+import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'path';
 import { logger } from '../utils/logger';
 import { api } from './api';
@@ -61,6 +62,7 @@ class CatalogCache {
   private db: Database.Database | null = null;
   private tenantId: string | null = null;
   private lastSync: Date | null = null;
+  private syncTail: Promise<void> = Promise.resolve();
 
   init(tenantId?: string): void {
     this.close();
@@ -70,6 +72,19 @@ class CatalogCache {
   private databasePath(tenantId: string): string {
     const safeTenantId = encodeURIComponent(tenantId).replace(/%/g, '_');
     return join(app.getPath('userData'), `catalog-${safeTenantId}.db`);
+  }
+
+  private quarantineLegacyDatabase(): void {
+    const userData = app.getPath('userData');
+    const legacyPath = join(userData, 'catalog.db');
+    const quarantinePath = join(userData, 'catalog-legacy-unscoped.db');
+
+    if (!existsSync(legacyPath) || existsSync(quarantinePath)) return;
+
+    // The legacy database has no tenant identity. Preserve it as a backup,
+    // but never copy its rows into a tenant-scoped database.
+    copyFileSync(legacyPath, quarantinePath);
+    logger.warn(`Legacy catalog database quarantined at ${quarantinePath}`);
   }
 
   private ensureTenantDatabase(tenantId: string | null = getItem(TENANT_ID_KEY) ?? this.tenantId): boolean {
@@ -82,6 +97,7 @@ class CatalogCache {
     if (this.db && this.tenantId === tenantId) return true;
 
     this.close();
+    this.quarantineLegacyDatabase();
     this.db = new Database(this.databasePath(tenantId));
     this.db.pragma('journal_mode = WAL');
     this.tenantId = tenantId;
@@ -121,6 +137,18 @@ class CatalogCache {
   }
 
   async syncFromBackend(): Promise<{ products: number; prices: number }> {
+    const previousSync = this.syncTail;
+    let release!: () => void;
+    this.syncTail = new Promise<void>((resolve) => { release = resolve; });
+    await previousSync;
+    try {
+      return await this.refreshCatalogSnapshot();
+    } finally {
+      release();
+    }
+  }
+
+  private async refreshCatalogSnapshot(): Promise<{ products: number; prices: number }> {
     if (!this.db) {
       logger.warn('Catalog cache not initialized');
       return { products: 0, prices: 0 };
@@ -128,11 +156,10 @@ class CatalogCache {
 
     if (!this.ensureTenantDatabase()) return { products: 0, prices: 0 };
 
-    let totalProducts = 0;
-    let totalPrices = 0;
-
     try {
-      // Fetch products with pagination
+      const products: BackendProduct[] = [];
+      const pricesByProduct = new Map<string, BackendProductPrice[]>();
+
       let nextUrl: string | null = '/products/';
       let firstRequest = true;
       const visitedUrls = new Set<string>();
@@ -151,30 +178,7 @@ class CatalogCache {
           break;
         }
 
-        // Insert products into local database
-        const insertProduct = this.db.prepare(`
-          INSERT OR REPLACE INTO products
-          (id, sku, name, base_unit_id, requires_lot, requires_expiry, is_active, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const insertMany = this.db.transaction((products: BackendProduct[]) => {
-          for (const p of products) {
-            insertProduct.run(
-              p.id,
-              p.sku,
-              p.name,
-              p.base_unit,
-              p.requires_lot ? 1 : 0,
-              p.requires_expiry ? 1 : 0,
-              p.is_active ? 1 : 0,
-              p.updated_at || new Date().toISOString()
-            );
-          }
-        });
-
-        insertMany(results);
-        totalProducts += results.length;
+        products.push(...results);
 
         // Fetch prices for each product
         for (const product of results) {
@@ -200,33 +204,9 @@ class CatalogCache {
               }
             }
 
-            const replacePrices = this.db.transaction((productPrices: BackendProductPrice[]) => {
-              this.db!.prepare('DELETE FROM prices WHERE product_id = ?').run(product.id);
-              const insertPrice = this.db!.prepare(`
-                INSERT OR REPLACE INTO prices
-                (id, product_id, amount, valid_from, valid_to, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-              `);
-              let inserted = 0;
-              for (const productPrice of productPrices) {
-                if (productPrice.amount !== undefined && productPrice.is_active !== false) {
-                  insertPrice.run(
-                    productPrice.id,
-                    product.id,
-                    productPrice.amount,
-                    productPrice.valid_from,
-                    productPrice.valid_to ?? null,
-                    productPrice.updated_at || new Date().toISOString()
-                  );
-                  inserted++;
-                }
-              }
-              return inserted;
-            });
-            totalPrices += replacePrices(prices);
+            pricesByProduct.set(product.id, prices);
           } catch (priceError) {
-            // Preserve the last valid prices when the refresh fails.
-            logger.debug(`Prices unavailable for product ${product.id}; preserving cache`);
+            throw new Error(`Prices unavailable for product ${product.id}`, { cause: priceError });
           }
         }
 
@@ -234,13 +214,68 @@ class CatalogCache {
         nextUrl = page.next ?? null;
       }
 
+      const productIds = new Set(products.map((product) => product.id));
+      const refresh = this.db.transaction(() => {
+        const deleteObsoletePrices = this.db!.prepare(
+          `DELETE FROM prices${productIds.size ? ` WHERE product_id NOT IN (${Array.from(productIds, () => '?').join(',')})` : ''}`
+        );
+        const deleteObsoleteProducts = this.db!.prepare(
+          `DELETE FROM products${productIds.size ? ` WHERE id NOT IN (${Array.from(productIds, () => '?').join(',')})` : ''}`
+        );
+        const insertProduct = this.db!.prepare(`
+          INSERT OR REPLACE INTO products
+          (id, sku, name, base_unit_id, requires_lot, requires_expiry, is_active, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        const deletePrices = this.db!.prepare('DELETE FROM prices WHERE product_id = ?');
+        const insertPrice = this.db!.prepare(`
+          INSERT OR REPLACE INTO prices
+          (id, product_id, amount, valid_from, valid_to, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+
+        if (productIds.size) {
+          deleteObsoletePrices.run(...Array.from(productIds));
+          deleteObsoleteProducts.run(...Array.from(productIds));
+        } else {
+          this.db!.prepare('DELETE FROM prices').run();
+          deleteObsoleteProducts.run();
+        }
+
+        for (const product of products) {
+          insertProduct.run(
+            product.id, product.sku, product.name, product.base_unit,
+            product.requires_lot ? 1 : 0, product.requires_expiry ? 1 : 0,
+            product.is_active ? 1 : 0, product.updated_at || new Date().toISOString()
+          );
+          deletePrices.run(product.id);
+          for (const productPrice of pricesByProduct.get(product.id) ?? []) {
+            if (productPrice.amount !== undefined && productPrice.is_active !== false) {
+              insertPrice.run(
+                productPrice.id, product.id, productPrice.amount,
+                productPrice.valid_from, productPrice.valid_to ?? null,
+                productPrice.updated_at || new Date().toISOString()
+              );
+            }
+          }
+        }
+
+        return Array.from(pricesByProduct.values()).reduce(
+          (count, productPrices) => count + productPrices.filter((item) => item.amount !== undefined && item.is_active !== false).length,
+          0
+        );
+      });
+      const totalPrices = refresh();
+      const totalProducts = products.length;
       this.lastSync = new Date();
       logger.info(`Catalog sync completed: ${totalProducts} products, ${totalPrices} prices`);
 
       return { products: totalProducts, prices: totalPrices };
     } catch (error) {
       logger.error('Failed to sync catalog from backend:', error);
-      return { products: totalProducts, prices: totalPrices };
+      // No database write happens before the final transaction. Returning a
+      // zero result makes the failed snapshot explicit to its caller.
+      return { products: 0, prices: 0 };
     }
   }
 

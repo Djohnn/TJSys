@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -201,5 +202,87 @@ describe('CatalogCache.syncFromBackend', () => {
 
     // Then
     expect(catalogCache.getPrice('product-1', new Date('2026-08-15T12:00:00Z'))).toMatchObject({ id: 'price-1' });
+  });
+
+  it('Given an existing snapshot, When a later product page fails, Then commits no partial refresh', async () => {
+    // Given
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => ({ data: { results: [price] } }));
+    await catalogCache.syncFromBackend();
+    const replacement = { ...product, id: 'product-2', sku: 'SKU-002' };
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [replacement], next: 'cursor-2' } }))
+      .mockImplementationOnce(async () => { throw new Error('page unavailable'); });
+
+    // When
+    const result = await catalogCache.syncFromBackend();
+
+    // Then
+    expect(result).toEqual({ products: 0, prices: 0 });
+    expect(catalogCache.getProductById('product-1')).not.toBeNull();
+    expect(catalogCache.getProductById('product-2')).toBeNull();
+    expect(catalogCache.getPrice('product-1', new Date('2026-08-15T12:00:00Z'))).toMatchObject({ id: 'price-1' });
+  });
+
+  it('Given two refresh calls, When the first is still fetching, Then the second runs after it', async () => {
+    // Given
+    let releaseFirst!: () => void;
+    const firstPage = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    let calls = 0;
+    mocks.get.mockImplementation(async () => {
+      calls++;
+      if (calls === 1) {
+        await firstPage;
+        return { data: { results: [product], next: null } };
+      }
+      if (calls === 2) return { data: { results: [] } };
+      if (calls === 3) return { data: { results: [{ ...product, id: 'product-2', sku: 'SKU-002' }], next: null } };
+      return { data: { results: [] } };
+    });
+
+    // When
+    const first = catalogCache.syncFromBackend();
+    const second = catalogCache.syncFromBackend();
+    await Promise.resolve();
+    expect(calls).toBe(1);
+    releaseFirst();
+    await first;
+    await second;
+
+    // Then
+    expect(calls).toBe(4);
+    expect(catalogCache.getProductById('product-2')).not.toBeNull();
+  });
+
+  it('Given an old product in the same tenant, When the snapshot omits it, Then removes the obsolete product', async () => {
+    // Given
+    mocks.get.mockImplementationOnce(async () => ({ data: { results: [product], next: null } }))
+      .mockImplementationOnce(async () => ({ data: { results: [] } }));
+    await catalogCache.syncFromBackend();
+    expect(catalogCache.getProductById('product-1')).not.toBeNull();
+
+    // When
+    mocks.get.mockResolvedValue({ data: { results: [], next: null } });
+    await catalogCache.syncFromBackend();
+
+    // Then
+    expect(catalogCache.getProductById('product-1')).toBeNull();
+  });
+
+  it('Given an unscoped legacy database, When initializing a tenant, Then preserves it without importing rows', () => {
+    // Given
+    catalogCache.close();
+    const legacyPath = join(databaseDirectory, 'catalog.db');
+    const legacyDb = new Database(legacyPath);
+    legacyDb.exec('CREATE TABLE products (id TEXT PRIMARY KEY, sku TEXT, name TEXT, base_unit_id TEXT, requires_lot INTEGER, requires_expiry INTEGER, is_active INTEGER, updated_at TEXT)');
+    legacyDb.prepare('INSERT INTO products VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run('legacy-product', 'LEGACY', 'Legado', 'unit-1', 0, 0, 1, '2026-08-10T00:00:00Z');
+    legacyDb.close();
+
+    // When
+    catalogCache.init('tenant-a');
+
+    // Then
+    expect(catalogCache.getProductById('legacy-product')).toBeNull();
+    expect(existsSync(join(databaseDirectory, 'catalog.db'))).toBe(true);
+    expect(existsSync(join(databaseDirectory, 'catalog-legacy-unscoped.db'))).toBe(true);
   });
 });
