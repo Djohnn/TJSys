@@ -318,6 +318,76 @@ describe('ContingencyPolicy', () => {
     });
   });
 
+  it('Given heartbeat sem evidência de operador substitui a âncora, When tenta concluir offline depois disso, Then bloqueia por operador inelegível', () => {
+    policy.recordOnlineHeartbeat('2026-08-11T11:40:00.000Z', {
+      operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
+    });
+    policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
+      device_active: true,
+      device_revoked: false,
+    });
+
+    const result = policy.evaluateOfflineSale(saleInput());
+
+    expect(result).toMatchObject({
+      allowed: false,
+      code: 'operator_not_eligible',
+    });
+  });
+
+  it('Given relógio local avançou mais de vinte e quatro horas sem elapsed monotônico equivalente, When o preço ainda está fresco no projectedNowMs, Then não bloqueia por stale_price_cache', () => {
+    policy = new ContingencyPolicy({
+      sessionId: 'session-a',
+      now: () => new Date(nowMs),
+      monotonicNow: () => monotonicMs,
+      auth: {
+        isAuthenticated: () => true,
+        getDeviceId: () => 'device-1',
+        getBranchId: () => 'branch-1',
+        getRefreshToken: () => 'refresh-1',
+      },
+      catalogCache: {
+        getProductById: () => ({
+          id: 'product-1',
+          sku: 'SKU-1',
+          name: 'Produto 1',
+          base_unit_id: 'unit-1',
+          requires_lot: false,
+          requires_expiry: false,
+          is_active: true,
+          updated_at: '2026-08-10T10:00:00.000Z',
+        }),
+        getPrice: () => ({
+          id: 'price-1',
+          product_id: 'product-1',
+          amount: '10.00',
+          valid_from: '2026-08-09T00:00:00.000Z',
+          valid_to: null,
+          updated_at: '2026-08-10T12:05:00.000Z',
+        }),
+      },
+    });
+    nowMs = Date.parse('2026-08-12T12:30:00.000Z');
+    monotonicMs = 10_000;
+    policy.recordOnlineHeartbeat('2026-08-11T11:00:00.000Z', {
+      operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
+    });
+    monotonicMs = 10_000 + (10 * 60 * 1000);
+
+    const result = policy.evaluateOfflineSale(saleInput());
+
+    expect(result.allowed).toBe(true);
+    if (!result.allowed) throw new Error(`expected sale to be allowed, got ${result.code}`);
+  });
+
   it('Given pagamento externo sem referencia auditavel, When tenta concluir offline, Then bloqueia contingencia', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',

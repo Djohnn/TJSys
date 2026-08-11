@@ -237,7 +237,8 @@ export class ContingencyPolicy {
       return this.block('operator_not_eligible', 'Operator eligibility is missing, expired, inactive, revoked, or mismatched for offline contingency');
     }
 
-    const saleTotalCents = this.calculateSaleTotal(input.items, now);
+    const projectedNow = new Date(projectedNowMs);
+    const saleTotalCents = this.calculateSaleTotal(input.items, projectedNow, projectedNowMs);
     if (!saleTotalCents.ok) return saleTotalCents.error;
 
     const paymentValidation = this.validatePayments(input.payments, saleTotalCents.totalCents);
@@ -253,7 +254,8 @@ export class ContingencyPolicy {
 
   private calculateSaleTotal(
     items: ContingencySaleItem[],
-    now: Date,
+    projectedNow: Date,
+    projectedNowMs: number,
   ): { ok: true; totalCents: number } | { ok: false; error: BlockedSale } {
     let totalCents = 0;
     for (const item of items) {
@@ -261,12 +263,12 @@ export class ContingencyPolicy {
       if (!product) {
         return { ok: false, error: this.block('missing_cached_product', `Product ${item.product} is not cached locally`) };
       }
-      const price = this.catalogCache.getPrice(item.product, now);
+      const price = this.catalogCache.getPrice(item.product, projectedNow);
       if (!price) {
         return { ok: false, error: this.block('missing_cached_price', `Product ${item.product} has no valid cached price`) };
       }
       const updatedMs = Date.parse(price.updated_at);
-      if (!Number.isFinite(updatedMs) || now.getTime() - updatedMs > PRICE_CACHE_MAX_AGE_MS) {
+      if (!Number.isFinite(updatedMs) || projectedNowMs - updatedMs > PRICE_CACHE_MAX_AGE_MS) {
         return { ok: false, error: this.block('stale_price_cache', `Product ${item.product} price cache is older than twenty-four hours`) };
       }
 
@@ -333,7 +335,6 @@ export class ContingencyPolicy {
   private buildOperatorEligibility(
     serverTimeIso: string,
     heartbeat: ContingencyHeartbeatInput,
-    previousAnchor: ContingencyAnchor | null,
   ): ContingencyEligibilitySnapshot | null {
     const operatorId = heartbeat.operator_id?.trim();
     if (operatorId) {
@@ -345,8 +346,7 @@ export class ContingencyPolicy {
         expires_at: new Date(Date.parse(serverTimeIso) + OFFLINE_WINDOW_MS).toISOString(),
       };
     }
-
-    return previousAnchor?.operator ?? null;
+    return null;
   }
 
   private isEligibilitySnapshot(value: unknown): value is ContingencyEligibilitySnapshot {

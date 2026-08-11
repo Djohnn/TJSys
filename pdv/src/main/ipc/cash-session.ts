@@ -1,4 +1,5 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { buildEligibilityHeartbeat, extractServerTime } from './contingencyHeartbeat';
 import { api } from '../services/api';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { contingencyPolicy } from '../services/contingencyPolicy';
@@ -21,7 +22,10 @@ export function setupCashSessionHandlers() {
       }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to open cash session:', error);
@@ -33,7 +37,10 @@ export function setupCashSessionHandlers() {
     logger.info('Getting current cash session', { branchId });
     try {
       const res = await api.get('/cash-sessions/current/', { params: { branch: branchId } });
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to get current cash session:', error);
@@ -56,7 +63,10 @@ export function setupCashSessionHandlers() {
       }, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to close cash session:', error);
@@ -67,7 +77,10 @@ export function setupCashSessionHandlers() {
   ipcMain.handle('cash-session:list', async (event: IpcMainInvokeEvent, params?: { branch?: string }) => {
     try {
       const res = await api.get('/cash-sessions/', { params });
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to list cash sessions:', error);
@@ -78,20 +91,14 @@ export function setupCashSessionHandlers() {
   ipcMain.handle('cash-session:movements', async (event: IpcMainInvokeEvent, sessionId: string) => {
     try {
       const res = await api.get(`/cash-sessions/${sessionId}/movements/`);
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to get cash movements:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get movements' };
     }
   });
-}
-
-function extractServerTime(headerDate: unknown, payload: unknown): string | null {
-  if (typeof headerDate === 'string' && headerDate.trim()) return headerDate;
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const serverTime = (payload as { server_time?: unknown }).server_time;
-    if (typeof serverTime === 'string' && serverTime.trim()) return serverTime;
-  }
-  return null;
 }

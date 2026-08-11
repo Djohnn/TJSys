@@ -1,5 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { api } from '../services/api';
+import { buildEligibilityHeartbeat, extractServerTime } from './contingencyHeartbeat';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { contingencyPolicy } from '../services/contingencyPolicy';
 import { offlineSaleService } from '../services/offlineSaleService';
@@ -29,7 +30,10 @@ export function setupSaleHandlers() {
       const res = await api.post('/sales/counter/', data, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      contingencyPolicy.recordOnlineHeartbeat(extractServerTime(res.headers?.date, res.data));
+      contingencyPolicy.recordOnlineHeartbeat(
+        extractServerTime(res.headers?.date, res.data),
+        buildEligibilityHeartbeat(res.data),
+      );
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to create sale:', error);
@@ -96,13 +100,4 @@ export function setupSaleHandlers() {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get receipt' };
     }
   });
-}
-
-function extractServerTime(headerDate: unknown, payload: unknown): string | null {
-  if (typeof headerDate === 'string' && headerDate.trim()) return headerDate;
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const serverTime = (payload as { server_time?: unknown }).server_time;
-    if (typeof serverTime === 'string' && serverTime.trim()) return serverTime;
-  }
-  return null;
 }
