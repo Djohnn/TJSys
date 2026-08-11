@@ -145,6 +145,15 @@ describe('syncEngine', () => {
     expect(operationJournal.markFailed).toHaveBeenCalledWith('uuid-1', 'Validation error');
   });
 
+  it('rejects cash-session operations from contingency sync routing', async () => {
+    vi.mocked(operationJournal.getPending).mockReturnValue([mockEntry({ type: 'cash-session:open' })]);
+
+    await syncEngine.sync();
+
+    expect(operationJournal.markFailed).toHaveBeenCalledWith('uuid-1', 'Unknown operation type: cash-session:open');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('sync retries on network error with backoff', async () => {
     vi.mocked(operationJournal.getPending).mockReturnValue([mockEntry()]);
     vi.mocked(api.post)

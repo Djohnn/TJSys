@@ -198,10 +198,6 @@ class SyncEngine {
     switch (type) {
       case 'sale:create':
         return '/sales/counter/';
-      case 'cash-session:open':
-        return '/cash-sessions/open/';
-      case 'cash-session:close':
-        return '/cash-sessions/close/';
       default:
         return null;
     }
