@@ -10,7 +10,6 @@ test.describe('QA Visual @live - Sprint 7', () => {
     }
   });
   test.setTimeout(180000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('cadastro de 3 produtos + venda no PDV + status fiscal', async ({ page }) => {
     await page.addInitScript(() => {

@@ -10,7 +10,6 @@ test.describe('Sale flow @live (real backend)', () => {
     }
   });
   test.setTimeout(90000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('full sale flow: login, open cash, add stock, create sale', async ({ page }) => {
     await page.addInitScript(() => {
