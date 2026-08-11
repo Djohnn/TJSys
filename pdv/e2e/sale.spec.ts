@@ -1,9 +1,14 @@
 import { test, expect, Page } from '@playwright/test';
 
-const API_KEY = 'e2e-test-key-2026';
+const liveApiKey = process.env.E2E_LIVE_API_KEY;
 
 test.describe('Sale flow @live (real backend)', () => {
   test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e API key do ambiente dedicado.');
+  test.beforeEach(() => {
+    if (!liveApiKey) {
+      throw new Error('Defina E2E_LIVE_API_KEY para executar o fluxo live do PDV.');
+    }
+  });
   test.setTimeout(90000);
   test.use({ baseURL: 'http://localhost:5173' });
 
@@ -21,7 +26,7 @@ test.describe('Sale flow @live (real backend)', () => {
     // Login
     await page.goto('/login');
     await expect(page.getByLabel('Chave de API (API Key)')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Chave de API (API Key)').fill(API_KEY);
+    await page.getByLabel('Chave de API (API Key)').fill(liveApiKey!);
     await page.getByRole('button', { name: 'Entrar' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 10000 });
 
