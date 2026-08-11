@@ -48,7 +48,9 @@ vi.mock('../utils/logger', () => ({
 
 import { api } from '../services/api';
 import { auth } from '../services/auth';
+import { connectivityMonitor } from '../services/connectivityMonitor';
 import { contingencyPolicy } from '../services/contingencyPolicy';
+import { operationJournal } from '../services/operationJournal';
 import { buildEligibilityHeartbeat } from '../ipc/contingencyHeartbeat';
 import { setupCashSessionHandlers } from '../ipc/cash-session';
 import { setupSaleHandlers } from '../ipc/sale';
@@ -57,6 +59,8 @@ describe('online heartbeat eligibility wiring', () => {
   beforeEach(() => {
     handlers.clear();
     vi.clearAllMocks();
+    vi.spyOn(operationJournal, 'addOperation');
+    vi.mocked(connectivityMonitor.isOnline).mockReturnValue(true);
   });
 
   it('Given venda online confirmada, When sale:create persiste heartbeat, Then envia operador e elegibilidade explícita do dispositivo', async () => {
@@ -128,5 +132,40 @@ describe('online heartbeat eligibility wiring', () => {
       operator_active: false,
       operator_revoked: true,
     });
+  });
+  it('Given PDV offline, When solicita abertura de caixa, Then bloqueia fail-closed sem rede nem journal sincronizável', async () => {
+    setupCashSessionHandlers();
+    vi.mocked(connectivityMonitor.isOnline).mockReturnValue(false);
+
+    const handler = handlers.get('cash-session:open');
+    if (!handler) throw new Error('cash-session:open handler not registered');
+
+    const result = await handler({}, { branch: 'branch-1', openingAmount: '100.00' });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Cash session open is not allowed offline; reconnect first.',
+      code: 'offline_cash_session_blocked',
+    });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(operationJournal.addOperation).not.toHaveBeenCalled();
+  });
+
+  it('Given PDV offline, When solicita fechamento de caixa, Then bloqueia fail-closed sem rede nem journal sincronizável', async () => {
+    setupCashSessionHandlers();
+    vi.mocked(connectivityMonitor.isOnline).mockReturnValue(false);
+
+    const handler = handlers.get('cash-session:close');
+    if (!handler) throw new Error('cash-session:close handler not registered');
+
+    const result = await handler({}, { sessionId: 'cash-1', closingAmount: '120.00' });
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Cash session close is not allowed offline; reconnect first.',
+      code: 'offline_cash_session_blocked',
+    });
+    expect(api.post).not.toHaveBeenCalled();
+    expect(operationJournal.addOperation).not.toHaveBeenCalled();
   });
 });
