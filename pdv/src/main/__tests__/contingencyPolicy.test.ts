@@ -94,6 +94,10 @@ describe('ContingencyPolicy', () => {
   it('Given anchor valida e caixa previamente aberto, When conclui venda offline em dinheiro, Then permite contingencia com troco', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
     nowMs = Date.parse('2026-08-11T12:10:00.000Z');
     monotonicMs = 10_200;
@@ -119,6 +123,10 @@ describe('ContingencyPolicy', () => {
   it('Given mais de duas horas sem ancora valida, When tenta concluir offline, Then bloqueia contingencia', () => {
     policy.recordOnlineHeartbeat('2026-08-11T09:30:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
     nowMs = Date.parse('2026-08-11T12:01:00.000Z');
     monotonicMs = 9_000 + (2 * 60 * 60 * 1000) + 1;
@@ -134,6 +142,10 @@ describe('ContingencyPolicy', () => {
   it('Given relogio local retrocedido, When tenta concluir offline, Then bloqueia por rollback', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
     nowMs = Date.parse('2026-08-11T11:40:00.000Z');
 
@@ -148,6 +160,10 @@ describe('ContingencyPolicy', () => {
   it('Given app reiniciou apos ultima ancora, When tenta concluir offline, Then bloqueia ate nova validacao online', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
     const restartedPolicy = new ContingencyPolicy({
       sessionId: 'session-b',
@@ -192,6 +208,10 @@ describe('ContingencyPolicy', () => {
   it('Given relogio monotonic retrocedido na mesma sessao, When tenta concluir offline, Then bloqueia por regressao monotonic fail-closed', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
     nowMs = Date.parse('2026-08-11T12:00:00.000Z');
     monotonicMs = 8_500;
@@ -204,7 +224,7 @@ describe('ContingencyPolicy', () => {
     });
   });
 
-  it('Given ancora persistida sem elegibilidade de operador, When o app reinicia e tenta vender offline, Then bloqueia por ancora invalida apos restart', () => {
+  it('Given heartbeat sem elegibilidade de operador, When tenta criar ancora offline, Then bloqueia por ancora ausente', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z');
     const restartedPolicy = new ContingencyPolicy({
       sessionId: 'session-b',
@@ -242,7 +262,7 @@ describe('ContingencyPolicy', () => {
 
     expect(result).toMatchObject({
       allowed: false,
-      code: 'restart_requires_new_anchor',
+      code: 'missing_anchor',
     });
   });
 
@@ -250,6 +270,9 @@ describe('ContingencyPolicy', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
       device_revoked: true,
+      device_active: true,
+      operator_active: true,
+      operator_revoked: false,
     });
 
     const result = policy.evaluateOfflineSale(saleInput());
@@ -264,6 +287,9 @@ describe('ContingencyPolicy', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
       operator_revoked: true,
+      operator_active: true,
+      device_active: true,
+      device_revoked: false,
     });
 
     const result = policy.evaluateOfflineSale(saleInput());
@@ -308,6 +334,10 @@ describe('ContingencyPolicy', () => {
     });
     policy.recordOnlineHeartbeat('2026-08-11T11:00:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
 
     const result = policy.evaluateOfflineSale(saleInput());
@@ -391,6 +421,10 @@ describe('ContingencyPolicy', () => {
   it('Given pagamento externo sem referencia auditavel, When tenta concluir offline, Then bloqueia contingencia', () => {
     policy.recordOnlineHeartbeat('2026-08-11T11:50:00.000Z', {
       operator_id: 'operator-1',
+      operator_active: true,
+      operator_revoked: false,
+      device_active: true,
+      device_revoked: false,
     });
 
     const result = policy.evaluateOfflineSale(saleInput({

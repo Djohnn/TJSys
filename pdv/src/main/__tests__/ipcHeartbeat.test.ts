@@ -49,6 +49,7 @@ vi.mock('../utils/logger', () => ({
 import { api } from '../services/api';
 import { auth } from '../services/auth';
 import { contingencyPolicy } from '../services/contingencyPolicy';
+import { buildEligibilityHeartbeat } from '../ipc/contingencyHeartbeat';
 import { setupCashSessionHandlers } from '../ipc/cash-session';
 import { setupSaleHandlers } from '../ipc/sale';
 
@@ -82,11 +83,7 @@ describe('online heartbeat eligibility wiring', () => {
       'Tue, 11 Aug 2026 12:00:00 GMT',
       {
         device_id: 'device-1',
-        device_active: true,
-        device_revoked: false,
         operator_id: 'operator-9',
-        operator_active: true,
-        operator_revoked: false,
       },
     );
   });
@@ -107,12 +104,29 @@ describe('online heartbeat eligibility wiring', () => {
       'Tue, 11 Aug 2026 12:05:00 GMT',
       {
         device_id: 'device-1',
-        device_active: true,
-        device_revoked: false,
         operator_id: 'operator-3',
-        operator_active: true,
-        operator_revoked: false,
       },
     );
+  });
+
+  it('Given resposta sem evidência de elegibilidade, When monta heartbeat, Then mantém flags ausentes', () => {
+    expect(buildEligibilityHeartbeat({ operator: 'operator-9' })).toEqual({
+      device_id: 'device-1',
+      operator_id: 'operator-9',
+    });
+  });
+
+  it('Given resposta com evidência explícita, When monta heartbeat, Then propaga somente os valores recebidos', () => {
+    expect(buildEligibilityHeartbeat({
+      device: { id: 'device-2', active: false, revoked: true },
+      operator: { id: 'operator-9', active: false, revoked: true },
+    })).toEqual({
+      device_id: 'device-2',
+      device_active: false,
+      device_revoked: true,
+      operator_id: 'operator-9',
+      operator_active: false,
+      operator_revoked: true,
+    });
   });
 });

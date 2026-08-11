@@ -133,19 +133,20 @@ export class ContingencyPolicy {
     if (!parsed) return false;
 
     const observedAt = this.now().toISOString();
-    const previousAnchor = this.getAnchor();
     const deviceId = heartbeat.device_id ?? this.auth.getDeviceId();
-    if (!deviceId) return false;
+    if (!deviceId || typeof heartbeat.device_active !== 'boolean' || typeof heartbeat.device_revoked !== 'boolean') {
+      return false;
+    }
 
     const deviceEligibility: ContingencyEligibilitySnapshot = {
       id: deviceId,
-      active: heartbeat.device_active ?? true,
-      revoked: heartbeat.device_revoked ?? false,
+      active: heartbeat.device_active,
+      revoked: heartbeat.device_revoked,
       validated_at: parsed,
       expires_at: new Date(Date.parse(parsed) + OFFLINE_WINDOW_MS).toISOString(),
     };
 
-    const operatorEligibility = this.buildOperatorEligibility(parsed, heartbeat, previousAnchor);
+    const operatorEligibility = this.buildOperatorEligibility(parsed, heartbeat);
     const anchor: ContingencyAnchor = {
       server_time: parsed,
       client_wall_time: observedAt,
@@ -337,11 +338,11 @@ export class ContingencyPolicy {
     heartbeat: ContingencyHeartbeatInput,
   ): ContingencyEligibilitySnapshot | null {
     const operatorId = heartbeat.operator_id?.trim();
-    if (operatorId) {
+    if (operatorId && typeof heartbeat.operator_active === 'boolean' && typeof heartbeat.operator_revoked === 'boolean') {
       return {
         id: operatorId,
-        active: heartbeat.operator_active ?? true,
-        revoked: heartbeat.operator_revoked ?? false,
+        active: heartbeat.operator_active,
+        revoked: heartbeat.operator_revoked,
         validated_at: serverTimeIso,
         expires_at: new Date(Date.parse(serverTimeIso) + OFFLINE_WINDOW_MS).toISOString(),
       };
