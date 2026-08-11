@@ -1,7 +1,7 @@
 # Sprint 6 / R6 — Offline Hardening e Sincronização
 
 **Data:** 2026-08-11
-**Status:** Verificação local concluída; fechamento global ainda bloqueado
+**Status:** Encerrada com ressalva aceita
 
 ## Escopo validado
 
@@ -42,17 +42,16 @@ No changes detected
 System check identified no issues (0 silenced).
 ```
 
-## Bloqueios residuais
+## Ressalvas aceitas e débitos separados
 
-- Ruff global: 28 erros fora do escopo R6, principalmente catalog, inventory,
-  tenancy e fixtures existentes.
-- mypy global: 11 erros em 4 arquivos fora do escopo R6.
 - `electron-builder --win` continua dependente de Developer Mode/privilégio
   para links simbólicos do `winCodeSign`; não foi possível emitir o instalador
-  neste ambiente sem essa capacidade.
-- O repositório ainda contém alterações e arquivos não versionados de outras
-  frentes. O envio ao remoto deve ocorrer somente após revisão explícita do
-  conjunto a ser incluído.
+  neste ambiente sem essa capacidade. Esta é a única ressalva de fechamento da
+  R6 e deve ser validada em CI ou Windows com Developer Mode/privilégio.
+- Ruff global (28 erros) e mypy global (11 erros em 4 arquivos) permanecem como
+  débito técnico fora do escopo R6.
+- Alterações e arquivos não versionados de outras frentes permanecem fora do
+  release R6 e exigem revisão própria antes de qualquer push global.
 
 ## Rollback
 
