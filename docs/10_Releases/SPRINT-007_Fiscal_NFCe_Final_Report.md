@@ -70,7 +70,8 @@ PDV lint:
 ### E2E fiscal determinístico
 
 - `pdv/e2e/r7-fiscal-emission.spec.ts` atravessa o contrato HTTP no navegador, simula o provider e exige os estados `QUEUED`, `PROCESSING` e `CONCLUDED`, incluindo `provider_document_id` e protocolo.
-- `pdv/e2e/qa-visual.spec.ts` não aceita mais `404` como resultado válido para o status fiscal.
+- `pdv/e2e/qa-visual.spec.ts` solicita explicitamente o Cupom Fiscal, aguarda o `POST /request-fiscal/` com `201` e então valida `CONCLUDED`.
+- `404` permanece válido para vendas em que o Cupom Fiscal nunca foi solicitado; fechar o toast não emite NFC-e.
 
 ### Cobertura PDV (185 testes / 21 arquivos)
 

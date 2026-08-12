@@ -163,7 +163,17 @@ test.describe('QA Visual - Sprint 7', () => {
     await page.screenshot({ path: 'qa-receipt.png', fullPage: true });
     console.log('✓ Cupom visível');
 
-    // Fechar recibo
+    // Solicitar explicitamente a NFC-e antes de fechar o recibo.
+    const fiscalRequestPromise = page.waitForResponse(
+      resp => resp.url().includes('/request-fiscal/') && resp.request().method() === 'POST',
+      { timeout: 25000 },
+    );
+    await expect(page.getByRole('button', { name: 'Imprimir Cupom Fiscal' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Imprimir Cupom Fiscal' }).click();
+    const fiscalRequest = await fiscalRequestPromise;
+    expect(fiscalRequest.status()).toBe(201);
+
+    // Fechar recibo não cancela a solicitação fiscal já feita.
     const fechar = page.getByRole('button', { name: 'Fechar' }).first();
     if (await fechar.isVisible({ timeout: 3000 }).catch(() => false)) {
       await fechar.click();
