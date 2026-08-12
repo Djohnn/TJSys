@@ -541,6 +541,7 @@ def create_sale_refund(
     sale,
     method,
     amount,
+    reason,
     idempotency_key,
     sale_return=None,
     actor=None,
@@ -554,6 +555,7 @@ def create_sale_refund(
         'sale_id': str(sale.id),
         'method': method,
         'amount': str(amount),
+        'reason': reason,
         'sale_return_id': str(sale_return.id) if sale_return else None,
     }
     fingerprint = _payload_hash(payload)
@@ -572,6 +574,7 @@ def create_sale_refund(
         sale_return=sale_return,
         method=method,
         amount=amount,
+        reason=reason,
         status='completed',
         idempotency_key=idempotency_key,
         payload_hash=fingerprint,
@@ -603,6 +606,7 @@ def create_sale_refund(
             'sale_id': str(sale.id),
             'method': method,
             'amount': str(amount),
+            'reason': reason,
         },
         correlation_id=idempotency_key,
         tenant_id=tenant.id,
@@ -616,6 +620,7 @@ def create_sale_refund(
             'sale_id': str(sale.id),
             'method': method,
             'amount': str(amount),
+            'reason': reason,
         },
         correlation_id=idempotency_key,
         tenant_id=tenant.id,
@@ -702,6 +707,7 @@ def cancel_sale(
                 sale_return=None,
                 method='cash',
                 amount=payment.amount,
+                reason=reason,
                 status='completed',
                 idempotency_key=f'{idempotency_key}:refund:{payment.id}',
             )
@@ -725,6 +731,7 @@ def cancel_sale(
                 sale_return=None,
                 method=payment.method,
                 amount=payment.amount,
+                reason=reason,
                 status='completed',
                 idempotency_key=f'{idempotency_key}:refund:{payment.id}',
             )

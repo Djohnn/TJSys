@@ -77,6 +77,7 @@ class TestSaleCancellationService:
             assert refund is not None
             assert refund.method == 'cash'
             assert refund.amount == Decimal('20.00')
+            assert refund.reason == 'Cancelamento com reembolso'
 
             movement = CashMovement.all_objects.filter(
                 tenant=ctx['tenant'],

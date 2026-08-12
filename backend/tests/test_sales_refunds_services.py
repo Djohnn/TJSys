@@ -31,6 +31,7 @@ class TestSaleRefundService:
                 sale=sale,
                 method='cash',
                 amount=Decimal('20.00'),
+                reason='Produto avariado',
                 idempotency_key='refund-cash-1',
             )
             movement = CashMovement.all_objects.filter(
@@ -58,6 +59,7 @@ class TestSaleRefundService:
                 sale=sale,
                 method='pix',
                 amount=Decimal('20.00'),
+                reason='Produto avariado',
                 idempotency_key='refund-pix-1',
             )
             movement = CashMovement.all_objects.filter(
@@ -83,6 +85,7 @@ class TestSaleRefundService:
                 sale=sale,
                 method='card_external',
                 amount=Decimal('20.00'),
+                reason='Produto avariado',
                 idempotency_key='refund-card-1',
             )
             movement = CashMovement.all_objects.filter(
@@ -113,6 +116,7 @@ class TestSaleRefundService:
                     sale=sale,
                     method='cash',
                     amount=Decimal('10.00'),
+                    reason='Produto avariado',
                     idempotency_key='refund-closed-cash-1',
                 )
 
@@ -130,6 +134,7 @@ class TestSaleRefundService:
                 sale=sale,
                 method='cash',
                 amount=Decimal('20.00'),
+                reason='Produto avariado',
                 idempotency_key='refund-idem-1',
             )
             replay = create_sale_refund(
@@ -137,6 +142,7 @@ class TestSaleRefundService:
                 sale=sale,
                 method='cash',
                 amount=Decimal('20.00'),
+                reason='Produto avariado',
                 idempotency_key='refund-idem-1',
             )
             assert replay.id == first.id

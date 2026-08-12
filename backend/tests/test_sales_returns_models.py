@@ -135,6 +135,21 @@ class TestSaleReturnItemModel:
 
 @pytest.mark.django_db
 class TestSaleRefundModel:
+    def test_refund_persists_reason(self, sale_context):
+        ctx = sale_context
+        sale = _get_first_sale(ctx)
+        refund = SaleRefund.all_objects.create(
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='cash',
+            amount=Decimal('50.00'),
+            reason='Produto avariado',
+        )
+
+        refund.refresh_from_db()
+
+        assert refund.reason == 'Produto avariado'
+
     def test_create_cash_refund(self, sale_context):
         ctx = sale_context
         sale = _get_first_sale(ctx)
@@ -143,9 +158,11 @@ class TestSaleRefundModel:
             sale=sale,
             method='cash',
             amount=Decimal('50.00'),
+            reason='Devolução em dinheiro',
         )
         assert refund.method == 'cash'
         assert refund.amount == Decimal('50.00')
+        assert refund.reason == 'Devolução em dinheiro'
         assert refund.status == 'pending'
 
     def test_refund_method_choices(self, sale_context):
@@ -157,6 +174,7 @@ class TestSaleRefundModel:
                 sale=sale,
                 method=method,
                 amount=Decimal('10.00'),
+                reason='Método de reembolso',
             )
             assert refund.method == method
 
@@ -169,6 +187,7 @@ class TestSaleRefundModel:
                 sale=sale,
                 method='cash',
                 amount=Decimal('-10.00'),
+                reason='Valor inválido',
             )
             refund.full_clean()
 
@@ -181,6 +200,7 @@ class TestSaleRefundModel:
                 sale=sale,
                 method='cash',
                 amount=Decimal('0'),
+                reason='Valor inválido',
             )
             refund.full_clean()
 
