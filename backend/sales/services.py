@@ -471,22 +471,23 @@ def create_sale_return(
         'reason': reason,
     }
     legacy_fingerprint = _payload_hash(legacy_payload)
-    existing = SaleReturn.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).first()
-    if existing and existing.payload_hash == legacy_fingerprint:
-        return existing
-
     requested_items = []
     for item in items:
         quantity = Decimal(str(item['quantity']))
+        if quantity <= 0:
+            raise InsufficientReturnableQuantity('Return quantity must be positive.')
         requested_items.append(
             {
                 'sale_item_id': str(item['sale_item_id']),
                 'quantity': quantity,
             }
         )
+    existing = SaleReturn.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing and existing.payload_hash == legacy_fingerprint:
+        return existing
 
     compatibility_payload = {
         'sale_id': str(locked_sale.id),
@@ -527,12 +528,24 @@ def create_sale_return(
     }
     fingerprint = _payload_hash(canonical_payload)
     if existing:
-        if existing.payload_hash not in {fingerprint, compatibility_fingerprint}:
-            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
-        return existing
-
-    if any(item['quantity'] <= 0 for item in requested_items):
-        raise InsufficientReturnableQuantity('Return quantity must be positive.')
+        if existing.payload_hash in {fingerprint, compatibility_fingerprint}:
+            return existing
+        persisted_quantities = {
+            str(item['sale_item_id']): item['total_quantity']
+            for item in SaleReturnItem.all_objects.filter(
+                tenant=tenant,
+                sale_return=existing,
+            )
+            .values('sale_item_id')
+            .annotate(total_quantity=Sum('quantity'))
+        }
+        if (
+            existing.sale_id == locked_sale.id
+            and existing.reason == reason
+            and persisted_quantities == aggregated_quantities
+        ):
+            return existing
+        raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
 
     normalized_items = []
     for item in aggregated_items:

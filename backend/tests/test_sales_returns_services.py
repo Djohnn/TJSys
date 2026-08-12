@@ -397,6 +397,251 @@ class TestSaleReturnService:
         _run_in_tenant(ctx['tenant'], _test)
 
     @pytest.mark.parametrize(
+        ('invalid_quantities', 'idempotency_key'),
+        [
+            pytest.param(
+                (Decimal('2'), Decimal('-1')),
+                'return-replay-negative-line',
+                id='negative-line',
+            ),
+            pytest.param(
+                (Decimal('1'), Decimal('0')),
+                'return-replay-zero-line',
+                id='zero-line',
+            ),
+        ],
+    )
+    def test_idempotent_replay_rejects_non_positive_lines_without_new_effects(
+        self,
+        sale_context,
+        invalid_quantities,
+        idempotency_key,
+    ):
+        """Given an existing return, when replay has a non-positive line, then it fails."""
+        ctx = sale_context
+        from sales.services import InsufficientReturnableQuantity, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+
+        def _effect_counts():
+            stock_operations = StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key__startswith=f'{idempotency_key}:stock:',
+            )
+            return {
+                'sale_returns': SaleReturn.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key=idempotency_key,
+                ).count(),
+                'sale_return_items': SaleReturnItem.all_objects.filter(
+                    sale_return__tenant=ctx['tenant'],
+                    sale_return__idempotency_key=idempotency_key,
+                ).count(),
+                'stock_operations': stock_operations.count(),
+                'stock_movements': StockMovement.all_objects.filter(
+                    operation__in=stock_operations,
+                ).count(),
+                'audit_records': AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+                'outbox_messages': OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+            }
+
+        def _test():
+            existing = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
+                reason='Replay deve validar linhas',
+                idempotency_key=idempotency_key,
+            )
+            effects_before = _effect_counts()
+            balance_before = StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity
+
+            with pytest.raises(InsufficientReturnableQuantity):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[
+                        {
+                            'sale_item_id': str(sale_item.id),
+                            'quantity': quantity,
+                        }
+                        for quantity in invalid_quantities
+                    ],
+                    reason='Replay deve validar linhas',
+                    idempotency_key=idempotency_key,
+                )
+
+            assert SaleReturn.all_objects.get(
+                tenant=ctx['tenant'],
+                idempotency_key=idempotency_key,
+            ).id == existing.id
+            assert _effect_counts() == effects_before
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity == balance_before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_legacy_order_dependent_hash_uses_strict_semantic_replay(self, sale_context):
+        """Given an old reversed hash, when replay is equivalent, then the fact is reused."""
+        ctx = sale_context
+        from sales.services import DuplicateIdempotencyKey, _payload_hash, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        first_item = SaleItem.all_objects.get(sale=sale)
+        idempotency_key = 'return-semantic-legacy-order'
+        reason = 'Replay semântico estrito'
+
+        def _effect_counts():
+            stock_operations = StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key__startswith=f'{idempotency_key}:stock:',
+            )
+            return {
+                'sale_returns': SaleReturn.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key=idempotency_key,
+                ).count(),
+                'sale_return_items': SaleReturnItem.all_objects.filter(
+                    sale_return__tenant=ctx['tenant'],
+                    sale_return__idempotency_key=idempotency_key,
+                ).count(),
+                'stock_operations': stock_operations.count(),
+                'stock_movements': StockMovement.all_objects.filter(
+                    operation__in=stock_operations,
+                ).count(),
+                'audit_records': AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+                'outbox_messages': OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+            }
+
+        def _test():
+            second_product = Product.all_objects.create(
+                tenant=ctx['tenant'],
+                sku='RETURN-SEMANTIC-SECOND',
+                name='Produto para replay semântico',
+                base_unit=ctx['unit'],
+            )
+            second_item = SaleItem.all_objects.create(
+                tenant=ctx['tenant'],
+                sale=sale,
+                product=second_product,
+                unit=ctx['unit'],
+                quantity=Decimal('1'),
+                factor=Decimal('1'),
+                unit_price=Decimal('5'),
+                line_total=Decimal('5'),
+            )
+            canonical_order = sorted([first_item, second_item], key=lambda item: str(item.id))
+            legacy_order = list(reversed(canonical_order))
+            existing = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {'sale_item_id': str(item.id), 'quantity': Decimal('1')}
+                    for item in legacy_order
+                ],
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+            old_fingerprint = _payload_hash(
+                {
+                    'sale_id': str(sale.id),
+                    'items': [
+                        {'sale_item_id': str(item.id), 'quantity': '1'}
+                        for item in legacy_order
+                    ],
+                    'reason': reason,
+                }
+            )
+            assert old_fingerprint != existing.payload_hash
+            SaleReturn.all_objects.filter(pk=existing.pk).update(payload_hash=old_fingerprint)
+            effects_before = _effect_counts()
+            balances_before = {
+                str(item.product_id): StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                for item in canonical_order
+            }
+
+            replay = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {'sale_item_id': str(item.id), 'quantity': Decimal('1')}
+                    for item in canonical_order
+                ],
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
+            assert replay.id == existing.id
+            assert _effect_counts() == effects_before
+            assert {
+                str(item.product_id): StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                for item in canonical_order
+            } == balances_before
+            with pytest.raises(DuplicateIdempotencyKey):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[
+                        {'sale_item_id': str(item.id), 'quantity': Decimal('1')}
+                        for item in canonical_order
+                    ],
+                    reason='Motivo divergente',
+                    idempotency_key=idempotency_key,
+                )
+            with pytest.raises(DuplicateIdempotencyKey):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[
+                        {
+                            'sale_item_id': str(canonical_order[0].id),
+                            'quantity': Decimal('2'),
+                        },
+                        {
+                            'sale_item_id': str(canonical_order[1].id),
+                            'quantity': Decimal('1'),
+                        },
+                    ],
+                    reason=reason,
+                    idempotency_key=idempotency_key,
+                )
+            assert _effect_counts() == effects_before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    @pytest.mark.parametrize(
         ('original_quantity', 'idempotency_key'),
         [
             pytest.param(
