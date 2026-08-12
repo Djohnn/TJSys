@@ -56,6 +56,10 @@ class SaleAlreadyCancelled(Exception):
     pass
 
 
+class RefundAmountExceeded(Exception):
+    pass
+
+
 def _money(value):
     return Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
@@ -652,11 +656,18 @@ def create_sale_refund(
 ):
     if not idempotency_key:
         raise ValueError('Idempotency-Key is required.')
+    amount = _money(Decimal(str(amount)))
     if amount <= 0:
         raise ValueError('Refund amount must be positive.')
+    if method not in dict(SaleRefund.METHOD_CHOICES):
+        raise ValueError('Refund method is invalid.')
+    if not reason or not reason.strip():
+        raise ValueError('Reason is required.')
+
+    locked_sale = _lock_compensable_sale(tenant, sale)
 
     payload = {
-        'sale_id': str(sale.id),
+        'sale_id': str(locked_sale.id),
         'method': method,
         'amount': str(amount),
         'reason': reason,
@@ -668,13 +679,53 @@ def create_sale_refund(
         idempotency_key=idempotency_key,
     ).first()
     if existing:
-        if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
-        return existing
+        if existing.payload_hash == fingerprint:
+            return existing
+        is_semantically_matching_legacy_refund = (
+            not existing.reason
+            and existing.sale_id == locked_sale.id
+            and existing.method == method
+            and existing.amount == amount
+            and existing.sale_return_id == (sale_return.id if sale_return else None)
+        )
+        if is_semantically_matching_legacy_refund:
+            return existing
+        raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
+
+    if sale_return:
+        if sale_return.tenant_id != tenant.id:
+            raise ValueError('Sale return must belong to the same tenant.')
+        if sale_return.sale_id != locked_sale.id:
+            raise ValueError('Sale return must belong to the refunded sale.')
+        if sale_return.status != 'completed':
+            raise ValueError('Sale return must be completed.')
+
+    cash_session = None
+    if method == 'cash':
+        cash_session = CashSession.all_objects.select_for_update().filter(
+            tenant=tenant,
+            pk=locked_sale.cash_session_id,
+            branch=locked_sale.branch,
+            operator=locked_sale.operator,
+            status='open',
+        ).first()
+        if cash_session is None:
+            raise CashSessionRequired(
+                'The sale original cash session must be open for cash refunds.'
+            )
+
+    refunded_total = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        sale=locked_sale,
+        status='completed',
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    refundable_balance = _money(locked_sale.net_total - refunded_total)
+    if refundable_balance <= 0 or amount > refundable_balance:
+        raise RefundAmountExceeded('Refund amount exceeds the sale refundable balance.')
 
     refund = SaleRefund.all_objects.create(
         tenant=tenant,
-        sale=sale,
+        sale=locked_sale,
         sale_return=sale_return,
         method=method,
         amount=amount,
@@ -685,16 +736,13 @@ def create_sale_refund(
     )
 
     if method == 'cash':
-        cash_session = _open_cash_session_for(tenant, sale.branch, sale.operator)
-        if cash_session is None:
-            raise CashSessionRequired('An open cash session is required for cash refunds.')
         CashMovement.all_objects.create(
             tenant=tenant,
             cash_session=cash_session,
             movement_type='cash_out',
             amount=amount,
             payment_method='cash',
-            reference=str(sale.id),
+            reference=str(locked_sale.id),
             notes=f'Refund {refund.id}',
         )
         cash_session.expected_amount = _money(cash_session.expected_amount - amount)
@@ -707,7 +755,7 @@ def create_sale_refund(
         resource_type='SaleRefund',
         resource_id=str(refund.id),
         detail={
-            'sale_id': str(sale.id),
+            'sale_id': str(locked_sale.id),
             'method': method,
             'amount': str(amount),
             'reason': reason,
@@ -721,7 +769,7 @@ def create_sale_refund(
         aggregate_id=str(refund.id),
         payload={
             'sale_refund_id': str(refund.id),
-            'sale_id': str(sale.id),
+            'sale_id': str(locked_sale.id),
             'method': method,
             'amount': str(amount),
             'reason': reason,
