@@ -22,7 +22,7 @@ def _attempt_return(*, tenant, sale, sale_item, idempotency_key, barrier):
             cursor.execute('SET app.current_tenant_id = %s', [str(tenant.id)])
             cursor.execute('SELECT pg_backend_pid()')
             backend_pid = cursor.fetchone()[0]
-        barrier.wait()
+        barrier.wait(timeout=10)
         try:
             sale_return = create_sale_return(
                 tenant=tenant,
@@ -58,7 +58,7 @@ def _run_concurrent_returns(*, tenant, sale, sale_item, idempotency_keys):
             )
             for idempotency_key in idempotency_keys
         ]
-        return [future.result() for future in futures]
+        return [future.result(timeout=30) for future in futures]
 
 
 def _return_stock_operations(*, tenant, idempotency_keys):

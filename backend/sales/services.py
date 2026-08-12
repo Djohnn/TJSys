@@ -465,11 +465,22 @@ def create_sale_return(
         }
         for item in items
     ]
+    legacy_payload = {
+        'sale_id': str(locked_sale.id),
+        'items': legacy_items,
+        'reason': reason,
+    }
+    legacy_fingerprint = _payload_hash(legacy_payload)
+    existing = SaleReturn.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing and existing.payload_hash == legacy_fingerprint:
+        return existing
+
     requested_items = []
     for item in items:
         quantity = Decimal(str(item['quantity']))
-        if quantity <= 0:
-            raise InsufficientReturnableQuantity('Return quantity must be positive.')
         requested_items.append(
             {
                 'sale_item_id': str(item['sale_item_id']),
@@ -477,7 +488,7 @@ def create_sale_return(
             }
         )
 
-    raw_payload = {
+    compatibility_payload = {
         'sale_id': str(locked_sale.id),
         'items': [
             {
@@ -488,24 +499,43 @@ def create_sale_return(
         ],
         'reason': reason,
     }
-    legacy_payload = {
+    compatibility_fingerprint = _payload_hash(compatibility_payload)
+
+    aggregated_quantities = {}
+    for item in requested_items:
+        sale_item_id = item['sale_item_id']
+        aggregated_quantities[sale_item_id] = (
+            aggregated_quantities.get(sale_item_id, Decimal('0')) + item['quantity']
+        )
+    aggregated_items = [
+        {
+            'sale_item_id': sale_item_id,
+            'quantity': quantity,
+        }
+        for sale_item_id, quantity in sorted(aggregated_quantities.items())
+    ]
+    canonical_payload = {
         'sale_id': str(locked_sale.id),
-        'items': legacy_items,
+        'items': [
+            {
+                'sale_item_id': item['sale_item_id'],
+                'quantity': _canonical_decimal(item['quantity']),
+            }
+            for item in aggregated_items
+        ],
         'reason': reason,
     }
-    fingerprint = _payload_hash(raw_payload)
-    legacy_fingerprint = _payload_hash(legacy_payload)
-    existing = SaleReturn.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).first()
+    fingerprint = _payload_hash(canonical_payload)
     if existing:
-        if existing.payload_hash not in {fingerprint, legacy_fingerprint}:
+        if existing.payload_hash not in {fingerprint, compatibility_fingerprint}:
             raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
+    if any(item['quantity'] <= 0 for item in requested_items):
+        raise InsufficientReturnableQuantity('Return quantity must be positive.')
+
     normalized_items = []
-    for item in requested_items:
+    for item in aggregated_items:
         sale_item_id = item['sale_item_id']
         quantity = item['quantity']
 
@@ -537,15 +567,7 @@ def create_sale_return(
             }
         )
 
-    sale_return = SaleReturn.all_objects.create(
-        tenant=tenant,
-        sale=locked_sale,
-        reason=reason,
-        status='completed',
-        idempotency_key=idempotency_key,
-        payload_hash=fingerprint,
-    )
-    for index, item in enumerate(normalized_items, start=1):
+    for item in normalized_items:
         location = None
         stock_op = item['sale_item'].stock_operation
         if stock_op:
@@ -558,11 +580,29 @@ def create_sale_return(
                 branch=locked_sale.branch,
                 is_primary=True,
             ).first()
+        item['location'] = location
+    normalized_items.sort(
+        key=lambda item: (
+            str(item['location'].id),
+            str(item['product'].id),
+            str(item['sale_item'].id),
+        )
+    )
+
+    sale_return = SaleReturn.all_objects.create(
+        tenant=tenant,
+        sale=locked_sale,
+        reason=reason,
+        status='completed',
+        idempotency_key=idempotency_key,
+        payload_hash=fingerprint,
+    )
+    for index, item in enumerate(normalized_items, start=1):
         create_receipt(
             tenant,
             locked_sale.branch,
             item['product'],
-            location,
+            item['location'],
             item['quantity'],
             item['unit'],
             item['factor'],

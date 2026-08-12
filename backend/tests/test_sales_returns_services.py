@@ -4,9 +4,10 @@ import pytest
 from django.db import connection
 
 from audit.models import AuditRecord
-from inventory.models import StockBalance, StockOperation
+from catalog.models import Product
+from inventory.models import StockBalance, StockMovement, StockOperation
 from outbox.models import OutboxMessage
-from sales.models import Sale, SaleItem, SaleReturn
+from sales.models import Sale, SaleItem, SaleReturn, SaleReturnItem
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 
 
@@ -146,6 +147,192 @@ class TestSaleReturnService:
                     reason='Devolução acima do permitido',
                     idempotency_key='return-excess-1',
                 )
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_duplicate_item_total_above_returnable_quantity_has_no_effects(
+        self,
+        sale_context,
+    ):
+        """Given duplicate lines exceed the balance, when returning, then no effect persists."""
+        ctx = sale_context
+        from sales.services import InsufficientReturnableQuantity, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+        idempotency_key = 'return-duplicate-excess'
+        balance_before = StockBalance.all_objects.get(
+            tenant=ctx['tenant'],
+            product=sale_item.product,
+            location=ctx['location'],
+            lot=None,
+        ).quantity
+
+        def _test():
+            with pytest.raises(InsufficientReturnableQuantity):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[
+                        {'sale_item_id': str(sale_item.id), 'quantity': Decimal('2')},
+                        {'sale_item_id': str(sale_item.id), 'quantity': Decimal('2')},
+                    ],
+                    reason='Duplicatas excedem saldo',
+                    idempotency_key=idempotency_key,
+                )
+
+            _assert_no_return_effects(
+                tenant=ctx['tenant'],
+                idempotency_key=idempotency_key,
+            )
+            assert not SaleReturnItem.all_objects.filter(
+                sale_return__tenant=ctx['tenant'],
+                sale_return__idempotency_key=idempotency_key,
+            ).exists()
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity == balance_before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_duplicate_item_total_creates_one_aggregated_effect(self, sale_context):
+        """Given valid duplicate lines, when returning, then one summed effect is created."""
+        ctx = sale_context
+        from sales.services import create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+        idempotency_key = 'return-duplicate-aggregated'
+
+        def _test():
+            sale_return = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')},
+                    {'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')},
+                ],
+                reason='Duplicatas agregadas',
+                idempotency_key=idempotency_key,
+            )
+            replay = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('2')}],
+                reason='Duplicatas agregadas',
+                idempotency_key=idempotency_key,
+            )
+
+            assert replay.id == sale_return.id
+            return_items = SaleReturnItem.all_objects.filter(sale_return=sale_return)
+            assert return_items.count() == 1
+            assert return_items.get().quantity == Decimal('2.000000')
+            stock_operations = StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                operation_type='receipt',
+                idempotency_key__startswith=f'{idempotency_key}:stock:',
+            )
+            assert stock_operations.count() == 1
+            movements = StockMovement.all_objects.filter(operation=stock_operations.get())
+            assert movements.count() == 1
+            assert movements.get().quantity == Decimal('2.000000')
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity == Decimal('5.000000')
+            assert AuditRecord.objects.filter(
+                tenant_id=str(ctx['tenant'].id),
+                action='sales.return.created',
+                correlation_id=idempotency_key,
+            ).count() == 1
+            assert OutboxMessage.objects.filter(
+                tenant_id=str(ctx['tenant'].id),
+                event_type='sales.return.created',
+                correlation_id=idempotency_key,
+            ).count() == 1
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_return_receipts_follow_stable_resource_order(self, sale_context, monkeypatch):
+        """Given inverse item order, when returning, then receipts use stable resource order."""
+        ctx = sale_context
+        from sales import services as sales_services
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        first_item = SaleItem.all_objects.get(sale=sale)
+
+        def _test():
+            second_product = Product.all_objects.create(
+                tenant=ctx['tenant'],
+                sku='RETURN-ORDER-SECOND',
+                name='Produto para ordem de devolução',
+                base_unit=ctx['unit'],
+            )
+            second_item = SaleItem.all_objects.create(
+                tenant=ctx['tenant'],
+                sale=sale,
+                product=second_product,
+                unit=ctx['unit'],
+                quantity=Decimal('1'),
+                factor=Decimal('1'),
+                unit_price=Decimal('5'),
+                line_total=Decimal('5'),
+            )
+            stable_items = sorted(
+                [first_item, second_item],
+                key=lambda item: (
+                    str(ctx['location'].id),
+                    str(item.product_id),
+                    str(item.id),
+                ),
+            )
+            request_items = [
+                {'sale_item_id': str(item.id), 'quantity': Decimal('1')}
+                for item in reversed(stable_items)
+            ]
+            receipt_product_order = []
+            real_create_receipt = sales_services.create_receipt
+
+            def _recording_create_receipt(*args, **kwargs):
+                receipt_product_order.append(str(args[2].id))
+                return real_create_receipt(*args, **kwargs)
+
+            monkeypatch.setattr(
+                sales_services,
+                'create_receipt',
+                _recording_create_receipt,
+            )
+
+            sale_return = sales_services.create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=request_items,
+                reason='Ordem estável de efeitos',
+                idempotency_key='return-stable-effect-order',
+            )
+            replay = sales_services.create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {'sale_item_id': str(item.id), 'quantity': Decimal('1')}
+                    for item in stable_items
+                ],
+                reason='Ordem estável de efeitos',
+                idempotency_key='return-stable-effect-order',
+            )
+
+            assert replay.id == sale_return.id
+            assert receipt_product_order == [str(item.product_id) for item in stable_items]
+            assert sale_return.items.count() == 2
+            assert StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key__startswith='return-stable-effect-order:stock:',
+            ).count() == 2
 
         _run_in_tenant(ctx['tenant'], _test)
 
