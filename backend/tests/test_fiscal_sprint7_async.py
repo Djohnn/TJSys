@@ -13,6 +13,12 @@ import pytest
 from tests.test_fiscal_services import _run_in_tenant
 
 
+def test_celery_app_uses_redis_broker():
+    from core.celery import app
+
+    assert app.conf.broker_url.startswith('redis://')
+
+
 @pytest.mark.django_db
 def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_context, monkeypatch):
     """POST /request-fiscal/ returns 201 with QUEUED status without hitting PlugNotas."""
@@ -24,7 +30,7 @@ def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_con
     session['mfa_tenant_id'] = str(ctx['tenant'].id)
     session['mfa_method'] = 'totp'
     session.save()
-    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda sale_id: None)
+    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda *args, **kwargs: None)
 
     # Spy on the PlugNotasAdapter.emit to ensure it's NOT called synchronously
     with patch('fiscal.adapters.plugnotas.PlugNotasAdapter.emit') as mock_emit:
@@ -71,8 +77,9 @@ def test_request_fiscal_async_creates_document_and_enqueues_task(
     # Track if the task was called
     task_called = {}
 
-    def mock_delay(sale_id):
+    def mock_delay(sale_id, **kwargs):
         task_called['sale_id'] = sale_id
+        task_called['tenant_id'] = kwargs.get('tenant_id')
         return type('AsyncResult', (), {'id': 'test-task-id'})()
 
     monkeypatch.setattr(handle_sale_completed, 'delay', mock_delay)
@@ -91,7 +98,10 @@ def test_request_fiscal_async_creates_document_and_enqueues_task(
     assert data['fiscal_status'] == 'QUEUED'
 
     # Verify the Celery task was enqueued
-    assert task_called.get('sale_id') == str(ctx['sale'].id)
+    assert task_called == {
+        'sale_id': str(ctx['sale'].id),
+        'tenant_id': str(ctx['tenant'].id),
+    }
 
     # Verify PlugNotas was NOT called in the view
     mock_emit.assert_not_called()
@@ -116,7 +126,7 @@ def test_request_fiscal_async_idempotent_returns_existing(client, fiscal_sale_co
     session['mfa_tenant_id'] = str(ctx['tenant'].id)
     session['mfa_method'] = 'totp'
     session.save()
-    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda sale_id: None)
+    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda *args, **kwargs: None)
 
     with patch('fiscal.adapters.plugnotas.PlugNotasAdapter.emit') as mock_emit:
         mock_emit.return_value = type('EmitResult', (), {'provider_document_id': 'test-001'})()
@@ -149,6 +159,74 @@ def test_request_fiscal_async_idempotent_returns_existing(client, fiscal_sale_co
 
         # PlugNotas emit should still not be called (idempotent in view)
         mock_emit.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_request_fiscal_requeues_existing_queued_document(client, fiscal_sale_context, monkeypatch):
+    """A retry publishes again when the previous QUEUED document is orphaned."""
+    from fiscal.models import FiscalDocument
+
+    ctx = fiscal_sale_context
+    client.force_login(ctx['user'])
+    session = client.session
+    session['mfa_tenant_id'] = str(ctx['tenant'].id)
+    session['mfa_method'] = 'totp'
+    session.save()
+    calls = []
+    monkeypatch.setattr(
+        'fiscal.tasks.handle_sale_completed.delay',
+        lambda sale_id, **kwargs: calls.append(sale_id),
+    )
+
+    _run_in_tenant(
+        ctx['tenant'],
+        lambda: FiscalDocument.all_objects.create(
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            status=FiscalDocument.STATUS_QUEUED,
+        ),
+    )
+
+    response = client.post(
+        f'/api/v1/sales/{ctx["sale"].id}/request-fiscal/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+
+    assert response.status_code == 201
+    assert calls == [str(ctx['sale'].id)]
+
+
+@pytest.mark.django_db
+def test_request_fiscal_keeps_queued_document_when_publish_fails(
+    client, fiscal_sale_context, monkeypatch
+):
+    """A broker outage does not turn the persisted QUEUED document into a false success."""
+    from fiscal.models import FiscalDocument
+
+    ctx = fiscal_sale_context
+    client.force_login(ctx['user'])
+    session = client.session
+    session['mfa_tenant_id'] = str(ctx['tenant'].id)
+    session['mfa_method'] = 'totp'
+    session.save()
+    monkeypatch.setattr(
+        'fiscal.tasks.handle_sale_completed.delay',
+        lambda sale_id, **kwargs: (_ for _ in ()).throw(
+            ConnectionError('broker unavailable')
+        ),
+    )
+
+    response = client.post(
+        f'/api/v1/sales/{ctx["sale"].id}/request-fiscal/',
+        HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+    )
+
+    assert response.status_code == 503
+    doc = _run_in_tenant(
+        ctx['tenant'],
+        lambda: FiscalDocument.all_objects.get(sale=ctx['sale'], is_active=True),
+    )
+    assert doc.status == FiscalDocument.STATUS_QUEUED
 
 
 @pytest.mark.django_db

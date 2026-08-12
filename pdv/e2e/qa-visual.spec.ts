@@ -85,6 +85,13 @@ test.describe('QA Visual - Sprint 7', () => {
         prod = await prodResp.json();
       }
 
+      // Existing QA fixtures may predate the NCM field; normalize them too.
+      const ncmResponse = await page.request.patch(`http://localhost:8000/api/v1/products/${prod.id}/`, {
+        data: { ncm: p.ncm },
+        headers: { ...auth(), 'Content-Type': 'application/json' },
+      });
+      expect(ncmResponse.status()).toBe(200);
+
       // Ensure price exists
       const priceResp = await page.request.post(`http://localhost:8000/api/v1/products/${prod.id}/prices/`, {
         data: { product: prod.id, amount: String(p.price), valid_from: '2026-01-01T00:00:00Z', is_active: true },
@@ -179,21 +186,22 @@ test.describe('QA Visual - Sprint 7', () => {
       await fechar.click();
     }
 
-    // FISCAL STATUS — an emitted sale must expose a concluded fiscal document
-    await page.waitForTimeout(2000);
+    // FISCAL STATUS — poll until the explicitly requested NFC-e is concluded.
     const fiscalUrl = `http://localhost:8000/api/v1/sales/${saleData.id}/fiscal-status/`;
     console.log(`Fiscal URL: ${fiscalUrl}`);
+    await expect.poll(async () => {
+      const response = await page.request.get(fiscalUrl, { headers: auth() });
+      if (response.status() !== 200) return `HTTP_${response.status()}`;
+      const data = await response.json();
+      console.log(`Fiscal status response: ${data.fiscal_status}`);
+      return data.fiscal_status;
+    }, { timeout: 120000, intervals: [1000, 2000, 5000] }).toBe('CONCLUDED');
+
     const fiscalResp = await page.request.get(fiscalUrl, { headers: auth() });
-    console.log(`Fiscal status response: ${fiscalResp.status()}`);
-    const fiscalText = await fiscalResp.text();
-    console.log(`Fiscal body (first 200): ${fiscalText.substring(0, 200)}`);
-    if (fiscalResp.status() === 200) {
-      const fiscalData = JSON.parse(fiscalText);
-      console.log(`Fiscal: ${JSON.stringify(fiscalData, null, 2)}`);
-      expect(fiscalData.fiscal_status).toBe('CONCLUDED');
-    } else {
-      throw new Error(`Fiscal status request failed: ${fiscalResp.status()}`);
-    }
+    expect(fiscalResp.status()).toBe(200);
+    const fiscalData = await fiscalResp.json();
+    console.log(`Fiscal: ${JSON.stringify(fiscalData, null, 2)}`);
+    expect(fiscalData.fiscal_status).toBe('CONCLUDED');
 
     // Final screenshot
     await page.goto('/dashboard', { waitUntil: 'networkidle' });

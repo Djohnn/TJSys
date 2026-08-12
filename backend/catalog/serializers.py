@@ -100,6 +100,7 @@ class ProductSerializer(FullCleanModelSerializer):
             'model',
             'tags',
             'scale_code',
+            'ncm',
             # Sprint 26 — service metadata
             'subcategory',
             'billing_unit',

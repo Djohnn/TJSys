@@ -1,3 +1,5 @@
+import logging
+
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
@@ -20,6 +22,8 @@ from fiscal.serializers import (
 )
 from fiscal.services import emit_document, reconcile_receipt_fiscal, resolve_emitter
 from tenancy.permissions import HasActiveTenant, HasCapability, HasVerifiedMFA
+
+logger = logging.getLogger(__name__)
 
 
 def _get_or_create_active_fiscal_document(sale, tenant):
@@ -89,14 +93,20 @@ class RequestFiscalView(CreateAPIView):
             )
 
         doc, created = _get_or_create_active_fiscal_document(sale, request.tenant)
-        if not created:
+        if not created and doc.status != FiscalDocument.STATUS_QUEUED:
             return Response(
                 FiscalStatusSerializer(doc).data,
                 status=201,
             )
 
-        # Queue the async emission task
-        handle_sale_completed.delay(str(sale.id))
+        try:
+            handle_sale_completed.delay(str(sale.id), tenant_id=str(request.tenant.id))
+        except Exception:
+            logger.exception('Could not enqueue fiscal emission for sale %s', sale.id)
+            return Response(
+                {'detail': 'Emissão fiscal aguardando nova tentativa de publicação.'},
+                status=503,
+            )
 
         return Response(
             FiscalStatusSerializer(doc).data,

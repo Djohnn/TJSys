@@ -328,6 +328,7 @@ def _resolve_branch(doc):
     return None
 
 
+@transaction.atomic
 def poll_fiscal_document(doc):
     doc = FiscalDocument.all_objects.select_for_update().get(pk=doc.pk)
     now = timezone.now()

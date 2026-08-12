@@ -8,12 +8,12 @@ app = Celery('zyrp')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
-try:
-    from fiscal.tasks import BEAT_SCHEDULE
-except ImportError:
-    BEAT_SCHEDULE = {}
-
+# Keep task names as strings so importing ``core`` during Django app loading
+# does not import ORM-backed task modules before the app registry is ready.
 app.conf.beat_schedule = {
     **getattr(app.conf, 'beat_schedule', {}),
-    **BEAT_SCHEDULE,
+    'poll-fiscal-documents': {
+        'task': 'fiscal.tasks.poll_fiscal_documents',
+        'schedule': 30.0,
+    },
 }

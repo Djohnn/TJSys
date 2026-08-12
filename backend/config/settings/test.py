@@ -31,6 +31,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
 # Run Celery tasks synchronously during tests
 CELERY_TASK_ALWAYS_EAGER = True
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6380/1')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6380/2')
 
 # Configure default Celery app for eager mode
 import os
@@ -38,4 +40,4 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.test')
 import django
 django.setup()
 from celery import current_app
-current_app.conf.update(task_always_eager=True, broker_url='memory://')
+current_app.conf.update(task_always_eager=True, broker_url=CELERY_BROKER_URL)

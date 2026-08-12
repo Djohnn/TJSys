@@ -19,14 +19,18 @@ o handler outbox de `sales.sale.confirmed` para emissão fiscal está **comentad
 ## Evidência executada
 
 ```text
-Backend fiscal (R7 + worker + concorrência):
+Backend fiscal (R7 + Celery + worker + concorrência):
 .......................................... [100%]
-44 passed, 0 failed, 1 warning in 21.63s
+47 passed, 0 failed, 1 warning in 25.58s
 
 Playwright E2E fiscal determinístico:
 1 passed (2.5s)
 Fluxo validado: request-fiscal -> QUEUED -> PROCESSING -> CONCLUDED,
 com provider_document_id e protocolo persistidos no polling mockado.
+
+Playwright QA Visual real com worker Redis e provider fake:
+1 passed (34.1s)
+Fluxo validado: venda -> solicitação explícita -> PROCESSING -> CONCLUDED.
 
 Django check:
 System check identified no issues (0 silenced).
@@ -46,7 +50,7 @@ PDV lint:
 146 problems (0 errors, 146 warnings) (exit 0)
 ```
 
-### Cobertura backend (44 testes de `tests/test_fiscal_*.py`)
+### Cobertura backend (47 testes de `tests/test_fiscal_*.py`)
 
 - **Novos Testes E2E Assíncronos (`tests/test_fiscal_sprint7_async.py`):**
   - **`test_request_fiscal_async_returns_queued_immediately`** — Retorna 201 with `fiscal_status=QUEUED` sem chamar PlugNotas da request thread.
@@ -56,6 +60,9 @@ PDV lint:
   - **`test_request_fiscal_async_handles_missing_sale`** — Vendas inexistentes retornam 404.
   - **`test_worker_processes_queued_document_and_persists_provider_id`** — Worker chama o provider e faz `QUEUED -> PROCESSING` com `provider_document_id`.
   - **`test_request_fiscal_recovers_when_concurrent_create_wins`** — Corrida de criação recupera o documento ativo vencedor sem erro 500.
+  - **`test_celery_app_uses_redis_broker`** — App Celery registrado usa broker Redis, não AMQP.
+  - **`test_request_fiscal_requeues_existing_queued_document`** — Documento `QUEUED` existente é reenfileirado.
+  - **`test_request_fiscal_keeps_queued_document_when_publish_fails`** — Falha de broker retorna 503 e preserva o documento para retry.
 - **Outros cenários cobertos:**
   - Estados `PENDING/PROCESSING → CONCLUDED`, `REJECTED` (reattempt) e `FAILED` — cobertos.
   - Timeout (30min) força `FAILED` — `test_poll_timeout_forces_failed`.
@@ -72,6 +79,7 @@ PDV lint:
 - `pdv/e2e/r7-fiscal-emission.spec.ts` atravessa o contrato HTTP no navegador, simula o provider e exige os estados `QUEUED`, `PROCESSING` e `CONCLUDED`, incluindo `provider_document_id` e protocolo.
 - `pdv/e2e/qa-visual.spec.ts` solicita explicitamente o Cupom Fiscal, aguarda o `POST /request-fiscal/` com `201` e então valida `CONCLUDED`.
 - `404` permanece válido para vendas em que o Cupom Fiscal nunca foi solicitado; fechar o toast não emite NFC-e.
+- O QA Visual executa com `config.settings.e2e` e `fiscal.adapters.fake.DeterministicFiscalAdapter`, sem chamadas ao PlugNotas real, e usa polling por condição sem espera fixa de 2 segundos.
 
 ### Cobertura PDV (185 testes / 21 arquivos)
 
