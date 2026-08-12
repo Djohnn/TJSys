@@ -451,12 +451,20 @@ def create_sale_return(
 ):
     if not idempotency_key:
         raise ValueError('Idempotency-Key is required.')
+    items = list(items)
     if not items:
         raise ValueError('Return must have at least one item.')
     if not reason:
         raise ValueError('Reason is required.')
 
     locked_sale = _lock_compensable_sale(tenant, sale)
+    legacy_items = [
+        {
+            'sale_item_id': str(item['sale_item_id']),
+            'quantity': str(item['quantity']),
+        }
+        for item in items
+    ]
     requested_items = []
     for item in items:
         quantity = Decimal(str(item['quantity']))
@@ -482,13 +490,7 @@ def create_sale_return(
     }
     legacy_payload = {
         'sale_id': str(locked_sale.id),
-        'items': [
-            {
-                'sale_item_id': item['sale_item_id'],
-                'quantity': str(item['quantity']),
-            }
-            for item in requested_items
-        ],
+        'items': legacy_items,
         'reason': reason,
     }
     fingerprint = _payload_hash(raw_payload)

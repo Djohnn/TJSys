@@ -209,14 +209,33 @@ class TestSaleReturnService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
-    def test_idempotent_replay_accepts_legacy_hash_without_new_effects(self, sale_context):
+    @pytest.mark.parametrize(
+        ('original_quantity', 'idempotency_key'),
+        [
+            pytest.param(
+                Decimal('1.000000'),
+                'return-legacy-payload-hash-decimal',
+                id='decimal-scale',
+            ),
+            pytest.param(
+                '1E+0',
+                'return-legacy-payload-hash-exponent',
+                id='raw-exponent',
+            ),
+        ],
+    )
+    def test_idempotent_replay_accepts_legacy_hash_without_new_effects(
+        self,
+        sale_context,
+        original_quantity,
+        idempotency_key,
+    ):
         """Given a legacy payload hash, when replayed, then no new effect is created."""
         ctx = sale_context
         from sales.services import _payload_hash, create_sale_return
 
         sale = Sale.all_objects.get(pk=ctx['sale'].pk)
         sale_item = SaleItem.all_objects.get(sale=sale)
-        idempotency_key = 'return-legacy-payload-hash'
         reason = 'Devolução com hash legado'
 
         def _effect_counts():
@@ -246,7 +265,7 @@ class TestSaleReturnService:
                 items=[
                     {
                         'sale_item_id': str(sale_item.id),
-                        'quantity': Decimal('1.000000'),
+                        'quantity': original_quantity,
                     }
                 ],
                 reason=reason,
@@ -258,7 +277,7 @@ class TestSaleReturnService:
                     'items': [
                         {
                             'sale_item_id': str(sale_item.id),
-                            'quantity': '1.000000',
+                            'quantity': str(original_quantity),
                         }
                     ],
                     'reason': reason,
@@ -287,7 +306,7 @@ class TestSaleReturnService:
                 items=[
                     {
                         'sale_item_id': str(sale_item.id),
-                        'quantity': Decimal('1.000000'),
+                        'quantity': original_quantity,
                     }
                 ],
                 reason=reason,
