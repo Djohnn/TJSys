@@ -209,6 +209,102 @@ class TestSaleReturnService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
+    def test_idempotent_replay_accepts_legacy_hash_without_new_effects(self, sale_context):
+        """Given a legacy payload hash, when replayed, then no new effect is created."""
+        ctx = sale_context
+        from sales.services import _payload_hash, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+        idempotency_key = 'return-legacy-payload-hash'
+        reason = 'Devolução com hash legado'
+
+        def _effect_counts():
+            return {
+                'sale_returns': SaleReturn.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key=idempotency_key,
+                ).count(),
+                'stock_operations': StockOperation.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key__startswith=f'{idempotency_key}:stock:',
+                ).count(),
+                'audit_records': AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+                'outbox_messages': OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    correlation_id__startswith=idempotency_key,
+                ).count(),
+            }
+
+        def _test():
+            first = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {
+                        'sale_item_id': str(sale_item.id),
+                        'quantity': Decimal('1.000000'),
+                    }
+                ],
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+            legacy_fingerprint = _payload_hash(
+                {
+                    'sale_id': str(sale.id),
+                    'items': [
+                        {
+                            'sale_item_id': str(sale_item.id),
+                            'quantity': '1.000000',
+                        }
+                    ],
+                    'reason': reason,
+                }
+            )
+            SaleReturn.all_objects.filter(pk=first.pk).update(
+                payload_hash=legacy_fingerprint,
+            )
+            balance_before = StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity
+            effects_before = _effect_counts()
+            assert effects_before == {
+                'sale_returns': 1,
+                'stock_operations': 1,
+                'audit_records': 2,
+                'outbox_messages': 2,
+            }
+
+            replay = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {
+                        'sale_item_id': str(sale_item.id),
+                        'quantity': Decimal('1.000000'),
+                    }
+                ],
+                reason=reason,
+                idempotency_key=idempotency_key,
+            )
+
+            assert replay.id == first.id
+            assert _effect_counts() == effects_before
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity == balance_before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_idempotent_replay_with_different_payload_raises(self, sale_context):
         ctx = sale_context
         from sales.services import DuplicateIdempotencyKey, create_sale_return

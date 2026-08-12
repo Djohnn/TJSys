@@ -480,13 +480,25 @@ def create_sale_return(
         ],
         'reason': reason,
     }
+    legacy_payload = {
+        'sale_id': str(locked_sale.id),
+        'items': [
+            {
+                'sale_item_id': item['sale_item_id'],
+                'quantity': str(item['quantity']),
+            }
+            for item in requested_items
+        ],
+        'reason': reason,
+    }
     fingerprint = _payload_hash(raw_payload)
+    legacy_fingerprint = _payload_hash(legacy_payload)
     existing = SaleReturn.all_objects.filter(
         tenant=tenant,
         idempotency_key=idempotency_key,
     ).first()
     if existing:
-        if existing.payload_hash != fingerprint:
+        if existing.payload_hash not in {fingerprint, legacy_fingerprint}:
             raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
 
