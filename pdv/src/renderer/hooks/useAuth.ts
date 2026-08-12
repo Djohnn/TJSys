@@ -13,8 +13,8 @@ export function useAuth() {
 
   const checkAuth = async () => {
     const token = localStorage.getItem('access_token');
-    if (token) {
-      try {
+    try {
+      if (token) {
         // Verify token is still valid
         const response = await fetch('/api/v1/devices/validate/', {
           method: 'POST',
@@ -26,9 +26,9 @@ export function useAuth() {
         } else {
           localStorage.clear();
         }
-      } catch {
-        localStorage.clear();
       }
+    } catch (_error) {
+      localStorage.clear();
     } finally {
       setLoading(false);
     }

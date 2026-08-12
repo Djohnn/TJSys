@@ -1,7 +1,9 @@
 from django.test import TestCase
 
 from config.observability import fiscal_metrics, outbox_metrics, system_metrics
+from fiscal.models import FiscalDocument
 from outbox.models import OutboxMessage
+from tenancy.models import Tenant
 
 
 class OutboxMetricsTest(TestCase):
@@ -70,6 +72,18 @@ class FiscalMetricsTest(TestCase):
         metrics = fiscal_metrics()
         self.assertIsInstance(metrics['total'], int)
         self.assertIsInstance(metrics['failed'], int)
+
+    def test_fiscal_metrics_are_global_without_request_tenant_context(self):
+        tenant = Tenant.objects.create(name='Metrics tenant', slug='metrics-tenant')
+        FiscalDocument.all_objects.create(
+            tenant=tenant,
+            status=FiscalDocument.STATUS_PROCESSING,
+        )
+
+        metrics = fiscal_metrics()
+
+        self.assertEqual(metrics['total'], 1)
+        self.assertEqual(metrics['processing'], 1)
 
 
 class SystemMetricsTest(TestCase):

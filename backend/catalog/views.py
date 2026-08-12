@@ -2,8 +2,8 @@ import hashlib
 import json
 import uuid
 
-from django.db import models, transaction
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -593,7 +593,7 @@ class ProductChannelProfileViewSet(CatalogViewSetBase):
     serializer_class = ProductChannelProfileSerializer
     lookup_field = 'channel_slug'
     lookup_url_kwarg = 'slug'
-    pagination_class = None
+    pagination_class = None  # type: ignore[assignment]
 
     def get_queryset(self):
         product_pk = self.kwargs.get('product_pk') or self.kwargs.get('product_id')

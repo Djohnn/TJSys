@@ -30,6 +30,23 @@ class DuplicateIdempotencyKey(Exception):
     pass
 
 
+class QuantityPrecisionError(ValueError):
+    pass
+
+
+def normalize_quantity(quantity, unit):
+    """Validate and normalize a quantity according to its unit precision."""
+    value = Decimal(str(quantity))
+    precision = int(unit.precision)
+    quantum = Decimal(1).scaleb(-precision)
+    normalized = value.quantize(quantum)
+    if value != normalized:
+        raise QuantityPrecisionError(
+            f'Quantity for {unit.symbol} supports at most {precision} decimal places.'
+        )
+    return normalized
+
+
 def _base_quantity(quantity, factor):
     return (Decimal(str(quantity)) * Decimal(str(factor))).quantize(Decimal('0.000001'))
 
@@ -79,9 +96,19 @@ def _apply_balance_delta(tenant, product, location, quantity, lot=None):
     balance = _get_balance(tenant, product, location, lot, for_update=True)
     next_quantity = balance.quantity + quantity
     if next_quantity < 0:
-        raise InsufficientStock(
-            f'Insufficient stock. Available: {balance.quantity}, required: {abs(quantity)}'
-        )
+        from inventory.models import ProductStockPolicy
+
+        allows_negative = ProductStockPolicy.all_objects.filter(
+            tenant=tenant,
+            product=product,
+            location=location,
+            is_active=True,
+            allow_negative=True,
+        ).exists()
+        if not allows_negative:
+            raise InsufficientStock(
+                f'Insufficient stock. Available: {balance.quantity}, required: {abs(quantity)}'
+            )
     balance.quantity = next_quantity
     balance.version += 1
     balance.full_clean()
@@ -103,9 +130,12 @@ def get_available_stock(tenant, product, location, lot=None, exclude_reserved=Fa
     return balance.quantity
 
 
+@transaction.atomic
 def reserve_stock(tenant, product, location, quantity, lot=None):
+    quantity = normalize_quantity(quantity, product.base_unit)
+    if quantity <= 0:
+        raise ValueError('Reservation quantity must be positive.')
     balance = _get_balance(tenant, product, location, lot, for_update=True)
-    quantity = Decimal(str(quantity))
     if balance.reserved + quantity > balance.quantity:
         raise InsufficientStock(
             f'Cannot reserve {quantity}. Available: {balance.available}'
@@ -117,9 +147,12 @@ def reserve_stock(tenant, product, location, quantity, lot=None):
     return balance
 
 
+@transaction.atomic
 def release_reservation(tenant, product, location, quantity, lot=None):
+    quantity = normalize_quantity(quantity, product.base_unit)
+    if quantity <= 0:
+        raise ValueError('Reservation quantity must be positive.')
     balance = _get_balance(tenant, product, location, lot, for_update=True)
-    quantity = Decimal(str(quantity))
     balance.reserved = max(balance.reserved - quantity, Decimal('0'))
     balance.version += 1
     balance.full_clean()
@@ -178,6 +211,7 @@ def create_stock_movement(
     notes='',
     allow_expired_lot=False,
 ):
+    quantity = normalize_quantity(quantity, unit)
     base_quantity = _base_quantity(quantity, factor)
     if base_quantity <= 0:
         raise ValueError('Quantity must be positive')
@@ -251,6 +285,7 @@ def create_receipt(
     actor=None,
     reason='',
 ):
+    quantity = normalize_quantity(quantity, unit)
     payload = {
         'operation_type': 'receipt',
         'branch': branch,
@@ -302,6 +337,7 @@ def create_issue(
 ):
     if not product.tracks_inventory:
         return None
+    quantity = normalize_quantity(quantity, unit)
     payload = {
         'operation_type': 'issue',
         'branch': branch,
@@ -352,7 +388,7 @@ def create_adjustment(
     lot=None,
     allow_expired_lot=False,
 ):
-    quantity = Decimal(str(quantity))
+    quantity = normalize_quantity(quantity, unit)
     direction = 'in' if quantity > 0 else 'out'
     payload = {
         'operation_type': 'adjustment',
@@ -407,6 +443,7 @@ def create_transfer(
     reason='',
     lot=None,
 ):
+    quantity = normalize_quantity(quantity, unit)
     payload = {
         'operation_type': 'transfer',
         'source_branch': source_branch,
@@ -482,15 +519,16 @@ def reverse_operation(operation, reason='', idempotency_key='', actor=None):
         },
     )
     for movement in operation.movements.all():
+        original_quantity = movement.quantity / movement.factor
         create_stock_movement(
             operation=reversal,
             product=movement.product,
             location=movement.location,
             lot=movement.lot,
             direction='out' if movement.direction == 'in' else 'in',
-            quantity=movement.quantity,
+            quantity=original_quantity,
             unit=movement.unit,
-            factor=1,
+            factor=movement.factor,
             unit_cost=movement.unit_cost,
             notes=f'Reversal of {operation.id}',
             allow_expired_lot=True,

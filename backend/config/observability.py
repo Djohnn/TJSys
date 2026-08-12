@@ -27,7 +27,9 @@ def outbox_metrics():
 def fiscal_metrics():
     from fiscal.models import FiscalDocument
 
-    agg = FiscalDocument.objects.aggregate(
+    # System monitoring is intentionally cross-tenant and returns only counts.
+    # The tenant-scoped manager returns an empty queryset outside request context.
+    agg = FiscalDocument.all_objects.aggregate(
         total=Count('id'),
         pending=Count('id', filter=Q(status='PENDING')),
         processing=Count('id', filter=Q(status='PROCESSING')),

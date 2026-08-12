@@ -66,8 +66,12 @@ def _setup_stock(tenant):
     unit = Unit.objects.create(tenant=tenant, symbol='UN', name='Unidade')
     category = Category.objects.create(tenant=tenant, name='Cat')
     product = Product.objects.create(
-        tenant=tenant, sku='PSPA-PROD', name='Test Product',
-        base_unit=unit, category=category, tracks_inventory=True,
+        tenant=tenant,
+        sku='PSPA-PROD',
+        name='Test Product',
+        base_unit=unit,
+        category=category,
+        tracks_inventory=True,
     )
     return product, branch, location
 
@@ -130,7 +134,9 @@ def test_deactivate_conflicts_on_same_command_id_different_payload(client):
 
     replay_diff = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/reactivate/',
-        data=json.dumps({'command_id': '8ef1a7a0-06a0-4357-9d7e-ab2bd635ef24', 'initial_stocks': []}),
+        data=json.dumps(
+            {'command_id': '8ef1a7a0-06a0-4357-9d7e-ab2bd635ef24', 'initial_stocks': []}
+        ),
         content_type='application/json',
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -150,9 +156,12 @@ def test_deactivate_rollback_on_failure(client):
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
     policy = _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
 
-    _run_in_tenant(tenant, lambda: StockBalance.objects.create(
-        tenant=tenant, product=product, location=location, quantity=Decimal('10')
-    ))
+    _run_in_tenant(
+        tenant,
+        lambda: StockBalance.objects.create(
+            tenant=tenant, product=product, location=location, quantity=Decimal('10')
+        ),
+    )
 
     response = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/deactivate/',
@@ -164,9 +173,18 @@ def test_deactivate_rollback_on_failure(client):
     assert response.json()['code'] == 'STOCK_CONTROL_HAS_NONZERO_BALANCE'
 
     from inventory.models import ProductStockControlCommand
+
     _run_in_tenant(tenant, lambda: policy.refresh_from_db())
     assert policy.is_active is True
-    assert _run_in_tenant(tenant, lambda: ProductStockControlCommand.objects.filter(command_id='b1c7dc45-6c71-46bd-ab81-ed8eadecd8fc').count()) == 0
+    assert (
+        _run_in_tenant(
+            tenant,
+            lambda: ProductStockControlCommand.objects.filter(
+                command_id='b1c7dc45-6c71-46bd-ab81-ed8eadecd8fc'
+            ).count(),
+        )
+        == 0
+    )
 
 
 @pytest.mark.django_db
@@ -183,7 +201,12 @@ def test_stock_control_events_have_same_correlation_id(client):
 
     response = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/deactivate/',
-        data=json.dumps({'command_id': '86d7cdfd-aeb9-40da-b78f-6b2dc48a609d', 'correlation_id': '11111111-1111-1111-1111-111111111111'}),
+        data=json.dumps(
+            {
+                'command_id': '86d7cdfd-aeb9-40da-b78f-6b2dc48a609d',
+                'correlation_id': '11111111-1111-1111-1111-111111111111',
+            }
+        ),
         content_type='application/json',
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -192,8 +215,18 @@ def test_stock_control_events_have_same_correlation_id(client):
     from audit.models import AuditRecord
     from outbox.models import OutboxMessage
 
-    audit = _run_in_tenant(tenant, lambda: AuditRecord.all_objects.filter(correlation_id='11111111-1111-1111-1111-111111111111').first())
-    outbox = _run_in_tenant(tenant, lambda: OutboxMessage.all_objects.filter(correlation_id='11111111-1111-1111-1111-111111111111').first())
+    audit = _run_in_tenant(
+        tenant,
+        lambda: AuditRecord.objects.filter(
+            correlation_id='11111111-1111-1111-1111-111111111111'
+        ).first(),
+    )
+    outbox = _run_in_tenant(
+        tenant,
+        lambda: OutboxMessage.objects.filter(
+            correlation_id='11111111-1111-1111-1111-111111111111'
+        ).first(),
+    )
 
     assert audit is not None
     assert outbox is not None
@@ -211,11 +244,14 @@ def test_deactivate_rejected_with_nonzero_quantity(client):
     _auth_client(client, user, tenant)
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
-    policy = _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
+    _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
 
-    _run_in_tenant(tenant, lambda: StockBalance.objects.create(
-        tenant=tenant, product=product, location=location, quantity=Decimal('5')
-    ))
+    _run_in_tenant(
+        tenant,
+        lambda: StockBalance.objects.create(
+            tenant=tenant, product=product, location=location, quantity=Decimal('5')
+        ),
+    )
 
     response = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/deactivate/',
@@ -237,11 +273,18 @@ def test_deactivate_rejected_with_reservation(client):
     _auth_client(client, user, tenant)
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
-    policy = _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
+    _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
 
-    _run_in_tenant(tenant, lambda: StockBalance.objects.create(
-        tenant=tenant, product=product, location=location, quantity=Decimal('0'), reserved=Decimal('2')
-    ))
+    _run_in_tenant(
+        tenant,
+        lambda: StockBalance.objects.create(
+            tenant=tenant,
+            product=product,
+            location=location,
+            quantity=Decimal('0'),
+            reserved=Decimal('2'),
+        ),
+    )
 
     response = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/deactivate/',
@@ -263,11 +306,14 @@ def test_deactivate_preserves_history(client):
     _auth_client(client, user, tenant)
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
-    policy = _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
+    _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
 
-    _run_in_tenant(tenant, lambda: StockBalance.objects.create(
-        tenant=tenant, product=product, location=location, quantity=Decimal('0')
-    ))
+    _run_in_tenant(
+        tenant,
+        lambda: StockBalance.objects.create(
+            tenant=tenant, product=product, location=location, quantity=Decimal('0')
+        ),
+    )
 
     from inventory.models import StockMovement, StockOperation
 
@@ -276,9 +322,15 @@ def test_deactivate_preserves_history(client):
             tenant=tenant, branch=branch, operation_type='receipt', actor=user
         )
         StockMovement.objects.create(
-            tenant=tenant, operation=op, product=product, location=location,
-            unit=product.base_unit, quantity=Decimal('0'), direction='in'
+            tenant=tenant,
+            operation=op,
+            product=product,
+            location=location,
+            unit=product.base_unit,
+            quantity=Decimal('0'),
+            direction='in',
         )
+
     _run_in_tenant(tenant, _create_mov)
 
     response = client.post(
@@ -302,25 +354,36 @@ def test_reactivate_rejects_initial_stock_with_history(client):
     _auth_client(client, user, tenant)
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
-    policy = _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location, is_active=False))
+    _run_in_tenant(
+        tenant, lambda: _create_policy(tenant, product, branch, location, is_active=False)
+    )
 
     from inventory.models import StockMovement, StockOperation
+
     def _create_mov():
         op = StockOperation.objects.create(
             tenant=tenant, branch=branch, operation_type='receipt', actor=user
         )
         StockMovement.objects.create(
-            tenant=tenant, operation=op, product=product, location=location,
-            unit=product.base_unit, quantity=Decimal('5'), direction='in'
+            tenant=tenant,
+            operation=op,
+            product=product,
+            location=location,
+            unit=product.base_unit,
+            quantity=Decimal('5'),
+            direction='in',
         )
+
     _run_in_tenant(tenant, _create_mov)
 
     response = client.post(
         f'/api/v1/inventory/products/{product.id}/stock-control/reactivate/',
-        data=json.dumps({
-            'command_id': '6fa7431f-4ee3-43c3-8820-21f4bdc8f8b8',
-            'initial_stocks': [{'location_id': str(location.id), 'quantity': '10'}]
-        }),
+        data=json.dumps(
+            {
+                'command_id': '6fa7431f-4ee3-43c3-8820-21f4bdc8f8b8',
+                'initial_stocks': [{'location_id': str(location.id), 'quantity': '10'}],
+            }
+        ),
         content_type='application/json',
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -339,12 +402,18 @@ def test_stock_summary_ordering_deterministic(client):
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
 
-    loc2 = _run_in_tenant(tenant, lambda: StockLocation.objects.create(
-        tenant=tenant, branch=branch, code='Z9', name='Deposito Z9'
-    ))
-    loc3 = _run_in_tenant(tenant, lambda: StockLocation.objects.create(
-        tenant=tenant, branch=branch, code='A0', name='Deposito A0'
-    ))
+    loc2 = _run_in_tenant(
+        tenant,
+        lambda: StockLocation.objects.create(
+            tenant=tenant, branch=branch, code='Z9', name='Deposito Z9'
+        ),
+    )
+    loc3 = _run_in_tenant(
+        tenant,
+        lambda: StockLocation.objects.create(
+            tenant=tenant, branch=branch, code='A0', name='Deposito A0'
+        ),
+    )
 
     _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
     _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, loc3))
@@ -383,6 +452,7 @@ def test_stock_control_patch_preconditions_and_problem_json(client):
     assert res1.status_code == 400
 
     import uuid
+
     invalid_product_id = uuid.uuid4()
     res2 = client.post(
         f'/api/v1/inventory/products/{invalid_product_id}/stock-control/deactivate/',

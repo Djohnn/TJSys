@@ -131,19 +131,22 @@ def test_patch_product_policy_conflicts_with_stale_version(client):
 
 @pytest.mark.django_db
 def test_product_summary_returns_ordered_locations_collection(client):
-    """Given product with balance and policy, when fetching summary without filters, then returns ordered locations collection."""
+    """Given stock in locations, summary returns the ordered collection."""
     tenant = Tenant.objects.create(name='PSPA04', slug='pspa04')
     user = User.objects.create_user(email='d@test.com', password='pass')
     _auth_client(client, user, tenant)
 
     product, branch, location = _run_in_tenant(tenant, lambda: _setup_stock(tenant))
-    _run_in_tenant(tenant, lambda: StockBalance.objects.create(
-        tenant=tenant,
-        product=product,
-        location=location,
-        quantity=Decimal('30'),
-        reserved=Decimal('5'),
-    ))
+    _run_in_tenant(
+        tenant,
+        lambda: StockBalance.objects.create(
+            tenant=tenant,
+            product=product,
+            location=location,
+            quantity=Decimal('30'),
+            reserved=Decimal('5'),
+        ),
+    )
     _run_in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
 
     response = client.get(
@@ -225,7 +228,7 @@ def _apply_payload(tenant, branch, location, **overrides):
 
 @pytest.mark.django_db
 def test_apply_product_with_stock_returns_policy_and_summary(client):
-    """Given nested apply payload, when posting, then creates product with policy and flat summary."""
+    """Given nested stock, apply creates policy and flat summary."""
     tenant = Tenant.objects.create(name='PSPA07', slug='pspa07')
     user = User.objects.create_user(email='g@test.com', password='pass')
     _auth_client(client, user, tenant)
@@ -265,12 +268,16 @@ def test_apply_product_command_is_idempotent_and_rejects_payload_mismatch(client
     payload = _apply_payload(tenant, branch, location)
 
     first = client.post(
-        '/api/v1/catalog/products/apply/', data=json.dumps(payload),
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        '/api/v1/catalog/products/apply/',
+        data=json.dumps(payload),
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
     replay = client.post(
-        '/api/v1/catalog/products/apply/', data=json.dumps(payload),
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        '/api/v1/catalog/products/apply/',
+        data=json.dumps(payload),
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
 
     assert first.status_code == 201
@@ -280,8 +287,10 @@ def test_apply_product_command_is_idempotent_and_rejects_payload_mismatch(client
 
     payload['product']['name'] = 'Changed payload'
     conflict = client.post(
-        '/api/v1/catalog/products/apply/', data=json.dumps(payload),
-        content_type='application/json', HTTP_X_TENANT_ID=str(tenant.id),
+        '/api/v1/catalog/products/apply/',
+        data=json.dumps(payload),
+        content_type='application/json',
+        HTTP_X_TENANT_ID=str(tenant.id),
     )
     assert conflict.status_code == 409
     assert conflict['Content-Type'].startswith('application/problem+json')
@@ -358,7 +367,11 @@ def _setup_stock(tenant):
     unit = Unit.objects.create(tenant=tenant, symbol='UN', name='Unidade')
     category = Category.objects.create(tenant=tenant, name='Cat')
     product = Product.objects.create(
-        tenant=tenant, sku='PSPA-PROD', name='Test Product',
-        base_unit=unit, category=category, tracks_inventory=True,
+        tenant=tenant,
+        sku='PSPA-PROD',
+        name='Test Product',
+        base_unit=unit,
+        category=category,
+        tracks_inventory=True,
     )
     return product, branch, location

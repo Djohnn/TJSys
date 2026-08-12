@@ -1,13 +1,13 @@
 from pathlib import Path
 
 import pytest
-
-pytest_plugins = ('tests.test_pdv_device_flow',)
 from django.contrib.auth import get_user_model
 from django.db import connection
 
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
-from tenancy.models import Branch, Company, Tenant, TenantMembership
+from tenancy.models import Branch, Company, Device, Tenant, TenantMembership
+
+pytest_plugins = ('tests.test_pdv_device_flow',)
 
 User = get_user_model()
 
@@ -34,8 +34,8 @@ def django_db_setup(django_db_blocker):
     runtime_user = database['USER']
     env_path = Path(__file__).resolve().parents[2] / '.env'
     env_config = Config(RepositoryEnv(str(env_path))) if env_path.exists() else config
-    owner_user = env_config('POSTGRES_USER', default='zyrp')
-    owner_password = env_config('POSTGRES_PASSWORD', default='zyrp')
+    owner_user = env_config('POSTGRES_USER', default='tjsys')
+    owner_password = env_config('POSTGRES_PASSWORD', default='tjsys')
     conn = psycopg.connect(
         dbname=database['NAME'],
         user=owner_user,
@@ -283,6 +283,15 @@ def sale_context(django_user_model):
             tenant=tenant,
             company=company,
             name='Filial Venda',
+        )
+        device = Device.all_objects.create(
+            tenant=tenant,
+            branch=branch,
+            name='PDV Venda',
+            device_id='sale-context-device',
+            key_hash='sale-context-key-hash',
+            status='active',
+            registered_by=user,
         )
         location = StockLocation.all_objects.create(
             tenant=tenant,

@@ -48,6 +48,24 @@ export interface InventoryLot {
   created_at: string
 }
 
+export interface Branch {
+  id: string
+  name: string
+  code: string
+  is_active: boolean
+}
+
+export interface StockLocation {
+  id: string
+  branch: string
+  branch_name: string
+  code: string
+  name: string
+  location_type: string
+  is_primary: boolean
+  is_active: boolean
+}
+
 export interface ReceiptPayload {
   product: string
   branch: string
@@ -157,4 +175,26 @@ export function fetchLots(
     tenantId,
     signal,
   }) as Promise<PaginatedResponse<InventoryLot>>
+}
+
+export function fetchBranches(
+  tenantId: string,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Branch>> {
+  return apiRequest<PaginatedResponse<Branch>>('/branches/', {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<Branch>>
+}
+
+export function fetchStockLocations(
+  tenantId: string,
+  query: { branch?: string },
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<StockLocation>> {
+  const qs = buildSearchParams(query)
+  return apiRequest<PaginatedResponse<StockLocation>>(`/inventory/stock-locations/${qs}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<StockLocation>>
 }

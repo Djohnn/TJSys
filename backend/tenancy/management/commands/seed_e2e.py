@@ -177,7 +177,8 @@ class Command(BaseCommand):
                     c.execute(
                         'INSERT INTO fiscal_fiscalemitter '
                         '(id, tenant_id, branch_id, provider, cpf_cnpj, ie, '
-                        'registered_at_provider, registration_source, is_active, created_at, updated_at) '
+                        'registered_at_provider, registration_source, is_active, '
+                        'created_at, updated_at) '
                         "SELECT %s, %s, %s, 'plugnotas', '00000000000000', "
                         "'111111111111', true, 'manual', true, NOW(), NOW() "
                         'WHERE NOT EXISTS ('

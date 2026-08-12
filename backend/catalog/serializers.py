@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
@@ -138,7 +140,11 @@ class ProductSerializer(FullCleanModelSerializer):
         return f'{price.amount:.2f}' if price else None
 
     def get_barcode(self, obj):
-        code = obj.codes.filter(code_type='ean', is_active=True).order_by('-is_principal', 'id').first()
+        code = (
+            obj.codes.filter(code_type='ean', is_active=True)
+            .order_by('-is_principal', 'id')
+            .first()
+        )
         return code.value if code else ''
 
 
@@ -265,7 +271,16 @@ class ProductImageSerializer(FullCleanModelSerializer):
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'product', 'object_key', 'file', 'file_url', 'alt_text', 'is_primary', 'position']
+        fields = [
+            'id',
+            'product',
+            'object_key',
+            'file',
+            'file_url',
+            'alt_text',
+            'is_primary',
+            'position',
+        ]
         read_only_fields = ['id', 'product']
 
 
@@ -368,16 +383,28 @@ class ApplyProductStockSerializer(serializers.Serializer):
     branch = serializers.UUIDField()
     location = serializers.UUIDField()
     initial_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=0,
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     minimum_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=0,
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     maximum_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, allow_null=True,
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
     )
     reorder_point = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=0,
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     allow_negative = serializers.BooleanField(required=False, default=False)
 
@@ -386,12 +413,14 @@ class ApplyProductInputSerializer(serializers.Serializer):
     sku = serializers.CharField(max_length=64, required=False, allow_blank=True, default='')
     name = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True, default='')
-    product_kind = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    product_kind = serializers.CharField(
+        max_length=20, required=False, allow_blank=True, default=''
+    )
     base_unit = serializers.UUIDField()
     category = serializers.UUIDField(required=False, allow_null=True)
     brand = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
     model = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
-    tags = serializers.JSONField(required=False, default=list)
+    tags = serializers.JSONField(required=False, default=list)  # type: ignore[arg-type]
     tracks_inventory = serializers.BooleanField(required=False, default=False)
 
 
@@ -409,7 +438,5 @@ class ApplyProductSerializer(serializers.Serializer):
                 {'stock': 'Stock is required when the product tracks inventory.'}
             )
         if product_data.get('product_kind') == 'servico' and stock:
-            raise serializers.ValidationError(
-                {'stock': 'Services cannot have stock.'}
-            )
+            raise serializers.ValidationError({'stock': 'Services cannot have stock.'})
         return attrs

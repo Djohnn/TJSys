@@ -35,9 +35,12 @@ CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6380/
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6380/2')
 
 # Configure default Celery app for eager mode
-import os
+import os  # noqa: E402
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.test')
-import django
+import django  # noqa: E402
+
 django.setup()
-from celery import current_app
+from celery import current_app  # noqa: E402
+
 current_app.conf.update(task_always_eager=True, broker_url=CELERY_BROKER_URL)
