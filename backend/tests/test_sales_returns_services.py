@@ -3,8 +3,10 @@ from decimal import Decimal
 import pytest
 from django.db import connection
 
-from inventory.models import StockBalance
-from sales.models import Sale, SaleItem
+from audit.models import AuditRecord
+from inventory.models import StockBalance, StockOperation
+from outbox.models import OutboxMessage
+from sales.models import Sale, SaleItem, SaleReturn
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 
 
@@ -18,8 +20,89 @@ def _run_in_tenant(tenant, callback):
         reset_current_tenant_id(token)
 
 
+def _assert_no_return_effects(*, tenant, idempotency_key):
+    assert not SaleReturn.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).exists()
+    assert not StockOperation.all_objects.filter(
+        tenant=tenant,
+        idempotency_key__startswith=f'{idempotency_key}:stock:',
+    ).exists()
+    assert not AuditRecord.objects.filter(
+        tenant_id=str(tenant.id),
+        correlation_id__startswith=idempotency_key,
+    ).exists()
+    assert not OutboxMessage.objects.filter(
+        tenant_id=str(tenant.id),
+        correlation_id__startswith=idempotency_key,
+    ).exists()
+
+
 @pytest.mark.django_db
 class TestSaleReturnService:
+    @pytest.mark.parametrize(
+        ('quantity', 'idempotency_key'),
+        [
+            pytest.param(Decimal('0'), 'return-zero-quantity', id='zero'),
+            pytest.param(Decimal('-1'), 'return-negative-quantity', id='negative'),
+        ],
+    )
+    def test_non_positive_quantity_is_rejected_without_effects(
+        self,
+        sale_context,
+        quantity,
+        idempotency_key,
+    ):
+        """Given a non-positive quantity, when returning, then no effect is persisted."""
+        ctx = sale_context
+        from sales.services import InsufficientReturnableQuantity, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+
+        def _test():
+            with pytest.raises(InsufficientReturnableQuantity):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[{'sale_item_id': str(sale_item.id), 'quantity': quantity}],
+                    reason='Quantidade inválida',
+                    idempotency_key=idempotency_key,
+                )
+            _assert_no_return_effects(
+                tenant=ctx['tenant'],
+                idempotency_key=idempotency_key,
+            )
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_non_confirmed_sale_is_rejected_without_effects(self, sale_context):
+        """Given a cancelled sale, when returning, then no compensation effect is persisted."""
+        ctx = sale_context
+        from sales.services import SaleNotCompensable, create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+        idempotency_key = 'return-cancelled-sale'
+
+        def _test():
+            Sale.all_objects.filter(pk=sale.pk).update(status='cancelled')
+            with pytest.raises(SaleNotCompensable):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
+                    reason='Venda não compensável',
+                    idempotency_key=idempotency_key,
+                )
+            _assert_no_return_effects(
+                tenant=ctx['tenant'],
+                idempotency_key=idempotency_key,
+            )
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_partial_return_reenters_stock(self, sale_context):
         ctx = sale_context
         from sales.services import create_sale_return
@@ -90,6 +173,39 @@ class TestSaleReturnService:
             )
             assert replay.id == first.id
             assert replay.status == 'completed'
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_idempotent_replay_canonicalizes_equivalent_quantity(self, sale_context):
+        """Given equivalent decimal payloads, when replayed, then the same return is returned."""
+        ctx = sale_context
+        from sales.services import create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+
+        def _test():
+            first = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[{'sale_item_id': sale_item.id, 'quantity': Decimal('1')}],
+                reason='Devolução canônica',
+                idempotency_key='return-canonical-payload',
+            )
+            replay = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[
+                    {
+                        'sale_item_id': str(sale_item.id),
+                        'quantity': Decimal('1.000000'),
+                    }
+                ],
+                reason='Devolução canônica',
+                idempotency_key='return-canonical-payload',
+            )
+
+            assert replay.id == first.id
 
         _run_in_tenant(ctx['tenant'], _test)
 

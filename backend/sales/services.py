@@ -48,6 +48,10 @@ class InsufficientReturnableQuantity(Exception):
     pass
 
 
+class SaleNotCompensable(Exception):
+    pass
+
+
 class SaleAlreadyCancelled(Exception):
     pass
 
@@ -418,6 +422,23 @@ def _already_returned_quantity(sale_item):
     return agg['total'] or Decimal('0')
 
 
+def _lock_compensable_sale(tenant, sale):
+    locked_sale = Sale.all_objects.select_for_update().get(
+        tenant=tenant,
+        pk=sale.pk,
+    )
+    if locked_sale.status != 'confirmed':
+        raise SaleNotCompensable('Only confirmed sales can be returned.')
+    return locked_sale
+
+
+def _canonical_decimal(value):
+    decimal_value = Decimal(str(value))
+    if decimal_value == 0:
+        return '0'
+    return format(decimal_value.normalize(), 'f')
+
+
 @transaction.atomic
 def create_sale_return(
     *,
@@ -435,11 +456,27 @@ def create_sale_return(
     if not reason:
         raise ValueError('Reason is required.')
 
+    locked_sale = _lock_compensable_sale(tenant, sale)
+    requested_items = []
+    for item in items:
+        quantity = Decimal(str(item['quantity']))
+        if quantity <= 0:
+            raise InsufficientReturnableQuantity('Return quantity must be positive.')
+        requested_items.append(
+            {
+                'sale_item_id': str(item['sale_item_id']),
+                'quantity': quantity,
+            }
+        )
+
     raw_payload = {
-        'sale_id': str(sale.id),
+        'sale_id': str(locked_sale.id),
         'items': [
-            {'sale_item_id': item['sale_item_id'], 'quantity': str(item['quantity'])}
-            for item in items
+            {
+                'sale_item_id': item['sale_item_id'],
+                'quantity': _canonical_decimal(item['quantity']),
+            }
+            for item in requested_items
         ],
         'reason': reason,
     }
@@ -454,15 +491,15 @@ def create_sale_return(
         return existing
 
     normalized_items = []
-    for item in items:
+    for item in requested_items:
         sale_item_id = item['sale_item_id']
-        quantity = Decimal(str(item['quantity']))
+        quantity = item['quantity']
 
         sale_item = (
             SaleItem.all_objects.filter(
                 tenant=tenant,
                 id=sale_item_id,
-                sale=sale,
+                sale=locked_sale,
             )
             .select_related('product', 'unit')
             .first()
@@ -488,7 +525,7 @@ def create_sale_return(
 
     sale_return = SaleReturn.all_objects.create(
         tenant=tenant,
-        sale=sale,
+        sale=locked_sale,
         reason=reason,
         status='completed',
         idempotency_key=idempotency_key,
@@ -504,12 +541,12 @@ def create_sale_return(
         if location is None:
             location = StockLocation.all_objects.filter(
                 tenant=tenant,
-                branch=sale.branch,
+                branch=locked_sale.branch,
                 is_primary=True,
             ).first()
         create_receipt(
             tenant,
-            sale.branch,
+            locked_sale.branch,
             item['product'],
             location,
             item['quantity'],
@@ -517,7 +554,7 @@ def create_sale_return(
             item['factor'],
             idempotency_key=f'{idempotency_key}:stock:{index}',
             actor=actor,
-            reason=f'Return {sale_return.id} for Sale {sale.id}',
+            reason=f'Return {sale_return.id} for Sale {locked_sale.id}',
         )
         SaleReturnItem.all_objects.create(
             tenant=tenant,
