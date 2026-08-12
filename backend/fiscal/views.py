@@ -17,7 +17,7 @@ from fiscal.serializers import (
     FiscalRequestSerializer,
     FiscalStatusSerializer,
 )
-from fiscal.services import emit_document, emit_nfce, reconcile_receipt_fiscal, resolve_emitter
+from fiscal.services import emit_document, reconcile_receipt_fiscal, resolve_emitter
 from tenancy.permissions import HasActiveTenant, HasCapability, HasVerifiedMFA
 
 # =============================================================================
@@ -49,6 +49,7 @@ class RequestFiscalView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         from sales.models import Sale
+        from fiscal.tasks import handle_sale_completed
 
         sale_id = self.kwargs.get('sale_id') or request.data.get('sale_id')
         try:
@@ -68,7 +69,23 @@ class RequestFiscalView(CreateAPIView):
                 status=400,
             )
 
-        doc = emit_nfce(sale, request.tenant)
+        # Check if an active fiscal document already exists for this sale
+        existing = FiscalDocument.all_objects.filter(sale=sale, is_active=True).first()
+        if existing:
+            return Response(
+                FiscalStatusSerializer(existing).data,
+                status=201,
+            )
+
+        # Create initial FiscalDocument in QUEUED state
+        doc = FiscalDocument.all_objects.create(
+            tenant=request.tenant,
+            sale=sale,
+            status=FiscalDocument.STATUS_QUEUED,
+        )
+
+        # Queue the async emission task
+        handle_sale_completed.delay(str(sale.id))
 
         return Response(
             FiscalStatusSerializer(doc).data,
@@ -154,7 +171,7 @@ class ReceiptFiscalValidateView(APIView):
 def _problem(detail, code, status_code):
     return Response(
         {
-            'type': f'https://docs.zyrp.local/errors/{code}',
+            'type': f'https://docs.tjsys.local/errors/{code}',
             'title': code.replace('_', ' ').title(),
             'status': status_code,
             'detail': str(detail),

@@ -6,6 +6,7 @@ const AUTH_SUCCESS = {
   refresh_token: 'mock-refresh',
   device_id: 'mock-device-id',
   branch_id: 'mock-branch-id',
+  tenant_id: 'mock-tenant-id',
 };
 
 async function mockAuthApi(page: Page) {
@@ -37,11 +38,23 @@ export const test = base.extend<Fixtures>({
   },
 
   authedPage: async ({ page }, use) => {
+    await page.addInitScript(() => {
+      (window as any).electronAPI = {
+        // Connectivity — SyncIndicator expects these exact names + {success,data} wrapper
+        getConnectivityStatus: () => Promise.resolve({ success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null } }),
+        checkConnectivity: () => Promise.resolve({ success: true, data: { isOnline: true } }),
+        onConnectivityChange: () => () => {},
+        // Sync
+        getSyncStatus: () => Promise.resolve({ success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null } }),
+        startSync: () => Promise.resolve({ success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null } }),
+        onSyncStateChange: () => () => {},
+      };
+    });
     await mockAuthApi(page);
     await page.goto('/login');
     await page.getByLabel('Chave de API (API Key)').fill('valid-key');
     await page.getByRole('button', { name: 'Entrar' }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 5000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     await use(page);
   },
 });

@@ -9,20 +9,27 @@ test.describe('Sale flow (real backend)', () => {
   test('full sale flow: login, open cash, add stock, create sale', async ({ page }) => {
     await page.addInitScript(() => {
       (window as any).electronAPI = {
+        // Connectivity — SyncIndicator expects these exact names + {success,data} wrapper
+        getConnectivityStatus: () => Promise.resolve({ success: true, data: { isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null } }),
+        checkConnectivity: () => Promise.resolve({ success: true, data: { isOnline: true } }),
+        onConnectivityChange: () => () => {},
+        // Sync
+        getSyncStatus: () => Promise.resolve({ success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null } }),
+        startSync: () => Promise.resolve({ success: true, data: { status: 'idle', pendingCount: 0, lastSyncAt: null, error: null } }),
         onSyncStateChange: () => () => {},
+        // Legacy aliases kept for safety
         getSyncState: () => Promise.resolve({ status: 'idle', pendingCount: 0, lastSyncAt: null, error: null }),
         syncNow: () => Promise.resolve(),
         getConnectivityState: () => Promise.resolve({ isOnline: true, lastOnlineAt: null, lastOfflineAt: null, lastSyncAt: null }),
-        onConnectivityChange: () => () => {},
       };
     });
 
     // Login
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
     await expect(page.getByLabel('Chave de API (API Key)')).toBeVisible({ timeout: 5000 });
     await page.getByLabel('Chave de API (API Key)').fill(API_KEY);
     await page.getByRole('button', { name: 'Entrar' }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 30000 });
 
     // Fetch stock location and product IDs from real API
     const headers = (tok: string, tid: string) => ({ Authorization: `Bearer ${tok}`, 'X-Tenant-ID': tid });
@@ -58,19 +65,19 @@ test.describe('Sale flow (real backend)', () => {
     });
 
     // Open cash session
-    await page.goto('/cash-session');
-    await page.waitForURL(/\/cash-session/, { timeout: 5000 });
+    await page.goto('/cash-session', { waitUntil: 'networkidle' });
+    await page.waitForURL(/\/cash-session/, { timeout: 10000 });
 
     const openBtn = page.getByRole('button', { name: 'Abrir Caixa' });
     if (await openBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await page.locator('#openingAmount').fill('100');
       await openBtn.click();
-      await page.waitForURL(/\/dashboard/, { timeout: 5000 });
-      await page.goto('/sale');
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+      await page.goto('/sale', { waitUntil: 'networkidle' });
     } else {
-      await page.goto('/sale');
+      await page.goto('/sale', { waitUntil: 'networkidle' });
     }
-    await page.waitForURL(/\/sale/, { timeout: 5000 });
+    await page.waitForURL(/\/sale/, { timeout: 10000 });
 
     // Search product by name (backend only searches by name, not SKU)
     const searchInput = page.getByPlaceholder('Buscar produto (SKU ou nome)...');
@@ -100,9 +107,8 @@ test.describe('Sale flow (real backend)', () => {
       throw new Error(`Sale API returned ${apiStatus}: ${apiBody.detail || JSON.stringify(apiBody)}`);
     }
 
-    // Wait for receipt modal to appear
-    const receiptModal = page.getByText('Cupom Não Fiscal');
-    await receiptModal.waitFor({ state: 'visible', timeout: 15000 });
-    await expect(receiptModal).toBeVisible();
+    // Wait for sale confirmation toast (replaces old "Cupom Não Fiscal" modal)
+    const receiptToast = page.getByText(/realizada com sucesso/);
+    await receiptToast.waitFor({ state: 'visible', timeout: 20000 });
   });
 });

@@ -165,7 +165,8 @@ def test_request_fiscal_creates_document(monkeypatch, client, fiscal_sale_contex
     )
     assert response.status_code == 201
     data = response.json()
-    assert data['fiscal_status'] in ('PENDING', 'PROCESSING')
+    # Async flow returns an immediate QUEUED/PENDING status
+    assert data['fiscal_status'] in ('QUEUED', 'PENDING')
 
     doc = FiscalDocument.all_objects.filter(sale=ctx['sale'], is_active=True).first()
     assert doc is not None

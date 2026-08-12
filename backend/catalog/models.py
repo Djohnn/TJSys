@@ -129,6 +129,7 @@ class Product(TimeStampedModel, TenantScopedModel):
     model = models.CharField(max_length=120, blank=True, default='')
     tags = models.JSONField(default=list, blank=True)
     scale_code = models.CharField(max_length=20, blank=True, default='')
+    subcategory = models.CharField(max_length=120, blank=True, default='')
     # Sprint 26 — service metadata
     billing_unit = models.CharField(max_length=30, blank=True, default='')
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
@@ -819,3 +820,23 @@ class ProductChannelProfile(TimeStampedModel, TenantScopedModel):
 
     def __str__(self):
         return f'{self.product.sku} → {self.channel_slug} [{self.status}]'
+
+
+class ProductApplyCommand(TimeStampedModel, TenantScopedModel):
+    """Idempotency receipt for the complete product-apply transaction."""
+
+    command_id = models.CharField(max_length=80)
+    payload_hash = models.CharField(max_length=64)
+    response_json = models.JSONField(default=dict, blank=True)
+    correlation_id = models.UUIDField()
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'command_id'],
+                name='uniq_product_apply_command_tenant_id',
+            ),
+        ]

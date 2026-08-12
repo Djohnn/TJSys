@@ -65,4 +65,44 @@ describe('SaleConfirmationToast', () => {
     fireEvent.click(screen.getByText('Fechar'));
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('RF12: solicitar fiscal não bloqueia a UI (apenas enfileira, não aguarda resposta)', () => {
+    let resolveFiscal: (value: any) => void;
+    const fiscalPromise = new Promise(resolve => { resolveFiscal = resolve; });
+    const onPrintFiscal = vi.fn(() => fiscalPromise);
+    const onPrintBalcao = vi.fn();
+    const onClose = vi.fn();
+
+    render(<SaleConfirmationToast {...defaultProps} onPrintFiscal={onPrintFiscal} onPrintBalcao={onPrintBalcao} onClose={onClose} />);
+
+    // Clicar em Imprimir Cupom Fiscal
+    fireEvent.click(screen.getByText('Imprimir Cupom Fiscal'));
+
+    // onPrintFiscal deve ter sido chamado (enfileirou)
+    expect(onPrintFiscal).toHaveBeenCalledOnce();
+
+    // UI NÃO deve ficar bloqueada — botão balcão e fechar ainda clicáveis
+    expect(screen.getByText('Imprimir Cupom Balcão')).not.toBeDisabled();
+    expect(screen.getByText('Fechar')).not.toBeDisabled();
+
+    // Toast deve permanecer visível (poderia fechar por UX, mas não deve travar)
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    // Resolver a promise (simulando job enfileirado concluído)
+    resolveFiscal!({ status: 'pendente' });
+  });
+
+  it('RF06: clicar Fechar apenas oculta toast, sem disparar impressão nem emissão fiscal', () => {
+    const onPrintFiscal = vi.fn();
+    const onPrintBalcao = vi.fn();
+    const onClose = vi.fn();
+
+    render(<SaleConfirmationToast {...defaultProps} onPrintFiscal={onPrintFiscal} onPrintBalcao={onPrintBalcao} onClose={onClose} />);
+
+    fireEvent.click(screen.getByText('Fechar'));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onPrintFiscal).not.toHaveBeenCalled();
+    expect(onPrintBalcao).not.toHaveBeenCalled();
+  });
 });

@@ -35,9 +35,18 @@ def handle_sale_completed(sale_id):
         logger.warning('Sale not found for fiscal emission: %s', sale_id)
         return None
 
-    if FiscalDocument.all_objects.filter(sale=sale, is_active=True).exists():
+    # Find the QUEUED document for this sale
+    doc = FiscalDocument.all_objects.filter(
+        sale=sale,
+        status=FiscalDocument.STATUS_QUEUED,
+        is_active=True,
+    ).first()
+
+    if doc is None:
+        logger.info('No QUEUED fiscal document found for sale: %s', sale_id)
         return None
 
+    # Process the document via emit_nfce
     doc = emit_nfce(sale, sale.tenant)
     return {'document_id': str(doc.id), 'status': doc.status}
 

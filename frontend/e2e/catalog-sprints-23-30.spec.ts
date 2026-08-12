@@ -28,7 +28,7 @@ test.describe('Catálogo — aceite Sprints 23–30', () => {
     const page = authenticatedPage
     for (const [path, action] of [
       ['/catalog/categories', 'Nova Categoria'],
-      ['/catalog/brands', 'Criar Marca'],
+      ['/catalog/brands', 'Nova Marca'],
       ['/catalog/units', 'Nova Unidade'],
     ] as const) {
       await page.goto(path)

@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from inventory.models import (
+    ProductStockPolicy,
     StockBalance,
     StockLocation,
     StockLot,
@@ -180,6 +181,52 @@ class StockOperationReversalSerializer(FullCleanModelSerializer):
             'original_operation',
             'reversal_operation',
             'reason',
+            'created_at',
+            'updated_at',
+            'version',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'version']
+
+
+class StockControlDeactivateRequestSerializer(serializers.Serializer):
+    command_id = serializers.UUIDField()
+    correlation_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class StockControlReactivateRequestSerializer(serializers.Serializer):
+    command_id = serializers.UUIDField()
+    correlation_id = serializers.UUIDField(required=False, allow_null=True)
+    initial_stocks = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=list,
+    )
+
+
+class ProductStockPolicySerializer(FullCleanModelSerializer):
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    branch_name = serializers.CharField(source='branch.name', read_only=True)
+    location_code = serializers.CharField(source='location.code', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+
+    class Meta:
+        model = ProductStockPolicy
+        fields = [
+            'id',
+            'product',
+            'product_sku',
+            'product_name',
+            'branch',
+            'branch_name',
+            'location',
+            'location_code',
+            'location_name',
+            'minimum_quantity',
+            'maximum_quantity',
+            'reorder_point',
+            'allow_negative',
+            'is_active',
             'created_at',
             'updated_at',
             'version',

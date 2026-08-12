@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from catalog.models import Category, Product, ProductPrice, Unit
 from inventory.models import StockLocation
+from inventory.services import create_receipt
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Device, Tenant
 
@@ -25,7 +26,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         password = config('SEED_ADMIN_PASSWORD', default=E2E_PASSWORD)
 
-        admin_user, created = User.objects.get_or_create(email='e2e@zyrp.local')
+        admin_user, created = User.objects.get_or_create(email='e2e@tjsys.local')
         if created:
             admin_user.is_staff = True
             admin_user.is_superuser = True
@@ -53,7 +54,7 @@ class Command(BaseCommand):
                 TenantMembership.objects.filter(
                     user=admin_user,
                     tenant=tenant,
-                ).update(role='operator', is_active=True)
+                ).update(role='admin', is_active=True)
 
                 company, _ = Company.objects.get_or_create(
                     tenant=tenant,
@@ -159,13 +160,26 @@ class Command(BaseCommand):
                     },
                 )
 
+                create_receipt(
+                    tenant,
+                    branch,
+                    product,
+                    location,
+                    Decimal('5'),
+                    unit,
+                    Decimal('1'),
+                    idempotency_key='e2e-stock-seed',
+                    actor=admin_user,
+                    reason='seed e2e stock',
+                )
+
                 with connection.cursor() as c:
                     c.execute(
                         'INSERT INTO fiscal_fiscalemitter '
                         '(id, tenant_id, branch_id, provider, cpf_cnpj, ie, '
-                        'registered_at_provider, registration_source, created_at, updated_at) '
+                        'registered_at_provider, registration_source, is_active, created_at, updated_at) '
                         "SELECT %s, %s, %s, 'plugnotas', '00000000000000', "
-                        "'111111111111', true, 'manual', NOW(), NOW() "
+                        "'111111111111', true, 'manual', true, NOW(), NOW() "
                         'WHERE NOT EXISTS ('
                         'SELECT 1 FROM fiscal_fiscalemitter '
                         "WHERE tenant_id=%s AND branch_id=%s AND provider='plugnotas'"
@@ -347,7 +361,7 @@ class Command(BaseCommand):
                 reset_current_tenant_id(token_sale)
 
             # ── Web admin (multi-tenant, sem PDV) ──────────────────────────────
-            web_admin, created = User.objects.get_or_create(email='web-admin@zyrp.local')
+            web_admin, created = User.objects.get_or_create(email='web-admin@tjsys.local')
             if created:
                 web_admin.is_staff = True
             web_admin.set_password(password)
@@ -397,8 +411,8 @@ class Command(BaseCommand):
                 ).update(role='admin', is_active=True)
 
             for email, role in (
-                ('operator@zyrp.local', 'operator'),
-                ('mfa@zyrp.local', 'admin'),
+                ('operator@tjsys.local', 'operator'),
+                ('mfa@tjsys.local', 'admin'),
             ):
                 e2e_user, _ = User.objects.get_or_create(email=email)
                 e2e_user.set_password(password)
@@ -453,7 +467,7 @@ class Command(BaseCommand):
                     f'  Device: {device.id} (API key: {E2E_API_KEY})\n'
                     f'  Produto: {product.sku} (R$ 49,90)\n'
                     f'  Local estoque: {location.code}\n'
-                    '  Web admin: web-admin@zyrp.local '
+                    '  Web admin: web-admin@tjsys.local '
                     f'(membro de {tenant.slug} e {beta_tenant.slug})'
                 )
             )

@@ -187,7 +187,6 @@ describe('Dashboard', () => {
     });
     window.electronAPI.printReceipt.mockResolvedValue({
       success: true,
-      savedPath: '/mock/path/cupom_nao_fiscal_sale-123.pdf',
     });
 
     render(
@@ -355,10 +354,158 @@ describe('Dashboard', () => {
       expect(actionButton).toHaveTextContent('...');
     });
 
-    resolvePrint!({ success: true, savedPath: '/mock/path.pdf' });
+    resolvePrint!({ success: true });
     await waitFor(() => {
       expect(actionButton).not.toBeDisabled();
       expect(actionButton).toHaveTextContent('⋮');
     });
+  });
+
+  it('RF09: reimpressão Fiscal bloqueada (desabilitada) quando status não autorizado', async () => {
+    const sale = { ...mockSale, id: 'sale-pending-123456' };
+    global.fetch = vi.fn((url: string) => {
+      if (url.includes('/fiscal-status/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ fiscal_status: 'PENDING', protocol: null, xml_url: null }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [sale] });
+    }) as any;
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    // Exibição de status pendente
+    await screen.findByText('#sale-pen');
+    expect(screen.getByText('Pendente')).toBeInTheDocument();
+
+    // Abre o menu
+    fireEvent.click(screen.getByTestId('sale-actions-sale-pending-123456'));
+    await waitFor(() => {
+      expect(screen.getByTestId('sale-menu-sale-pending-123456')).toBeInTheDocument();
+    });
+
+    // Reimprimir Balcão livre
+    const balcaoBtn = screen.getByText('Reimprimir Cupom Balcão');
+    expect(balcaoBtn).not.toBeDisabled();
+
+    // Reimpressão Fiscal NÃO disponível (está "em andamento", desabilitado)
+    expect(screen.getByText('Emissão NFC-e em andamento...')).toBeInTheDocument();
+
+    // Não deve haver opção "Reimprimir Cupom Fiscal" nem "Solicitar Cupom Fiscal" enquanto pendente
+    expect(screen.queryByText('Reimprimir Cupom Fiscal')).not.toBeInTheDocument();
+    expect(screen.queryByText('Solicitar Cupom Fiscal')).not.toBeInTheDocument();
+  });
+
+  it('RF16: exibe status rejeitado e permite tentar novamente (não reimprime)', async () => {
+    const sale = { ...mockSale, id: 'sale-rejected-123456' };
+    global.fetch = vi.fn((url: string) => {
+      if (url.includes('/fiscal-status/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ fiscal_status: 'REJECTED', error_detail: 'Rejeição: 999 - erro teste' }),
+        });
+      }
+      if (url.includes('/request-fiscal/')) {
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({ fiscal_status: 'PENDING' }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => [sale] });
+    }) as any;
+    window.electronAPI.printReceipt = vi.fn();
+    window.electronAPI.printBalcaoReceipt = vi.fn();
+    window.electronAPI.printFiscalReceipt = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    // Status rejeitado exibido no badge da venda
+    await screen.findByText('#sale-rej');
+    expect(screen.getByText('Rejeitado')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('sale-actions-sale-rejected-123456'));
+    await waitFor(() => {
+      expect(screen.getByTestId('sale-menu-sale-rejected-123456')).toBeInTheDocument();
+    });
+
+    // Deve mostrar a rejeição e botão "Tentar novamente"
+    expect(screen.getByText(/NFC-e rejeitada/)).toBeInTheDocument();
+    const retryBtn = screen.getByText('Tentar novamente');
+    expect(retryBtn).not.toBeDisabled();
+
+    // Reimpressão Fiscal não disponível (venda rejeitada não é autorizada)
+    expect(screen.queryByText('Reimprimir Cupom Fiscal')).not.toBeInTheDocument();
+
+    // Clicar em "Tentar novamente" chama request-fiscal (reenfileira), não imprime
+    fireEvent.click(retryBtn);
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/v1/sales/sale-rejected-123456/request-fiscal/',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+    expect(window.electronAPI.printFiscalReceipt).not.toHaveBeenCalled();
+    // status PENDING retorna mensagem genérica de processamento
+    expect(screen.getByTestId('reprint-message')).toHaveTextContent('Emissão fiscal solicitada');
+  });
+
+  it('RF09/RF15: exibe reimpressão Fiscal disponível quando autorizado', async () => {
+    const sale = { ...mockSale, id: 'sale-auth-123456' };
+    global.fetch = vi.fn((url: string) => {
+      if (url.includes('/fiscal-status/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ fiscal_status: 'CONCLUDED', protocol: '123456789', xml_url: 'https://sefaz/nfe' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [sale] });
+    }) as any;
+
+    // Preparar gefaultDetail/printFu para reimpressão fiscal
+    window.electronAPI.getSaleDetail = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        id: 'sale-auth-123456',
+        net_total: '49.90',
+        created_at: '2026-07-18T13:52:03-03:00',
+        items: [{ product: 'prod-1', quantity: '2', line_total: '24.95' }],
+      },
+    });
+    window.electronAPI.getProduct = vi.fn().mockResolvedValue({ success: true, data: { name: 'Coca-Cola' } });
+    window.electronAPI.printFiscalReceipt = vi.fn().mockResolvedValue({ success: true });
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('#sale-aut');
+    // Badge NFC-e (autorizado)
+    expect(screen.getByText('NFC-e')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('sale-actions-sale-auth-123456'));
+    await waitFor(() => {
+      expect(screen.getByTestId('sale-menu-sale-auth-123456')).toBeInTheDocument();
+    });
+
+    // "Reimprimir Cupom Fiscal" disponível (autorizado)
+    const fiscalBtn = screen.getByText('Reimprimir Cupom Fiscal');
+    expect(fiscalBtn).not.toBeDisabled();
+
+    // Clicar reimprime via printFiscalReceipt com chave/protocolo
+    fireEvent.click(fiscalBtn);
+    await waitFor(() => {
+      expect(window.electronAPI.printFiscalReceipt).toHaveBeenCalled();
+    });
+    const payload = (window.electronAPI.printFiscalReceipt as any).mock.calls[0][0];
+    expect(payload.fileName).toContain('cupom_fiscal_');
+    expect(payload.html).toContain('123456789');
   });
 });
