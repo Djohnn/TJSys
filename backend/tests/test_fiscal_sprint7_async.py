@@ -6,17 +6,15 @@ Validates that the /api/v1/sales/{id}/request-fiscal/ endpoint:
 3. Enqueues the handle_sale_completed Celery task for async processing
 """
 
-import json
 from unittest.mock import patch
 
 import pytest
-from django.utils import timezone
 
 from tests.test_fiscal_services import _run_in_tenant
 
 
 @pytest.mark.django_db
-def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_context):
+def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_context, monkeypatch):
     """POST /request-fiscal/ returns 201 with QUEUED status without hitting PlugNotas."""
     from fiscal.models import FiscalDocument
 
@@ -26,6 +24,7 @@ def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_con
     session['mfa_tenant_id'] = str(ctx['tenant'].id)
     session['mfa_method'] = 'totp'
     session.save()
+    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda sale_id: None)
 
     # Spy on the PlugNotasAdapter.emit to ensure it's NOT called synchronously
     with patch('fiscal.adapters.plugnotas.PlugNotasAdapter.emit') as mock_emit:
@@ -55,7 +54,9 @@ def test_request_fiscal_async_returns_queued_immediately(client, fiscal_sale_con
 
 
 @pytest.mark.django_db
-def test_request_fiscal_async_creates_document_and_enqueues_task(client, fiscal_sale_context, monkeypatch):
+def test_request_fiscal_async_creates_document_and_enqueues_task(
+    client, fiscal_sale_context, monkeypatch
+):
     """Verify Celery task is enqueued for async processing."""
     from fiscal.models import FiscalDocument
     from fiscal.tasks import handle_sale_completed
@@ -105,7 +106,7 @@ def test_request_fiscal_async_creates_document_and_enqueues_task(client, fiscal_
 
 
 @pytest.mark.django_db
-def test_request_fiscal_async_idempotent_returns_existing(client, fiscal_sale_context):
+def test_request_fiscal_async_idempotent_returns_existing(client, fiscal_sale_context, monkeypatch):
     """Second request for same sale returns existing document (idempotent)."""
     from fiscal.models import FiscalDocument
 
@@ -115,6 +116,7 @@ def test_request_fiscal_async_idempotent_returns_existing(client, fiscal_sale_co
     session['mfa_tenant_id'] = str(ctx['tenant'].id)
     session['mfa_method'] = 'totp'
     session.save()
+    monkeypatch.setattr('fiscal.tasks.handle_sale_completed.delay', lambda sale_id: None)
 
     with patch('fiscal.adapters.plugnotas.PlugNotasAdapter.emit') as mock_emit:
         mock_emit.return_value = type('EmitResult', (), {'provider_document_id': 'test-001'})()
@@ -199,3 +201,90 @@ def test_request_fiscal_async_handles_missing_sale(client, fiscal_sale_context):
     assert response.status_code == 404
     assert 'não encontrada' in response.json()['detail']
     mock_emit.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_worker_processes_queued_document_and_persists_provider_id(
+    monkeypatch, fiscal_sale_context
+):
+    """Given QUEUED, the worker calls the provider and persists PROCESSING."""
+    from fiscal.models import FiscalDocument, FiscalEmitter, FiscalProductConfig
+    from fiscal.ports import EmitResult
+    from fiscal.tasks import handle_sale_completed
+
+    ctx = fiscal_sale_context
+    calls = []
+
+    def fake_emit(self, tenant, emitter, document, items, payments):
+        calls.append(document.id)
+        return EmitResult(provider_document_id='worker-nfce-001', raw_response={})
+
+    monkeypatch.setattr('fiscal.adapters.plugnotas.PlugNotasAdapter.emit', fake_emit)
+
+    def _run_worker():
+        FiscalEmitter.all_objects.get_or_create(
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            provider='plugnotas',
+            defaults={
+                'cpf_cnpj': '12345678000199',
+                'registered_at_provider': True,
+            },
+        )
+        FiscalProductConfig.all_objects.get_or_create(
+            tenant=ctx['tenant'],
+            product=ctx['product'],
+            defaults={
+                'cst_icms': '00',
+                'cst_pis': '99',
+                'cst_cofins': '07',
+                'origem': '0',
+            },
+        )
+        doc = FiscalDocument.all_objects.create(
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            status=FiscalDocument.STATUS_QUEUED,
+        )
+
+        result = handle_sale_completed(str(ctx['sale'].id))
+        doc.refresh_from_db()
+        return result, doc
+
+    result, doc = _run_in_tenant(ctx['tenant'], _run_worker)
+
+    assert result == {'document_id': str(doc.id), 'status': FiscalDocument.STATUS_PROCESSING}
+    assert calls == [doc.id]
+    assert doc.provider_document_id == 'worker-nfce-001'
+
+
+@pytest.mark.django_db
+def test_request_fiscal_recovers_when_concurrent_create_wins(monkeypatch, fiscal_sale_context):
+    """A unique-constraint race returns the winner instead of HTTP 500."""
+    from django.db import IntegrityError
+
+    from fiscal.models import FiscalDocument
+    from fiscal.views import _get_or_create_active_fiscal_document
+
+    ctx = fiscal_sale_context
+
+    def _run_race():
+        winner = FiscalDocument.all_objects.create(
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            status=FiscalDocument.STATUS_QUEUED,
+        )
+
+        def concurrent_insert(*args, **kwargs):
+            raise IntegrityError('unique_active_fiscal_document_per_sale')
+
+        monkeypatch.setattr(FiscalDocument.all_objects, 'get_or_create', concurrent_insert)
+        document, created = _get_or_create_active_fiscal_document(
+            ctx['sale'], ctx['tenant']
+        )
+        return winner, document, created
+
+    winner, document, created = _run_in_tenant(ctx['tenant'], _run_race)
+
+    assert created is False
+    assert document.id == winner.id

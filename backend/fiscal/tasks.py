@@ -4,7 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from fiscal.models import FiscalDocument
-from fiscal.services import POLLING_INTERVAL, emit_nfce, poll_fiscal_document
+from fiscal.services import POLLING_INTERVAL, emit_document, poll_fiscal_document
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,8 @@ def handle_sale_completed(sale_id):
         logger.info('No QUEUED fiscal document found for sale: %s', sale_id)
         return None
 
-    # Process the document via emit_nfce
-    doc = emit_nfce(sale, sale.tenant)
+    # Process the queued document itself; emit_nfce would return it unchanged.
+    doc = emit_document(doc)
     return {'document_id': str(doc.id), 'status': doc.status}
 
 

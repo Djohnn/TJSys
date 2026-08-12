@@ -1,7 +1,7 @@
 # Sprint 7 / R7 — NFC-e via PlugNotas (Integração Fiscal)
 
 **Data:** 2026-08-11
-**Status:** Encerrada com ressalva aceita
+**Status:** R7 concluída; avanço para R8 liberado
 
 ## Escopo validado
 
@@ -19,9 +19,14 @@ o handler outbox de `sales.sale.confirmed` para emissão fiscal está **comentad
 ## Evidência executada
 
 ```text
-Backend fiscal (R7):
+Backend fiscal (R7 + worker + concorrência):
 .......................................... [100%]
-42 passed, 0 failed, 1 warning in 34.76s
+44 passed, 0 failed, 1 warning in 21.63s
+
+Playwright E2E fiscal determinístico:
+1 passed (2.5s)
+Fluxo validado: request-fiscal -> QUEUED -> PROCESSING -> CONCLUDED,
+com provider_document_id e protocolo persistidos no polling mockado.
 
 Django check:
 System check identified no issues (0 silenced).
@@ -41,7 +46,7 @@ PDV lint:
 146 problems (0 errors, 146 warnings) (exit 0)
 ```
 
-### Cobertura backend (42 testes de `tests/test_fiscal_*.py`)
+### Cobertura backend (44 testes de `tests/test_fiscal_*.py`)
 
 - **Novos Testes E2E Assíncronos (`tests/test_fiscal_sprint7_async.py`):**
   - **`test_request_fiscal_async_returns_queued_immediately`** — Retorna 201 with `fiscal_status=QUEUED` sem chamar PlugNotas da request thread.
@@ -49,6 +54,8 @@ PDV lint:
   - **`test_request_fiscal_async_idempotent_returns_existing`** — Chamadas repetidas sobre a mesma venda não duplicam e retornam o mesmo `FiscalDocument`.
   - **`test_request_fiscal_async_rejected_for_non_confirmed_sale`** — Vendas não confirmadas retornam 400.
   - **`test_request_fiscal_async_handles_missing_sale`** — Vendas inexistentes retornam 404.
+  - **`test_worker_processes_queued_document_and_persists_provider_id`** — Worker chama o provider e faz `QUEUED -> PROCESSING` com `provider_document_id`.
+  - **`test_request_fiscal_recovers_when_concurrent_create_wins`** — Corrida de criação recupera o documento ativo vencedor sem erro 500.
 - **Outros cenários cobertos:**
   - Estados `PENDING/PROCESSING → CONCLUDED`, `REJECTED` (reattempt) e `FAILED` — cobertos.
   - Timeout (30min) força `FAILED` — `test_poll_timeout_forces_failed`.
@@ -59,6 +66,11 @@ PDV lint:
   - Webhook duplicado é idempotente — `test_duplicate_webhook_is_idempotent`.
   - Isolamento multi-tenant — `test_fiscal_document_isolation_between_tenants`.
   - Sem auto-emissão em `sales.sale.confirmed` — `test_sale_confirmed_outbox_does_not_trigger_automatic_fiscal_emission`.
+
+### E2E fiscal determinístico
+
+- `pdv/e2e/r7-fiscal-emission.spec.ts` atravessa o contrato HTTP no navegador, simula o provider e exige os estados `QUEUED`, `PROCESSING` e `CONCLUDED`, incluindo `provider_document_id` e protocolo.
+- `pdv/e2e/qa-visual.spec.ts` não aceita mais `404` como resultado válido para o status fiscal.
 
 ### Cobertura PDV (185 testes / 21 arquivos)
 

@@ -1,3 +1,4 @@
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -19,6 +20,24 @@ from fiscal.serializers import (
 )
 from fiscal.services import emit_document, reconcile_receipt_fiscal, resolve_emitter
 from tenancy.permissions import HasActiveTenant, HasCapability, HasVerifiedMFA
+
+
+def _get_or_create_active_fiscal_document(sale, tenant):
+    """Return one active document, recovering when a concurrent request wins."""
+    try:
+        with transaction.atomic():
+            return FiscalDocument.all_objects.get_or_create(
+                sale=sale,
+                is_active=True,
+                defaults={'tenant': tenant, 'status': FiscalDocument.STATUS_QUEUED},
+            )
+    except IntegrityError:
+        return (
+            FiscalDocument.all_objects.filter(sale=sale, is_active=True)
+            .order_by('-attempt_number')
+            .first(),
+            False,
+        )
 
 # =============================================================================
 # Sprint 7 — existing endpoints (unchanged)
@@ -48,8 +67,8 @@ class RequestFiscalView(CreateAPIView):
     serializer_class = FiscalRequestSerializer
 
     def create(self, request, *args, **kwargs):
-        from sales.models import Sale
         from fiscal.tasks import handle_sale_completed
+        from sales.models import Sale
 
         sale_id = self.kwargs.get('sale_id') or request.data.get('sale_id')
         try:
@@ -69,20 +88,12 @@ class RequestFiscalView(CreateAPIView):
                 status=400,
             )
 
-        # Check if an active fiscal document already exists for this sale
-        existing = FiscalDocument.all_objects.filter(sale=sale, is_active=True).first()
-        if existing:
+        doc, created = _get_or_create_active_fiscal_document(sale, request.tenant)
+        if not created:
             return Response(
-                FiscalStatusSerializer(existing).data,
+                FiscalStatusSerializer(doc).data,
                 status=201,
             )
-
-        # Create initial FiscalDocument in QUEUED state
-        doc = FiscalDocument.all_objects.create(
-            tenant=request.tenant,
-            sale=sale,
-            status=FiscalDocument.STATUS_QUEUED,
-        )
 
         # Queue the async emission task
         handle_sale_completed.delay(str(sale.id))

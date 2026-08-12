@@ -169,7 +169,7 @@ test.describe('QA Visual - Sprint 7', () => {
       await fechar.click();
     }
 
-    // FISCAL STATUS — 200 (doc exists) or 404 (not yet emitted) are both valid
+    // FISCAL STATUS — an emitted sale must expose a concluded fiscal document
     await page.waitForTimeout(2000);
     const fiscalUrl = `http://localhost:8000/api/v1/sales/${saleData.id}/fiscal-status/`;
     console.log(`Fiscal URL: ${fiscalUrl}`);
@@ -180,11 +180,9 @@ test.describe('QA Visual - Sprint 7', () => {
     if (fiscalResp.status() === 200) {
       const fiscalData = JSON.parse(fiscalText);
       console.log(`Fiscal: ${JSON.stringify(fiscalData, null, 2)}`);
-      expect(fiscalData).toHaveProperty('fiscal_status');
+      expect(fiscalData.fiscal_status).toBe('CONCLUDED');
     } else {
-      // 404 is acceptable — fiscal doc not yet emitted for a new sale
-      expect(fiscalResp.status()).toBe(404);
-      console.log('Fiscal document not yet emitted (404) — acceptable');
+      throw new Error(`Fiscal status request failed: ${fiscalResp.status()}`);
     }
 
     // Final screenshot

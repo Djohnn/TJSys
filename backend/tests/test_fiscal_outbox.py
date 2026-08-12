@@ -26,8 +26,8 @@ def test_handle_sale_completed_is_idempotent(monkeypatch, fiscal_sale_context):
     )
 
     monkeypatch.setattr(
-        'fiscal.tasks.emit_nfce',
-        lambda sale, tenant: pytest.fail('emit_nfce must not run on redelivery'),
+        'fiscal.tasks.emit_document',
+        lambda document: pytest.fail('emit_document must not run on redelivery'),
     )
 
     assert handle_sale_completed(str(ctx['sale'].id)) is None
