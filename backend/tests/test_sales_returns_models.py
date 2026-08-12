@@ -136,6 +136,7 @@ class TestSaleReturnItemModel:
 @pytest.mark.django_db
 class TestSaleRefundModel:
     def test_refund_persists_reason(self, sale_context):
+        # Given a confirmed sale in the tenant context.
         ctx = sale_context
         sale = _get_first_sale(ctx)
         refund = SaleRefund.all_objects.create(
@@ -146,8 +147,10 @@ class TestSaleRefundModel:
             reason='Produto avariado',
         )
 
+        # When the persisted refund is loaded again.
         refund.refresh_from_db()
 
+        # Then its reason is retained.
         assert refund.reason == 'Produto avariado'
 
     def test_create_cash_refund(self, sale_context):
