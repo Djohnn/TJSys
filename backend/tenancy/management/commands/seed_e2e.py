@@ -6,6 +6,7 @@ from decouple import config
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from catalog.models import Category, Product, ProductPrice, Unit
@@ -252,7 +253,7 @@ class Command(BaseCommand):
                         [str(tenant.id)],
                     )
 
-                from sales.models import Sale, SaleReturnItem
+                from sales.models import Sale, SaleItem, SaleReturnItem
                 from sales.services import create_counter_sale, open_cash_session
 
                 open_cash_session(
@@ -291,12 +292,23 @@ class Command(BaseCommand):
                     ).first()
                     if existing_r9_sale is None:
                         break
-                    has_r9_return = SaleReturnItem.all_objects.filter(
+                    has_r9_returnable_quantity = False
+                    for existing_r9_item in SaleItem.all_objects.filter(
                         tenant=tenant,
-                        sale_item__sale=existing_r9_sale,
-                        sale_return__status__in=['draft', 'completed'],
-                    ).exists()
-                    if existing_r9_sale.status == 'confirmed' and not has_r9_return:
+                        sale=existing_r9_sale,
+                    ):
+                        returned_quantity = (
+                            SaleReturnItem.all_objects.filter(
+                                tenant=tenant,
+                                sale_item=existing_r9_item,
+                                sale_return__status__in=['draft', 'completed'],
+                            ).aggregate(total=Sum('quantity'))['total']
+                            or Decimal('0')
+                        )
+                        if returned_quantity < existing_r9_item.quantity:
+                            has_r9_returnable_quantity = True
+                            break
+                    if existing_r9_sale.status == 'confirmed' and has_r9_returnable_quantity:
                         break
                     r9_return_sale_generation += 1
 
@@ -460,7 +472,6 @@ class Command(BaseCommand):
             # Set up TOTP MFA device + recovery codes for web-admin
             from accounts.models import MFADevice, RecoveryCode
             from accounts.security import digest_value
-            from accounts.services.mfa import regenerate_recovery_codes
 
             totp_device, _ = MFADevice.objects.get_or_create(
                 user=web_admin,
@@ -469,12 +480,8 @@ class Command(BaseCommand):
             )
             totp_device.verified_at = timezone.now()
             totp_device.save(update_fields=['verified_at'])
-            regenerate_recovery_codes(device=totp_device)
             fixed_recovery_digest = digest_value('e2e0000001')
-            RecoveryCode.objects.filter(
-                device=totp_device,
-                digest=fixed_recovery_digest,
-            ).delete()
+            RecoveryCode.objects.filter(device=totp_device).delete()
             RecoveryCode.objects.bulk_create(
                 [
                     RecoveryCode(device=totp_device, digest=fixed_recovery_digest)

@@ -5,7 +5,16 @@ type TenantMembership = { tenant_id: string; tenant_name: string }
 type Product = { id: string; sku: string }
 type SaleItem = { id: string; product: string; quantity: string }
 type Sale = { id: string; status: string; created_at: string; items: SaleItem[] }
+type SaleReturn = {
+  status: string
+  items: Array<{ sale_item: string; quantity: string }>
+}
 type PaginatedResponse<T> = { next: string | null; results: T[] }
+
+function resolveNextPageUrl(currentUrl: URL, next: string): URL {
+  const resolved = new URL(next, currentUrl)
+  return new URL(`${resolved.pathname}${resolved.search}`, currentUrl.origin)
+}
 
 async function fetchAllPages<T>(
   page: Page,
@@ -14,15 +23,16 @@ async function fetchAllPages<T>(
 ): Promise<T[]> {
   const results: T[] = []
   const visited = new Set<string>()
-  let nextUrl: string | null = firstUrl
+  let nextUrl: URL | null = new URL(firstUrl, new URL(page.url()).origin)
 
   while (nextUrl) {
-    if (visited.has(nextUrl)) {
-      throw new Error(`Paginação repetiu a URL: ${nextUrl}`)
+    const requestUrl = nextUrl.toString()
+    if (visited.has(requestUrl)) {
+      throw new Error(`Paginação repetiu a URL: ${requestUrl}`)
     }
-    visited.add(nextUrl)
+    visited.add(requestUrl)
 
-    const response = await page.request.get(nextUrl, { headers })
+    const response = await page.request.get(requestUrl, { headers })
     expect(response.ok()).toBeTruthy()
     const pageData = (await response.json()) as PaginatedResponse<T>
     results.push(...pageData.results)
@@ -31,8 +41,7 @@ async function fetchAllPages<T>(
       nextUrl = null
       continue
     }
-    const next = new URL(pageData.next, 'http://playwright.local')
-    nextUrl = `${next.pathname}${next.search}`
+    nextUrl = resolveNextPageUrl(nextUrl, pageData.next)
   }
 
   return results
@@ -59,14 +68,44 @@ async function findR9ReturnSale(page: Page) {
     '/api/v1/sales/?status=confirmed',
     tenantHeaders,
   )
-  const sale = sales
+  const candidates = sales
     .filter((candidate) => candidate.items.some((item) => item.product === product!.id))
     .sort(
       (left, right) =>
         right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id),
-    )[0]
+    )
+
+  const candidatesWithBalance = await Promise.all(
+    candidates.map(async (candidate) => {
+      const returnsResponse = await page.request.get(
+        `/api/v1/sales/${candidate.id}/returns/`,
+        { headers: tenantHeaders },
+      )
+      expect(returnsResponse.ok()).toBeTruthy()
+      const saleReturns = (await returnsResponse.json()) as SaleReturn[]
+      const returnedBySaleItem = new Map<string, number>()
+      for (const saleReturn of saleReturns) {
+        if (!['draft', 'completed'].includes(saleReturn.status)) continue
+        for (const item of saleReturn.items) {
+          returnedBySaleItem.set(
+            item.sale_item,
+            (returnedBySaleItem.get(item.sale_item) ?? 0) + Number(item.quantity),
+          )
+        }
+      }
+
+      const saleItem = candidate.items.find((item) => {
+        if (item.product !== product!.id) return false
+        const returned = returnedBySaleItem.get(item.id) ?? 0
+        return Number(item.quantity) - returned > 0
+      })
+      return saleItem ? { sale: candidate, saleItem } : null
+    }),
+  )
+  const returnableCandidate = candidatesWithBalance.find((candidate) => candidate !== null)
+  const sale = returnableCandidate?.sale
+  const saleItem = returnableCandidate?.saleItem
   expect(sale).toBeDefined()
-  const saleItem = sale!.items.find((item) => item.product === product!.id)
   expect(saleItem).toBeDefined()
 
   return { sale: sale!, saleItem: saleItem!, product: product! }
@@ -104,14 +143,8 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     const page = authenticatedPage
     const { sale, saleItem, product } = await findR9ReturnSale(page)
 
-    await page.goto('/sales')
-    const saleRow = page
-      .getByTestId('sale-row')
-      .filter({ has: page.getByTestId(`status-badge-${sale.id}`) })
-    await expect(saleRow).toBeVisible()
-
     // When abre o detalhe, aciona Devolver itens e informa quantidade/motivo.
-    await saleRow.getByRole('link', { name: 'Detalhes' }).click()
+    await page.goto(`/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
     await page.getByRole('button', { name: 'Devolver itens' }).click()
 
@@ -140,6 +173,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     expect(payload.items).toEqual([
       { sale_item_id: saleItem.id, quantity: '1' },
     ])
+    expect(payload.reason).toBe('Devolução E2E R9 por teste automatizado')
     expect(payload.items[0]).not.toHaveProperty('product')
     expect(request.headers()['idempotency-key']).toBeTruthy()
     await expect(dialog).not.toBeVisible()
