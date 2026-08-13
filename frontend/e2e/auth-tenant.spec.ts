@@ -56,7 +56,6 @@ test.describe('Autenticação e troca de tenant', () => {
     const count = await tenantButtons.count()
     expect(count).toBeGreaterThanOrEqual(2)
 
-    const firstTenant = await tenantButtons.nth(0).textContent()
     await tenantButtons.nth(1).click()
     await expect(tenantButtons.nth(1)).toHaveAttribute('aria-current', 'true')
   })
