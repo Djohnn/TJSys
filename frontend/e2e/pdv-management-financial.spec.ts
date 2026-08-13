@@ -6,6 +6,9 @@ type Product = { id: string; sku: string }
 type SaleItem = { id: string; product: string; quantity: string }
 type Sale = { id: string; status: string; created_at: string; items: SaleItem[] }
 type SaleReturn = {
+  id: string
+  sale: string
+  reason: string
   status: string
   items: Array<{ sale_item: string; quantity: string }>
 }
@@ -108,10 +111,20 @@ async function findR9ReturnSale(page: Page) {
   expect(sale).toBeDefined()
   expect(saleItem).toBeDefined()
 
-  return { sale: sale!, saleItem: saleItem!, product: product! }
+  return {
+    sale: sale!,
+    saleItem: saleItem!,
+    product: product!,
+    tenantId: tenant!.tenant_id,
+  }
 }
 
 test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
+  test.skip(
+    ({ browserName }) => browserName !== 'chromium',
+    'Aceite R9 e autenticação por recovery code executam somente em Chromium.',
+  )
+
   test('Vendas — lista de vendas carrega', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/sales')
@@ -141,7 +154,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
   test('[R9] devolve item de venda confirmada pela jornada real', async ({ authenticatedPage }) => {
     // Given usuário E2E autenticado, tenant ativo e venda R9 confirmada seedada.
     const page = authenticatedPage
-    const { sale, saleItem, product } = await findR9ReturnSale(page)
+    const { sale, saleItem, product, tenantId } = await findR9ReturnSale(page)
 
     // When abre o detalhe, aciona Devolver itens e informa quantidade/motivo.
     await page.goto(`/sales/${sale.id}`)
@@ -173,9 +186,39 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     expect(payload.items).toEqual([
       { sale_item_id: saleItem.id, quantity: '1' },
     ])
-    expect(payload.reason).toBe('Devolução E2E R9 por teste automatizado')
+    const reason = 'Devolução E2E R9 por teste automatizado'
+    expect(payload.reason).toBe(reason)
     expect(payload.items[0]).not.toHaveProperty('product')
     expect(request.headers()['idempotency-key']).toBeTruthy()
+
+    const responseBody = (await returnResponse.json()) as SaleReturn
+    expect(responseBody).toMatchObject({
+      id: expect.any(String),
+      sale: sale.id,
+      status: 'completed',
+      reason,
+    })
+    expect(responseBody.items).toHaveLength(1)
+    expect(responseBody.items[0]).toMatchObject({ sale_item: saleItem.id })
+    expect(Number(responseBody.items[0].quantity)).toBe(1)
+
+    const persistedResponse = await page.request.get(
+      `/api/v1/sales/${sale.id}/returns/`,
+      { headers: { 'X-Tenant-ID': tenantId } },
+    )
+    expect(persistedResponse.ok()).toBeTruthy()
+    const persistedReturns = (await persistedResponse.json()) as SaleReturn[]
+    const persistedReturn = persistedReturns.find((candidate) => candidate.id === responseBody.id)
+    expect(persistedReturn).toBeDefined()
+    expect(persistedReturn).toMatchObject({
+      id: responseBody.id,
+      sale: sale.id,
+      status: 'completed',
+      reason,
+    })
+    expect(persistedReturn!.items).toHaveLength(1)
+    expect(persistedReturn!.items[0]).toMatchObject({ sale_item: saleItem.id })
+    expect(Number(persistedReturn!.items[0].quantity)).toBe(1)
     await expect(dialog).not.toBeVisible()
   })
 

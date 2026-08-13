@@ -1,10 +1,12 @@
 import hashlib
+import os
 import uuid
 from decimal import Decimal
 
 from decouple import config
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -19,12 +21,62 @@ User = get_user_model()
 
 E2E_API_KEY = 'e2e-test-key-2026'
 E2E_PASSWORD = 'e2e-test-pwd-2026'  # noqa: S105
+E2E_SECRET_KEY = 'e2e-secret-key-not-for-production'  # noqa: S105
+E2E_SETTINGS_MODULES = {'config.settings.e2e', 'config.settings.test'}
+E2E_DATABASE_NAMES = {'zyrp'}
+E2E_DATABASE_USERS = {'zyrp'}
+E2E_DATABASE_HOSTS = {
+    'db',
+    'r9-finalization-db-1',
+    '127.0.0.1',
+    'localhost',
+}
+R9_MAX_GENERATIONS = 16
+
+
+def r9_sale_key_for_generation(generation: int) -> str:
+    if generation < 0 or generation >= R9_MAX_GENERATIONS:
+        raise CommandError(
+            f'Limite de {R9_MAX_GENERATIONS} gerações da venda R9 atingido; '
+            'resete o banco E2E dedicado antes de semear novamente. '
+            'Fatos auditáveis existentes não foram removidos.'
+        )
+    return (
+        'e2e-r9-return-sale'
+        if generation == 0
+        else f'e2e-r9-return-sale-{generation}'
+    )
 
 
 class Command(BaseCommand):
     help = 'Cria dados de teste E2E para o PDV (dispositivo, produto, local de estoque).'
 
+    def _ensure_e2e_environment(self) -> None:
+        database = connection.settings_dict
+        is_compatible = all(
+            (
+                os.environ.get('E2E_SEED', '').strip() == '1',
+                os.environ.get('DJANGO_SETTINGS_MODULE', '')
+                in E2E_SETTINGS_MODULES,
+                str(database.get('NAME', '')) in E2E_DATABASE_NAMES,
+                str(database.get('USER', '')) in E2E_DATABASE_USERS,
+                str(database.get('HOST', '')) in E2E_DATABASE_HOSTS,
+                settings.SECRET_KEY == E2E_SECRET_KEY,
+            )
+        )
+        if not is_compatible:
+            raise CommandError(
+                'seed_e2e recusado: exige E2E_SEED=1, '
+                'DJANGO_SETTINGS_MODULE=config.settings.e2e (ou .test), '
+                'banco E2E zyrp em host permitido e SECRET_KEY E2E explícito.'
+            )
+
     def handle(self, *args, **options):
+        self._ensure_e2e_environment()
+        return self._seed(*args, **options)
+
+    @transaction.atomic
+    def _seed(self, *args, **options):
         password = config('SEED_ADMIN_PASSWORD', default=E2E_PASSWORD)
 
         admin_user, created = User.objects.get_or_create(email='e2e@tjsys.local')
@@ -279,13 +331,11 @@ class Command(BaseCommand):
                     payments=[{'method': 'cash', 'amount': Decimal('49.90')}],
                     idempotency_key='e2e-sale-seed',
                 )
-                r9_return_sale_key = 'e2e-r9-return-sale'
                 r9_return_sale_generation = 0
                 while True:
-                    if r9_return_sale_generation:
-                        r9_return_sale_key = (
-                            f'e2e-r9-return-sale-{r9_return_sale_generation}'
-                        )
+                    r9_return_sale_key = r9_sale_key_for_generation(
+                        r9_return_sale_generation
+                    )
                     existing_r9_sale = Sale.all_objects.filter(
                         tenant=tenant,
                         idempotency_key=r9_return_sale_key,

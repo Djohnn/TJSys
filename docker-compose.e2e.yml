@@ -29,10 +29,16 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SETTINGS_MODULE: config.settings.e2e
       DATABASE_URL: postgres://zyrp:zyrp@db:5432/zyrp
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: zyrp
+      POSTGRES_APP_USER: zyrp
+      POSTGRES_APP_PASSWORD: zyrp
       REDIS_URL: redis://redis:6379
       SECRET_KEY: e2e-secret-key-not-for-production
+      E2E_SEED: "1"
       DEBUG: "true"
       MONITORING_ENABLED: "true"
     command: >
