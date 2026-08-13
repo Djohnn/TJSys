@@ -11,6 +11,35 @@ from outbox.models import OutboxMessage
 from sales.models import CashMovement, SaleItem, SaleRefund, SaleReturn, SaleReturnItem
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 
+SALES_RLS_TABLES = (
+    'sales_cashsession',
+    'sales_cashmovement',
+    'sales_sale',
+    'sales_saleitem',
+    'sales_salepayment',
+    'sales_salereturn',
+    'sales_salereturnitem',
+    'sales_salerefund',
+    'sales_salecancellation',
+)
+
+
+def _assert_sales_rls_context(cursor, tenant):
+    cursor.execute("SELECT current_setting('app.current_tenant_id', true)")
+    assert cursor.fetchone()[0] == str(tenant.id)
+    cursor.execute(
+        """
+        SELECT relname, relrowsecurity, relforcerowsecurity
+        FROM pg_class
+        WHERE relname = ANY(%s)
+        ORDER BY relname
+        """,
+        [list(SALES_RLS_TABLES)],
+    )
+    rows = cursor.fetchall()
+    assert {row[0] for row in rows} == set(SALES_RLS_TABLES)
+    assert all(enabled and forced for _, enabled, forced in rows)
+
 
 def _attempt_return(*, tenant, sale, sale_item, idempotency_key, barrier):
     from sales.services import InsufficientReturnableQuantity, create_sale_return
@@ -22,6 +51,7 @@ def _attempt_return(*, tenant, sale, sale_item, idempotency_key, barrier):
             cursor.execute('SET app.current_tenant_id = %s', [str(tenant.id)])
             cursor.execute('SELECT pg_backend_pid()')
             backend_pid = cursor.fetchone()[0]
+            _assert_sales_rls_context(cursor, tenant)
         barrier.wait(timeout=10)
         try:
             sale_return = create_sale_return(
@@ -80,6 +110,7 @@ def _attempt_refund(*, tenant, sale, amount, idempotency_key, barrier):
             cursor.execute('SET app.current_tenant_id = %s', [str(tenant.id)])
             cursor.execute('SELECT pg_backend_pid()')
             backend_pid = cursor.fetchone()[0]
+            _assert_sales_rls_context(cursor, tenant)
         barrier.wait(timeout=10)
         try:
             refund = create_sale_refund(

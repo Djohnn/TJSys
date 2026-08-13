@@ -1,13 +1,14 @@
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.db import connection
 
 from audit.models import AuditRecord
 from outbox.models import OutboxMessage
-from sales.models import CashMovement, Sale, SaleRefund, SaleReturn
+from sales.models import CashMovement, CashSession, Sale, SaleRefund, SaleReturn
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
-from tenancy.models import Tenant
+from tenancy.models import Branch, Company, Tenant
 
 
 def _run_in_tenant(tenant, callback):
@@ -606,12 +607,57 @@ class TestSaleRefundService:
             from sales.services import create_sale_refund
 
             other_tenant = Tenant.objects.create(name='Other refund tenant', slug='refund-other')
-            sale_return = SaleReturn.all_objects.create(
-                tenant=other_tenant,
-                sale=ctx['sale'],
-                reason='Outro tenant',
-                status='completed',
-            )
+            other_token = set_current_tenant_id(other_tenant.id)
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SET app.current_tenant_id = %s',
+                        [str(other_tenant.id)],
+                    )
+                other_user = get_user_model().objects.create_user(
+                    email='refund-other-tenant@example.test',
+                    password='!',
+                )
+                other_company = Company.all_objects.create(
+                    tenant=other_tenant,
+                    name='Other Refund Company',
+                )
+                other_branch = Branch.all_objects.create(
+                    tenant=other_tenant,
+                    company=other_company,
+                    name='Other Refund Branch',
+                )
+                other_session = CashSession.all_objects.create(
+                    tenant=other_tenant,
+                    branch=other_branch,
+                    operator=other_user,
+                    opening_amount=Decimal('0'),
+                    expected_amount=Decimal('0'),
+                )
+                other_sale = Sale.all_objects.create(
+                    tenant=other_tenant,
+                    branch=other_branch,
+                    cash_session=other_session,
+                    operator=other_user,
+                    gross_total=Decimal('10.00'),
+                    net_total=Decimal('10.00'),
+                )
+                sale_return = SaleReturn.all_objects.create(
+                    tenant=other_tenant,
+                    sale=other_sale,
+                    reason='Outro tenant',
+                    status='completed',
+                )
+            finally:
+                reset_current_tenant_id(other_token)
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SET app.current_tenant_id = %s',
+                        [str(ctx['tenant'].id)],
+                    )
+
+            assert SaleReturn.objects.filter(pk=sale_return.pk).exists() is False
+            assert SaleReturn.all_objects.filter(pk=sale_return.pk).exists() is False
             before = _attempt_artifacts(ctx['tenant'], key)
 
             with pytest.raises(ValueError, match='Sale return must belong to the same tenant'):
