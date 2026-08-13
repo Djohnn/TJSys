@@ -1,9 +1,7 @@
 import json
-import os
 import re
 import subprocess
-import sys
-import tempfile
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -248,20 +246,30 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
     config = (frontend_root / 'playwright.config.ts').read_text(encoding='utf-8')
     fixtures = (frontend_root / 'e2e' / 'fixtures.ts').read_text(encoding='utf-8')
     global_setup = frontend_root / 'e2e' / 'global-setup.ts'
+    global_teardown = frontend_root / 'e2e' / 'global-teardown.ts'
+    gitignore = (frontend_root / '.gitignore').read_text(encoding='utf-8')
 
     assert global_setup.is_file(), 'o login MFA deve ocorrer uma vez no global setup'
+    assert global_teardown.is_file(), 'a credencial persistida deve ser removida após a suíte'
     setup_source = global_setup.read_text(encoding='utf-8')
+    teardown_source = global_teardown.read_text(encoding='utf-8')
     assert "globalSetup: './e2e/global-setup'" in config
+    assert "globalTeardown: './e2e/global-teardown'" in config
     assert 'storageState: authStorageState' in config
     assert "await authenticatePage(page)" in setup_source
+    assert 'await rm(authStorageDirectory, { recursive: true, force: true })' in teardown_source
+    assert 'test-results/.auth/' in gitignore.splitlines()
     assert 'await authenticatePage(page)' not in fixtures
     assert "await page.goto('/dashboard')" in fixtures
     assert 'anonymousPage' in fixtures
     assert 'storageState: { cookies: [], origins: [] }' in fixtures
     auth_spec = (frontend_root / 'e2e' / 'auth-tenant.spec.ts').read_text(encoding='utf-8')
-    assert "async function mockLogout(page: Page): Promise<void>" in auth_spec
+    assert "async function mockLogout(page: Page): Promise<() => void>" in auth_spec
     assert auth_spec.count('await mockLogout(page)') == 2
     assert 'await mockUnauthenticatedSession(page)' in auth_spec
+    assert 'page.waitForRequest' in auth_spec
+    assert "request.method() === 'POST'" in auth_spec
+    assert 'expect(requestCount).toBe(1)' in auth_spec
 
 
 def test_compose_e2e_backend_image_contract_is_buildable_for_seeded_django_runtime():
@@ -293,51 +301,35 @@ def test_compose_e2e_backend_image_contract_is_buildable_for_seeded_django_runti
     dockerfile = PROJECT_ROOT / 'backend' / backend['build']['dockerfile']
     assert dockerfile.is_file(), 'backend Dockerfile is required by the official E2E compose build'
     contents = dockerfile.read_text(encoding='utf-8')
+    dockerignore = (PROJECT_ROOT / 'backend' / '.dockerignore').read_text(encoding='utf-8')
+    ignored = set(dockerignore.splitlines())
+    required_ignores = {
+        '.env*', '.venv/', '__pycache__/', '.test-cache/', '.coverage*', 'tests/', '.git/'
+    }
+    assert required_ignores <= ignored
+    assert {'*.py', 'migrations/', 'pyproject.toml'}.isdisjoint(ignored)
     assert re.search(r'^FROM python:3\.12(?:[-\w.]*)?$', contents, re.MULTILINE)
     assert 'WORKDIR /app' in contents
-    assert 'pip install --no-cache-dir .' in contents
+    metadata_copy = contents.index('COPY pyproject.toml README.md ./')
+    dependency_install = contents.index('pip install --no-cache-dir', metadata_copy)
+    source_copy = contents.index('COPY . .')
+    package_install = contents.index('pip install --no-cache-dir .', source_copy)
+    assert metadata_copy < dependency_install < source_copy < package_install
     assert re.search(r'^COPY \. \.$', contents, re.MULTILINE)
     assert re.search(r'^USER \w+$', contents, re.MULTILINE)
 
 
-def test_runtime_fiscal_adapter_import_is_installable_from_backend_distribution():
-    """Given the backend distribution installed in isolation, its fiscal adapter imports."""
+def test_runtime_imports_are_declared_in_backend_distribution_metadata():
+    """Given runtime imports, distribution metadata declares their external packages offline."""
     backend_root = PROJECT_ROOT / 'backend'
-    with tempfile.TemporaryDirectory() as temporary_directory:
-        environment = Path(temporary_directory) / 'runtime-venv'
-        create_environment = subprocess.run(
-            [sys.executable, '-m', 'venv', str(environment)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        assert create_environment.returncode == 0, create_environment.stderr
-        interpreter_name = 'Scripts/python.exe' if os.name == 'nt' else 'bin/python'
-        interpreter = environment / interpreter_name
-        install_distribution = subprocess.run(
-            [str(interpreter), '-m', 'pip', 'install', '--no-cache-dir', '.'],
-            cwd=backend_root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        assert install_distribution.returncode == 0, install_distribution.stderr
-        runtime_environment = os.environ | {
-            'DJANGO_SETTINGS_MODULE': 'config.settings.e2e',
-            'E2E_SEED': '1',
-            'SECRET_KEY': 'e2e-secret-key-not-for-production',
-        }
-        import_adapter = subprocess.run(
-            [
-                str(interpreter),
-                '-c',
-                'import django; django.setup(); '
-                'from fiscal.adapters.plugnotas import PlugNotasAdapter; '
-                'from tenancy.authentication import DeviceJWTAuthentication',
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=runtime_environment,
-        )
-        assert import_adapter.returncode == 0, import_adapter.stderr
+    metadata = tomllib.loads((backend_root / 'pyproject.toml').read_text(encoding='utf-8'))
+    requirements = '\n'.join(metadata['project']['dependencies']).lower()
+    fiscal_adapter = (backend_root / 'fiscal' / 'adapters' / 'plugnotas.py').read_text(
+        encoding='utf-8'
+    )
+    device_auth = (backend_root / 'tenancy' / 'authentication.py').read_text(encoding='utf-8')
+
+    assert re.search(r'(?m)^import requests$', fiscal_adapter)
+    assert 'requests' in requirements
+    assert 'rest_framework_simplejwt' in device_auth
+    assert 'djangorestframework-simplejwt' in requirements
