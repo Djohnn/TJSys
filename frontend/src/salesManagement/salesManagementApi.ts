@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client'
+import { isApiProblemError } from '@/api/problem'
 
 export interface PaginatedResponse<T> {
   count: number
@@ -127,7 +128,11 @@ function normalizeSale(raw: CanonicalSale): Sale {
     items: (raw.items ?? []).map((item) => ({
       id: item.id ?? '',
       product: item.product ?? '',
-      product_name: item.product_name ?? item.product ?? '-',
+      product_name:
+        item.product_name ??
+        (item.product
+          ? `Produto ${item.product}`
+          : 'Produto sem identificação'),
       quantity: item.quantity ?? '0',
       unit_price: item.unit_price ?? '0.00',
       total: item.total ?? item.line_total ?? '0.00',
@@ -135,7 +140,17 @@ function normalizeSale(raw: CanonicalSale): Sale {
     payments: (raw.payments ?? []).map((payment) => ({
       id: payment.id ?? '',
       method: payment.method ?? '',
-      method_name: payment.method_name ?? payment.method ?? '-',
+      method_name:
+        payment.method_name ??
+        (
+          {
+            cash: 'Dinheiro',
+            pix: 'PIX',
+            card_external: 'Cartão externo',
+          } as Record<string, string>
+        )[payment.method ?? ''] ??
+        payment.method ??
+        'Método não informado',
       amount: payment.amount ?? '0.00',
       status: payment.status ?? 'completed',
       status_label: payment.status_label ?? 'Concluído',
@@ -146,7 +161,9 @@ function normalizeSale(raw: CanonicalSale): Sale {
   }
 }
 
-function buildSearchParams(params: Record<string, string | number | undefined>): string {
+function buildSearchParams(
+  params: Record<string, string | number | undefined>,
+): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') {
@@ -162,7 +179,9 @@ export function fetchSales(
   query: SalesQuery,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<Sale>> {
-  const qs = buildSearchParams(query as Record<string, string | number | undefined>)
+  const qs = buildSearchParams(
+    query as Record<string, string | number | undefined>,
+  )
   return apiRequest<PaginatedResponse<Sale>>(`/sales/${qs}`, {
     tenantId,
     signal,
@@ -174,10 +193,24 @@ export function fetchSale(
   id: string,
   signal?: AbortSignal,
 ): Promise<Sale> {
-  return (apiRequest<CanonicalSale>(`/sales/${id}/`, {
-    tenantId,
-    signal,
-  }) as Promise<CanonicalSale>).then(normalizeSale)
+  return (
+    apiRequest<CanonicalSale>(`/sales/${id}/`, {
+      tenantId,
+      signal,
+    }) as Promise<CanonicalSale>
+  ).then(normalizeSale)
+}
+
+export function getSaleQueryErrorMessage(error: unknown): string {
+  if (isApiProblemError(error)) {
+    if (error.problem.status === 404) {
+      return 'Venda não encontrada ou não está disponível neste tenant.'
+    }
+    return (
+      error.problem.detail || 'Não foi possível carregar os dados da venda.'
+    )
+  }
+  return 'Não foi possível carregar os dados da venda.'
 }
 
 export function fetchCashSessions(
@@ -185,7 +218,9 @@ export function fetchCashSessions(
   query: CashSessionsQuery,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<CashSession>> {
-  const qs = buildSearchParams(query as Record<string, string | number | undefined>)
+  const qs = buildSearchParams(
+    query as Record<string, string | number | undefined>,
+  )
   return apiRequest<PaginatedResponse<CashSession>>(`/cash-sessions/${qs}`, {
     tenantId,
     signal,

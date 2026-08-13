@@ -124,3 +124,39 @@ def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_pat
         ]
         assert consumer_indexes
         assert health_index < min(consumer_indexes)
+
+
+@pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
+def test_playwright_install_covers_configured_projects(workflow_path: Path):
+    """Given configured projects, When CI runs all E2E, Then browsers are installed."""
+    workflow = _load_workflow(workflow_path)
+    config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(encoding='utf-8')
+    configured_projects = set(re.findall(r"name:\s*'([^']+)'", config))
+    browser_projects = {'chromium', 'firefox', 'webkit'} & configured_projects
+    assert browser_projects == {'chromium', 'firefox', 'webkit'}
+
+    seeded_jobs = [job_text for job_text in workflow.values() if 'seed_e2e' in job_text]
+    assert seeded_jobs
+    for job_text in seeded_jobs:
+        steps = _steps(job_text)
+        install_steps = [step for step in steps if 'playwright install' in step]
+        assert install_steps, f'{workflow_path} sem instalação explícita do Playwright'
+        installed = set(
+            re.findall(r'\b(chromium|firefox|webkit)\b', '\n'.join(install_steps))
+        )
+
+        run_steps = [
+            step
+            for step in steps
+            if 'playwright test' in step or 'test:e2e' in step
+        ]
+        assert run_steps, f'{workflow_path} sem execução E2E'
+        run_text = '\n'.join(run_steps)
+        explicit_projects = set(
+            re.findall(r'--project(?:=|\s+)(chromium|firefox|webkit)', run_text)
+        )
+        expected = explicit_projects or browser_projects
+        assert expected <= installed, (
+            f'{workflow_path} instala {sorted(installed)}, '
+            f'mas executa/exige {sorted(expected)}'
+        )

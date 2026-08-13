@@ -215,6 +215,34 @@ class TestSaleReturnAPI:
             code='validation_error',
         )
 
+    def test_return_above_remaining_quantity_is_insufficient_returnable_conflict(
+        self, returns_api_context
+    ):
+        """Given a positive excess, the API returns the approved conflict contract."""
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        url = reverse('sale-returns', kwargs={'pk': sale.id})
+        sale_item_id = str(SaleItem.all_objects.filter(sale=sale).first().id)
+
+        response = ctx['api_client'].post(
+            url,
+            data=json.dumps(
+                {
+                    'items': [{'sale_item_id': sale_item_id, 'quantity': '3'}],
+                    'reason': 'Quantidade acima do saldo devolvível',
+                }
+            ),
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY='api-return-insufficient-1',
+            HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_409_CONFLICT,
+            code='insufficient_returnable',
+        )
+
     def test_return_reason_over_500_is_rejected_before_service(self, returns_api_context):
         ctx = returns_api_context
         sale = self._sale(ctx)

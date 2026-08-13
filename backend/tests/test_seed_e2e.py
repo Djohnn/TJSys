@@ -11,6 +11,8 @@ from accounts.models import MFADevice, RecoveryCode
 from tenancy.management.commands.seed_e2e import (
     R9_MAX_GENERATIONS,
     Command,
+    r9_cancel_sale_key_for_generation,
+    r9_refund_sale_key_for_generation,
     r9_sale_key_for_generation,
 )
 from tenancy.models import Tenant
@@ -81,3 +83,17 @@ class SeedE2ECommandTest(TestCase):
         assert r9_sale_key_for_generation(R9_MAX_GENERATIONS - 1).endswith('-15')
         with pytest.raises(CommandError, match='resete o banco E2E dedicado'):
             r9_sale_key_for_generation(R9_MAX_GENERATIONS)
+
+    def test_cancel_sale_generation_uses_the_same_fail_closed_limit(self):
+        """Given a cancelled cancel-sale, the next key remains bounded."""
+        assert r9_cancel_sale_key_for_generation(0) == 'e2e-r9-cancel-sale'
+        assert r9_cancel_sale_key_for_generation(R9_MAX_GENERATIONS - 1).endswith('-15')
+        with pytest.raises(CommandError, match='resete o banco E2E dedicado'):
+            r9_cancel_sale_key_for_generation(R9_MAX_GENERATIONS)
+
+    def test_refund_sale_generation_uses_the_same_fail_closed_limit(self):
+        """Given repeated partial refunds, the dedicated sale key stays bounded."""
+        assert r9_refund_sale_key_for_generation(0) == 'e2e-r9-refund-sale'
+        assert r9_refund_sale_key_for_generation(R9_MAX_GENERATIONS - 1).endswith('-15')
+        with pytest.raises(CommandError, match='resete o banco E2E dedicado'):
+            r9_refund_sale_key_for_generation(R9_MAX_GENERATIONS)

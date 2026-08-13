@@ -3,28 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
-import { useTenant } from '@/tenant/TenantProvider'
 import Button from '@/components/ui/Button'
-
-interface Sale {
-  id: string
-  number: string
-  status: string
-  customer_name?: string
-  branch_name?: string
-  total: string
-  created_at: string
-  payments: SalePayment[]
-}
-
-interface SalePayment {
-  id: string
-  method: string
-  method_name: string
-  amount: string
-  status: string
-  status_label: string
-}
+import { useTenant } from '@/tenant/TenantProvider'
+import {
+  fetchSale,
+  getSaleQueryErrorMessage,
+  type Sale,
+} from './salesManagementApi'
 
 type RefundMethod = 'cash' | 'pix' | 'card_external'
 
@@ -32,6 +17,9 @@ interface RefundDialogProps {
   saleId: string
   onClose: () => void
 }
+
+const dialogClass =
+  'fixed inset-0 z-50 flex items-center justify-center bg-black/40'
 
 export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
   const { selectedTenant } = useTenant()
@@ -45,17 +33,27 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
 
   const idempotencyKey = useRef(crypto.randomUUID())
 
-  const { data: sale } = useQuery({
-    queryKey: ['sale', tenantId, saleId],
-    queryFn: ({ signal }) => apiRequest<Sale>(`/sales/${saleId}/`, { signal, tenantId }),
+  const saleQuery = useQuery<Sale>({
+    queryKey: ['sale-dialog', tenantId, saleId],
+    queryFn: ({ signal }) => fetchSale(tenantId, saleId, signal),
     enabled: !!tenantId,
+    retry: false,
   })
+  const { data: sale, isLoading, isError, error: saleError } = saleQuery
 
   const refundMutation = useMutation({
     mutationFn: () => {
-      const body: { method: RefundMethod; reason: string; amount?: string } = { method, reason }
+      if (!sale) throw new Error('Sale data is unavailable.')
+      const body: { method: RefundMethod; reason: string; amount?: string } = {
+        method,
+        reason,
+      }
       const parsed = Number.parseFloat(amount)
-      if (amount.trim() && parsed > 0 && parsed <= Number.parseFloat(sale?.total ?? '0')) {
+      if (
+        amount.trim() &&
+        parsed > 0 &&
+        parsed <= Number.parseFloat(sale.total)
+      ) {
         body.amount = amount
       }
       return apiRequest(`/sales/${saleId}/refund/`, {
@@ -74,6 +72,8 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
     onError: (err) => {
       if (isApiProblemError(err)) {
         setError(err.problem.detail)
+      } else if (err && typeof err === 'object' && 'detail' in err) {
+        setError(String((err as { detail: unknown }).detail))
       } else {
         setError('Erro ao processar reembolso.')
       }
@@ -81,13 +81,14 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
   })
 
   const handleSubmit = () => {
+    if (!sale) return
     if (!reason.trim()) {
       setError('O motivo do reembolso é obrigatório.')
       return
     }
     if (amount.trim()) {
       const parsed = Number.parseFloat(amount)
-      const total = Number.parseFloat(sale?.total ?? '0')
+      const total = Number.parseFloat(sale.total)
       if (!Number.isFinite(parsed) || parsed <= 0 || parsed > total) {
         setError('Informe um valor entre R$ 0,01 e o total da venda.')
         return
@@ -98,35 +99,153 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
     refundMutation.mutate()
   }
 
+  if (isLoading) {
+    return (
+      <div
+        data-testid="refund-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="refund-dialog-title"
+        className={dialogClass}
+      >
+        <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+          <h3
+            id="refund-dialog-title"
+            className="text-lg font-semibold text-neutral-900"
+          >
+            Reembolso
+          </h3>
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-4 text-sm text-neutral-500"
+          >
+            Carregando dados da venda...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError || !sale) {
+    return (
+      <div
+        data-testid="refund-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="refund-dialog-title"
+        className={dialogClass}
+      >
+        <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h3
+              id="refund-dialog-title"
+              className="text-lg font-semibold text-neutral-900"
+            >
+              Reembolso
+            </h3>
+            <button
+              type="button"
+              aria-label="Fechar reembolso"
+              onClick={onClose}
+              className="p-2 -mr-2 text-neutral-400 hover:text-neutral-600 text-xl leading-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="p-6">
+            <p
+              role="alert"
+              aria-live="assertive"
+              data-testid="refund-error"
+              className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+            >
+              {isError
+                ? getSaleQueryErrorMessage(saleError)
+                : 'Venda não encontrada ou não está disponível neste tenant.'}
+            </p>
+          </div>
+          <div className="flex justify-end px-6 py-4 border-t border-border bg-neutral-50 rounded-b-xl">
+            <Button variant="secondary" onClick={onClose} type="button">
+              Fechar
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const displayAmount = amount.trim()
     ? Number.parseFloat(amount).toFixed(2).replace('.', ',')
-    : (sale?.total ?? '0,00').replace('.', ',')
+    : sale.total.replace('.', ',')
 
   return (
-    <div data-testid="refund-dialog" role="dialog" aria-modal="true" aria-labelledby="refund-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4">
+    <div
+      data-testid="refund-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="refund-dialog-title"
+      className={dialogClass}
+    >
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h3 id="refund-dialog-title" className="text-lg font-semibold text-neutral-900">Reembolso</h3>
-          <button type="button" aria-label="Fechar reembolso" onClick={onClose} className="p-2 -mr-2 text-neutral-400 hover:text-neutral-600 text-xl leading-none">&times;</button>
+          <h3
+            id="refund-dialog-title"
+            className="text-lg font-semibold text-neutral-900"
+          >
+            Reembolso
+          </h3>
+          <button
+            type="button"
+            aria-label="Fechar reembolso"
+            onClick={onClose}
+            className="p-2 -mr-2 text-neutral-400 hover:text-neutral-600 text-xl leading-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="p-6 space-y-4">
           <p className="text-sm text-neutral-600">
-            Venda: <strong className="text-neutral-900">{sale?.number ?? saleId}</strong>
+            Venda: <strong className="text-neutral-900">{sale.id}</strong>
           </p>
 
           {error && (
-            <div role="alert" aria-live="polite" data-testid="refund-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <div
+              role="alert"
+              aria-live="polite"
+              data-testid="refund-error"
+              className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+            >
               {error}
             </div>
           )}
 
-          <p data-testid="refund-summary" className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-border">
-            Isso irá gerar um reembolso de <strong className="text-neutral-900">R$ {displayAmount}</strong>
+          {sale.payments.length === 0 && (
+            <p
+              role="status"
+              data-testid="refund-empty"
+              className="p-3 rounded-lg bg-neutral-50 border border-border text-sm text-neutral-600"
+            >
+              Nenhum pagamento disponível para reembolso.
+            </p>
+          )}
+
+          <p
+            data-testid="refund-summary"
+            className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-border"
+          >
+            Isso irá gerar um reembolso de{' '}
+            <strong className="text-neutral-900">R$ {displayAmount}</strong>
           </p>
 
           <div>
-            <label htmlFor="refund-method" className="block text-sm font-medium text-neutral-700 mb-1">Método do reembolso</label>
+            <label
+              htmlFor="refund-method"
+              className="block text-sm font-medium text-neutral-700 mb-1"
+            >
+              Método do reembolso
+            </label>
             <select
               id="refund-method"
               aria-label="Método do reembolso"
@@ -142,7 +261,10 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
           </div>
 
           <div>
-            <label htmlFor="refund-amount" className="block text-sm font-medium text-neutral-700 mb-1">
+            <label
+              htmlFor="refund-amount"
+              className="block text-sm font-medium text-neutral-700 mb-1"
+            >
               Valor (deixe vazio para reembolso total)
             </label>
             <input
@@ -156,11 +278,21 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
               onChange={(e) => setAmount(e.target.value)}
               className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
-            <p id="refund-amount-help" className="mt-1 text-xs text-neutral-500">Deixe vazio para reembolsar o saldo total.</p>
+            <p
+              id="refund-amount-help"
+              className="mt-1 text-xs text-neutral-500"
+            >
+              Deixe vazio para reembolsar o saldo total.
+            </p>
           </div>
 
           <div>
-            <label htmlFor="refund-reason" className="block text-sm font-medium text-neutral-700 mb-1">Motivo</label>
+            <label
+              htmlFor="refund-reason"
+              className="block text-sm font-medium text-neutral-700 mb-1"
+            >
+              Motivo
+            </label>
             <textarea
               id="refund-reason"
               data-testid="refund-reason"
@@ -173,17 +305,24 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-neutral-50 rounded-b-xl">
-          <Button variant="secondary" onClick={onClose} disabled={refundMutation.isPending} type="button">
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={refundMutation.isPending}
+            type="button"
+          >
             Cancelar
           </Button>
           <Button
             variant="primary"
             onClick={handleSubmit}
-            disabled={refundMutation.isPending}
+            disabled={refundMutation.isPending || sale.payments.length === 0}
             loading={refundMutation.isPending}
             type="button"
           >
-            {refundMutation.isPending ? 'Processando...' : 'Confirmar Reembolso'}
+            {refundMutation.isPending
+              ? 'Processando...'
+              : 'Confirmar Reembolso'}
           </Button>
         </div>
       </div>

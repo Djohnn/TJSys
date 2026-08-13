@@ -18,8 +18,16 @@ const BASE = '/api/v1'
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
-  user: { id: 1, email: 'admin@zyrp.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
-  memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
+  user: {
+    id: 1,
+    email: 'admin@zyrp.local',
+    name: 'Admin',
+    is_active: true,
+    is_mfa_enabled: false,
+  },
+  memberships: [
+    { id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' },
+  ],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
   verifyRecovery: vi.fn(),
@@ -27,25 +35,61 @@ const authValue: AuthContextValue = {
 }
 
 const tenantValue: TenantContextValue = {
-  selectedTenant: { id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' },
-  memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
+  selectedTenant: {
+    id: 1,
+    tenant_id: 'tenant-alpha',
+    tenant_name: 'Alpha',
+    role: 'admin',
+  },
+  memberships: [
+    { id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' },
+  ],
   selectTenant: () => {},
 }
 
 const SALE_DETAIL = {
   id: 'sale-1',
-  number: 'V-001',
-  status: 'completed',
-  customer_name: 'Cliente A',
-  branch_name: 'Centro',
-  total: '150.00',
+  branch: 'branch-1',
+  cash_session: 'cash-session-1',
+  operator: 'operator-1',
+  customer: null,
+  status: 'confirmed',
+  gross_total: '150.00',
+  discount_total: '0.00',
+  net_total: '150.00',
   created_at: '2026-07-22T10:00:00Z',
+  version: 1,
   payments: [
-    { id: 'payment-1', method: 'cash', method_name: 'Dinheiro', amount: '150.00', status: 'confirmed', status_label: 'Confirmado' },
+    {
+      id: 'payment-1',
+      method: 'cash',
+      amount: '150.00',
+      reference: 'receipt-1',
+    },
   ],
   items: [
-    { id: 'sale-item-1', product: 'prod-1', product_name: 'Parafuso', quantity: '10', unit_price: '10.00', total: '100.00' },
-    { id: 'sale-item-2', product: 'prod-2', product_name: 'Porca', quantity: '5', unit_price: '10.00', total: '50.00' },
+    {
+      id: 'sale-item-1',
+      product: 'prod-1',
+      unit: 'unit-1',
+      stock_operation: 'stock-op-1',
+      quantity: '10.000000',
+      factor: '1.000000',
+      unit_price: '10.00',
+      discount_amount: '0.00',
+      line_total: '100.00',
+    },
+    {
+      id: 'sale-item-2',
+      product: 'prod-2',
+      unit: 'unit-1',
+      stock_operation: 'stock-op-2',
+      quantity: '5.000000',
+      factor: '1.000000',
+      unit_price: '10.00',
+      discount_amount: '0.00',
+      line_total: '50.00',
+    },
   ],
 }
 
@@ -70,74 +114,148 @@ function renderWithProviders(element: React.ReactElement) {
 
 beforeEach(() => {
   server.use(
-    http.get(`${BASE}/sales/sale-1/`, () =>
-      HttpResponse.json(SALE_DETAIL),
-    ),
+    http.get(`${BASE}/sales/sale-1/`, () => HttpResponse.json(SALE_DETAIL)),
     http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
-      const body = await request.json() as { items?: unknown[]; reason?: string }
+      const body = (await request.json()) as {
+        items?: unknown[]
+        reason?: string
+      }
       if (!body.items || body.items.length === 0 || !body.reason?.trim()) {
         return HttpResponse.json(
-          { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { reason: !body.reason?.trim() ? ['Este campo é obrigatório.'] : undefined } },
+          {
+            type: 'about:blank',
+            title: 'Validation Error',
+            status: 422,
+            detail: 'Invalid input',
+            errors: {
+              reason: !body.reason?.trim()
+                ? ['Este campo é obrigatório.']
+                : undefined,
+            },
+          },
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 201 })
+      return HttpResponse.json(
+        { detail: 'Devolução registrada com sucesso.' },
+        { status: 201 },
+      )
     }),
     http.post(`${BASE}/sales/sale-1/cancel/`, async ({ request }) => {
-      const body = await request.json() as { reason?: string }
+      const body = (await request.json()) as { reason?: string }
       if (!body.reason?.trim()) {
         return HttpResponse.json(
-          { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
+          {
+            type: 'about:blank',
+            title: 'Validation Error',
+            status: 422,
+            detail: 'Motivo é obrigatório.',
+            errors: { reason: ['Este campo é obrigatório.'] },
+          },
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 201 })
+      return HttpResponse.json(
+        { detail: 'Venda cancelada com sucesso.' },
+        { status: 201 },
+      )
     }),
     http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
-      const body = await request.json() as { method?: string; amount?: string; reason?: string }
+      const body = (await request.json()) as {
+        method?: string
+        amount?: string
+        reason?: string
+      }
       if (!body.reason?.trim()) {
         return HttpResponse.json(
-          { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
+          {
+            type: 'about:blank',
+            title: 'Validation Error',
+            status: 422,
+            detail: 'Motivo é obrigatório.',
+            errors: { reason: ['Este campo é obrigatório.'] },
+          },
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 201 })
+      return HttpResponse.json(
+        { detail: 'Reembolso processado com sucesso.' },
+        { status: 201 },
+      )
     }),
     http.post(`${BASE}/sales/sale-409-return/returns/`, () =>
       HttpResponse.json(
-        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui devolução registrada.', code: 'already_returned' },
+        {
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          detail: 'Esta venda já possui devolução registrada.',
+          code: 'already_returned',
+        },
         { status: 409 },
       ),
     ),
     http.post(`${BASE}/sales/sale-409-cancel/cancel/`, () =>
       HttpResponse.json(
-        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já está cancelada.', code: 'already_cancelled' },
+        {
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          detail: 'Esta venda já está cancelada.',
+          code: 'already_cancelled',
+        },
         { status: 409 },
       ),
     ),
     http.post(`${BASE}/sales/sale-403/returns/`, () =>
       HttpResponse.json(
-        { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Permissão negada. Reautenticação MFA necessária.', code: 'mfa_required' },
+        {
+          type: 'about:blank',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Permissão negada. Reautenticação MFA necessária.',
+          code: 'mfa_required',
+        },
         { status: 403 },
       ),
     ),
     http.post(`${BASE}/sales/sale-403/cancel/`, () =>
       HttpResponse.json(
-        { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Permissão negada. Reautenticação MFA necessária.', code: 'mfa_required' },
+        {
+          type: 'about:blank',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Permissão negada. Reautenticação MFA necessária.',
+          code: 'mfa_required',
+        },
         { status: 403 },
       ),
     ),
     http.post(`${BASE}/sales/sale-403/refund/`, () =>
       HttpResponse.json(
-        { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Permissão negada. Reautenticação MFA necessária.', code: 'mfa_required' },
+        {
+          type: 'about:blank',
+          title: 'Forbidden',
+          status: 403,
+          detail: 'Permissão negada. Reautenticação MFA necessária.',
+          code: 'mfa_required',
+        },
         { status: 403 },
       ),
     ),
     http.get(`${BASE}/sales/sale-409-return/`, () =>
-      HttpResponse.json({ ...SALE_DETAIL, id: 'sale-409-return', status: 'returned' }),
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-409-return',
+        status: 'returned',
+      }),
     ),
     http.get(`${BASE}/sales/sale-409-cancel/`, () =>
-      HttpResponse.json({ ...SALE_DETAIL, id: 'sale-409-cancel', status: 'cancelled' }),
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-409-cancel',
+        status: 'cancelled',
+      }),
     ),
     http.get(`${BASE}/sales/sale-403/`, () =>
       HttpResponse.json({ ...SALE_DETAIL, id: 'sale-403' }),
@@ -155,9 +273,9 @@ describe('ReturnDialog', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
-    expect(screen.getByText('Porca')).toBeInTheDocument()
+    expect(screen.getByText('Produto prod-2')).toBeInTheDocument()
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
     expect(qtyInputs).toHaveLength(2)
@@ -179,13 +297,15 @@ describe('ReturnDialog', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: /confirmar/i }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('return-error')).toHaveTextContent(/selecione pelo menos um item/i)
+      expect(screen.getByTestId('return-error')).toHaveTextContent(
+        /selecione pelo menos um item/i,
+      )
     })
   })
 
@@ -194,7 +314,7 @@ describe('ReturnDialog', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
@@ -213,7 +333,7 @@ describe('ReturnDialog', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
@@ -221,17 +341,23 @@ describe('ReturnDialog', () => {
     await user.type(qtyInputs[0], '3')
 
     await waitFor(() => {
-      expect(screen.getByTestId('return-summary')).toHaveTextContent(/reduzir o estoque/i)
-      expect(screen.getByTestId('return-summary')).toHaveTextContent(/R\$ 30\.00/)
+      expect(screen.getByTestId('return-summary')).toHaveTextContent(
+        /reduzir o estoque/i,
+      )
+      expect(screen.getByTestId('return-summary')).toHaveTextContent(
+        /R\$ 30\.00/,
+      )
     })
   })
 
   it('handles 409 already-returned error', async () => {
-    renderWithProviders(<ReturnDialog saleId="sale-409-return" onClose={() => {}} />)
+    renderWithProviders(
+      <ReturnDialog saleId="sale-409-return" onClose={() => {}} />,
+    )
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
@@ -243,7 +369,9 @@ describe('ReturnDialog', () => {
     await user.click(screen.getByRole('button', { name: /confirmar/i }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('return-error')).toHaveTextContent(/já possui devolução/i)
+      expect(screen.getByTestId('return-error')).toHaveTextContent(
+        /já possui devolução/i,
+      )
     })
   })
 
@@ -252,21 +380,32 @@ describe('ReturnDialog', () => {
     server.use(
       http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
         capturedKey = request.headers.get('Idempotency-Key')
-        const body = await request.json() as { items?: unknown[]; reason?: string }
+        const body = (await request.json()) as {
+          items?: unknown[]
+          reason?: string
+        }
         if (!body.items?.length || !body.reason?.trim()) {
           return HttpResponse.json(
-            { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input' },
+            {
+              type: 'about:blank',
+              title: 'Validation Error',
+              status: 422,
+              detail: 'Invalid input',
+            },
             { status: 422 },
           )
         }
-        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
+        return HttpResponse.json(
+          { detail: 'Devolução registrada.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
@@ -285,26 +424,47 @@ describe('ReturnDialog', () => {
   })
 
   it('sends the plural return contract with sale item ids and no legacy product field', async () => {
-    let capturedBody: { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string } | null = null
+    let capturedBody: {
+      items?: { sale_item_id?: string; quantity?: string; product?: string }[]
+      reason?: string
+    } | null = null
     let capturedKey: string | null = null
     server.use(
       http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
         capturedKey = request.headers.get('Idempotency-Key')
-        capturedBody = await request.json() as { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string }
-        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
+        capturedBody = (await request.json()) as {
+          items?: {
+            sale_item_id?: string
+            quantity?: string
+            product?: string
+          }[]
+          reason?: string
+        }
+        return HttpResponse.json(
+          { detail: 'Devolução registrada.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
-    await waitFor(() => expect(screen.getByText('Parafuso')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument(),
+    )
     await user.type(screen.getAllByTestId(/^return-qty-/)[0], '1')
     await user.type(screen.getByTestId('return-reason'), 'Teste de contrato')
     await user.click(screen.getByRole('button', { name: /confirmar/i }))
 
     await waitFor(() => expect(capturedBody).not.toBeNull())
-    const body = capturedBody as unknown as { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string }
-    expect(body).toEqual({ items: [{ sale_item_id: 'sale-item-1', quantity: '1' }], reason: 'Teste de contrato' })
+    const body = capturedBody as unknown as {
+      items?: { sale_item_id?: string; quantity?: string; product?: string }[]
+      reason?: string
+    }
+    expect(body).toEqual({
+      items: [{ sale_item_id: 'sale-item-1', quantity: '1' }],
+      reason: 'Teste de contrato',
+    })
     expect(body.items?.[0]).not.toHaveProperty('product')
     expect(capturedKey).toBeTruthy()
   })
@@ -322,13 +482,18 @@ describe('ReturnDialog', () => {
         const key = request.headers.get('Idempotency-Key')
         if (key) capturedKeys.push(key)
         await requestCompleted
-        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
+        return HttpResponse.json(
+          { detail: 'Devolução registrada.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
-    await waitFor(() => expect(screen.getByText('Parafuso')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument(),
+    )
     await user.type(screen.getAllByTestId(/^return-qty-/)[0], '1')
     await user.type(screen.getByTestId('return-reason'), 'Teste de duplicidade')
     const submit = screen.getByRole('button', { name: /confirmar/i })
@@ -347,7 +512,7 @@ describe('ReturnDialog', () => {
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Parafuso')).toBeInTheDocument()
+      expect(screen.getByText('Produto prod-1')).toBeInTheDocument()
     })
 
     const qtyInputs = screen.getAllByTestId(/^return-qty-/)
@@ -358,8 +523,66 @@ describe('ReturnDialog', () => {
     await user.click(screen.getByRole('button', { name: /confirmar/i }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('return-error')).toHaveTextContent(/permis.*?nega|mfa/i)
+      expect(screen.getByTestId('return-error')).toHaveTextContent(
+        /permis.*?nega|mfa/i,
+      )
     })
+  })
+
+  it('renders an accessible not-found state without the return form', async () => {
+    server.use(
+      http.get(`${BASE}/sales/sale-return-404/`, () =>
+        HttpResponse.json(
+          {
+            type: 'https://zyrp.local/problems/not_found',
+            title: 'Sales operation rejected',
+            status: 404,
+            detail: 'Resource not found.',
+            code: 'not_found',
+          },
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
+        ),
+      ),
+    )
+    renderWithProviders(
+      <ReturnDialog saleId="sale-return-404" onClose={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('return-error')).toHaveTextContent(
+        /venda n[aã]o encontrada/i,
+      )
+    })
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('renders a server error state without crashing', async () => {
+    server.use(
+      http.get(`${BASE}/sales/sale-return-error/`, () =>
+        HttpResponse.json(
+          {
+            type: 'about:blank',
+            title: 'Server Error',
+            status: 500,
+            detail: 'Falha temporária ao consultar a venda.',
+          },
+          { status: 500 },
+        ),
+      ),
+    )
+    renderWithProviders(
+      <ReturnDialog saleId="sale-return-error" onClose={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('return-error')).toHaveTextContent(
+        /falha tempor[aá]ria/i,
+      )
+    })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
 
@@ -369,16 +592,19 @@ describe('ReturnDialog', () => {
 describe('CancellationDialog', () => {
   it('opens, confirms and cancels sale successfully', async () => {
     const onClose = vi.fn()
-    renderWithProviders(<CancellationDialog saleId="sale-1" onClose={onClose} />)
+    renderWithProviders(
+      <CancellationDialog saleId="sale-1" onClose={onClose} />,
+    )
     const user = userEvent.setup()
 
-    await waitFor(() => {
-      expect(screen.getByTestId('cancel-dialog')).toBeInTheDocument()
-    })
+    await user.type(
+      await screen.findByTestId('cancel-reason'),
+      'Cliente desistiu',
+    )
 
-    await user.type(screen.getByTestId('cancel-reason'), 'Cliente desistiu')
-
-    await user.click(screen.getByRole('button', { name: /confirmar cancelamento/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar cancelamento/i }),
+    )
 
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1)
@@ -386,40 +612,52 @@ describe('CancellationDialog', () => {
   })
 
   it('shows consequence summary for cancellation', async () => {
-    renderWithProviders(<CancellationDialog saleId="sale-1" onClose={() => {}} />)
+    renderWithProviders(
+      <CancellationDialog saleId="sale-1" onClose={() => {}} />,
+    )
 
     await waitFor(() => {
-      expect(screen.getByTestId('cancel-summary')).toHaveTextContent(/estornar/i)
-      expect(screen.getByTestId('cancel-summary')).toHaveTextContent(/R\$ 150,00/)
+      expect(screen.getByTestId('cancel-summary')).toHaveTextContent(
+        /estornar/i,
+      )
+      expect(screen.getByTestId('cancel-summary')).toHaveTextContent(
+        /R\$ 150,00/,
+      )
     })
   })
 
   it('handles 409 already-cancelled error', async () => {
-    renderWithProviders(<CancellationDialog saleId="sale-409-cancel" onClose={() => {}} />)
+    renderWithProviders(
+      <CancellationDialog saleId="sale-409-cancel" onClose={() => {}} />,
+    )
     const user = userEvent.setup()
 
+    await user.type(
+      await screen.findByTestId('cancel-reason'),
+      'Motivo qualquer',
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: /confirmar cancelamento/i }),
+    )
+
     await waitFor(() => {
-      expect(screen.getByTestId('cancel-dialog')).toBeInTheDocument()
-    })
-
-    await user.type(screen.getByTestId('cancel-reason'), 'Motivo qualquer')
-
-    await user.click(screen.getByRole('button', { name: /confirmar cancelamento/i }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('cancel-error')).toHaveTextContent(/já está cancelada/i)
+      expect(screen.getByTestId('cancel-error')).toHaveTextContent(
+        /já está cancelada/i,
+      )
     })
   })
 
   it('shows validation when reason is empty', async () => {
-    renderWithProviders(<CancellationDialog saleId="sale-1" onClose={() => {}} />)
+    renderWithProviders(
+      <CancellationDialog saleId="sale-1" onClose={() => {}} />,
+    )
     const user = userEvent.setup()
 
-    await waitFor(() => {
-      expect(screen.getByTestId('cancel-dialog')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByRole('button', { name: /confirmar cancelamento/i }))
+    await screen.findByRole('button', { name: /confirmar cancelamento/i })
+    await user.click(
+      screen.getByRole('button', { name: /confirmar cancelamento/i }),
+    )
 
     await waitFor(() => {
       expect(screen.getByTestId('cancel-error')).toHaveTextContent(/motivo/i)
@@ -427,18 +665,23 @@ describe('CancellationDialog', () => {
   })
 
   it('handles 403 MFA/permission denial on cancel', async () => {
-    renderWithProviders(<CancellationDialog saleId="sale-403" onClose={() => {}} />)
+    renderWithProviders(
+      <CancellationDialog saleId="sale-403" onClose={() => {}} />,
+    )
     const user = userEvent.setup()
 
-    await waitFor(() => {
-      expect(screen.getByTestId('cancel-dialog')).toBeInTheDocument()
-    })
+    await user.type(
+      await screen.findByTestId('cancel-reason'),
+      'Motivo qualquer',
+    )
+    await user.click(
+      screen.getByRole('button', { name: /confirmar cancelamento/i }),
+    )
 
-    await user.type(screen.getByTestId('cancel-reason'), 'Motivo qualquer')
-    await user.click(screen.getByRole('button', { name: /confirmar cancelamento/i }))
-
     await waitFor(() => {
-      expect(screen.getByTestId('cancel-error')).toHaveTextContent(/permis.*?nega|mfa/i)
+      expect(screen.getByTestId('cancel-error')).toHaveTextContent(
+        /permis.*?nega|mfa/i,
+      )
     })
   })
 })
@@ -455,18 +698,28 @@ describe('RefundDialog', () => {
     let capturedBody: { method?: string; reason?: string } | null = null
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
-        capturedBody = await request.json() as { method?: string; reason?: string }
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+        capturedBody = (await request.json()) as {
+          method?: string
+          reason?: string
+        }
+        return HttpResponse.json(
+          { detail: 'Reembolso processado.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
-    const methodSelect = await screen.findByRole('combobox', { name: 'Método do reembolso' })
+    const methodSelect = await screen.findByRole('combobox', {
+      name: 'Método do reembolso',
+    })
     expect(screen.getByRole('option', { name: label })).toBeInTheDocument()
     await user.selectOptions(methodSelect, method)
     await user.type(screen.getByTestId('refund-reason'), 'Teste de método')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
     await waitFor(() => expect(capturedBody).not.toBeNull())
     expect(capturedBody).toMatchObject({ method, reason: 'Teste de método' })
@@ -481,13 +734,15 @@ describe('RefundDialog', () => {
       expect(screen.getByTestId('refund-dialog')).toBeInTheDocument()
     })
 
-    const amountInput = screen.getByTestId('refund-amount')
+    const amountInput = await screen.findByTestId('refund-amount')
     await user.clear(amountInput)
     await user.type(amountInput, '50.00')
 
     await user.type(screen.getByTestId('refund-reason'), 'Reembolso parcial')
 
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1)
@@ -495,57 +750,95 @@ describe('RefundDialog', () => {
   })
 
   it('sends a partial amount explicitly', async () => {
-    let capturedBody: { method?: string; amount?: string; reason?: string } | null = null
+    let capturedBody: {
+      method?: string
+      amount?: string
+      reason?: string
+    } | null = null
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
-        capturedBody = await request.json() as { method?: string; amount?: string; reason?: string }
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+        capturedBody = (await request.json()) as {
+          method?: string
+          amount?: string
+          reason?: string
+        }
+        return HttpResponse.json(
+          { detail: 'Reembolso processado.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Método do reembolso' }), 'pix')
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Método do reembolso' }),
+      'pix',
+    )
     await user.type(screen.getByTestId('refund-amount'), '50.00')
     await user.type(screen.getByTestId('refund-reason'), 'Reembolso parcial')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
     await waitFor(() => expect(capturedBody).not.toBeNull())
-    expect(capturedBody).toEqual({ method: 'pix', amount: '50', reason: 'Reembolso parcial' })
+    expect(capturedBody).toEqual({
+      method: 'pix',
+      amount: '50',
+      reason: 'Reembolso parcial',
+    })
   })
 
   it('omits amount when the field is empty and preserves an explicit full amount', async () => {
     const capturedBodies: Record<string, unknown>[] = []
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
-        capturedBodies.push(await request.json() as Record<string, unknown>)
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+        capturedBodies.push((await request.json()) as Record<string, unknown>)
+        return HttpResponse.json(
+          { detail: 'Reembolso processado.' },
+          { status: 201 },
+        )
       }),
     )
     const firstClose = vi.fn()
-    const firstRender = renderWithProviders(<RefundDialog saleId="sale-1" onClose={firstClose} />)
+    const firstRender = renderWithProviders(
+      <RefundDialog saleId="sale-1" onClose={firstClose} />,
+    )
     const user = userEvent.setup()
 
     await user.type(await screen.findByTestId('refund-reason'), 'Saldo total')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
     await waitFor(() => expect(firstClose).toHaveBeenCalledTimes(1))
-    expect(capturedBodies[0]).toEqual({ method: 'cash', reason: 'Saldo total' })
+    expect(capturedBodies[0]).toEqual({
+      method: 'cash',
+      reason: 'Saldo total',
+    })
     firstRender.unmount()
 
     const secondClose = vi.fn()
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={secondClose} />)
     await user.type(await screen.findByTestId('refund-amount'), '150.00')
     await user.type(screen.getByTestId('refund-reason'), 'Total explícito')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
     await waitFor(() => expect(secondClose).toHaveBeenCalledTimes(1))
-    expect(capturedBodies[1]).toEqual({ method: 'cash', amount: '150', reason: 'Total explícito' })
+    expect(capturedBodies[1]).toEqual({
+      method: 'cash',
+      amount: '150',
+      reason: 'Total explícito',
+    })
   })
 
   it('shows consequence summary with full amount by default', async () => {
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('refund-summary')).toHaveTextContent(/R\$ 150,00/)
+      expect(screen.getByTestId('refund-summary')).toHaveTextContent(
+        /R\$ 150,00/,
+      )
     })
   })
 
@@ -557,11 +850,15 @@ describe('RefundDialog', () => {
       expect(screen.getByTestId('refund-dialog')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByTestId('refund-reason'), 'Reembolso')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.type(await screen.findByTestId('refund-reason'), 'Reembolso')
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
     await waitFor(() => {
-      expect(screen.getByTestId('refund-error')).toHaveTextContent(/permis.*?nega|mfa/i)
+      expect(screen.getByTestId('refund-error')).toHaveTextContent(
+        /permis.*?nega|mfa/i,
+      )
     })
   })
 
@@ -570,7 +867,10 @@ describe('RefundDialog', () => {
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
         capturedKey = request.headers.get('Idempotency-Key')
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+        return HttpResponse.json(
+          { detail: 'Reembolso processado.' },
+          { status: 201 },
+        )
       }),
     )
     const onClose = vi.fn()
@@ -581,8 +881,10 @@ describe('RefundDialog', () => {
       expect(screen.getByTestId('refund-dialog')).toBeInTheDocument()
     })
 
-    await user.type(screen.getByTestId('refund-reason'), 'Teste')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.type(await screen.findByTestId('refund-reason'), 'Teste')
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
     await waitFor(() => {
       expect(capturedKey).toBeTruthy()
@@ -596,8 +898,17 @@ describe('RefundDialog', () => {
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, () =>
         HttpResponse.json(
-          { type: 'about:blank', title: 'Conflict', status: 409, detail: 'O reembolso já foi registrado.', code: 'already_refunded' },
-          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+          {
+            type: 'about:blank',
+            title: 'Conflict',
+            status: 409,
+            detail: 'O reembolso já foi registrado.',
+            code: 'already_refunded',
+          },
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
         ),
       ),
     )
@@ -605,11 +916,21 @@ describe('RefundDialog', () => {
     const user = userEvent.setup()
 
     await user.type(await screen.findByTestId('refund-reason'), 'Conflito')
-    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
 
-    await waitFor(() => expect(screen.getByTestId('refund-error')).toHaveTextContent('O reembolso já foi registrado.'))
-    expect(screen.getByTestId('refund-error')).not.toHaveTextContent('already_refunded')
-    expect(screen.getByTestId('refund-error')).not.toHaveTextContent('application/problem+json')
+    await waitFor(() =>
+      expect(screen.getByTestId('refund-error')).toHaveTextContent(
+        'O reembolso já foi registrado.',
+      ),
+    )
+    expect(screen.getByTestId('refund-error')).not.toHaveTextContent(
+      'already_refunded',
+    )
+    expect(screen.getByTestId('refund-error')).not.toHaveTextContent(
+      'application/problem+json',
+    )
   })
 
   it('keeps one refund request and key when submit is clicked twice', async () => {
@@ -625,13 +946,19 @@ describe('RefundDialog', () => {
         const key = request.headers.get('Idempotency-Key')
         if (key) capturedKeys.push(key)
         await requestCompleted
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+        return HttpResponse.json(
+          { detail: 'Reembolso processado.' },
+          { status: 201 },
+        )
       }),
     )
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
     const user = userEvent.setup()
 
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Método do reembolso' }), 'card_external')
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'Método do reembolso' }),
+      'card_external',
+    )
     await user.type(screen.getByTestId('refund-reason'), 'Teste de duplicidade')
     const submit = screen.getByRole('button', { name: /confirmar reembolso/i })
     await user.click(submit)
@@ -642,5 +969,61 @@ describe('RefundDialog', () => {
     expect(capturedKeys).toHaveLength(1)
     expect(capturedKeys[0]).toBeTruthy()
     resolveRequest?.()
+  })
+
+  it('renders an accessible not-found state without the refund form', async () => {
+    server.use(
+      http.get(`${BASE}/sales/sale-refund-404/`, () =>
+        HttpResponse.json(
+          {
+            type: 'https://zyrp.local/problems/not_found',
+            title: 'Sales operation rejected',
+            status: 404,
+            detail: 'Resource not found.',
+            code: 'not_found',
+          },
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
+        ),
+      ),
+    )
+    renderWithProviders(
+      <RefundDialog saleId="sale-refund-404" onClose={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('refund-error')).toHaveTextContent(
+        /venda n[aã]o encontrada/i,
+      )
+    })
+    expect(screen.queryByTestId('refund-method')).not.toBeInTheDocument()
+  })
+
+  it('renders a server error state without crashing', async () => {
+    server.use(
+      http.get(`${BASE}/sales/sale-refund-error/`, () =>
+        HttpResponse.json(
+          {
+            type: 'about:blank',
+            title: 'Server Error',
+            status: 500,
+            detail: 'Falha temporária ao consultar a venda.',
+          },
+          { status: 500 },
+        ),
+      ),
+    )
+    renderWithProviders(
+      <RefundDialog saleId="sale-refund-error" onClose={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('refund-error')).toHaveTextContent(
+        /falha tempor[aá]ria/i,
+      )
+    })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

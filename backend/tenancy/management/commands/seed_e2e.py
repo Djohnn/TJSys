@@ -35,18 +35,26 @@ R9_MAX_GENERATIONS = 16
 E2E_RECOVERY_CODE_COUNT = 10
 
 
-def r9_sale_key_for_generation(generation: int) -> str:
+def _r9_sale_key_for_generation(generation: int, purpose: str) -> str:
     if generation < 0 or generation >= R9_MAX_GENERATIONS:
         raise CommandError(
             f'Limite de {R9_MAX_GENERATIONS} gerações da venda R9 atingido; '
             'resete o banco E2E dedicado antes de semear novamente. '
             'Fatos auditáveis existentes não foram removidos.'
         )
-    return (
-        'e2e-r9-return-sale'
-        if generation == 0
-        else f'e2e-r9-return-sale-{generation}'
-    )
+    return f'e2e-r9-{purpose}-sale' if generation == 0 else f'e2e-r9-{purpose}-sale-{generation}'
+
+
+def r9_sale_key_for_generation(generation: int) -> str:
+    return _r9_sale_key_for_generation(generation, 'return')
+
+
+def r9_cancel_sale_key_for_generation(generation: int) -> str:
+    return _r9_sale_key_for_generation(generation, 'cancel')
+
+
+def r9_refund_sale_key_for_generation(generation: int) -> str:
+    return _r9_sale_key_for_generation(generation, 'refund')
 
 
 class Command(BaseCommand):
@@ -252,6 +260,80 @@ class Command(BaseCommand):
                     },
                 )
 
+                r9_cancel_product, _ = Product.objects.get_or_create(
+                    tenant=tenant,
+                    sku='E2E-R9-CANCEL-001',
+                    defaults={
+                        'name': 'Produto E2E R9 Cancelamento',
+                        'base_unit': unit,
+                        'category': cat,
+                        'ncm': '84713000',
+                        'is_active': True,
+                    },
+                )
+                r9_cancel_product.name = 'Produto E2E R9 Cancelamento'
+                r9_cancel_product.base_unit = unit
+                r9_cancel_product.category = cat
+                r9_cancel_product.ncm = '84713000'
+                r9_cancel_product.is_active = True
+                r9_cancel_product.save(
+                    update_fields=[
+                        'name',
+                        'base_unit',
+                        'category',
+                        'ncm',
+                        'is_active',
+                        'updated_at',
+                    ]
+                )
+
+                ProductPrice.objects.update_or_create(
+                    tenant=tenant,
+                    product=r9_cancel_product,
+                    valid_from='2026-01-01T00:00:00Z',
+                    defaults={
+                        'amount': Decimal('19.90'),
+                        'is_active': True,
+                    },
+                )
+
+                r9_refund_product, _ = Product.objects.get_or_create(
+                    tenant=tenant,
+                    sku='E2E-R9-REFUND-001',
+                    defaults={
+                        'name': 'Produto E2E R9 Reembolso',
+                        'base_unit': unit,
+                        'category': cat,
+                        'ncm': '84713000',
+                        'is_active': True,
+                    },
+                )
+                r9_refund_product.name = 'Produto E2E R9 Reembolso'
+                r9_refund_product.base_unit = unit
+                r9_refund_product.category = cat
+                r9_refund_product.ncm = '84713000'
+                r9_refund_product.is_active = True
+                r9_refund_product.save(
+                    update_fields=[
+                        'name',
+                        'base_unit',
+                        'category',
+                        'ncm',
+                        'is_active',
+                        'updated_at',
+                    ]
+                )
+
+                ProductPrice.objects.update_or_create(
+                    tenant=tenant,
+                    product=r9_refund_product,
+                    valid_from='2026-01-01T00:00:00Z',
+                    defaults={
+                        'amount': Decimal('39.90'),
+                        'is_active': True,
+                    },
+                )
+
                 location, _ = StockLocation.objects.get_or_create(
                     tenant=tenant,
                     branch=branch,
@@ -287,6 +369,30 @@ class Command(BaseCommand):
                     actor=admin_user,
                     reason='seed e2e r9 return stock',
                 )
+                create_receipt(
+                    tenant,
+                    branch,
+                    r9_cancel_product,
+                    location,
+                    Decimal('1'),
+                    unit,
+                    Decimal('1'),
+                    idempotency_key='e2e-r9-cancel-stock-seed',
+                    actor=admin_user,
+                    reason='seed e2e r9 cancel stock',
+                )
+                create_receipt(
+                    tenant,
+                    branch,
+                    r9_refund_product,
+                    location,
+                    Decimal(str(R9_MAX_GENERATIONS)),
+                    unit,
+                    Decimal('1'),
+                    idempotency_key='e2e-r9-refund-stock-seed',
+                    actor=admin_user,
+                    reason='seed e2e r9 refund stock',
+                )
 
                 with connection.cursor() as c:
                     c.execute(
@@ -318,7 +424,7 @@ class Command(BaseCommand):
                         [str(tenant.id)],
                     )
 
-                from sales.models import Sale, SaleItem, SaleReturnItem
+                from sales.models import Sale, SaleItem, SaleRefund, SaleReturnItem
                 from sales.services import create_counter_sale, open_cash_session
 
                 open_cash_session(
@@ -390,6 +496,81 @@ class Command(BaseCommand):
                     ],
                     payments=[{'method': 'cash', 'amount': Decimal('29.90')}],
                     idempotency_key=r9_return_sale_key,
+                )
+                r9_refund_sale_generation = 0
+                while True:
+                    r9_refund_sale_key = r9_refund_sale_key_for_generation(
+                        r9_refund_sale_generation
+                    )
+                    existing_r9_refund_sale = Sale.all_objects.filter(
+                        tenant=tenant,
+                        idempotency_key=r9_refund_sale_key,
+                    ).first()
+                    if existing_r9_refund_sale is None:
+                        break
+                    refunded_amount = (
+                        SaleRefund.all_objects.filter(
+                            tenant=tenant,
+                            sale=existing_r9_refund_sale,
+                            status='completed',
+                        ).aggregate(total=Sum('amount'))['total']
+                        or Decimal('0')
+                    )
+                    if (
+                        existing_r9_refund_sale.status == 'confirmed'
+                        and refunded_amount + Decimal('10.00')
+                        <= existing_r9_refund_sale.net_total
+                    ):
+                        break
+                    r9_refund_sale_generation += 1
+
+                r9_refund_sale = create_counter_sale(
+                    tenant=tenant,
+                    branch=branch,
+                    operator=admin_user,
+                    stock_location=location,
+                    items=[
+                        {
+                            'product': r9_refund_product,
+                            'unit': unit,
+                            'quantity': Decimal('1'),
+                            'factor': Decimal('1'),
+                        }
+                    ],
+                    payments=[{'method': 'cash', 'amount': Decimal('39.90')}],
+                    idempotency_key=r9_refund_sale_key,
+                )
+                r9_cancel_sale_generation = 0
+                while True:
+                    r9_cancel_sale_key = r9_cancel_sale_key_for_generation(
+                        r9_cancel_sale_generation
+                    )
+                    existing_r9_cancel_sale = Sale.all_objects.filter(
+                        tenant=tenant,
+                        idempotency_key=r9_cancel_sale_key,
+                    ).first()
+                    if (
+                        existing_r9_cancel_sale is None
+                        or existing_r9_cancel_sale.status == 'confirmed'
+                    ):
+                        break
+                    r9_cancel_sale_generation += 1
+
+                r9_cancel_sale = create_counter_sale(
+                    tenant=tenant,
+                    branch=branch,
+                    operator=admin_user,
+                    stock_location=location,
+                    items=[
+                        {
+                            'product': r9_cancel_product,
+                            'unit': unit,
+                            'quantity': Decimal('1'),
+                            'factor': Decimal('1'),
+                        }
+                    ],
+                    payments=[{'method': 'cash', 'amount': Decimal('19.90')}],
+                    idempotency_key=r9_cancel_sale_key,
                 )
 
                 from fiscal.models import FiscalDocument, FiscalProductConfig
@@ -627,6 +808,10 @@ class Command(BaseCommand):
                     f'  Produto: {product.sku} (R$ 49,90)\n'
                     f'  Venda R9: {r9_return_sale.id} (chave: {r9_return_sale_key}; '
                     f'produto: E2E-R9-RETURN-001)\n'
+                    f'  Venda R9 cancelamento: {r9_cancel_sale.id} '
+                    f'(chave: {r9_cancel_sale_key}; produto: E2E-R9-CANCEL-001)\n'
+                    f'  Venda R9 reembolso: {r9_refund_sale.id} '
+                    f'(chave: {r9_refund_sale_key}; produto: E2E-R9-REFUND-001)\n'
                     f'  Local estoque: {location.code}\n'
                     '  Web admin: web-admin@tjsys.local '
                     f'(membro de {tenant.slug} e {beta_tenant.slug})'

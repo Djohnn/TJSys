@@ -22,6 +22,8 @@ jobs:
       E2E_USER_EMAIL: web-admin@tjsys.local
       E2E_USER_PASSWORD: e2e-test-pwd-2026
       E2E_RECOVERY_CODE: e2e0000001
+      AUTH_LOGIN_RATE: 100/minute
+      AUTH_MFA_RATE: 100/minute
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     services:
@@ -91,7 +93,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Start frontend
         working-directory: ./frontend

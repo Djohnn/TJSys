@@ -275,7 +275,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         if isinstance(exc, SaleAlreadyCancelled):
             return _problem(exc, 'sale_already_cancelled', status.HTTP_409_CONFLICT)
         if isinstance(exc, InsufficientReturnableQuantity):
-            return _problem(exc, 'invalid_quantity', status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
         if isinstance(exc, MissingIdempotencyKey):
             return _problem(exc, 'validation_error', status.HTTP_400_BAD_REQUEST)
         if isinstance(exc, EmptySale):
