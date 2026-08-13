@@ -830,7 +830,8 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Confirmar seed/CI, atomicidade e que Firefox/WebKit são skipped sem
       consumir recovery codes.
 - [x] Registrar evidências no relatório final da Sprint 9.
-- [x] Criar commit documental isolado em `codex/r9-finalization`, sem push.
+- [x] Criar commits documentais isolados em `codex/r9-finalization`, definidos
+      pela saída de `git log --oneline dcfcd07..HEAD`, sem push.
 
 ### Sprint 10 — Compras, Recebimento e Contas a Pagar
 

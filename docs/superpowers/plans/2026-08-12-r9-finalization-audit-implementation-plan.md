@@ -381,16 +381,18 @@
   ```powershell
   git status --short
   git diff --check
-  git diff --stat e7a0a8a..HEAD
-  git log --oneline e7a0a8a..HEAD
+  git diff --stat e7a0a8a..dcfcd07
+  git log --oneline e7a0a8a..dcfcd07
+  git log --oneline dcfcd07..HEAD
   ```
 
 - [x] Revisar o diff final contra o design aprovado: nenhum placeholder/TODO, nenhum segredo, nenhuma alteração fiscal automática e nenhum arquivo de outra frente.
-- [x] Criar o commit documental final, sem push:
+- [x] Criar commits documentais isolados, definidos dinamicamente por
+      `git log --oneline dcfcd07..HEAD`, sem push:
 
   ```powershell
-  git add docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md docs/PRD.md
-  git commit -m "docs(r9): close finalization audit"
+  git add docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md docs/PRD.md docs/superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md
+  git commit -m "docs(r9): close quality review gaps"
   ```
 
 - [x] Entregar o resumo em PT-BR com arquivos/linhas, outputs brutos (pass/fail, duração e exit code), hashes dos commits, ressalvas reais e confirmação explícita de que nenhum push foi feito.

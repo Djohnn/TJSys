@@ -97,17 +97,13 @@ preexistente não foi alterado.
 - A jornada R9 consome códigos somente em Chromium. Firefox e WebKit são
   deliberadamente skipped para não consumir recovery codes.
 
-## Commits corretivos confirmados desde `e7a0a8a`
+## Commits do escopo de implementação e auditoria
 
-`git log --oneline e7a0a8a..HEAD` foi confirmado; a saída inclui commits
-documentais desta auditoria, que não pertencem à lista corretiva abaixo. A
-lista contém 25 commits ancestrais de implementação/auditoria do `HEAD` (23 de
-código/testes e 2 preparatórios de design/plano); os commits documentais de
-fechamento são contabilizados separadamente no histórico, sem serem tratados
-como correções de produto. `e60f06c` foi
-inspecionado, mas não é ancestral do `HEAD`, não pertence a branch local e não
-tem patch-id equivalente no range; portanto não é listado como entrega desta
-branch.
+O comando `git log --oneline e7a0a8a..dcfcd07` foi confirmado. Este range fixo
+contém os 25 commits atuais do escopo, abrangendo implementação, hardening,
+testes, design aprovado e plano de auditoria; portanto a lista abaixo não deve
+ser interpretada como 25 commits funcionais. O cutoff `dcfcd07` estabiliza a
+lista e separa o escopo de implementação/auditoria do fechamento documental.
 
 ```text
 dcfcd07 test(r9): isolate compensation event effects
@@ -136,6 +132,11 @@ ae2e6b1 fix(r9): serialize sale returns
 27987f6 docs(r9): add finalization plan
 5069309 docs(r9): define finalization audit
 ```
+
+Os commits de fechamento documental são definidos dinamicamente pela saída do
+comando `git log --oneline dcfcd07..HEAD`. Não há contagem nem lista fixa desses
+commits no relatório; novos fechamentos após este documento permanecem
+capturados pelo range.
 
 ## Verificação — comandos, outputs, durações e exit codes
 
@@ -413,7 +414,8 @@ Output: silencioso; `DURATION=0.18s`; `EXIT=0`.
       antigo não é usado como evidência.
 - [x] `git diff --check` executado no worktree: output silencioso,
       `DURATION=0.18s`, `EXIT=0`.
-- [x] Commit documental isolado em `codex/r9-finalization`, sem push.
+- [x] Commits documentais isolados em `codex/r9-finalization`, definidos pelo
+      range `dcfcd07..HEAD`, sem push.
 
 ## Riscos e ressalvas
 
