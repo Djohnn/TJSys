@@ -1,103 +1,243 @@
 # Sprint 9 — Devoluções, Cancelamentos e Estornos — Relatório Final
 
-**Data:** 2026-07-18 a 2026-07-21
-**Branch:** `feat/on-demand-fiscal`
+**Data do fechamento:** 2026-08-13
+**Base:** `e7a0a8a` (`codex/r8-finalization`)
+**Branch de auditoria:** `codex/r9-finalization`
+**Design aprovado:** [R9 — Auditoria e Fechamento do Pós-venda](../superpowers/specs/2026-08-12-r9-finalization-audit-design.md)
+**Plano de auditoria:** [R9 Finalization Audit Implementation Plan](../superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md), Task 9, linhas 370–408
 
----
+## Resultado executivo
 
-## Resumo
+A auditoria fecha a implementação técnica da R9 com os gates obrigatórios
+comprovados nesta branch. Devoluções, reembolsos e cancelamentos são fatos
+compensatórios idempotentes, auditáveis, concorrentes de forma segura e
+isolados por tenant. A venda confirmada permanece imutável.
 
-Sprint concluída com implementação completa do ciclo pós-venda: devolução parcial/total, cancelamento de venda, reentrada de estoque auditável, reflexo em caixa/pagamentos e API REST documentada. Cancelamento fiscal permanece on-demand (nunca automático), conforme decisão de design.
+O fechamento não transforma limitações ambientais em sucesso: o banco
+compartilhado local não foi migrado, o deploy check depende de secrets e os
+artefatos locais `frontend/playwright-report/index.html` e `graphify-out/`
+permanecem externos e não versionados. O banco isolado `test_tjsys` passou a
+validação de migration; o banco compartilhado preexistente não foi alterado.
 
-## O que foi entregue
+## Entregas e decisões confirmadas
 
-### Modelos de domínio (`sales/models.py`)
+### Domínio e transações
 
-| Modelo | Finalidade |
-|--------|------------|
-| `SaleReturn` | Cabeçalho da devolução (status, reason, idempotency_key) |
-| `SaleReturnItem` | Item devolvido vinculado ao `SaleItem` original |
-| `SaleRefund` | Reembolso financeiro (método, valor, status) |
-| `SaleCancellation` | Cancelamento total da venda |
+- `SaleReturn`, `SaleReturnItem`, `SaleRefund` e `SaleCancellation` representam
+  fatos compensatórios próprios; a venda original não é apagada nem reescrita.
+- `reason` é obrigatório nos comandos de retorno, reembolso e cancelamento,
+  com validação de tamanho e persistência no fato, auditoria e Outbox.
+- Toda operação mutável exige `Idempotency-Key`. Replay com chave e payload
+  equivalentes retorna o mesmo fato; a mesma chave com payload diferente produz
+  conflito estável. Replays legados só são aceitos quando semanticamente
+  equivalentes ao fato persistido.
+- Retornos parciais ou totais calculam o saldo líquido devolvível, rejeitam
+  quantidade não positiva ou acima do saldo e usam locks para impedir duplicação
+  por concorrência.
+- Reembolsos e cancelamentos estão dentro de `transaction.atomic`; falha em
+  estoque, caixa, auditoria ou Outbox faz rollback integral, sem efeitos
+  parciais.
 
-- Todos com `TenantScopedModel`, `idempotency_key` única por tenant, UUID pk, `AuditableMixin`.
-- Migration `0003` gerada e aplicada.
+### Reembolsos, caixa e sessão
 
-### Serviços (`sales/services.py`)
+- `cash` exige a sessão de caixa original aberta e cria exatamente um
+  `cash_out` associado à sessão e ao reembolso.
+- `pix` e `card_external` criam o registro operacional rastreável sem movimentar
+  o dinheiro físico do caixa.
+- Valor ausente significa saldo restante; valor não positivo ou superior ao
+  saldo reembolsável é rejeitado. Reembolsos concorrentes são serializados por
+  venda e sessão.
+- O cancelamento comercial cria os reembolsos compensatórios necessários por
+  método de pagamento, sem duplicar fatos já existentes.
 
-| Serviço | Comportamento |
-|---------|---------------|
-| `create_sale_return()` | Devolução parcial/total; valida saldo devolvível; reentra estoque via `create_receipt`; idempotente |
-| `create_sale_refund()` | Reembolso: `cash` → `cash_out` no caixa; `pix`/`card_external` → registro sem movimento |
-| `cancel_sale()` | Reverte estoque total; reembolso automático para dinheiro; marca `cancelled`; idempotente |
+### Cancelamento comercial e política fiscal
 
-- Idempotência via `idempotency_key` com `DuplicateIdempotencyKey` em conflito.
-- Auditoria via `AuditableMixin` e `outbox` events.
+- O cancelamento é uma ação comercial da venda; bloqueia venda já cancelada,
+  venda não confirmada e venda incompatível com retornos já concluídos.
+- O cancelamento comercial **não cancela documento fiscal automaticamente** e
+  não chama o domínio fiscal. Cancelamento fiscal permanece manual/on-demand,
+  solicitado pelo operador quando aplicável.
 
-### API REST (`sales/views.py`)
+### RLS, contratos e API
 
-| Endpoint | Método | Ação |
-|----------|--------|------|
-| `POST /api/v1/sales/{id}/returns/` | Cria devolução | `201` ou Problem Details |
-| `GET /api/v1/sales/{id}/returns/` | Lista devoluções | `200` |
-| `POST /api/v1/sales/{id}/cancel/` | Cancela venda | `200` ou Problem Details |
+- A migration de RLS cobre os fatos compensatórios de `sales`; o isolamento
+  cross-tenant é aplicado no serviço e na API. Recurso de outro tenant é
+  indistinguível de inexistente.
+- As ações são expostas na `SaleViewSet` com Problem Details, autenticação,
+  tenant ativo, capability e `Idempotency-Key` obrigatórios.
+- A rota real de reembolso é `POST /api/v1/sales/{id}/refund/`.
+- A compatibilidade de devoluções é preservada em
+  `POST /api/v1/sales/{id}/returns/` e
+  `GET /api/v1/sales/{id}/returns/`; cancelamento permanece em
+  `POST /api/v1/sales/{id}/cancel/`.
+- O contrato de retorno usa `sale_item_id`, não um identificador de produto
+  ambíguo. Erros de validação, autorização, inexistência e conflito preservam
+  status e códigos Problem Details estáveis.
 
-- `CreateSaleReturnSerializer`, `SaleReturnSerializer`, `CreateSaleCancellationSerializer`, `SaleCancellationSerializer`.
-- Problem Details para `InsufficientReturnableQuantity` (409), `SaleAlreadyCancelled` (409), `DuplicateIdempotencyKey` (409).
+### Frontend, persistência e 404
 
-## Decisões de design
+- `ReturnDialog` envia `sale_item_id`, `quantity`, `reason` e
+  `Idempotency-Key` para `/returns/`; `RefundDialog` usa a rota real
+  `/refund/` e envia método, valor opcional, motivo e chave idempotente.
+- O E2E confirma resposta real `201` com identificadores e consulta posterior
+  em `/returns/`, provando que o retorno foi persistido no banco; não há mock do
+  endpoint principal.
+- A superfície administrativa mantém estados de erro, incluindo o estado 404
+  com correlation ID, sem converter recurso inexistente em sucesso.
 
-1. **Venda confirmada é imutável** — correções geram fatos compensatórios auditáveis, nunca alteram a venda original.
-2. **NFC-e emitida sob demanda** — nunca automática. Cancelamento fiscal será solicitado manualmente pelo operador via interface futura.
-3. **Reembolso em dinheiro** move o caixa (`cash_out`); **Pix e cartão externo** registram sem movimentação de caixa (processamento externo).
-4. **Cancelamento com pagamento em dinheiro** gera reembolso automático; demais métodos apenas registram o reembolso.
-5. **Idempotência** em todos os serviços transacionais — `Idempotency-Key` header obrigatório.
+### E2E, CI, seed e atomicidade
 
-## Resultados dos testes
+- O seed E2E é fail-closed, idempotente e abrangido por transação; preserva
+  exatamente as linhas de recovery esperadas e impõe limite de gerações.
+- O CI aguarda o backend por health check antes do Playwright e fornece
+  `E2E_SEED=1`; a validação de configuração remove a dependência YAML implícita.
+- A jornada R9 consome códigos somente em Chromium. Firefox e WebKit são
+  deliberadamente skipped para não consumir recovery codes.
 
-### Suíte focada (Sprint 9)
+## Commits corretivos confirmados desde `e7a0a8a`
 
-| Teste | Arquivo | Resultado |
-|-------|---------|-----------|
-| 15 testes de modelo | `test_sales_returns_models.py` | ✅ 15 passed |
-| 4 testes return service | `test_sales_returns_services.py` | ✅ 4 passed |
-| 5 testes refund service | `test_sales_refunds_services.py` | ✅ 5 passed |
-| 4 testes cancellation service | `test_sales_cancellations_services.py` | ✅ 4 passed |
-| 6 testes de API | `test_sales_returns_api.py` | ✅ 6 passed |
-| **Total** | | **34 passed** |
+Lista obtida por `git log --oneline e7a0a8a..HEAD` antes do commit documental:
 
-### Suíte completa (269 passed, 2 pre-existing failures)
+```text
+dcfcd07 test(r9): isolate compensation event effects
+eb9cb27 test(r9): scope refund cash snapshots
+32d68bf test(r9): prove compensation atomicity
+85ff057 test(ci): remove implicit yaml dependency
+7892760 fix(ci): gate E2E backend readiness
+3d199b2 test(e2e): cover seed safety and ci contract
+dd68fcf fix(e2e): harden R9 seed safety
+233772f fix(e2e): close R9 conformity gaps
+a43c7a3 test(e2e): finalize R9 return journey
+0aec670 fix(r9): align sales compensation dialogs
+220d1c5 fix: tighten R9 command validation
+f9267f7 fix: close R9 sales compensation API
+f0254cf fix: harden commercial sale cancellation
+54a8c40 fix(sales): replay refunds after cancellation
+e978c9c fix(r9): enforce sales tenant isolation
+c7ebdee fix(r9): bound concurrent refunds
+5299934 fix(r9): validate semantic return replays
+4861b29 fix(r9): validate return item totals
+804010b fix(r9): replay raw legacy return hashes
+a20bba2 fix(r9): preserve return replay hashes
+ae2e6b1 fix(r9): serialize sale returns
+13002e2 test(r9): verify refund reason migration
+3dc28fe feat(r9): record refund reason
+27987f6 docs(r9): add finalization plan
+5069309 docs(r9): define finalization audit
+```
 
-- Falhas pré-existentes não relacionadas:
-  - `test_fiscal_webhook_queries_provider_instead_of_trusting_body` — unique constraint com `--reuse-db`
-  - `test_password_recovery_is_generic_and_single_use` — 401 vs 403
+## Verificação — outputs brutos atuais
 
-## Quality gate
+Os resultados abaixo substituem integralmente a evidência histórica incompleta;
+somente as execuções atuais desta branch são consideradas para o aceite.
 
-| Ferramenta | Resultado |
-|------------|-----------|
-| Ruff | ✅ 0 errors no código Sprint 9 (8 pré-existentes) |
-| Testes focados | ✅ 34/34 passed |
-| Testes completos | ✅ 269 passed (2 pré-existentes) |
+### Fault injection e schema novo
 
-## Arquivos alterados/criados
+```text
+Fault injection Task8 RED: 3 failed in 17.58s
+Fault injection Task8 GREEN: 3 passed in 18.09s
+Suíte focada schema-new: 107 passed in 73.28s
+```
 
-- `backend/sales/models.py` — `SaleReturn`, `SaleReturnItem`, `SaleRefund`, `SaleCancellation`
-- `backend/sales/services.py` — `create_sale_return()`, `create_sale_refund()`, `cancel_sale()`
-- `backend/sales/serializers.py` — serializers de input/output
-- `backend/sales/views.py` — `@action` methods `returns` e `cancel`
-- `backend/sales/urls.py` — rotas (via `DefaultRouter`)
-- `backend/sales/migrations/0003_add_return_refund_cancellation_models.py`
-- `backend/tests/test_sales_returns_models.py` — 15 testes
-- `backend/tests/test_sales_returns_services.py` — 4 testes
-- `backend/tests/test_sales_refunds_services.py` — 5 testes
-- `backend/tests/test_sales_cancellations_services.py` — 4 testes
-- `backend/tests/test_sales_returns_api.py` — 6 testes
-- `docs/superpowers/specs/2026-07-18-sprint-9-returns-cancellations-refunds-design.md`
-- `docs/superpowers/plans/2026-07-18-sprint-9-returns-cancellations-refunds-implementation-plan.md`
-- `docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md` (este)
+O RED é a evidência intencional de que os testes detectaram efeitos parciais
+antes da correção; o GREEN confirma rollback/atomicidade após a correção.
 
-## Pendências
+### Backend global e qualidade estática
 
-- Interface de usuário para devolução/cancelamento (Sprint futura).
-- Cancelamento fiscal on-demand via NFC-e autorizada.
+```text
+Pytest global: 815 passed in 490.82s (0:08:10)
+Coverage: 81.47%
+Exit code: 0
+
+Ruff:
+All checks passed!
+
+mypy:
+Success: no issues found in 297 source files
+
+makemigrations --check --dry-run:
+No changes detected
+
+Django check:
+System check identified no issues (0 silenced).
+Exit code: 0
+```
+
+### Migration e deploy
+
+```text
+Migration isolada (test_tjsys): 1 passed in 20.48s
+migrate --check: exit 0
+
+Deploy check sem ambiente:
+falhou por MFA_ENCRYPTION_KEY ausente
+
+Deploy check com MFA_ENCRYPTION_KEY dummy efêmera:
+exit 0, apenas warnings
+```
+
+O resultado sem ambiente é falha de pré-condição, não falha funcional da R9;
+produção exige o secret real fornecido externamente. O banco compartilhado
+local possui migrations pendentes preexistentes e não foi migrado nem alterado.
+
+### Frontend e E2E
+
+```text
+Frontend:
+Tests 337 passed (337)
+Lint: exit 0, 0 errors, 4 warnings preexistentes
+Typecheck: exit 0
+Build: exit 0
+
+Playwright R9:
+1 passed (4.5s)
+
+Firefox + WebKit:
+18 skipped, EXIT=0
+
+Chromium completo:
+9 passed (22.6s), EXIT=0
+```
+
+### Rechecks adicionais da Task 8 após reviews
+
+```text
+Refunds: 29 passed in 26.15s
+Cancelamentos: 19 passed in 36.44s
+Focados: 3 passed in 20.39s
+```
+
+## Definition of Done
+
+- [x] Retorno, reembolso e cancelamento cobertos por serviço, API,
+      concorrência, rollback e E2E.
+- [x] Mesma chave e payload produzem um único fato; payload diferente produz
+      conflito estável.
+- [x] Estoque, caixa, auditoria e Outbox têm efeitos exatos e rollback integral.
+- [x] Cross-tenant permanece indistinguível de inexistente.
+- [x] A UI usa `/returns/`, `sale_item_id` e o endpoint real `/refund/`.
+- [x] Cancelamento comercial não chama nem cancela o domínio fiscal
+      automaticamente.
+- [x] Suítes globais, Ruff, mypy, migrations isoladas, Django checks,
+      frontend, typecheck, build e E2E comprovados pelos outputs acima.
+- [x] Relatório final contém evidência atual e limitações reais; o baseline
+      antigo não é usado como evidência.
+- [x] Commit documental isolado em `codex/r9-finalization`, sem push.
+
+## Riscos e ressalvas
+
+- O banco compartilhado local não foi migrado; a validação de schema/migration
+  foi feita em `test_tjsys`, que passou, e o banco compartilhado preexistente
+  foi preservado.
+- O deploy check exige `MFA_ENCRYPTION_KEY`; sem a variável falha por
+  configuração ausente. Com chave dummy efêmera passou com warnings.
+- `frontend/playwright-report/index.html` e `graphify-out/` são artefatos
+  externos/locais, mantidos fora do commit documental.
+- Nenhum push foi realizado.
+
+## Decisão final
+
+Com os gates obrigatórios comprovados e as ressalvas ambientais explicitadas,
+a R9 está tecnicamente concluída e apta a avançar para a R10. A política
+fiscal continua manual/on-demand; não há autorização implícita para cancelar
+NFC-e a partir do cancelamento comercial.
