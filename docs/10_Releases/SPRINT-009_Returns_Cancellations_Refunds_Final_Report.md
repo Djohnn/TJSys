@@ -96,14 +96,14 @@ validação de migration; o banco compartilhado preexistente não foi alterado.
 
 ## Commits corretivos confirmados desde `e7a0a8a`
 
-`git log --oneline e7a0a8a..HEAD` retorna 28 commits nesta branch, incluindo os
-três commits documentais `a2f9a8c`, `2fd0de8` e `d8ea419`. A lista abaixo contém os 25
-commits corretivos/funcionais ancestrais; os três commits documentais também
-estão explicitamente contabilizados no range verificado. `e60f06c` foi
+`git log --oneline e7a0a8a..HEAD` foi confirmado; a saída inclui commits
+documentais desta auditoria, que não pertencem à lista corretiva abaixo. A
+lista contém 25 commits corretivos/funcionais ancestrais do `HEAD`; os commits
+documentais são contabilizados separadamente no histórico, sem serem tratados
+como correções de produto. `e60f06c` foi
 inspecionado, mas não é ancestral do `HEAD`, não pertence a branch local e não
 tem patch-id equivalente no range; portanto não é listado como entrega desta
-branch. O próprio `d8ea419` é o commit documental que registra esta
-reconciliação.
+branch.
 
 ```text
 dcfcd07 test(r9): isolate compensation event effects
