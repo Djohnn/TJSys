@@ -191,7 +191,7 @@ class TestSaleReturnAPI:
 
     @pytest.mark.parametrize('quantity', ['0', '-1'])
     def test_return_non_positive_quantity_is_invalid_quantity(self, returns_api_context, quantity):
-        """Non-positive return quantity returns the invalid_quantity problem code."""
+        """Given qty <= 0, When returning, Then API returns invalid_quantity/422."""
         ctx = returns_api_context
         sale = self._sale(ctx)
         url = reverse('sale-returns', kwargs={'pk': sale.id})
@@ -212,7 +212,7 @@ class TestSaleReturnAPI:
         _assert_problem(
             response,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code='validation_error',
+            code='invalid_quantity',
         )
 
     def test_return_above_remaining_quantity_is_insufficient_returnable_conflict(

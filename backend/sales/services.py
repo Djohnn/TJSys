@@ -44,6 +44,10 @@ class EmptySale(Exception):
     pass
 
 
+class InvalidReturnQuantity(Exception):
+    pass
+
+
 class InsufficientReturnableQuantity(Exception):
     pass
 
@@ -490,7 +494,7 @@ def create_sale_return(
     for item in items:
         quantity = Decimal(str(item['quantity']))
         if quantity <= 0:
-            raise InsufficientReturnableQuantity('Return quantity must be positive.')
+            raise InvalidReturnQuantity('Return quantity must be positive.')
         requested_items.append(
             {
                 'sale_item_id': str(item['sale_item_id']),

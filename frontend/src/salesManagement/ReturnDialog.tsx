@@ -176,7 +176,9 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
   const totalCredit = sale.items.reduce((acc, item) => {
     const qty = new Decimal(selectedQtys[item.id] ?? '0')
     if (qty.isZero() || qty.isNegative()) return acc
-    return acc.plus(qty.mul(item.unit_price))
+    const saleQuantity = new Decimal(item.quantity)
+    if (saleQuantity.isZero() || saleQuantity.isNegative()) return acc
+    return acc.plus(qty.mul(item.total).div(saleQuantity))
   }, new Decimal(0))
 
   const hasItems = sale.items.length > 0

@@ -34,6 +34,7 @@ from sales.services import (
     DuplicateIdempotencyKey,
     EmptySale,
     InsufficientReturnableQuantity,
+    InvalidReturnQuantity,
     OpenCashSessionExists,
     PaymentMismatch,
     RefundAmountExceeded,
@@ -67,6 +68,7 @@ _SALES_COMMAND_ERRORS = (
     SaleNotCompensable,
     PaymentMismatch,
     SaleAlreadyCancelled,
+    InvalidReturnQuantity,
     InsufficientReturnableQuantity,
     EmptySale,
     ValueError,
@@ -274,6 +276,8 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
             return _problem(exc, 'payment_mismatch')
         if isinstance(exc, SaleAlreadyCancelled):
             return _problem(exc, 'sale_already_cancelled', status.HTTP_409_CONFLICT)
+        if isinstance(exc, InvalidReturnQuantity):
+            return _problem(exc, 'invalid_quantity', status.HTTP_422_UNPROCESSABLE_ENTITY)
         if isinstance(exc, InsufficientReturnableQuantity):
             return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
         if isinstance(exc, MissingIdempotencyKey):

@@ -115,6 +115,53 @@ function renderWithProviders(element: React.ReactElement) {
 beforeEach(() => {
   server.use(
     http.get(`${BASE}/sales/sale-1/`, () => HttpResponse.json(SALE_DETAIL)),
+    http.get(`${BASE}/sales/sale-refund-pix/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-refund-pix',
+        payments: [{ ...SALE_DETAIL.payments[0], method: 'pix' }],
+      }),
+    ),
+    http.get(`${BASE}/sales/sale-refund-card/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-refund-card',
+        payments: [{ ...SALE_DETAIL.payments[0], method: 'card_credit' }],
+      }),
+    ),
+    http.get(`${BASE}/sales/sale-refund-multiple/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-refund-multiple',
+        payments: [
+          { ...SALE_DETAIL.payments[0], method: 'cash' },
+          { ...SALE_DETAIL.payments[0], id: 'payment-2', method: 'pix' },
+        ],
+      }),
+    ),
+    http.get(`${BASE}/sales/sale-refund-empty/`, () =>
+      HttpResponse.json({ ...SALE_DETAIL, id: 'sale-refund-empty', payments: [] }),
+    ),
+    http.get(`${BASE}/sales/sale-return-empty/`, () =>
+      HttpResponse.json({ ...SALE_DETAIL, id: 'sale-return-empty', items: [] }),
+    ),
+    http.get(`${BASE}/sales/sale-return-discount/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-return-discount',
+        items: [
+          {
+            ...SALE_DETAIL.items[0],
+            id: 'sale-item-discount',
+            product: 'prod-discount',
+            quantity: '2.000000',
+            unit_price: '10.00',
+            discount_amount: '2.00',
+            line_total: '18.00',
+          },
+        ],
+      }),
+    ),
     http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
       const body = (await request.json()) as {
         items?: unknown[]
@@ -348,6 +395,34 @@ describe('ReturnDialog', () => {
         /R\$ 30\.00/,
       )
     })
+  })
+
+  it('uses discounted line total proportionally for a partial return', async () => {
+    // Given a two-unit line whose discounted line_total is R$ 18,00
+    renderWithProviders(
+      <ReturnDialog saleId="sale-return-discount" onClose={() => {}} />,
+    )
+    const user = userEvent.setup()
+
+    // When one of the two units is selected for return
+    await screen.findByText('Produto prod-discount')
+    await user.type(screen.getByTestId('return-qty-prod-discount'), '1')
+
+    // Then the credit is the proportional discounted amount, R$ 9,00
+    await waitFor(() => {
+      expect(screen.getByTestId('return-summary')).toHaveTextContent(/R\$ 9\.00/)
+    })
+  })
+
+  it('shows an explicit empty state and disables confirmation with no items', async () => {
+    // Given a sale returned by the serializer with no items
+    renderWithProviders(<ReturnDialog saleId="sale-return-empty" onClose={() => {}} />)
+
+    // When the dialog finishes loading
+    expect(await screen.findByTestId('return-empty')).toBeInTheDocument()
+
+    // Then the empty state is accessible and no return can be submitted
+    expect(screen.getByRole('button', { name: /confirmar/i })).toBeDisabled()
   })
 
   it('handles 409 already-returned error', async () => {
@@ -690,6 +765,47 @@ describe('CancellationDialog', () => {
 // RefundDialog
 // ---------------------------------------------------------------------------
 describe('RefundDialog', () => {
+  it.each([
+    ['sale-refund-pix', 'pix'],
+    ['sale-refund-card', 'card_external'],
+  ])('derives the initial refund method from the sale payment (%s)', async (saleId, expectedMethod) => {
+    // Given a canonical serializer payment method (PIX or a card variant)
+    renderWithProviders(<RefundDialog saleId={saleId} onClose={() => {}} />)
+
+    // When the dialog loads the sale
+    const methodSelect = await screen.findByTestId('refund-method')
+
+    // Then the supported refund method is selected without legacy fields
+    expect(methodSelect).toHaveValue(expectedMethod)
+  })
+
+  it('warns when multiple payments use the first supported method but remain adjustable', async () => {
+    // Given a sale with multiple payments in serializer order
+    renderWithProviders(
+      <RefundDialog saleId="sale-refund-multiple" onClose={() => {}} />,
+    )
+
+    // When the dialog loads
+    const methodSelect = await screen.findByTestId('refund-method')
+
+    // Then the first method is selected and the user receives safe guidance
+    expect(methodSelect).toHaveValue('cash')
+    expect(screen.getByTestId('refund-multiple-payments')).toBeInTheDocument()
+  })
+
+  it('shows an explicit empty state and disables confirmation without payments', async () => {
+    // Given a sale returned by the serializer without payments
+    renderWithProviders(<RefundDialog saleId="sale-refund-empty" onClose={() => {}} />)
+
+    // When the dialog finishes loading
+    expect(await screen.findByTestId('refund-empty')).toBeInTheDocument()
+
+    // Then no refund can be submitted
+    expect(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    ).toBeDisabled()
+  })
+
   it.each([
     ['cash', 'Dinheiro'],
     ['pix', 'PIX'],

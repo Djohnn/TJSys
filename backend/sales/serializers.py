@@ -424,7 +424,6 @@ class ReturnItemInputSerializer(serializers.Serializer):
     quantity = serializers.DecimalField(
         max_digits=18,
         decimal_places=6,
-        min_value=Decimal('0.000001'),
     )
 
 

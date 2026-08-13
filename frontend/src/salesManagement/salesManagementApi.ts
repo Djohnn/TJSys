@@ -26,6 +26,33 @@ export interface SalePayment {
   status_label: string
 }
 
+export type RefundMethod = 'cash' | 'pix' | 'card_external'
+
+export function normalizeRefundMethod(method: string | undefined): RefundMethod | null {
+  switch (method?.trim().toLowerCase()) {
+    case 'cash':
+      return 'cash'
+    case 'pix':
+      return 'pix'
+    case 'card':
+    case 'card_external':
+    case 'card_integrated':
+    case 'card_debit':
+    case 'card_credit':
+      return 'card_external'
+    default:
+      return null
+  }
+}
+
+export function getDefaultRefundMethod(payments: SalePayment[]): RefundMethod {
+  for (const payment of payments) {
+    const method = normalizeRefundMethod(payment.method)
+    if (method) return method
+  }
+  return 'cash'
+}
+
 export interface Sale {
   id: string
   created_at: string

@@ -58,13 +58,13 @@ class TestSaleReturnService:
     ):
         """Given a non-positive quantity, when returning, then no effect is persisted."""
         ctx = sale_context
-        from sales.services import InsufficientReturnableQuantity, create_sale_return
+        from sales.services import InvalidReturnQuantity, create_sale_return
 
         sale = Sale.all_objects.get(pk=ctx['sale'].pk)
         sale_item = SaleItem.all_objects.get(sale=sale)
 
         def _test():
-            with pytest.raises(InsufficientReturnableQuantity):
+            with pytest.raises(InvalidReturnQuantity):
                 create_sale_return(
                     tenant=ctx['tenant'],
                     sale=sale,
@@ -487,7 +487,7 @@ class TestSaleReturnService:
     ):
         """Given an existing return, when replay has a non-positive line, then it fails."""
         ctx = sale_context
-        from sales.services import InsufficientReturnableQuantity, create_sale_return
+        from sales.services import InvalidReturnQuantity, create_sale_return
 
         sale = Sale.all_objects.get(pk=ctx['sale'].pk)
         sale_item = SaleItem.all_objects.get(sale=sale)
@@ -536,7 +536,7 @@ class TestSaleReturnService:
                 lot=None,
             ).quantity
 
-            with pytest.raises(InsufficientReturnableQuantity):
+            with pytest.raises(InvalidReturnQuantity):
                 create_sale_return(
                     tenant=ctx['tenant'],
                     sale=sale,

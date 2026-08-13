@@ -7,11 +7,11 @@ import Button from '@/components/ui/Button'
 import { useTenant } from '@/tenant/TenantProvider'
 import {
   fetchSale,
+  getDefaultRefundMethod,
   getSaleQueryErrorMessage,
+  type RefundMethod,
   type Sale,
 } from './salesManagementApi'
-
-type RefundMethod = 'cash' | 'pix' | 'card_external'
 
 interface RefundDialogProps {
   saleId: string
@@ -27,7 +27,10 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
   const tenantId = selectedTenant?.tenant_id ?? ''
 
   const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<RefundMethod>('cash')
+  const [methodSelection, setMethodSelection] = useState<{
+    saleId: string
+    value: RefundMethod
+  } | null>(null)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -40,6 +43,10 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
     retry: false,
   })
   const { data: sale, isLoading, isError, error: saleError } = saleQuery
+  const method =
+    methodSelection?.saleId === saleId
+      ? methodSelection.value
+      : getDefaultRefundMethod(sale?.payments ?? [])
 
   const refundMutation = useMutation({
     mutationFn: () => {
@@ -251,7 +258,12 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
               aria-label="Método do reembolso"
               data-testid="refund-method"
               value={method}
-              onChange={(e) => setMethod(e.target.value as RefundMethod)}
+              onChange={(e) =>
+                setMethodSelection({
+                  saleId,
+                  value: e.target.value as RefundMethod,
+                })
+              }
               className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             >
               <option value="cash">Dinheiro</option>
@@ -259,6 +271,18 @@ export default function RefundDialog({ saleId, onClose }: RefundDialogProps) {
               <option value="card_external">Cartão externo</option>
             </select>
           </div>
+
+          {sale.payments.length > 1 && (
+            <p
+              role="status"
+              aria-live="polite"
+              data-testid="refund-multiple-payments"
+              className="text-xs text-neutral-500"
+            >
+              Esta venda tem mÃºltiplos pagamentos. O primeiro mÃ©todo compatÃ­vel
+              foi selecionado; ajuste-o se necessÃ¡rio.
+            </p>
+          )}
 
           <div>
             <label

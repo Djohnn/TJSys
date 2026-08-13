@@ -72,6 +72,20 @@ def _env(job_text: str) -> dict[str, str]:
     return values
 
 
+def _top_level_env_keys(workflow_text: str) -> set[str]:
+    match = re.search(
+        r'(?ms)^env:\s*\r?\n(?P<body>(?:^  [A-Za-z0-9_]+:[^\r\n]*\r?\n?)+)',
+        workflow_text,
+    )
+    if not match:
+        return set()
+    return {
+        line.strip().split(':', 1)[0]
+        for line in match.group('body').splitlines()
+        if ':' in line
+    }
+
+
 @pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
 def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_path: Path):
     """Given workflow com seed, When parseia CI, Then prova bootstrap E2E antes do browser."""
@@ -160,3 +174,28 @@ def test_playwright_install_covers_configured_projects(workflow_path: Path):
             f'{workflow_path} instala {sorted(installed)}, '
             f'mas executa/exige {sorted(expected)}'
         )
+
+
+@pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
+def test_auth_throttles_are_scoped_to_seeded_e2e_job(workflow_path: Path):
+    """Given CI workflows, When rates are configured, Then they stay E2E-job scoped."""
+    workflow_text = workflow_path.read_text(encoding='utf-8')
+    global_keys = _top_level_env_keys(workflow_text)
+    assert {'AUTH_LOGIN_RATE', 'AUTH_MFA_RATE'}.isdisjoint(global_keys)
+
+    workflow = _load_workflow(workflow_path)
+    seeded_jobs = [job_text for job_text in workflow.values() if 'seed_e2e' in job_text]
+    assert seeded_jobs
+    for job_text in seeded_jobs:
+        job_env = _env(job_text)
+        assert job_env['AUTH_LOGIN_RATE'] == '100/minute'
+        assert job_env['AUTH_MFA_RATE'] == '100/minute'
+
+
+def test_playwright_config_is_deterministic_and_traces_failures_without_retries():
+    """Given Playwright projects, When CI runs them, Then scheduling is fixed and traceable."""
+    config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(encoding='utf-8')
+    assert re.search(r'(?m)^\s*retries:\s*0\s*,?\s*$', config)
+    assert re.search(r'(?m)^\s*workers:\s*1\s*,?\s*$', config)
+    assert re.search(r"trace:\s*'(?:retain-on-failure|off)'", config)
+    assert 'on-first-retry' not in config
