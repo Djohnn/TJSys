@@ -773,20 +773,22 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 9 — Devoluções, Cancelamentos e Estornos
 
-#### 9.0 Proveniencia canonica e snapshots historicos
+#### 9.0 Proveniencia canonica pos-f399 e snapshots historicos
 
 Os blocos de fechamento anteriores da Sprint 9 sao snapshots historicos e
-preservam seus outputs sem reescrita; contagens como 110/347/13 nao sao o
-aceite corrente. A cadeia corrente de codigo/testes/CI e
+preservam seus outputs sem reescrita; contagens como 110/347/356/13 nao sao o
+aceite corrente. A cadeia canonica de codigo/testes/CI pos-f399 e
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
-`31d8bfc114735b3e15fc6486d1c948ca5f576365`.
+`31d8bfc114735b3e15fc6486d1c948ca5f576365` +
+`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
 
-Evidencias correntes dessa cadeia: backend R9/API/CI `111 passed`; workflow
-contracts `10 passed`; frontend compensations `44 passed`; Vitest `356 passed`
-em `22 files`; Playwright R9 Chromium `6 passed`; spec Chromium `14 passed`;
-Firefox/WebKit `28 skipped`. Os outputs brutos e duracoes pertencem ao relatorio
-final da R9; esta sintese nao substitui os snapshots historicos.
+Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
+`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
+Evidencia TDD: RED `2 failed | 11 passed`, runner `2.20s`, total `4.17s`,
+`EXIT=1`; GREEN `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`.
+Vitest `356 passed` em `22 files` e os demais outputs pre-f399 sao snapshots
+historicos superseded, preservados no relatorio sem reescrita.
 
 **Estado:** Concluída tecnicamente em 2026-08-13, após comprovação dos gates
 obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md).
@@ -855,7 +857,7 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Criar commits de implementação `a43701a`/`0ac90a7b` e manter commits documentais
       isolados em `codex/r9-finalization`, sem push.
 
-#### 9.5 Snapshot histórico do follow-up da quality review - 2026-08-13
+#### 9.5 Snapshot histórico superseded do follow-up da quality review - 2026-08-13
 
 - [x] Expor `refundable_balance` tenant-safe, descontando refunds concluídos,
       com prefetch explícito dos itens/refunds e teste de refund parcial.
@@ -869,14 +871,14 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
       readiness e o teste estático cobre host/configuração.
 - [x] Cobrir 404 de cancelamento na UI, documentando o mock como edge de rede;
       manter testes API cross-tenant reais para os três comandos.
-- [x] Confirmar RED/GREEN e contagens correntes: backend `111`, frontend
-      focado `44`, Vitest `356`, E2E R9 `6`, spec Chromium `14`,
+- [x] Confirmar RED/GREEN e contagens do snapshot pre-f399: backend `111`,
+      frontend focado `44`, Vitest `356`, E2E R9 `6`, spec Chromium `14`,
       Firefox/WebKit `28 skipped`.
 - [x] Commit de código/testes/CI:
       `31d8bfc114735b3e15fc6486d1c948ca5f576365`; documentação em commit
       separado, sem push.
 
-Evidência corrente: workflow contract `10 passed`; Ruff e mypy focados sem
+Evidência pre-f399: workflow contract `10 passed`; Ruff e mypy focados sem
 issues; typecheck/build/diff check verdes. O RED frontend original
 `18 failed | 11 passed (29)`, `Duration 23.80s`, sem exit registrado, é
 preservado honestamente no relatório; o RED reproduzível desta continuação foi

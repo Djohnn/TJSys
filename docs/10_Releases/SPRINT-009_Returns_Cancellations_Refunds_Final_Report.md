@@ -8,23 +8,24 @@
 
 ## Resultado executivo
 
-### Proveniencia corrente e snapshots historicos
+### Proveniencia canonica pos-f399 e snapshots historicos
 
 Este relatorio preserva outputs brutos de execucoes anteriores para auditoria.
-Todo bloco anterior a `## Snapshot final da quality review - 2026-08-13` e um
-**snapshot historico**, inclusive as contagens 109/110, 347,
-13 e os commits documentais intermediarios; ele nao e criterio de aceite
-corrente. A proveniencia corrente de codigo/testes/CI e a cadeia completa
+Todo bloco anterior a esta secao e um **snapshot historico**, inclusive as
+contagens 109/110, 347, 356, 13 e os commits documentais intermediarios; ele
+nao e criterio de aceite corrente. A proveniencia canonica de codigo/testes/CI
+pos-f399 e a cadeia completa
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
-`31d8bfc114735b3e15fc6486d1c948ca5f576365`.
+`31d8bfc114735b3e15fc6486d1c948ca5f576365` +
+`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
 
-As evidencias correntes dessa cadeia sao: backend R9/API/CI `111 passed`;
-workflow contracts `10 passed`; frontend compensations `44 passed`; Vitest
-`356 passed` em `22 files`; Playwright R9 Chromium `6 passed`; spec Chromium
-`14 passed`; Firefox/WebKit `28 skipped`. Os outputs originais e duracoes
-desse snapshot estao reproduzidos no snapshot final, sem reescrever os logs
-historicos.
+Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
+`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
+O RED TDD real foi `2 failed | 11 passed`, runner `2.20s`, total `4.17s`,
+`EXIT=1`; o GREEN foi `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`.
+As evidencias pre-f399, inclusive Vitest `356 passed` em `22 files`, permanecem
+somente como snapshots historicos superseded, sem reescrever seus logs.
 
 A auditoria fecha a implementação técnica da R9 com os gates obrigatórios
 comprovados nesta branch. Devoluções, reembolsos e cancelamentos são fatos
@@ -583,10 +584,11 @@ O runner Vitest imprimiu `Error: test error` do teste intencional de estado de
 erro em jsdom, mas terminou com zero falhas e exit 0. O diff final foi
 rechecado, Graphify foi atualizado após o código, e nenhum push foi feito.
 
-## Snapshot final da quality review - 2026-08-13
+## Snapshot historico superseded da quality review - 2026-08-13
 
-Este snapshot registra as contagens correntes no fechamento de 2026-08-13. A
-contagem corrente da remediation e `111` no backend focado, `44` no arquivo
+Este snapshot registra as contagens do fechamento de 2026-08-13, anteriores
+ao commit f399 e superseded por ele. A contagem desse snapshot era `111` no
+backend focado, `44` no arquivo
 frontend focado, `356` no Vitest completo, `6` no foco E2E R9 e `14` no spec
 completo Chromium. Os numeros historicos `109`/`110`, `347` e `13` permanecem
 apenas como contexto de execucoes anteriores; nao sao usados como aceite atual.

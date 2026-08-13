@@ -10,22 +10,23 @@
 
 ---
 
-## Nota de proveniencia e snapshots
+## Nota de proveniencia canonica pos-f399 e snapshots
 
 Tasks 1--9, o fechamento de 2026-08-13 e o follow-up da spec review abaixo
 sao registros de plano e **snapshots historicos**. Eles preservam seus outputs
-originais (inclusive 110/347/13) e nao competem com o aceite corrente. A
-proveniencia corrente de codigo/testes/CI e a cadeia
+originais (inclusive 110/347/356/13) e nao competem com o aceite corrente. A
+proveniencia canonica de codigo/testes/CI pos-f399 e a cadeia
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
-`31d8bfc114735b3e15fc6486d1c948ca5f576365`.
+`31d8bfc114735b3e15fc6486d1c948ca5f576365` +
+`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
 
-O snapshot corrente dessa cadeia registra: backend R9/API/CI `111 passed`;
-workflow contracts `10 passed`; frontend compensations `44 passed`; Vitest
-`356 passed` em `22 files`; Playwright R9 Chromium `6 passed`; spec Chromium
-`14 passed`; Firefox/WebKit `28 skipped`. As duracoes e os exit codes originais
-permanecem no bloco `Evidencia corrente (raw)`, sem substituir evidencia
-historica.
+Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
+`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
+TDD real: RED `2 failed | 11 passed`, runner `2.20s`, total `4.17s`, `EXIT=1`;
+GREEN `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`. Vitest `356 passed`
+em `22 files` permanece somente como evidencia pre-f399, em snapshot historico
+superseded.
 
 **Execution note:** Execute cada bloco a partir da raiz `C:\ERP\.worktrees\r9-finalization`, exceto quando o próprio bloco usar `Set-Location`. Cada bloco deve ser tratado como uma nova sessão de shell.
 
@@ -486,7 +487,7 @@ desta branch.
   `insufficient_returnable`/409. CI mantém throttles job-scoped, Playwright
 usa `retries=0`, `workers=1` e `trace=retain-on-failure`.
 
-## Snapshot historico da quality review - 2026-08-13
+## Snapshot historico superseded da quality review - 2026-08-13
 
 Este bloco preserva o fechamento registrado em 2026-08-13. Ele e um snapshot
 historico da cadeia de codigo/testes/CI e nao substitui a proveniencia canonica
@@ -508,7 +509,7 @@ commits isolados.
   codigos sao respectivamente `invalid_quantity`/422 e
   `insufficient_returnable`/409.
 
-### Evidencia corrente (raw)
+### Evidencia pre-f399 (raw; snapshot historico superseded)
 
 ```text
 Backend R9/API/CI: 111 passed in 84.06s; EXIT=0
