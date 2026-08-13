@@ -278,6 +278,17 @@ def test_compose_e2e_backend_image_contract_is_buildable_for_seeded_django_runti
     backend = json.loads(result.stdout)['services']['backend']
     assert Path(backend['build']['context']).resolve() == (PROJECT_ROOT / 'backend').resolve()
     assert backend['build']['dockerfile'] == 'Dockerfile'
+    backend_command = ' '.join(backend['command'])
+    assert 'migrate --noinput' in backend_command
+    assert 'seed_e2e' in backend_command
+    assert 'runserver' in backend_command
+    healthcheck = backend['healthcheck']
+    healthcheck_command = ' '.join(healthcheck['test'])
+    assert '/api/v1/health/' in healthcheck_command
+    assert 'python' in healthcheck_command
+
+    frontend = json.loads(result.stdout)['services']['frontend']
+    assert frontend['depends_on']['backend']['condition'] == 'service_healthy'
 
     dockerfile = PROJECT_ROOT / 'backend' / backend['build']['dockerfile']
     assert dockerfile.is_file(), 'backend Dockerfile is required by the official E2E compose build'

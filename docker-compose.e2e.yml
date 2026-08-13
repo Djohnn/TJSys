@@ -43,6 +43,12 @@ services:
       MONITORING_ENABLED: "true"
     command: >
       sh -c "python manage.py migrate --noinput && python manage.py seed_e2e && python manage.py runserver 0.0.0.0:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   frontend:
     build:
@@ -51,7 +57,7 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend: { condition: service_healthy }
     environment:
       VITE_API_BASE_URL: /api/v1
     command: npx vite --host 0.0.0.0 --port 5173
