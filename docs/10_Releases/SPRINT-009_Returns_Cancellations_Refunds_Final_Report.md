@@ -96,7 +96,13 @@ validação de migration; o banco compartilhado preexistente não foi alterado.
 
 ## Commits corretivos confirmados desde `e7a0a8a`
 
-Lista obtida por `git log --oneline e7a0a8a..HEAD` antes do commit documental:
+`git log --oneline e7a0a8a..HEAD` retorna 27 commits nesta branch, incluindo os
+dois commits documentais `a2f9a8c` e `2fd0de8`. A lista abaixo contém os 25
+commits corretivos/funcionais ancestrais; os dois commits documentais também
+estão explicitamente contabilizados no range verificado. `e60f06c` foi
+inspecionado, mas não é ancestral do `HEAD`, não pertence a branch local e não
+tem patch-id equivalente no range; portanto não é listado como entrega desta
+branch.
 
 ```text
 dcfcd07 test(r9): isolate compensation event effects
