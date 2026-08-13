@@ -11,13 +11,16 @@
 A auditoria fecha a implementação técnica da R9 com os gates obrigatórios
 comprovados nesta branch. Devoluções, reembolsos e cancelamentos são fatos
 compensatórios idempotentes, auditáveis, concorrentes de forma segura e
-isolados por tenant. A venda confirmada permanece imutável.
+isolados por tenant. Os valores e itens originais da venda permanecem
+imutáveis; o status transiciona para `cancelled` no cancelamento comercial.
 
 O fechamento não transforma limitações ambientais em sucesso: o banco
-compartilhado local não foi migrado, o deploy check depende de secrets e os
-artefatos locais `frontend/playwright-report/index.html` e `graphify-out/`
-permanecem externos e não versionados. O banco isolado `test_tjsys` passou a
-validação de migration; o banco compartilhado preexistente não foi alterado.
+compartilhado local não foi migrado e o deploy check depende de secrets. Os
+arquivos rastreados `frontend/playwright-report/index.html` e
+`frontend/test-results/.last-run.json` estão dirty e foram preservados fora dos
+commits; `graphify-out/` é untracked e também ficou fora dos commits. O banco
+isolado `test_tjsys` passou a validação de migration; o banco compartilhado
+preexistente não foi alterado.
 
 ## Entregas e decisões confirmadas
 
@@ -380,6 +383,16 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & C:\ERP\.venv\Scripts\python.
 
 Output: `3 passed in 25.13s`; wrapper `DURATION=28.37s`; `EXIT=0`.
 
+### Integridade documental do diff
+
+`cwd=C:\ERP\.worktrees\r9-finalization`.
+
+```powershell
+$sw=[Diagnostics.Stopwatch]::StartNew(); $out = & git diff --check 2>$null; $exit=$LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
+```
+
+Output: silencioso; `DURATION=0.18s`; `EXIT=0`.
+
 ## Definition of Done
 
 - [x] Retorno, reembolso e cancelamento cobertos por serviço, API,
@@ -398,6 +411,8 @@ Output: `3 passed in 25.13s`; wrapper `DURATION=28.37s`; `EXIT=0`.
       acima; o bloqueio ambiental não foi convertido em sucesso.
 - [x] Relatório final contém evidência atual e limitações reais; o baseline
       antigo não é usado como evidência.
+- [x] `git diff --check` executado no worktree: output silencioso,
+      `DURATION=0.18s`, `EXIT=0`.
 - [x] Commit documental isolado em `codex/r9-finalization`, sem push.
 
 ## Riscos e ressalvas
@@ -407,8 +422,10 @@ Output: `3 passed in 25.13s`; wrapper `DURATION=28.37s`; `EXIT=0`.
   foi preservado.
 - O deploy check exige `MFA_ENCRYPTION_KEY`; sem a variável falha por
   configuração ausente. Com chave dummy efêmera passou com warnings.
-- `frontend/playwright-report/index.html` e `graphify-out/` são artefatos
-  externos/locais, mantidos fora do commit documental.
+- `frontend/playwright-report/index.html` e
+  `frontend/test-results/.last-run.json` são arquivos rastreados e dirty,
+  preservados fora dos commits; `graphify-out/` é untracked e também foi
+  mantido fora dos commits.
 - Nenhum push foi realizado.
 
 ## Decisão final

@@ -373,10 +373,10 @@
 - Modify: `docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md`
 - Modify: `docs/PRD.md:774-810`
 
-- [ ] Atualizar o relatório com a base `e7a0a8a`, branch `codex/r9-finalization`, commits corretivos, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
-- [ ] Substituir as antigas afirmações de “269 passed com 2 falhas preexistentes” pelos resultados atuais. Nenhuma contagem pode ser estimada ou copiada do baseline.
-- [ ] Atualizar o PRD para apontar o design e este plano de auditoria, mantendo a R9 como concluída somente se todos os gates obrigatórios estiverem verdes.
-- [ ] Conferir isolamento do worktree:
+- [x] Atualizar o relatório com a base `e7a0a8a`, branch `codex/r9-finalization`, commits corretivos, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
+- [x] Substituir as antigas afirmações de “269 passed com 2 falhas preexistentes” pelos resultados atuais. Nenhuma contagem pode ser estimada ou copiada do baseline.
+- [x] Atualizar o PRD para apontar o design e este plano de auditoria, mantendo a R9 como concluída somente se todos os gates obrigatórios estiverem verdes.
+- [x] Conferir isolamento do worktree:
 
   ```powershell
   git status --short
@@ -385,24 +385,24 @@
   git log --oneline e7a0a8a..HEAD
   ```
 
-- [ ] Revisar o diff final contra o design aprovado: nenhum placeholder/TODO, nenhum segredo, nenhuma alteração fiscal automática e nenhum arquivo de outra frente.
-- [ ] Criar o commit documental final, sem push:
+- [x] Revisar o diff final contra o design aprovado: nenhum placeholder/TODO, nenhum segredo, nenhuma alteração fiscal automática e nenhum arquivo de outra frente.
+- [x] Criar o commit documental final, sem push:
 
   ```powershell
   git add docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md docs/PRD.md
   git commit -m "docs(r9): close finalization audit"
   ```
 
-- [ ] Entregar o resumo em PT-BR com arquivos/linhas, outputs brutos (pass/fail, duração e exit code), hashes dos commits, ressalvas reais e confirmação explícita de que nenhum push foi feito.
+- [x] Entregar o resumo em PT-BR com arquivos/linhas, outputs brutos (pass/fail, duração e exit code), hashes dos commits, ressalvas reais e confirmação explícita de que nenhum push foi feito.
 
 ## Definition of Done
 
-- [ ] Return, refund e cancel passam nos testes de unidade/serviço, API, concorrência, rollback e E2E.
-- [ ] Mesma chave/payload produz um único fato; mesma chave/payload diferente produz conflito estável.
-- [ ] Estoque, caixa, auditoria e Outbox têm contagens exatas e rollback integral.
-- [ ] Cross-tenant permanece indistinguível de inexistente.
-- [ ] A UI usa `/returns/`, `sale_item_id` e o endpoint real `/refund/`.
-- [ ] Cancelamento comercial não chama o domínio fiscal.
-- [ ] Suítes globais, Ruff, mypy, migrations, Django checks, frontend e build estão verdes.
-- [ ] Relatório final contém somente evidência executada nesta branch.
-- [ ] Commits são isolados em `codex/r9-finalization`; nenhum push é realizado.
+- [x] Return, refund e cancel passam nos testes de unidade/serviço, API, concorrência, rollback e E2E.
+- [x] Mesma chave/payload produz um único fato; mesma chave/payload diferente produz conflito estável.
+- [x] Estoque, caixa, auditoria e Outbox têm contagens exatas e rollback integral.
+- [x] Cross-tenant permanece indistinguível de inexistente.
+- [x] A UI usa `/returns/`, `sale_item_id` e o endpoint real `/refund/`.
+- [x] Cancelamento comercial não chama o domínio fiscal.
+- [x] Suítes globais, Ruff, mypy, migrations, Django checks, frontend, build e `git diff --check` estão verdes.
+- [x] Relatório final contém somente evidência executada nesta branch.
+- [x] Commits são isolados em `codex/r9-finalization`; nenhum push é realizado.

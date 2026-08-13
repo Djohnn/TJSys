@@ -792,7 +792,8 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 
 - [x] Criar modelos de devolução, item devolvido, reembolso e cancelamento como
       fatos compensatórios próprios.
-- [x] Garantir venda confirmada imutável.
+- [x] Garantir imutabilidade dos valores e itens originais da venda; o status
+      pode transicionar para `cancelled` pelo cancelamento comercial.
 - [x] Bloquear devolução acima da quantidade vendida líquida.
 - [x] Exigir `reason` obrigatório e chave de idempotência nos comandos.
 
@@ -1220,7 +1221,7 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
-| 9 | 2026-08-13 | `codex/r9-finalization`, base `e7a0a8a` | Fault injection GREEN `3 passed`; schema-new `107 passed`; backend `815 passed`, cobertura 81.47%; frontend `337 passed`; E2E R9 `1 passed`, Chromium `9 passed`, Firefox/WebKit `18 skipped`; Ruff, mypy, migration isolada e `migrate --check` TEST, Django check, typecheck e build verdes | Banco compartilhado local não migrado; deploy exige `MFA_ENCRYPTION_KEY`; artefatos Playwright/graphify não versionados | Aprovado tecnicamente com ressalvas documentadas |
+| 9 | 2026-08-13 | `codex/r9-finalization`, base `e7a0a8a` | Fault injection GREEN `3 passed`; schema-new `107 passed`; backend `815 passed`, cobertura 81.47%; frontend `337 passed`; E2E R9 `1 passed`, Chromium `9 passed`, Firefox/WebKit `18 skipped`; Ruff, mypy, migration isolada, `migrate --check` TEST, Django check, typecheck, build e `git diff --check` verdes | Banco compartilhado local não migrado; deploy exige `MFA_ENCRYPTION_KEY`; `frontend/playwright-report/index.html` e `frontend/test-results/.last-run.json` rastreados e dirty, preservados fora dos commits; `graphify-out/` untracked, fora dos commits | Aprovado tecnicamente com ressalvas documentadas |
 | 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
 | 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
 | 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |
