@@ -32,6 +32,7 @@ E2E_DATABASE_HOSTS = {
     'localhost',
 }
 R9_MAX_GENERATIONS = 16
+E2E_RECOVERY_CODE_COUNT = 10
 
 
 def r9_sale_key_for_generation(generation: int) -> str:
@@ -50,6 +51,18 @@ def r9_sale_key_for_generation(generation: int) -> str:
 
 class Command(BaseCommand):
     help = 'Cria dados de teste E2E para o PDV (dispositivo, produto, local de estoque).'
+
+    @staticmethod
+    def _replace_fixed_recovery_codes(device, fixed_recovery_digest: str) -> None:
+        from accounts.models import RecoveryCode
+
+        RecoveryCode.objects.filter(device=device).delete()
+        RecoveryCode.objects.bulk_create(
+            [
+                RecoveryCode(device=device, digest=fixed_recovery_digest)
+                for _ in range(E2E_RECOVERY_CODE_COUNT)
+            ]
+        )
 
     def _ensure_e2e_environment(self) -> None:
         database = connection.settings_dict
@@ -520,7 +533,7 @@ class Command(BaseCommand):
             web_admin.save()
 
             # Set up TOTP MFA device + recovery codes for web-admin
-            from accounts.models import MFADevice, RecoveryCode
+            from accounts.models import MFADevice
             from accounts.security import digest_value
 
             totp_device, _ = MFADevice.objects.get_or_create(
@@ -531,13 +544,7 @@ class Command(BaseCommand):
             totp_device.verified_at = timezone.now()
             totp_device.save(update_fields=['verified_at'])
             fixed_recovery_digest = digest_value('e2e0000001')
-            RecoveryCode.objects.filter(device=totp_device).delete()
-            RecoveryCode.objects.bulk_create(
-                [
-                    RecoveryCode(device=totp_device, digest=fixed_recovery_digest)
-                    for _ in range(10)
-                ]
-            )
+            self._replace_fixed_recovery_codes(totp_device, fixed_recovery_digest)
 
             # Also set up for e2e admin
             from accounts.services.mfa import regenerate_recovery_codes as _rrc

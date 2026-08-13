@@ -8,6 +8,19 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.e2e
+      DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      POSTGRES_DB: zyrp
+      POSTGRES_APP_USER: zyrp
+      POSTGRES_APP_PASSWORD: zyrp
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: e2e-secret-key-not-for-production
+      E2E_SEED: '1'
+      DEBUG: 'true'
+      MONITORING_ENABLED: 'true'
     services:
       postgres:
         image: postgres:16
@@ -52,12 +65,6 @@ jobs:
 
       - name: Start backend
         working-directory: ./backend
-        env:
-          DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
-          REDIS_URL: redis://localhost:6379
-          SECRET_KEY: ci-secret-key
-          DEBUG: 'true'
-          MONITORING_ENABLED: 'true'
         run: |
           python manage.py runserver 0.0.0.0:8000 &
           sleep 3
