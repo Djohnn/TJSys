@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -482,6 +483,39 @@ class TestSaleRefundService:
             outbox = OutboxMessage.objects.get(correlation_id=key)
             assert audit.detail['reason'] == 'Produto avariado'
             assert outbox.payload['reason'] == 'Produto avariado'
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_outbox_failure_rolls_back_refund_cash_and_events(self, sale_context):
+        """Given a cash refund, when Outbox fails, then refund and cash roll back."""
+        ctx = sale_context
+        from sales.services import create_sale_refund
+
+        key = 'refund-outbox-failure-atomicity'
+
+        def _test():
+            cash_session = ctx['sale'].cash_session
+            cash_session.refresh_from_db()
+            expected_before = cash_session.expected_amount
+            effects_before = _attempt_artifacts(ctx['tenant'], key)
+
+            with patch(
+                'sales.services.create_outbox_message',
+                side_effect=RuntimeError('outbox unavailable'),
+            ):
+                with pytest.raises(RuntimeError, match='outbox unavailable'):
+                    create_sale_refund(
+                        tenant=ctx['tenant'],
+                        sale=ctx['sale'],
+                        method='cash',
+                        amount=Decimal('10.00'),
+                        reason='Falha de Outbox',
+                        idempotency_key=key,
+                    )
+
+            cash_session.refresh_from_db()
+            assert _attempt_artifacts(ctx['tenant'], key) == effects_before
+            assert cash_session.expected_amount == expected_before
 
         _run_in_tenant(ctx['tenant'], _test)
 

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.db import connection
@@ -147,6 +148,73 @@ class TestSaleReturnService:
                     reason='Devolução acima do permitido',
                     idempotency_key='return-excess-1',
                 )
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_outbox_failure_rolls_back_return_stock_and_events(self, sale_context):
+        """Given a valid return, when Outbox fails, then every return effect rolls back."""
+        ctx = sale_context
+        from sales.services import create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+        key = 'return-outbox-failure-atomicity'
+
+        def _effect_counts():
+            stock_operations = StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key__startswith=f'{key}:stock:',
+            )
+            return {
+                'sale_returns': SaleReturn.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count(),
+                'sale_return_items': SaleReturnItem.all_objects.filter(
+                    tenant=ctx['tenant'], sale_return__idempotency_key=key
+                ).count(),
+                'stock_operations': stock_operations.count(),
+                'stock_movements': StockMovement.all_objects.filter(
+                    operation__in=stock_operations
+                ).count(),
+                'audit_records': AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id__startswith=key
+                ).count(),
+                'outbox_messages': OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id__startswith=key
+                ).count(),
+            }
+
+        def _test():
+            balance_before = StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity
+            effects_before = _effect_counts()
+
+            with patch(
+                'sales.services.create_outbox_message',
+                side_effect=RuntimeError('outbox unavailable'),
+            ):
+                with pytest.raises(RuntimeError, match='outbox unavailable'):
+                    create_sale_return(
+                        tenant=ctx['tenant'],
+                        sale=sale,
+                        items=[
+                            {'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}
+                        ],
+                        reason='Falha de Outbox',
+                        idempotency_key=key,
+                    )
+
+            assert _effect_counts() == effects_before
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=sale_item.product,
+                location=ctx['location'],
+                lot=None,
+            ).quantity == balance_before
 
         _run_in_tenant(ctx['tenant'], _test)
 

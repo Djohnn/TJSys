@@ -1,12 +1,13 @@
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from threading import Barrier
+from unittest.mock import patch
 
 import pytest
 from django.db import connection, connections
 
 from audit.models import AuditRecord
-from inventory.models import StockBalance, StockOperation
+from inventory.models import StockBalance, StockMovement, StockOperation
 from outbox.models import OutboxMessage
 from sales.models import (
     CashMovement,
@@ -261,6 +262,80 @@ class TestSaleCancellationService:
             assert OutboxMessage.objects.filter(
                 tenant_id=str(ctx['tenant'].id), correlation_id=key
             ).count() == 0
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_outbox_failure_rolls_back_cancellation_stock_cash_and_events(self, sale_context):
+        """Given a valid sale, when Outbox fails, then cancellation is fully atomic."""
+        ctx = sale_context
+        from sales.services import cancel_sale
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        key = 'cancel-outbox-failure-atomicity'
+
+        def _effect_counts():
+            stock_operations = StockOperation.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key__startswith=f'{key}:stock:',
+            )
+            return {
+                'cancellations': SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count(),
+                'refunds': SaleRefund.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key__startswith=f'{key}:refund:'
+                ).count(),
+                'cash_outs': CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    cash_session=sale.cash_session,
+                    movement_type='cash_out',
+                ).count(),
+                'stock_operations': stock_operations.count(),
+                'stock_movements': StockMovement.all_objects.filter(
+                    operation__in=stock_operations
+                ).count(),
+                'audit_records': AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id__startswith=key
+                ).count(),
+                'outbox_messages': OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id__startswith=key
+                ).count(),
+            }
+
+        def _test():
+            balance_before = StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=ctx['product'],
+                location=ctx['location'],
+                lot=None,
+            ).quantity
+            sale.cash_session.refresh_from_db()
+            cash_expected_before = sale.cash_session.expected_amount
+            effects_before = _effect_counts()
+
+            with patch(
+                'sales.services.create_outbox_message',
+                side_effect=RuntimeError('outbox unavailable'),
+            ):
+                with pytest.raises(RuntimeError, match='outbox unavailable'):
+                    cancel_sale(
+                        tenant=ctx['tenant'],
+                        sale=sale,
+                        reason='Falha de Outbox',
+                        idempotency_key=key,
+                    )
+
+            sale.refresh_from_db()
+            sale.cash_session.refresh_from_db()
+            assert sale.status == 'confirmed'
+            assert _effect_counts() == effects_before
+            assert StockBalance.all_objects.get(
+                tenant=ctx['tenant'],
+                product=ctx['product'],
+                location=ctx['location'],
+                lot=None,
+            ).quantity == balance_before
+            assert sale.cash_session.expected_amount == cash_expected_before
 
         _run_in_tenant(ctx['tenant'], _test)
 
