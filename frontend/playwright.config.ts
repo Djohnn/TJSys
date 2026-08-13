@@ -15,6 +15,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['html', { outputFolder: 'playwright-report' }]],
   globalSetup: './e2e/global-setup',
+  globalTeardown: './e2e/global-teardown',
   use: {
     baseURL,
     storageState: authStorageState,

@@ -1,10 +1,16 @@
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 
-async function mockLogout(page: Page): Promise<void> {
-  await page.route('**/api/v1/auth/logout/', (route) =>
-    route.fulfill({ status: 204 }),
-  )
+async function mockLogout(page: Page): Promise<() => void> {
+  let requestCount = 0
+  await page.route('**/api/v1/auth/logout/', async (route) => {
+    const request = route.request()
+    expect(request.method()).toBe('POST')
+    expect(new URL(request.url()).pathname).toBe('/api/v1/auth/logout/')
+    requestCount += 1
+    await route.fulfill({ status: 204 })
+  })
+  return () => expect(requestCount).toBe(1)
 }
 
 async function mockUnauthenticatedSession(page: Page): Promise<void> {
@@ -59,9 +65,16 @@ test.describe('Autenticação e troca de tenant', () => {
     authenticatedPage: page,
   }) => {
     await page.goto('/dashboard')
-    await mockLogout(page)
+    const assertLogoutRequest = await mockLogout(page)
+    const logoutRequest = page.waitForRequest(
+      (request) =>
+        request.method() === 'POST' &&
+        new URL(request.url()).pathname === '/api/v1/auth/logout/',
+    )
 
     await page.getByRole('button', { name: 'Sair' }).click()
+    await logoutRequest
+    assertLogoutRequest()
     await expect(page).toHaveURL(/\/login/)
   })
 
@@ -69,9 +82,16 @@ test.describe('Autenticação e troca de tenant', () => {
     authenticatedPage: page,
   }) => {
     await page.goto('/dashboard')
-    await mockLogout(page)
+    const assertLogoutRequest = await mockLogout(page)
+    const logoutRequest = page.waitForRequest(
+      (request) =>
+        request.method() === 'POST' &&
+        new URL(request.url()).pathname === '/api/v1/auth/logout/',
+    )
 
     await page.getByRole('button', { name: 'Sair' }).click()
+    await logoutRequest
+    assertLogoutRequest()
     await page.waitForURL(/\/login/)
     await mockUnauthenticatedSession(page)
 
