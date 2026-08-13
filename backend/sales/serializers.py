@@ -438,6 +438,22 @@ class SaleRefundSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class CreateSaleRefundSerializer(serializers.Serializer):
+    method = serializers.ChoiceField(choices=SaleRefund.METHOD_CHOICES)
+    amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal('0.01'),
+        required=False,
+    )
+    reason = serializers.CharField(min_length=1)
+
+    def validate_reason(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('Reason is required.')
+        return value
+
+
 class SaleCancellationSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleCancellation

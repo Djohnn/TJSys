@@ -689,6 +689,7 @@ def _create_sale_refund_locked(
     sale_return=None,
     actor=None,
     cash_session=None,
+    payload_hash=None,
 ):
     payload = _refund_payload(
         sale=locked_sale,
@@ -697,7 +698,7 @@ def _create_sale_refund_locked(
         reason=reason,
         sale_return=sale_return,
     )
-    fingerprint = _payload_hash(payload)
+    fingerprint = payload_hash or _payload_hash(payload)
     existing = SaleRefund.all_objects.filter(
         tenant=tenant,
         idempotency_key=idempotency_key,
@@ -805,7 +806,7 @@ def create_sale_refund(
     tenant,
     sale,
     method,
-    amount,
+    amount=None,
     reason,
     idempotency_key,
     sale_return=None,
@@ -813,18 +814,19 @@ def create_sale_refund(
 ):
     if not idempotency_key:
         raise ValueError('Idempotency-Key is required.')
-    amount = _money(Decimal(str(amount)))
-    if amount <= 0:
-        raise ValueError('Refund amount must be positive.')
     if method not in dict(SaleRefund.METHOD_CHOICES):
         raise ValueError('Refund method is invalid.')
     if not reason or not reason.strip():
         raise ValueError('Reason is required.')
 
+    requested_amount = None if amount is None else _money(Decimal(str(amount)))
+    if requested_amount is not None and requested_amount <= 0:
+        raise ValueError('Refund amount must be positive.')
+
     payload = _refund_payload(
         sale=sale,
         method=method,
-        amount=amount,
+        amount=requested_amount,
         reason=reason,
         sale_return=sale_return,
     )
@@ -838,21 +840,29 @@ def create_sale_refund(
             existing=existing,
             sale=sale,
             method=method,
-            amount=amount,
+            amount=requested_amount,
             sale_return=sale_return,
             fingerprint=fingerprint,
         )
 
     locked_sale = _lock_compensable_sale(tenant, sale)
+    if requested_amount is None:
+        refunded_total = SaleRefund.all_objects.filter(
+            tenant=tenant,
+            sale=locked_sale,
+            status='completed',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        requested_amount = _money(locked_sale.net_total - refunded_total)
     return _create_sale_refund_locked(
         tenant=tenant,
         locked_sale=locked_sale,
         method=method,
-        amount=amount,
+        amount=requested_amount,
         reason=reason,
         idempotency_key=idempotency_key,
         sale_return=sale_return,
         actor=actor,
+        payload_hash=fingerprint if amount is None else None,
     )
 
 
