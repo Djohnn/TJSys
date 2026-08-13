@@ -298,7 +298,7 @@
   npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=chromium --grep "R9"
   ```
 
-  Expected: `1 passed`, com duração real registrada; se dependências externas impedirem a execução, corrigir o ambiente e repetir, sem classificar falha funcional como sucesso.
+  Evidência final: `5 passed` no foco R9 e `13 passed` no spec Chromium completo; durações reais estão registradas no fechamento abaixo.
 
 - [ ] Executar o spec inteiro uma vez para detectar interferência de estado:
 
@@ -373,7 +373,7 @@
 - Modify: `docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md`
 - Modify: `docs/PRD.md:774-810`
 
-- [x] Atualizar o relatório com a base `e7a0a8a`, branch `codex/r9-finalization`, commits corretivos, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
+- [x] Atualizar o relatório com a base `77b36ef`, branch `codex/r9-finalization`, commit corretivo `a43701a`, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
 - [x] Substituir as antigas afirmações de “269 passed com 2 falhas preexistentes” pelos resultados atuais. Nenhuma contagem pode ser estimada ou copiada do baseline.
 - [x] Atualizar o PRD para apontar o design e este plano de auditoria, mantendo a R9 como concluída somente se todos os gates obrigatórios estiverem verdes.
 - [x] Conferir isolamento do worktree:
@@ -381,14 +381,11 @@
   ```powershell
   git status --short
   git diff --check
-  git diff --stat e7a0a8a..dcfcd07
-  git log --oneline e7a0a8a..dcfcd07
-  git log --oneline dcfcd07..HEAD
+  git log --oneline 77b36ef..HEAD
   ```
 
 - [x] Revisar o diff final contra o design aprovado: nenhum placeholder/TODO, nenhum segredo, nenhuma alteração fiscal automática e nenhum arquivo de outra frente.
-- [x] Criar commits documentais isolados, definidos dinamicamente por
-      `git log --oneline dcfcd07..HEAD`, sem push:
+- [x] Criar commits documentais isolados em `codex/r9-finalization`, sem push:
 
   ```powershell
   git add docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md docs/PRD.md docs/superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md
@@ -408,3 +405,50 @@
 - [x] Suítes globais, Ruff, mypy, migrations, Django checks, frontend, build e `git diff --check` estão verdes.
 - [x] Relatório final contém somente evidência executada nesta branch.
 - [x] Commits são isolados em `codex/r9-finalization`; nenhum push é realizado.
+## Fechamento final da remediation R9 — 2026-08-13
+
+O plano foi revalidado no worktree `C:\ERP\.worktrees\r9-finalization`,
+branch `codex/r9-finalization`. A implementação/testes/CI desta etapa está
+no commit `a43701a`; documentação foi registrada no commit documental isolado
+desta branch.
+
+### Cenários Gherkin executados
+
+- Given venda confirmada seedada com item devolvível, When o operador envia
+  `sale_item_id` e quantidade, Then a API real retorna `201` e persiste o
+  retorno.
+- Given venda confirmada seedada com pagamento em dinheiro, When o operador
+  informa valor parcial e motivo, Then o endpoint real `/refund/` retorna
+  `201` e a UI fecha após sucesso.
+- Given venda confirmada distinta, When o operador informa motivo de
+  cancelamento, Then `/cancel/` retorna `201` e a venda persistida fica
+  `cancelled`.
+- Given o detalhe real de uma venda e a leitura do dialog responde 404, When o
+  operador abre refund/return, Then o dialog mostra alerta acessível, não mostra
+  formulário e não sofre crash; recurso ausente e cross-tenant continuam
+  indistinguíveis.
+- Given quantidade positiva acima do saldo devolvível, When a API processa o
+  retorno, Then responde Problem Details `insufficient_returnable`/409;
+  quantidade não positiva permanece `validation_error`/422.
+
+### Evidência final
+
+- [x] Backend canônico R9/API: `110 passed in 75.13s`; wrapper
+      `DURATION=77.57s EXIT=0`.
+- [x] Backend completo: `822 passed in 493.50s`, cobertura 80.99%; wrapper
+      `DURATION=497.96s EXIT=0`.
+- [x] CI browser contract + seed guards: `10 passed in 15.94s`; wrapper
+      `DURATION=18.48s EXIT=0`.
+- [x] Frontend compensations: `29 passed`; typecheck/lint/build verdes.
+      Vitest completo: `341 passed in 24.06s`, wrapper
+      `DURATION=26.23s EXIT=0`.
+- [x] Playwright R9 Chromium real: `5 passed in 19.4s`, wrapper
+      `DURATION=21.36s EXIT=0`; spec completo: `13 passed in 43.2s`,
+      wrapper `DURATION=45.26s EXIT=0`; Firefox/WebKit: `26 skipped`,
+      `DURATION=3.66s EXIT=0`.
+- [x] Ruff, mypy, Django check, `makemigrations --check`,
+      `migrate --check`, `git diff --check` verdes; Graphify atualizado
+      após o último código.
+- [x] Impeccable audit/polish executados; detector final `[]` nos três
+      dialogs. Critique single-context explicitamente degradada por ausência
+      de `spawn_agent`, snapshot `.impeccable/critique/`, score 36/40.

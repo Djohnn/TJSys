@@ -1,7 +1,7 @@
 # Sprint 9 — Devoluções, Cancelamentos e Estornos — Relatório Final
 
 **Data do fechamento:** 2026-08-13
-**Base:** `e7a0a8a` (`codex/r8-finalization`)
+**Base:** `77b36ef` (`codex/r9-finalization`)
 **Branch de auditoria:** `codex/r9-finalization`
 **Design aprovado:** [R9 — Auditoria e Fechamento do Pós-venda](../superpowers/specs/2026-08-12-r9-finalization-audit-design.md)
 **Plano de auditoria:** [R9 Finalization Audit Implementation Plan](../superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md), Task 9, linhas 370–408
@@ -14,13 +14,12 @@ compensatórios idempotentes, auditáveis, concorrentes de forma segura e
 isolados por tenant. Os valores e itens originais da venda permanecem
 imutáveis; o status transiciona para `cancelled` no cancelamento comercial.
 
-O fechamento não transforma limitações ambientais em sucesso: o banco
-compartilhado local não foi migrado e o deploy check depende de secrets. Os
-arquivos rastreados `frontend/playwright-report/index.html` e
+O fechamento não transforma limitações ambientais em sucesso: o deploy check
+sem secrets continua bloqueado por configuração ausente. Os arquivos rastreados `frontend/playwright-report/index.html` e
 `frontend/test-results/.last-run.json` estão dirty e foram preservados fora dos
 commits; `graphify-out/` é untracked e também ficou fora dos commits. O banco
-isolado `test_tjsys` passou a validação de migration; o banco compartilhado
-preexistente não foi alterado.
+E2E dedicado `zyrp` foi usado para seed e `migrate --check`; o banco
+compartilhado preexistente não foi alterado.
 
 ## Entregas e decisões confirmadas
 
@@ -76,34 +75,44 @@ preexistente não foi alterado.
 - O contrato de retorno usa `sale_item_id`, não um identificador de produto
   ambíguo. Erros de validação, autorização, inexistência e conflito preservam
   status e códigos Problem Details estáveis.
+- `InsufficientReturnableQuantity` retorna `409` com
+  `code=insufficient_returnable`; quantidades não positivas continuam em
+  `422 validation_error`.
 
 ### Frontend, persistência e 404
 
+- `ReturnDialog`, `RefundDialog` e `CancellationDialog` consomem o cliente
+  compartilhado e a normalização do serializer real (`net_total`,
+  `line_total`, IDs de produto e `payments.method`), sem fetch ad hoc nem
+  shape legado.
 - `ReturnDialog` envia `sale_item_id`, `quantity`, `reason` e
   `Idempotency-Key` para `/returns/`; `RefundDialog` usa a rota real
-  `/refund/` e envia método, valor opcional, motivo e chave idempotente.
-- O E2E confirma resposta real `201` com identificadores e consulta posterior
-  em `/returns/`, provando que o retorno foi persistido no banco; não há mock do
-  endpoint principal.
-- A superfície administrativa mantém estados de erro, incluindo o estado 404
-  com correlation ID, sem converter recurso inexistente em sucesso.
+  `/refund/`, usa o `net_total` correto e envia método, valor opcional,
+  motivo e chave idempotente.
+- Os dialogs distinguem carregamento, vazio e erro; 404 e falhas 500 viram
+  alertas acessíveis sem crash e mantêm cross-tenant/ausente indistinguíveis.
+  A suíte `compensations.test.tsx` cobre o serializer real, itens, valor de
+  refund e 404/erro nos dois dialogs.
 
 ### E2E, CI, seed e atomicidade
 
 - O seed E2E é fail-closed, idempotente e abrangido por transação; preserva
   exatamente as linhas de recovery esperadas e impõe limite de gerações.
 - O CI aguarda o backend por health check antes do Playwright e fornece
-  `E2E_SEED=1`; a validação de configuração remove a dependência YAML implícita.
-- A jornada R9 consome códigos somente em Chromium. Firefox e WebKit são
-  deliberadamente skipped para não consumir recovery codes.
+  `E2E_SEED=1`; ambos os workflows instalam explicitamente Chromium, Firefox e
+  WebKit, comprovados por teste estático contra os projetos configurados.
+- A jornada R9 usa vendas seedadas distintas para return, refund e cancel;
+  cobre também 404 de refund e return sem mockar as mutações reais. Recovery
+  codes são consumidos somente em Chromium; Firefox/WebKit permanecem skipped
+  por política explícita. As taxas de login/MFA do job E2E são elevadas apenas
+  para evitar que a suíte sequencial consuma o limite de autenticação.
 
 ## Commits do escopo de implementação e auditoria
 
-O comando `git log --oneline e7a0a8a..dcfcd07` foi confirmado. Este range fixo
-contém os 25 commits atuais do escopo, abrangendo implementação, hardening,
-testes, design aprovado e plano de auditoria; portanto a lista abaixo não deve
-ser interpretada como 25 commits funcionais. O cutoff `dcfcd07` estabiliza a
-lista e separa o escopo de implementação/auditoria do fechamento documental.
+O histórico anterior de implementação/auditoria permanece listado abaixo como
+referência. O commit isolado desta remediation é
+`a43701a fix(r9): close finalization contract gaps`, contendo código, testes,
+seed e CI; os commits documentais desta etapa são separados.
 
 ```text
 dcfcd07 test(r9): isolate compensation event effects
@@ -133,10 +142,8 @@ ae2e6b1 fix(r9): serialize sale returns
 5069309 docs(r9): define finalization audit
 ```
 
-Os commits de fechamento documental são definidos dinamicamente pela saída do
-comando `git log --oneline dcfcd07..HEAD`. Não há contagem nem lista fixa desses
-commits no relatório; novos fechamentos após este documento permanecem
-capturados pelo range.
+Os commits de fechamento documental são definidos dinamicamente pela saída
+final de `git log --oneline`; não há contagem fixa neste relatório.
 
 ## Verificação — comandos, outputs, durações e exit codes
 
@@ -178,7 +185,9 @@ Comando schema-new:
 C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_sales_returns_models.py tests/test_sales_returns_services.py tests/test_sales_refunds_services.py tests/test_sales_cancellations_services.py tests/test_sales_compensation_concurrency.py tests/test_sales_returns_api.py -q --no-cov --create-db
 ```
 
-Output: `107 passed in 73.28s`; `EXIT=0`.
+Output final: `110 passed in 75.13s (0:01:15)`; wrapper `DURATION=77.57s`; `EXIT=0`.
+O contador anterior era 109; passou a 110 nesta remediation pela inclusão
+explícita do cenário API `insufficient_returnable`/409.
 
 ### Backend global e qualidade estática
 
@@ -188,7 +197,8 @@ Comando backend global (`cwd=...\backend`):
 C:\ERP\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Output: `815 passed in 490.82s (0:08:10)`; coverage `81.47%`; `EXIT=0`.
+Output final: `822 passed in 493.50s (0:08:13)`; coverage `80.99%`; wrapper
+`DURATION=497.96s`; `EXIT=0`.
 
 Ruff:
 
@@ -196,7 +206,7 @@ Ruff:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & C:\ERP\.venv\Scripts\ruff.exe check . 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `All checks passed!`; `DURATION=0.09s`; `EXIT=0`.
+Output final: `All checks passed!`; `DURATION=0.15s`; `EXIT=0`.
 
 mypy:
 
@@ -205,7 +215,7 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & C:\ERP\.venv\Scripts\mypy.ex
 ```
 
 Output relevante: notas informativas do mypy em três pontos; `Success: no
-issues found in 297 source files`; `DURATION=2.58s`; `EXIT=0`.
+issues found in 297 source files`; `DURATION=3.26s`; `EXIT=0`.
 
 Migrations declarativas:
 
@@ -223,8 +233,12 @@ Django check:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & C:\ERP\.venv\Scripts\python.exe manage.py check 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `System check identified no issues (0 silenced)`; `DURATION=1.99s`;
+Output: `System check identified no issues (0 silenced)`; `DURATION=2.32s`;
 `EXIT=0`.
+
+Reexecução final com `DJANGO_SETTINGS_MODULE=config.settings.e2e` e o banco
+dedicado `zyrp`: `No changes detected`, `DURATION=1.96s`, `EXIT=0`; o
+`RuntimeWarning` da tentativa antiga sem env E2E não se repetiu.
 
 ### Migration isolada e migrate --check
 
@@ -297,8 +311,8 @@ Testes:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd test -- --run 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `Test Files 22 passed (22)`, `Tests 337 passed (337)`, Vitest
-`Duration 22.47s`; wrapper `DURATION=26.07s`; `EXIT=0`. Um teste de estado
+Output final: `Test Files 22 passed (22)`, `Tests 341 passed (341)`, Vitest
+`Duration 24.06s`; wrapper `DURATION=26.23s`; `EXIT=0`. Um teste de estado
 de erro imprimiu stack de `Error: test error` no jsdom, mas não produziu falha
 do runner.
 
@@ -330,6 +344,30 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd run build 2>&1; $exi
 Output: `209 modules transformed`, `built in 3.42s`, warning de chunk acima
 de 250 kB; wrapper `DURATION=14.87s`; `EXIT=0`.
 
+### Contrato Problem Details e CI browser
+
+Teste API final:
+
+```text
+. [100%]
+1 passed in 16.86s; EXIT=0
+```
+
+O caso acima prova `409`/`insufficient_returnable`; os casos de quantidade
+inválida não positiva continuam cobertos pelo contrato `422`.
+
+Teste estático de workflows e guards de seed:
+
+```text
+.......... [100%]
+10 passed in 15.94s
+DURATION=18.48s EXIT=0
+```
+
+O teste compara os três projetos declarados no Playwright com a instalação
+dos dois workflows; o mesmo job também cobre o limite fail-closed das três
+gerações R9.
+
 ### E2E
 
 R9 focado (`cwd=...\frontend`):
@@ -338,7 +376,7 @@ R9 focado (`cwd=...\frontend`):
 npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=chromium --grep "R9"
 ```
 
-Output: `1 passed (4.5s)`; `EXIT=0`.
+Output: `5 passed (19.4s)`; wrapper `DURATION=21.36s`; `EXIT=0`.
 
 Chromium completo:
 
@@ -346,7 +384,7 @@ Chromium completo:
 npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=chromium
 ```
 
-Output: `9 passed (22.6s)`; `EXIT=0`.
+Output: `13 passed (43.2s)`; wrapper `DURATION=45.26s`; `EXIT=0`.
 
 Firefox/WebKit foram executados separadamente para preservar os recovery
 codes:
@@ -355,8 +393,18 @@ codes:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=firefox --project=webkit 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `Running 18 tests using 6 workers`, `18 skipped`; `DURATION=11.72s`;
+Output: `Running 26 tests using 1 worker`, `26 skipped`; `DURATION=3.66s`;
 `EXIT=0`. O skip foi deliberado e não consumiu códigos.
+
+### Impeccable UI
+
+Para a mudança substancial dos dialogs, foram executados contexto, audit,
+polish e critique. O detector mecânico final retornou `[]` para
+`RefundDialog.tsx`, `ReturnDialog.tsx` e `CancellationDialog.tsx`. O polish
+adicionou rolagem interna em viewport baixo e foco visível nos controles de
+fechamento. A critique foi explicitamente single-context degradada porque
+`spawn_agent` não está exposto nesta sessão; snapshot persistido em
+`.impeccable/critique/`, score `36/40`, sem P0/P1.
 
 ### Rechecks adicionais da Task 8 após reviews
 
@@ -414,8 +462,8 @@ Output: silencioso; `DURATION=0.18s`; `EXIT=0`.
       antigo não é usado como evidência.
 - [x] `git diff --check` executado no worktree: output silencioso,
       `DURATION=0.18s`, `EXIT=0`.
-- [x] Commits documentais isolados em `codex/r9-finalization`, definidos pelo
-      range `dcfcd07..HEAD`, sem push.
+- [x] Commits isolados em `codex/r9-finalization`, definidos pelo histórico
+      final da branch, sem push.
 
 ## Riscos e ressalvas
 
@@ -436,3 +484,18 @@ Com os gates obrigatórios comprovados no alvo correto e as ressalvas ambientais
 explicitadas, a R9 está tecnicamente concluída e apta a avançar para a R10. A
 política fiscal continua manual/on-demand; não há autorização implícita para
 cancelar NFC-e a partir do cancelamento comercial.
+
+## Adendo final desta remediation
+
+Este adendo substitui qualquer baseline anterior neste relatório. O commit de
+código/testes/CI desta etapa é `a43701a fix(r9): close finalization contract gaps`.
+O backend agora expõe `insufficient_returnable` com HTTP 409 para excesso sobre
+o saldo devolvível; `invalid_quantity`/`validation_error` para quantidade não
+positiva permanecem em HTTP 422. Os dialogs usam a normalização compartilhada
+do serializer real (`net_total`, `line_total`, IDs de produto e
+`payments.method`) e têm loading, empty, erro acessível e 404 sem crash.
+
+O seed passou a manter vendas distintas para return, refund e cancel. A jornada
+R9 final tem cinco cenários reais: return, refund parcial, cancel e 404 em cada
+dialog. O CI instala os três browsers declarados no Playwright; o skip
+Chromium-only é política explícita para não consumir recovery codes.

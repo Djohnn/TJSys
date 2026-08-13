@@ -778,6 +778,8 @@ obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_C
 O `migrate --check` foi comprovado em `config.settings.test` contra
 `test_tjsys`, com os nomes de banco alinhados e `EXIT=0`; ressalvas ambientais
 permanecem explícitas e não são convertidas em sucesso implícito.
+O fechamento final também validou o banco E2E dedicado `zyrp`: seed,
+`makemigrations --check` e `migrate --check` verdes.
 
 **Objetivo:** completar o ciclo pós-venda com fatos compensatórios auditáveis,
 idempotentes, atômicos e isolados por tenant.
@@ -814,6 +816,8 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Expor o endpoint real de reembolso em `/api/v1/sales/{id}/refund/` e
       preservar `/api/v1/sales/{id}/returns/`.
 - [x] Retornar Problem Details para erros de regra.
+- [x] Retornar `insufficient_returnable`/409 para saldo devolvível excedido,
+      mantendo `validation_error`/422 para quantidade não positiva.
 - [x] Testar isolamento cross-tenant.
 - [x] Aplicar RLS aos fatos compensatórios de `sales`.
 - [x] Validar contrato frontend com `sale_item_id`, persistência real e estado
@@ -827,11 +831,11 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Executar Ruff, mypy, `makemigrations --check --dry-run`, migration
       isolada `test_tjsys`, `migrate --check` em `config.settings.test`, Django
       check, typecheck e build.
-- [x] Confirmar seed/CI, atomicidade e que Firefox/WebKit são skipped sem
-      consumir recovery codes.
+- [x] Confirmar seed/CI, instalação coerente dos três browsers configurados,
+      atomicidade e que Firefox/WebKit são skipped sem consumir recovery codes.
 - [x] Registrar evidências no relatório final da Sprint 9.
-- [x] Criar commits documentais isolados em `codex/r9-finalization`, definidos
-      pela saída de `git log --oneline dcfcd07..HEAD`, sem push.
+- [x] Criar commit de implementação `a43701a` e manter commits documentais
+      isolados em `codex/r9-finalization`, sem push.
 
 ### Sprint 10 — Compras, Recebimento e Contas a Pagar
 
@@ -1222,7 +1226,7 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
-| 9 | 2026-08-13 | `codex/r9-finalization`, base `e7a0a8a` | Fault injection GREEN `3 passed`; schema-new `107 passed`; backend `815 passed`, cobertura 81.47%; frontend `337 passed`; E2E R9 `1 passed`, Chromium `9 passed`, Firefox/WebKit `18 skipped`; Ruff, mypy, migration isolada, `migrate --check` TEST, Django check, typecheck, build e `git diff --check` verdes | Banco compartilhado local não migrado; deploy exige `MFA_ENCRYPTION_KEY`; `frontend/playwright-report/index.html` e `frontend/test-results/.last-run.json` rastreados e dirty, preservados fora dos commits; `graphify-out/` untracked, fora dos commits | Aprovado tecnicamente com ressalvas documentadas |
+| 9 | 2026-08-13 | `codex/r9-finalization`, base `77b36ef`, implementation `a43701a` | Fault injection GREEN `3 passed`; R9/API final `110 passed`; backend `822 passed`, cobertura 80.99%; frontend `341 passed`; E2E R9 `5 passed`, Chromium `13 passed`, Firefox/WebKit `26 skipped`; CI browser contract/seed `10 passed`; Ruff, mypy, migrations E2E, Django check, typecheck, build e `git diff --check` verdes | Deploy check sem `MFA_ENCRYPTION_KEY` continua bloqueado sem secret real; `frontend/playwright-report/index.html`, `frontend/test-results/.last-run.json` e `graphify-out/` preservados fora dos commits | Aprovado tecnicamente com ressalvas documentadas |
 | 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
 | 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
 | 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |
