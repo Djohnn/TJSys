@@ -23,15 +23,22 @@ def _run_in_tenant(tenant, callback):
 
 
 def _attempt_artifacts(tenant, idempotency_key):
-    return {
-        'refunds': SaleRefund.all_objects.filter(
+    refunds = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    )
+    refund = refunds.select_related('sale').first()
+    cash_outs = CashMovement.all_objects.none()
+    if refund is not None:
+        cash_outs = CashMovement.all_objects.filter(
             tenant=tenant,
-            idempotency_key=idempotency_key,
-        ).count(),
-        'cash_outs': CashMovement.all_objects.filter(
-            tenant=tenant,
+            cash_session_id=refund.sale.cash_session_id,
             movement_type='cash_out',
-        ).count(),
+        )
+
+    return {
+        'refunds': refunds.count(),
+        'cash_outs': cash_outs.count(),
         'audits': AuditRecord.objects.filter(
             tenant_id=str(tenant.id),
             action='sales.refund.created',
@@ -483,6 +490,53 @@ class TestSaleRefundService:
             outbox = OutboxMessage.objects.get(correlation_id=key)
             assert audit.detail['reason'] == 'Produto avariado'
             assert outbox.payload['reason'] == 'Produto avariado'
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_refund_snapshot_ignores_cash_out_from_another_session(self, sale_context):
+        """Given another session has a cash out, when refunding, then the snapshot is scoped."""
+        ctx = sale_context
+        key = 'refund-session-scoped-snapshot'
+
+        def _test():
+            from sales.services import create_sale_refund, open_cash_session
+
+            other_operator = get_user_model().objects.create_user(
+                email='refund-snapshot-other-operator@example.test',
+                password='!',
+            )
+            other_session = open_cash_session(
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=other_operator,
+                opening_amount=Decimal('50.00'),
+                idempotency_key='refund-snapshot-other-session',
+            )
+            CashMovement.all_objects.create(
+                tenant=ctx['tenant'],
+                cash_session=other_session,
+                movement_type='cash_out',
+                amount=Decimal('3.00'),
+                payment_method='cash',
+                reference='unrelated-cash-out',
+            )
+
+            refund = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='cash',
+                amount=Decimal('10.00'),
+                reason='Sessao original',
+                idempotency_key=key,
+            )
+
+            assert refund.idempotency_key == key
+            assert _attempt_artifacts(ctx['tenant'], key) == {
+                'refunds': 1,
+                'cash_outs': 1,
+                'audits': 1,
+                'outbox': 1,
+            }
 
         _run_in_tenant(ctx['tenant'], _test)
 
