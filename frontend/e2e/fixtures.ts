@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from '@playwright/test'
+import { expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 
 export { expect }
 
@@ -29,10 +29,23 @@ export async function authenticatePage(
 }
 
 export const test = base.extend<{
-  authenticatedPage: any
+  authenticatedPage: Page
+  anonymousPage: Page
 }>({
   authenticatedPage: async ({ page }, use) => {
-    await authenticatePage(page)
+    await page.goto('/dashboard')
     await use(page)
+  },
+  anonymousPage: async ({ browser, baseURL }, use) => {
+    const context: BrowserContext = await browser.newContext({
+      baseURL,
+      storageState: { cookies: [], origins: [] },
+    })
+    const page = await context.newPage()
+    try {
+      await use(page)
+    } finally {
+      await context.close()
+    }
   },
 })
