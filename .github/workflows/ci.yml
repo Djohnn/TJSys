@@ -168,6 +168,9 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       SECRET_KEY: e2e-secret-key-not-for-production
       E2E_SEED: '1'
+      E2E_USER_EMAIL: web-admin@tjsys.local
+      E2E_USER_PASSWORD: e2e-test-pwd-2026
+      E2E_RECOVERY_CODE: e2e0000001
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     defaults:
@@ -229,6 +232,25 @@ jobs:
       - name: Seed E2E data
         working-directory: backend
         run: python manage.py seed_e2e
+
+      - name: Start E2E backend
+        working-directory: backend
+        run: |
+          nohup python manage.py runserver 0.0.0.0:8000 >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/e2e-backend.pid"
+
+      - name: Wait for E2E backend health
+        working-directory: backend
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/api/v1/health/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Backend health check timed out after 60 seconds.'
+          cat "$RUNNER_TEMP/e2e-backend.log"
+          exit 1
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
