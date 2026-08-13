@@ -52,6 +52,10 @@ class SaleNotCompensable(Exception):
     pass
 
 
+class SaleHasReturns(Exception):
+    pass
+
+
 class SaleAlreadyCancelled(Exception):
     pass
 
@@ -436,6 +440,13 @@ def _lock_compensable_sale(tenant, sale):
     return locked_sale
 
 
+def _lock_sale_for_cancellation(tenant, sale):
+    return Sale.all_objects.select_for_update().get(
+        tenant=tenant,
+        pk=sale.pk,
+    )
+
+
 def _canonical_decimal(value):
     decimal_value = Decimal(str(value))
     if decimal_value == 0:
@@ -642,66 +653,64 @@ def create_sale_return(
     return sale_return
 
 
-@transaction.atomic
-def create_sale_refund(
-    *,
-    tenant,
-    sale,
-    method,
-    amount,
-    reason,
-    idempotency_key,
-    sale_return=None,
-    actor=None,
-):
-    if not idempotency_key:
-        raise ValueError('Idempotency-Key is required.')
-    amount = _money(Decimal(str(amount)))
-    if amount <= 0:
-        raise ValueError('Refund amount must be positive.')
-    if method not in dict(SaleRefund.METHOD_CHOICES):
-        raise ValueError('Refund method is invalid.')
-    if not reason or not reason.strip():
-        raise ValueError('Reason is required.')
-
-    payload = {
+def _refund_payload(*, sale, method, amount, reason, sale_return=None):
+    return {
         'sale_id': str(sale.id),
         'method': method,
         'amount': str(amount),
         'reason': reason,
         'sale_return_id': str(sale_return.id) if sale_return else None,
     }
+
+
+def _resolve_existing_refund(*, existing, sale, method, amount, sale_return, fingerprint):
+    if existing.payload_hash == fingerprint:
+        return existing
+    is_semantically_matching_legacy_refund = (
+        not existing.reason
+        and existing.sale_id == sale.id
+        and existing.method == method
+        and existing.amount == amount
+        and existing.sale_return_id == (sale_return.id if sale_return else None)
+    )
+    if is_semantically_matching_legacy_refund:
+        return existing
+    raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
+
+
+def _create_sale_refund_locked(
+    *,
+    tenant,
+    locked_sale,
+    method,
+    amount,
+    reason,
+    idempotency_key,
+    sale_return=None,
+    actor=None,
+    cash_session=None,
+):
+    payload = _refund_payload(
+        sale=locked_sale,
+        method=method,
+        amount=amount,
+        reason=reason,
+        sale_return=sale_return,
+    )
     fingerprint = _payload_hash(payload)
-
-    def resolve_existing(existing):
-        if existing.payload_hash == fingerprint:
-            return existing
-        is_semantically_matching_legacy_refund = (
-            not existing.reason
-            and existing.sale_id == sale.id
-            and existing.method == method
-            and existing.amount == amount
-            and existing.sale_return_id == (sale_return.id if sale_return else None)
+    existing = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing:
+        return _resolve_existing_refund(
+            existing=existing,
+            sale=locked_sale,
+            method=method,
+            amount=amount,
+            sale_return=sale_return,
+            fingerprint=fingerprint,
         )
-        if is_semantically_matching_legacy_refund:
-            return existing
-        raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
-
-    existing = SaleRefund.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).first()
-    if existing:
-        return resolve_existing(existing)
-
-    locked_sale = _lock_compensable_sale(tenant, sale)
-
-    existing = SaleRefund.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).first()
-    if existing:
-        return resolve_existing(existing)
 
     if sale_return:
         if sale_return.tenant_id != tenant.id:
@@ -711,8 +720,7 @@ def create_sale_refund(
         if sale_return.status != 'completed':
             raise ValueError('Sale return must be completed.')
 
-    cash_session = None
-    if method == 'cash':
+    if method == 'cash' and cash_session is None:
         cash_session = CashSession.all_objects.select_for_update().filter(
             tenant=tenant,
             pk=locked_sale.cash_session_id,
@@ -720,10 +728,10 @@ def create_sale_refund(
             operator=locked_sale.operator,
             status='open',
         ).first()
-        if cash_session is None:
-            raise CashSessionRequired(
-                'The sale original cash session must be open for cash refunds.'
-            )
+    if method == 'cash' and cash_session is None:
+        raise CashSessionRequired(
+            'The sale original cash session must be open for cash refunds.'
+        )
 
     refunded_total = SaleRefund.all_objects.filter(
         tenant=tenant,
@@ -792,6 +800,63 @@ def create_sale_refund(
 
 
 @transaction.atomic
+def create_sale_refund(
+    *,
+    tenant,
+    sale,
+    method,
+    amount,
+    reason,
+    idempotency_key,
+    sale_return=None,
+    actor=None,
+):
+    if not idempotency_key:
+        raise ValueError('Idempotency-Key is required.')
+    amount = _money(Decimal(str(amount)))
+    if amount <= 0:
+        raise ValueError('Refund amount must be positive.')
+    if method not in dict(SaleRefund.METHOD_CHOICES):
+        raise ValueError('Refund method is invalid.')
+    if not reason or not reason.strip():
+        raise ValueError('Reason is required.')
+
+    payload = _refund_payload(
+        sale=sale,
+        method=method,
+        amount=amount,
+        reason=reason,
+        sale_return=sale_return,
+    )
+    fingerprint = _payload_hash(payload)
+    existing = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing:
+        return _resolve_existing_refund(
+            existing=existing,
+            sale=sale,
+            method=method,
+            amount=amount,
+            sale_return=sale_return,
+            fingerprint=fingerprint,
+        )
+
+    locked_sale = _lock_compensable_sale(tenant, sale)
+    return _create_sale_refund_locked(
+        tenant=tenant,
+        locked_sale=locked_sale,
+        method=method,
+        amount=amount,
+        reason=reason,
+        idempotency_key=idempotency_key,
+        sale_return=sale_return,
+        actor=actor,
+    )
+
+
+@transaction.atomic
 def cancel_sale(
     *,
     tenant,
@@ -802,7 +867,7 @@ def cancel_sale(
 ):
     if not idempotency_key:
         raise ValueError('Idempotency-Key is required.')
-    if not reason:
+    if not reason or not reason.strip():
         raise ValueError('Reason is required.')
 
     payload = {
@@ -810,6 +875,7 @@ def cancel_sale(
         'reason': reason,
     }
     fingerprint = _payload_hash(payload)
+    locked_sale = _lock_sale_for_cancellation(tenant, sale)
     existing = SaleCancellation.all_objects.filter(
         tenant=tenant,
         idempotency_key=idempotency_key,
@@ -818,39 +884,142 @@ def cancel_sale(
         if existing.payload_hash != fingerprint:
             raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
-
-    if sale.status == 'cancelled':
+    if locked_sale.status == 'cancelled':
         raise SaleAlreadyCancelled('Sale is already cancelled.')
+    if locked_sale.status != 'confirmed':
+        raise SaleNotCompensable('Only confirmed sales can be cancelled.')
+
+    if SaleReturn.all_objects.filter(
+        tenant=tenant,
+        sale=locked_sale,
+        status__in=['draft', 'completed'],
+    ).exists():
+        raise SaleHasReturns('Sale has draft or completed returns.')
+
+    sale_items = list(
+        SaleItem.all_objects.filter(
+            tenant=tenant,
+            sale=locked_sale,
+        )
+        .select_related('product', 'unit', 'stock_operation')
+        .order_by('id')
+    )
+    payments = list(
+        SalePayment.all_objects.filter(
+            tenant=tenant,
+            sale=locked_sale,
+        ).order_by('id')
+    )
+    if not sale_items or not payments:
+        raise SaleNotCompensable('Sale items and payments must be consistent.')
+    if any(payment.method not in dict(SaleRefund.METHOD_CHOICES) for payment in payments):
+        raise SaleNotCompensable('Sale payment method cannot be refunded.')
+    if _money(sum(item.line_total for item in sale_items)) != _money(locked_sale.net_total):
+        raise SaleNotCompensable('Sale item total does not match sale net total.')
+    if _money(sum(payment.amount for payment in payments)) != _money(locked_sale.net_total):
+        raise SaleNotCompensable('Sale payment total does not match sale net total.')
+    cash_payment_total = _money(
+        sum(payment.amount for payment in payments if payment.method == 'cash')
+    )
+    if cash_payment_total:
+        cash_movement_total = CashMovement.all_objects.filter(
+            tenant=tenant,
+            cash_session_id=locked_sale.cash_session_id,
+            movement_type='sale_payment',
+            payment_method='cash',
+            reference=str(locked_sale.id),
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        if _money(cash_movement_total) != cash_payment_total:
+            raise SaleNotCompensable('Sale cash effects are inconsistent.')
+
+    stock_reversals = []
+    for sale_item in sale_items:
+        if sale_item.quantity <= 0 or sale_item.factor <= 0:
+            raise SaleNotCompensable('Sale item quantity and factor must be positive.')
+        if not sale_item.product.tracks_inventory:
+            continue
+        stock_operation = sale_item.stock_operation
+        if (
+            stock_operation is None
+            or stock_operation.tenant_id != tenant.id
+            or stock_operation.operation_type != 'issue'
+            or stock_operation.status != 'confirmed'
+        ):
+            raise SaleNotCompensable('Sale stock effects are inconsistent.')
+        stock_movements = list(StockMovement.all_objects.filter(
+            tenant=tenant,
+            operation=stock_operation,
+            product=sale_item.product,
+            direction='out',
+        ).order_by('id'))
+        if len(stock_movements) != 1:
+            raise SaleNotCompensable('Sale stock effects are inconsistent.')
+        expected_quantity = (sale_item.quantity * sale_item.factor).quantize(
+            Decimal('0.000001')
+        )
+        if sum(movement.quantity for movement in stock_movements) != expected_quantity:
+            raise SaleNotCompensable('Sale stock effects are inconsistent.')
+        location = stock_movements[0].location
+        if location is None:
+            raise SaleNotCompensable('Sale stock location is required for cancellation.')
+        stock_reversals.append((sale_item, location))
+
+    completed_refunds = list(
+        SaleRefund.all_objects.select_for_update().filter(
+            tenant=tenant,
+            sale=locked_sale,
+            status='completed',
+        ).order_by('created_at', 'id')
+    )
+    refunded_by_method = {}
+    refunded_total = Decimal('0')
+    for refund in completed_refunds:
+        refunded_total += refund.amount
+        refunded_by_method[refund.method] = (
+            refunded_by_method.get(refund.method, Decimal('0')) + refund.amount
+        )
+    if _money(refunded_total) > _money(locked_sale.net_total):
+        raise SaleNotCompensable('Existing refunds exceed the sale net total.')
+
+    payment_totals = {}
+    for payment in payments:
+        payment_totals[payment.method] = (
+            payment_totals.get(payment.method, Decimal('0')) + payment.amount
+        )
+    for method, refund_total in refunded_by_method.items():
+        if method not in payment_totals or _money(refund_total) > _money(payment_totals[method]):
+            raise SaleNotCompensable('Existing refunds are inconsistent with sale payments.')
+
+    cash_session = None
+    if any(payment.method == 'cash' for payment in payments):
+        cash_session = CashSession.all_objects.select_for_update().filter(
+            tenant=tenant,
+            pk=locked_sale.cash_session_id,
+            branch=locked_sale.branch,
+            operator=locked_sale.operator,
+            status='open',
+        ).first()
+        if cash_session is None:
+            raise CashSessionRequired(
+                'The sale original cash session must be open for cancellation refunds.'
+            )
 
     cancellation = SaleCancellation.all_objects.create(
         tenant=tenant,
-        sale=sale,
+        sale=locked_sale,
         reason=reason,
         status='completed',
         idempotency_key=idempotency_key,
         payload_hash=fingerprint,
     )
 
-    for index, sale_item in enumerate(
-        SaleItem.all_objects.filter(sale=sale).select_related('product', 'unit'),
-        start=1,
-    ):
-        location = None
-        if sale_item.stock_operation_id:
-            movement = StockMovement.all_objects.filter(
-                operation_id=sale_item.stock_operation_id,
-            ).first()
-            if movement:
-                location = movement.location
-        if location is None:
-            location = StockLocation.all_objects.filter(
-                tenant=tenant,
-                branch=sale.branch,
-                is_primary=True,
-            ).first()
+    stock_reversals.sort(
+        key=lambda item: (str(item[1].id), str(item[0].product_id), str(item[0].id))
+    )
+    for index, (sale_item, location) in enumerate(stock_reversals, start=1):
         create_receipt(
             tenant,
-            sale.branch,
+            locked_sale.branch,
             sale_item.product,
             location,
             sale_item.quantity,
@@ -858,56 +1027,41 @@ def cancel_sale(
             sale_item.factor,
             idempotency_key=f'{idempotency_key}:stock:{index}',
             actor=actor,
-            reason=f'Cancellation {cancellation.id} of Sale {sale.id}',
+            reason=f'Cancellation {cancellation.id} of Sale {locked_sale.id}',
         )
 
-    cash_session = sale.cash_session
-    for payment in SalePayment.all_objects.filter(sale=sale):
-        if payment.method == 'cash':
-            SaleRefund.all_objects.create(
-                tenant=tenant,
-                sale=sale,
-                sale_return=None,
-                method='cash',
-                amount=payment.amount,
-                reason=reason,
-                status='completed',
-                idempotency_key=f'{idempotency_key}:refund:{payment.id}',
-            )
-            if cash_session and cash_session.status == 'open':
-                CashMovement.all_objects.create(
-                    tenant=tenant,
-                    cash_session=cash_session,
-                    movement_type='cash_out',
-                    amount=payment.amount,
-                    payment_method='cash',
-                    reference=str(sale.id),
-                    notes=f'Auto refund for cancellation {cancellation.id}',
-                )
-                cash_session.expected_amount = _money(cash_session.expected_amount - payment.amount)
-                cash_session.version += 1
-                cash_session.save(update_fields=['expected_amount', 'version', 'updated_at'])
-        else:
-            SaleRefund.all_objects.create(
-                tenant=tenant,
-                sale=sale,
-                sale_return=None,
-                method=payment.method,
-                amount=payment.amount,
-                reason=reason,
-                status='completed',
-                idempotency_key=f'{idempotency_key}:refund:{payment.id}',
-            )
+    remaining_by_method = {
+        method: _money(payment_total - refunded_by_method.get(method, Decimal('0')))
+        for method, payment_total in payment_totals.items()
+    }
+    for payment in payments:
+        amount = min(payment.amount, remaining_by_method[payment.method])
+        amount = _money(amount)
+        if amount <= 0:
+            continue
+        _create_sale_refund_locked(
+            tenant=tenant,
+            locked_sale=locked_sale,
+            method=payment.method,
+            amount=amount,
+            reason=reason,
+            idempotency_key=f'{idempotency_key}:refund:{payment.id}',
+            actor=actor,
+            cash_session=cash_session,
+        )
+        remaining_by_method[payment.method] = _money(
+            remaining_by_method[payment.method] - amount
+        )
 
-    sale.status = 'cancelled'
-    sale.version += 1
-    sale.save(update_fields=['status', 'version', 'updated_at'])
+    locked_sale.status = 'cancelled'
+    locked_sale.version += 1
+    locked_sale.save(update_fields=['status', 'version', 'updated_at'])
 
     create_audit_record(
         actor=actor,
         action='sales.sale.cancelled',
         resource_type='Sale',
-        resource_id=str(sale.id),
+        resource_id=str(locked_sale.id),
         detail={
             'cancellation_id': str(cancellation.id),
             'reason': reason,
@@ -918,9 +1072,9 @@ def cancel_sale(
     create_outbox_message(
         event_type='sales.sale.cancelled',
         aggregate_type='Sale',
-        aggregate_id=str(sale.id),
+        aggregate_id=str(locked_sale.id),
         payload={
-            'sale_id': str(sale.id),
+            'sale_id': str(locked_sale.id),
             'cancellation_id': str(cancellation.id),
             'reason': reason,
         },
