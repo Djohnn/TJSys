@@ -98,8 +98,9 @@ validação de migration; o banco compartilhado preexistente não foi alterado.
 
 `git log --oneline e7a0a8a..HEAD` foi confirmado; a saída inclui commits
 documentais desta auditoria, que não pertencem à lista corretiva abaixo. A
-lista contém 25 commits corretivos/funcionais ancestrais do `HEAD`; os commits
-documentais são contabilizados separadamente no histórico, sem serem tratados
+lista contém 25 commits ancestrais de implementação/auditoria do `HEAD` (23 de
+código/testes e 2 preparatórios de design/plano); os commits documentais de
+fechamento são contabilizados separadamente no histórico, sem serem tratados
 como correções de produto. `e60f06c` foi
 inspecionado, mas não é ancestral do `HEAD`, não pertence a branch local e não
 tem patch-id equivalente no range; portanto não é listado como entrega desta
