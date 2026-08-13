@@ -421,14 +421,18 @@ class SaleReturnSerializer(serializers.ModelSerializer):
 
 class ReturnItemInputSerializer(serializers.Serializer):
     sale_item_id = serializers.UUIDField()
-    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        min_value=Decimal('0.000001'),
+    )
 
 
 class CreateSaleReturnSerializer(serializers.Serializer):
     # DRF supports list-level validation kwargs when ``many=True``; its type stubs
     # do not currently expose ``min_length`` on the child serializer constructor.
     items = ReturnItemInputSerializer(many=True, min_length=1)  # type: ignore[call-arg]
-    reason = serializers.CharField(min_length=1)
+    reason = serializers.CharField(min_length=1, max_length=500)
 
 
 class SaleRefundSerializer(serializers.ModelSerializer):
@@ -446,7 +450,7 @@ class CreateSaleRefundSerializer(serializers.Serializer):
         min_value=Decimal('0.01'),
         required=False,
     )
-    reason = serializers.CharField(min_length=1)
+    reason = serializers.CharField(min_length=1, max_length=500)
 
     def validate_reason(self, value):
         if not value.strip():
@@ -462,4 +466,4 @@ class SaleCancellationSerializer(serializers.ModelSerializer):
 
 
 class CreateSaleCancellationSerializer(serializers.Serializer):
-    reason = serializers.CharField(min_length=1)
+    reason = serializers.CharField(min_length=1, max_length=500)

@@ -1,5 +1,6 @@
 import json
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -211,7 +212,34 @@ class TestSaleReturnAPI:
         _assert_problem(
             response,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            code='invalid_quantity',
+            code='validation_error',
+        )
+
+    def test_return_reason_over_500_is_rejected_before_service(self, returns_api_context):
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        sale_item_id = str(SaleItem.all_objects.filter(sale=sale).first().id)
+        with patch(
+            'sales.views.create_sale_return',
+            side_effect=AssertionError('return service must not be called'),
+        ):
+            response = ctx['api_client'].post(
+                reverse('sale-returns', kwargs={'pk': sale.id}),
+                data=json.dumps(
+                    {
+                        'items': [{'sale_item_id': sale_item_id, 'quantity': '1'}],
+                        'reason': 'x' * 501,
+                    }
+                ),
+                content_type='application/json',
+                HTTP_IDEMPOTENCY_KEY='api-return-long-reason',
+                HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+            )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code='validation_error',
         )
 
     def test_refund_without_amount_completes_remaining_balance_and_replays(
@@ -260,6 +288,27 @@ class TestSaleReturnAPI:
         _assert_problem(
             response,
             status_code=status.HTTP_400_BAD_REQUEST,
+            code='validation_error',
+        )
+
+    def test_refund_reason_over_500_is_rejected_before_service(self, returns_api_context):
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        with patch(
+            'sales.views.create_sale_refund',
+            side_effect=AssertionError('refund service must not be called'),
+        ):
+            response = ctx['api_client'].post(
+                reverse('sale-refund', kwargs={'pk': sale.id}),
+                data=json.dumps({'method': 'cash', 'reason': 'x' * 501}),
+                content_type='application/json',
+                HTTP_IDEMPOTENCY_KEY='api-refund-long-reason',
+                HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+            )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code='validation_error',
         )
 
@@ -344,6 +393,27 @@ class TestSaleReturnAPI:
         _assert_problem(
             response,
             status_code=status.HTTP_400_BAD_REQUEST,
+            code='validation_error',
+        )
+
+    def test_cancel_reason_over_500_is_rejected_before_service(self, returns_api_context):
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        with patch(
+            'sales.views.cancel_sale',
+            side_effect=AssertionError('cancel service must not be called'),
+        ):
+            response = ctx['api_client'].post(
+                reverse('sale-cancel', kwargs={'pk': sale.id}),
+                data=json.dumps({'reason': 'x' * 501}),
+                content_type='application/json',
+                HTTP_IDEMPOTENCY_KEY='api-cancel-long-reason',
+                HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+            )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code='validation_error',
         )
 
