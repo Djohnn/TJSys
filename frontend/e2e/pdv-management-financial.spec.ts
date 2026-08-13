@@ -1,5 +1,76 @@
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { test } from './fixtures'
+
+type TenantMembership = { tenant_id: string; tenant_name: string }
+type Product = { id: string; sku: string }
+type SaleItem = { id: string; product: string; quantity: string }
+type Sale = { id: string; status: string; created_at: string; items: SaleItem[] }
+type PaginatedResponse<T> = { next: string | null; results: T[] }
+
+async function fetchAllPages<T>(
+  page: Page,
+  firstUrl: string,
+  headers: Record<string, string>,
+): Promise<T[]> {
+  const results: T[] = []
+  const visited = new Set<string>()
+  let nextUrl: string | null = firstUrl
+
+  while (nextUrl) {
+    if (visited.has(nextUrl)) {
+      throw new Error(`Paginação repetiu a URL: ${nextUrl}`)
+    }
+    visited.add(nextUrl)
+
+    const response = await page.request.get(nextUrl, { headers })
+    expect(response.ok()).toBeTruthy()
+    const pageData = (await response.json()) as PaginatedResponse<T>
+    results.push(...pageData.results)
+
+    if (!pageData.next) {
+      nextUrl = null
+      continue
+    }
+    const next = new URL(pageData.next, 'http://playwright.local')
+    nextUrl = `${next.pathname}${next.search}`
+  }
+
+  return results
+}
+
+async function findR9ReturnSale(page: Page) {
+  const meResponse = await page.request.get('/api/v1/auth/me/')
+  expect(meResponse.ok()).toBeTruthy()
+  const me = (await meResponse.json()) as { memberships: TenantMembership[] }
+  const tenant = me.memberships.find((membership) => membership.tenant_name === 'E2E Test')
+  expect(tenant).toBeDefined()
+
+  const tenantHeaders = { 'X-Tenant-ID': tenant!.tenant_id }
+  const products = await fetchAllPages<Product>(
+    page,
+    '/api/v1/catalog/products/?q=E2E-R9-RETURN-001',
+    tenantHeaders,
+  )
+  const product = products.find((candidate) => candidate.sku === 'E2E-R9-RETURN-001')
+  expect(product).toBeDefined()
+
+  const sales = await fetchAllPages<Sale>(
+    page,
+    '/api/v1/sales/?status=confirmed',
+    tenantHeaders,
+  )
+  const sale = sales
+    .filter((candidate) => candidate.items.some((item) => item.product === product!.id))
+    .sort(
+      (left, right) =>
+        right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id),
+    )[0]
+  expect(sale).toBeDefined()
+  const saleItem = sale!.items.find((item) => item.product === product!.id)
+  expect(saleItem).toBeDefined()
+
+  return { sale: sale!, saleItem: saleItem!, product: product! }
+}
 
 test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
   test('Vendas — lista de vendas carrega', async ({ authenticatedPage }) => {
@@ -26,6 +97,52 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     await page.goto('/sales')
     await expect(page.getByRole('button', { name: /nova venda/i })).toHaveCount(0)
     await expect(page.getByRole('link', { name: /nova venda/i })).toHaveCount(0)
+  })
+
+  test('[R9] devolve item de venda confirmada pela jornada real', async ({ authenticatedPage }) => {
+    // Given usuário E2E autenticado, tenant ativo e venda R9 confirmada seedada.
+    const page = authenticatedPage
+    const { sale, saleItem, product } = await findR9ReturnSale(page)
+
+    await page.goto('/sales')
+    const saleRow = page
+      .getByTestId('sale-row')
+      .filter({ has: page.getByTestId(`status-badge-${sale.id}`) })
+    await expect(saleRow).toBeVisible()
+
+    // When abre o detalhe, aciona Devolver itens e informa quantidade/motivo.
+    await saleRow.getByRole('link', { name: 'Detalhes' }).click()
+    await expect(page.getByTestId('sale-detail-page')).toBeVisible()
+    await page.getByRole('button', { name: 'Devolver itens' }).click()
+
+    const dialog = page.getByTestId('return-dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByTestId(`return-qty-${product.id}`).fill('1')
+    await dialog.getByLabel('Motivo').fill('Devolução E2E R9 por teste automatizado')
+
+    // Then POST real retorna 201 com sale_item_id, idempotência e o diálogo fecha.
+    const returnResponsePromise = page.waitForResponse((response) => {
+      const request = response.request()
+      return (
+        request.method() === 'POST' &&
+        /\/api\/v1\/sales\/[^/]+\/returns\/$/.test(new URL(response.url()).pathname)
+      )
+    })
+    await dialog.getByRole('button', { name: 'Confirmar' }).click()
+    const returnResponse = await returnResponsePromise
+    expect(returnResponse.status()).toBe(201)
+
+    const request = returnResponse.request()
+    const payload = request.postDataJSON() as {
+      items: Array<{ sale_item_id?: string; product?: string; quantity: string }>
+      reason: string
+    }
+    expect(payload.items).toEqual([
+      { sale_item_id: saleItem.id, quantity: '1' },
+    ])
+    expect(payload.items[0]).not.toHaveProperty('product')
+    expect(request.headers()['idempotency-key']).toBeTruthy()
+    await expect(dialog).not.toBeVisible()
   })
 
   test('Sessões de caixa — lista carrega', async ({ authenticatedPage }) => {

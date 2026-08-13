@@ -149,6 +149,43 @@ class Command(BaseCommand):
                     },
                 )
 
+                r9_product, _ = Product.objects.get_or_create(
+                    tenant=tenant,
+                    sku='E2E-R9-RETURN-001',
+                    defaults={
+                        'name': 'Produto E2E R9 Devolução',
+                        'base_unit': unit,
+                        'category': cat,
+                        'ncm': '84713000',
+                        'is_active': True,
+                    },
+                )
+                r9_product.name = 'Produto E2E R9 Devolução'
+                r9_product.base_unit = unit
+                r9_product.category = cat
+                r9_product.ncm = '84713000'
+                r9_product.is_active = True
+                r9_product.save(
+                    update_fields=[
+                        'name',
+                        'base_unit',
+                        'category',
+                        'ncm',
+                        'is_active',
+                        'updated_at',
+                    ]
+                )
+
+                ProductPrice.objects.update_or_create(
+                    tenant=tenant,
+                    product=r9_product,
+                    valid_from='2026-01-01T00:00:00Z',
+                    defaults={
+                        'amount': Decimal('29.90'),
+                        'is_active': True,
+                    },
+                )
+
                 location, _ = StockLocation.objects.get_or_create(
                     tenant=tenant,
                     branch=branch,
@@ -171,6 +208,18 @@ class Command(BaseCommand):
                     idempotency_key='e2e-stock-seed',
                     actor=admin_user,
                     reason='seed e2e stock',
+                )
+                create_receipt(
+                    tenant,
+                    branch,
+                    r9_product,
+                    location,
+                    Decimal('1'),
+                    unit,
+                    Decimal('1'),
+                    idempotency_key='e2e-r9-return-stock-seed',
+                    actor=admin_user,
+                    reason='seed e2e r9 return stock',
                 )
 
                 with connection.cursor() as c:
@@ -203,6 +252,7 @@ class Command(BaseCommand):
                         [str(tenant.id)],
                     )
 
+                from sales.models import Sale, SaleReturnItem
                 from sales.services import create_counter_sale, open_cash_session
 
                 open_cash_session(
@@ -227,6 +277,44 @@ class Command(BaseCommand):
                     ],
                     payments=[{'method': 'cash', 'amount': Decimal('49.90')}],
                     idempotency_key='e2e-sale-seed',
+                )
+                r9_return_sale_key = 'e2e-r9-return-sale'
+                r9_return_sale_generation = 0
+                while True:
+                    if r9_return_sale_generation:
+                        r9_return_sale_key = (
+                            f'e2e-r9-return-sale-{r9_return_sale_generation}'
+                        )
+                    existing_r9_sale = Sale.all_objects.filter(
+                        tenant=tenant,
+                        idempotency_key=r9_return_sale_key,
+                    ).first()
+                    if existing_r9_sale is None:
+                        break
+                    has_r9_return = SaleReturnItem.all_objects.filter(
+                        tenant=tenant,
+                        sale_item__sale=existing_r9_sale,
+                        sale_return__status__in=['draft', 'completed'],
+                    ).exists()
+                    if existing_r9_sale.status == 'confirmed' and not has_r9_return:
+                        break
+                    r9_return_sale_generation += 1
+
+                r9_return_sale = create_counter_sale(
+                    tenant=tenant,
+                    branch=branch,
+                    operator=admin_user,
+                    stock_location=location,
+                    items=[
+                        {
+                            'product': r9_product,
+                            'unit': unit,
+                            'quantity': Decimal('1'),
+                            'factor': Decimal('1'),
+                        }
+                    ],
+                    payments=[{'method': 'cash', 'amount': Decimal('29.90')}],
+                    idempotency_key=r9_return_sale_key,
                 )
 
                 from fiscal.models import FiscalDocument, FiscalProductConfig
@@ -382,10 +470,16 @@ class Command(BaseCommand):
             totp_device.verified_at = timezone.now()
             totp_device.save(update_fields=['verified_at'])
             regenerate_recovery_codes(device=totp_device)
-            RecoveryCode.objects.update_or_create(
+            fixed_recovery_digest = digest_value('e2e0000001')
+            RecoveryCode.objects.filter(
                 device=totp_device,
-                digest=digest_value('e2e0000001'),
-                defaults={'consumed_at': None},
+                digest=fixed_recovery_digest,
+            ).delete()
+            RecoveryCode.objects.bulk_create(
+                [
+                    RecoveryCode(device=totp_device, digest=fixed_recovery_digest)
+                    for _ in range(10)
+                ]
             )
 
             # Also set up for e2e admin
@@ -467,6 +561,8 @@ class Command(BaseCommand):
                     f'  Tenant: {beta_tenant.slug}\n'
                     f'  Device: {device.id} (API key: {E2E_API_KEY})\n'
                     f'  Produto: {product.sku} (R$ 49,90)\n'
+                    f'  Venda R9: {r9_return_sale.id} (chave: {r9_return_sale_key}; '
+                    f'produto: E2E-R9-RETURN-001)\n'
                     f'  Local estoque: {location.code}\n'
                     '  Web admin: web-admin@tjsys.local '
                     f'(membro de {tenant.slug} e {beta_tenant.slug})'
