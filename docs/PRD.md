@@ -48,7 +48,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 6 | Concluída | Contingência offline e sincronização |
 | 7 | A detalhar | Integração fiscal por provider |
 | 8 | A detalhar | Piloto, observabilidade e hardening |
-| 9 | Concluída em 2026-08-13 | Devoluções, cancelamentos e estornos; gates finais comprovados |
+| 9 | Concluída em 2026-08-13 | Devoluções, cancelamentos e estornos; gates finais comprovados no alvo TEST |
 | 10 | A detalhar | Compras, recebimento e contas a pagar |
 | 11 | A detalhar | Financeiro, fluxo de caixa e relatórios |
 | 12 | A detalhar | Pessoas, clientes e parceiros |
@@ -775,9 +775,9 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 **Estado:** Concluída tecnicamente em 2026-08-13, após comprovação dos gates
 obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md).
-O status só pode permanecer concluído enquanto esses gates continuarem verdes;
-ressalvas ambientais devem permanecer explícitas e não podem ser convertidas
-em sucesso implícito.
+O `migrate --check` foi comprovado em `config.settings.test` contra
+`test_tjsys`, com os nomes de banco alinhados e `EXIT=0`; ressalvas ambientais
+permanecem explícitas e não são convertidas em sucesso implícito.
 
 **Objetivo:** completar o ciclo pós-venda com fatos compensatórios auditáveis,
 idempotentes, atômicos e isolados por tenant.
@@ -824,7 +824,8 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Executar suíte focada schema-new, fault injection, suíte backend global,
       frontend e E2E Chromium.
 - [x] Executar Ruff, mypy, `makemigrations --check --dry-run`, migration
-      isolada `test_tjsys`, `migrate --check`, Django check, typecheck e build.
+      isolada `test_tjsys`, `migrate --check` em `config.settings.test`, Django
+      check, typecheck e build.
 - [x] Confirmar seed/CI, atomicidade e que Firefox/WebKit são skipped sem
       consumir recovery codes.
 - [x] Registrar evidências no relatório final da Sprint 9.
@@ -1219,7 +1220,7 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
-| 9 | 2026-08-13 | `codex/r9-finalization`, base `e7a0a8a` | Fault injection GREEN `3 passed`; schema-new `107 passed`; backend `815 passed`, cobertura 81.47%; frontend `337 passed`; E2E R9 `1 passed`, Chromium `9 passed`, Firefox/WebKit `18 skipped`; Ruff, mypy, migrations isoladas, Django check, typecheck e build verdes | Banco compartilhado local não migrado por conter migrations preexistentes; deploy exige `MFA_ENCRYPTION_KEY`; artefatos Playwright/graphify não versionados | Aprovado tecnicamente com ressalvas documentadas |
+| 9 | 2026-08-13 | `codex/r9-finalization`, base `e7a0a8a` | Fault injection GREEN `3 passed`; schema-new `107 passed`; backend `815 passed`, cobertura 81.47%; frontend `337 passed`; E2E R9 `1 passed`, Chromium `9 passed`, Firefox/WebKit `18 skipped`; Ruff, mypy, migration isolada e `migrate --check` TEST, Django check, typecheck e build verdes | Banco compartilhado local não migrado; deploy exige `MFA_ENCRYPTION_KEY`; artefatos Playwright/graphify não versionados | Aprovado tecnicamente com ressalvas documentadas |
 | 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
 | 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
 | 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |
