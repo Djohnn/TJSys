@@ -192,7 +192,8 @@ Comando schema-new:
 C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_sales_returns_models.py tests/test_sales_returns_services.py tests/test_sales_refunds_services.py tests/test_sales_cancellations_services.py tests/test_sales_compensation_concurrency.py tests/test_sales_returns_api.py -q --no-cov --create-db
 ```
 
-Output final: `110 passed in 81.01s (0:01:21)`; wrapper `DURATION=83.74s`; `EXIT=0`.
+Output final pós-commit: `110 passed in 73.41s (0:01:13)`; wrapper
+`DURATION=75.94s`; `EXIT=0`.
 O contador anterior era 109; passou a 110 nesta remediation pela inclusão
 explícita do cenário API `insufficient_returnable`/409.
 
@@ -369,8 +370,8 @@ Teste estático de workflows e guards de seed:
 
 ```text
 ....... [100%]
-7 passed in 0.07s
-DURATION=2.33s EXIT=0
+7 passed in 0.08s
+DURATION=2.69s EXIT=0
 ```
 
 O teste compara os três projetos declarados no Playwright com a instalação
@@ -526,7 +527,8 @@ Duration 23.80s
 Essa tentativa original não registrou o exit code; ele não foi inventado neste
 relatório. Como RED reproduzível desta continuação, antes da implementação, o
 mesmo arquivo já ampliado produziu `4 failed | 31 passed (35)`, `Duration
-6.49s`; depois da correção produziu `35 passed (35)`, `Duration 5.90s`, exit 0.
+6.49s`; depois da correção, no recheck pós-commit, produziu `35 passed (35)`,
+runner `5.65s`, wrapper `7.84s`, exit 0.
 
 ### Decisões e cenários Gherkin da revisão
 
@@ -551,8 +553,8 @@ mesmo arquivo já ampliado produziu `4 failed | 31 passed (35)`, `Duration
 
 ```text
 Backend/API/serviços/CI contracts: 14 passed in 20.92s; EXIT=0
-Workflow static contract: 7 passed in 0.07s; DURATION=2.33s; EXIT=0
-Frontend compensations: 35 passed in 5.90s; EXIT=0
+Workflow static contract: 7 passed in 0.08s; DURATION=2.69s; EXIT=0
+Frontend compensations: 35 passed in 5.65s; wrapper DURATION=7.84s; EXIT=0
 Vitest completo: 22 files, 347 passed; runner Duration 23.58s;
 wrapper DURATION=25.88s; EXIT=0
 ```

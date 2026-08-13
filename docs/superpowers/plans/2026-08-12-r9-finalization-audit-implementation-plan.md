@@ -433,12 +433,12 @@ desta branch.
 
 ### Evidência final
 
-- [x] Backend canônico R9/API: `110 passed in 81.01s`; wrapper
-      `DURATION=83.74s EXIT=0`.
+- [x] Backend canônico R9/API pós-commit: `110 passed in 73.41s`; wrapper
+      `DURATION=75.94s EXIT=0`.
 - [x] Backend completo: `825 passed in 454.81s`, cobertura 80.99%; wrapper
       `DURATION=459.70s EXIT=0`.
-- [x] CI browser contract + seed guards: `7 passed in 0.07s`; wrapper
-      `DURATION=2.33s EXIT=0`.
+- [x] CI browser contract + seed guards pós-commit: `7 passed in 0.08s`; wrapper
+      `DURATION=2.69s EXIT=0`.
 - [x] Frontend compensations: `35 passed`; typecheck/lint/build verdes.
       Vitest completo: `347 passed`, runner `23.58s`, wrapper
       `DURATION=25.88s EXIT=0`.
@@ -459,7 +459,8 @@ desta branch.
 - RED frontend original preservado: `18 failed | 11 passed (29)`, `Duration
   23.80s`; a execução não registrou exit code, que não foi inventado. RED
   reproduzível desta continuação: `4 failed | 31 passed (35)`, `Duration
-  6.49s`; GREEN: `35 passed (35)`, `Duration 5.90s`, exit 0.
+  6.49s`; GREEN pós-commit: `35 passed (35)`, runner `5.65s`, wrapper
+  `7.84s`, exit 0.
 - `RefundDialog` deriva PIX/cartão/dinheiro de `payments.method`, alerta em
   múltiplos pagamentos e permite ajuste; `ReturnDialog` usa `Decimal` para
   ratear `line_total` com desconto pela quantidade devolvida; ambos têm testes
