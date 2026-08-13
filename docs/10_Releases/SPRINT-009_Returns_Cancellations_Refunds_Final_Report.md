@@ -76,8 +76,8 @@ compartilhado preexistente não foi alterado.
   ambíguo. Erros de validação, autorização, inexistência e conflito preservam
   status e códigos Problem Details estáveis.
 - `InsufficientReturnableQuantity` retorna `409` com
-  `code=insufficient_returnable`; quantidades não positivas continuam em
-  `422 validation_error`.
+  `code=insufficient_returnable`; quantidades não positivas retornam
+  `422 code=invalid_quantity`.
 
 ### Frontend, persistência e 404
 
@@ -85,6 +85,11 @@ compartilhado preexistente não foi alterado.
   compartilhado e a normalização do serializer real (`net_total`,
   `line_total`, IDs de produto e `payments.method`), sem fetch ad hoc nem
   shape legado.
+- `RefundDialog` deriva o método inicial do primeiro pagamento compatível na
+  ordem do serializer (`cash`, `pix` ou variantes de cartão normalizadas para
+  `card_external`); com múltiplos pagamentos exibe orientação e mantém o
+  seletor ajustável. `ReturnDialog` calcula crédito parcial proporcional ao
+  `line_total` com `Decimal`, preservando descontos.
 - `ReturnDialog` envia `sale_item_id`, `quantity`, `reason` e
   `Idempotency-Key` para `/returns/`; `RefundDialog` usa a rota real
   `/refund/`, usa o `net_total` correto e envia método, valor opcional,
@@ -92,7 +97,8 @@ compartilhado preexistente não foi alterado.
 - Os dialogs distinguem carregamento, vazio e erro; 404 e falhas 500 viram
   alertas acessíveis sem crash e mantêm cross-tenant/ausente indistinguíveis.
   A suíte `compensations.test.tsx` cobre o serializer real, itens, valor de
-  refund e 404/erro nos dois dialogs.
+  refund, PIX/cartão, descontos/quantidade parcial, estados vazios e
+  404/erro nos dois dialogs.
 
 ### E2E, CI, seed e atomicidade
 
@@ -111,8 +117,9 @@ compartilhado preexistente não foi alterado.
 
 O histórico anterior de implementação/auditoria permanece listado abaixo como
 referência. O commit isolado desta remediation é
-`a43701a fix(r9): close finalization contract gaps`, contendo código, testes,
-seed e CI; os commits documentais desta etapa são separados.
+`0ac90a7b4590cd83e88471000c28a4264a0361b2 fix(r9): close spec review gaps`,
+contendo código, testes e CI; os commits documentais desta etapa são
+separados.
 
 ```text
 dcfcd07 test(r9): isolate compensation event effects
@@ -185,7 +192,7 @@ Comando schema-new:
 C:\ERP\.venv\Scripts\python.exe -m pytest tests/test_sales_returns_models.py tests/test_sales_returns_services.py tests/test_sales_refunds_services.py tests/test_sales_cancellations_services.py tests/test_sales_compensation_concurrency.py tests/test_sales_returns_api.py -q --no-cov --create-db
 ```
 
-Output final: `110 passed in 75.13s (0:01:15)`; wrapper `DURATION=77.57s`; `EXIT=0`.
+Output final: `110 passed in 81.01s (0:01:21)`; wrapper `DURATION=83.74s`; `EXIT=0`.
 O contador anterior era 109; passou a 110 nesta remediation pela inclusão
 explícita do cenário API `insufficient_returnable`/409.
 
@@ -197,8 +204,8 @@ Comando backend global (`cwd=...\backend`):
 C:\ERP\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Output final: `822 passed in 493.50s (0:08:13)`; coverage `80.99%`; wrapper
-`DURATION=497.96s`; `EXIT=0`.
+Output final: `825 passed in 454.81s (0:07:34)`; coverage `80.99%`; wrapper
+`DURATION=459.70s`; `EXIT=0`.
 
 Ruff:
 
@@ -233,11 +240,12 @@ Django check:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & C:\ERP\.venv\Scripts\python.exe manage.py check 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `System check identified no issues (0 silenced)`; `DURATION=2.32s`;
+Output: `System check identified no issues (0 silenced)`; `DURATION=2.17s`;
 `EXIT=0`.
 
 Reexecução final com `DJANGO_SETTINGS_MODULE=config.settings.e2e` e o banco
-dedicado `zyrp`: `No changes detected`, `DURATION=1.96s`, `EXIT=0`; o
+dedicado `zyrp`: `No changes detected`; `migrate --check` também não produziu
+saída; `DURATION=4.33s`; `EXITS=makemigrations:0 migrate_check:0`. O
 `RuntimeWarning` da tentativa antiga sem env E2E não se repetiu.
 
 ### Migration isolada e migrate --check
@@ -311,8 +319,8 @@ Testes:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd test -- --run 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output final: `Test Files 22 passed (22)`, `Tests 341 passed (341)`, Vitest
-`Duration 24.06s`; wrapper `DURATION=26.23s`; `EXIT=0`. Um teste de estado
+Output final: `Test Files 22 passed (22)`, `Tests 347 passed (347)`, Vitest
+`Duration 23.58s`; wrapper `DURATION=25.88s`; `EXIT=0`. Um teste de estado
 de erro imprimiu stack de `Error: test error` no jsdom, mas não produziu falha
 do runner.
 
@@ -323,7 +331,7 @@ $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd run lint 2>&1; $exit
 ```
 
 Output: `✖ 4 problems (0 errors, 4 warnings)` em `PersonForm.tsx`,
-`PurchaseOrderEditor.tsx` e `ReceiptForm.tsx`; `DURATION=15.79s`; `EXIT=0`.
+`PurchaseOrderEditor.tsx` e `ReceiptForm.tsx`; `DURATION=12.03s`; `EXIT=0`.
 São os warnings preexistentes de React Hooks/React Compiler registrados no
 runner.
 
@@ -333,7 +341,7 @@ Typecheck:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd run typecheck 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `tsc --noEmit`; `DURATION=13.06s`; `EXIT=0`.
+Output: `tsc --noEmit`; `DURATION=10.67s`; `EXIT=0`.
 
 Build:
 
@@ -341,27 +349,28 @@ Build:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd run build 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `209 modules transformed`, `built in 3.42s`, warning de chunk acima
-de 250 kB; wrapper `DURATION=14.87s`; `EXIT=0`.
+Output: `209 modules transformed`, `built in 2.81s`, warning de chunk acima
+de 250 kB; wrapper `DURATION=14.29s`; `EXIT=0`.
 
 ### Contrato Problem Details e CI browser
 
-Teste API final:
+Teste API e contrato final:
 
 ```text
-. [100%]
-1 passed in 16.86s; EXIT=0
+.............. [100%]
+14 passed in 20.92s; EXIT=0
 ```
 
-O caso acima prova `409`/`insufficient_returnable`; os casos de quantidade
-inválida não positiva continuam cobertos pelo contrato `422`.
+Os casos positivos acima do saldo provam `409`/`insufficient_returnable`; os
+casos `qty <= 0` provam `422`/`invalid_quantity`, sem alterar a proteção de
+concorrência.
 
 Teste estático de workflows e guards de seed:
 
 ```text
-.......... [100%]
-10 passed in 15.94s
-DURATION=18.48s EXIT=0
+....... [100%]
+7 passed in 0.07s
+DURATION=2.33s EXIT=0
 ```
 
 O teste compara os três projetos declarados no Playwright com a instalação
@@ -376,7 +385,7 @@ R9 focado (`cwd=...\frontend`):
 npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=chromium --grep "R9"
 ```
 
-Output: `5 passed (19.4s)`; wrapper `DURATION=21.36s`; `EXIT=0`.
+Output: `5 passed (29.0s)`; wrapper `DURATION=31.17s`; `EXIT=0`.
 
 Chromium completo:
 
@@ -384,7 +393,7 @@ Chromium completo:
 npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=chromium
 ```
 
-Output: `13 passed (43.2s)`; wrapper `DURATION=45.26s`; `EXIT=0`.
+Output: `13 passed (1.2m)`; wrapper `DURATION=74.77s`; `EXIT=0`.
 
 Firefox/WebKit foram executados separadamente para preservar os recovery
 codes:
@@ -393,18 +402,18 @@ codes:
 $sw = [Diagnostics.Stopwatch]::StartNew(); $out = & npm.cmd exec playwright test e2e/pdv-management-financial.spec.ts -- --project=firefox --project=webkit 2>&1; $exit = $LASTEXITCODE; $sw.Stop(); $out; Write-Output ('DURATION=' + [math]::Round($sw.Elapsed.TotalSeconds, 2) + 's'); Write-Output ('EXIT=' + $exit); exit $exit
 ```
 
-Output: `Running 26 tests using 1 worker`, `26 skipped`; `DURATION=3.66s`;
+Output: `Running 26 tests using 1 worker`, `26 skipped`; `DURATION=4.05s`;
 `EXIT=0`. O skip foi deliberado e não consumiu códigos.
 
 ### Impeccable UI
 
 Para a mudança substancial dos dialogs, foram executados contexto, audit,
-polish e critique. O detector mecânico final retornou `[]` para
-`RefundDialog.tsx`, `ReturnDialog.tsx` e `CancellationDialog.tsx`. O polish
-adicionou rolagem interna em viewport baixo e foco visível nos controles de
-fechamento. A critique foi explicitamente single-context degradada porque
-`spawn_agent` não está exposto nesta sessão; snapshot persistido em
-`.impeccable/critique/`, score `36/40`, sem P0/P1.
+polish manual bounded e critique. O detector mecânico final retornou `[]` para
+`RefundDialog.tsx` e `ReturnDialog.tsx`; a crítica armazenada para a superfície
+dos dialogs ficou em `36/40`, sem P0/P1. O snapshot é explicitamente
+single-context degradado porque `spawn_agent` não está exposto nesta sessão;
+os P2 restantes são foco/tamanho do controle do Modal compartilhado, fora do
+escopo desta remediation.
 
 ### Rechecks adicionais da Task 8 após reviews
 
@@ -488,14 +497,66 @@ cancelar NFC-e a partir do cancelamento comercial.
 ## Adendo final desta remediation
 
 Este adendo substitui qualquer baseline anterior neste relatório. O commit de
-código/testes/CI desta etapa é `a43701a fix(r9): close finalization contract gaps`.
+código/testes/CI desta etapa é `0ac90a7b4590cd83e88471000c28a4264a0361b2 fix(r9): close spec review gaps`.
 O backend agora expõe `insufficient_returnable` com HTTP 409 para excesso sobre
-o saldo devolvível; `invalid_quantity`/`validation_error` para quantidade não
-positiva permanecem em HTTP 422. Os dialogs usam a normalização compartilhada
+o saldo devolvível; `invalid_quantity` para quantidade não positiva permanece
+em HTTP 422. Os dialogs usam a normalização compartilhada
 do serializer real (`net_total`, `line_total`, IDs de produto e
 `payments.method`) e têm loading, empty, erro acessível e 404 sem crash.
 
 O seed passou a manter vendas distintas para return, refund e cancel. A jornada
-R9 final tem cinco cenários reais: return, refund parcial, cancel e 404 em cada
-dialog. O CI instala os três browsers declarados no Playwright; o skip
-Chromium-only é política explícita para não consumir recovery codes.
+R9 final tem cinco cenários reais: return, refund, cancel e 404 em cada dialog.
+O CI instala os três browsers declarados no Playwright; `retries=0`,
+`workers=1` e `trace=retain-on-failure` são determinísticos, e o skip
+Firefox/WebKit é política explícita para não consumir recovery codes.
+
+## Adendo de follow-up da spec review — 2026-08-13
+
+### RED observado antes da correção
+
+O RED frontend original fornecido pela execução interrompida foi preservado
+sem alterar sua contagem:
+
+```text
+npm.cmd test -- --run src/salesManagement/compensations.test.tsx
+18 failed | 11 passed (29)
+Duration 23.80s
+```
+
+Essa tentativa original não registrou o exit code; ele não foi inventado neste
+relatório. Como RED reproduzível desta continuação, antes da implementação, o
+mesmo arquivo já ampliado produziu `4 failed | 31 passed (35)`, `Duration
+6.49s`; depois da correção produziu `35 passed (35)`, `Duration 5.90s`, exit 0.
+
+### Decisões e cenários Gherkin da revisão
+
+- Given taxas de autenticação configuradas, When o workflow é analisado, Then
+  `AUTH_LOGIN_RATE`/`AUTH_MFA_RATE` aparecem apenas no job E2E; projetos
+  Chromium/Firefox/WebKit têm instalação e execução coerentes.
+- Given Playwright em qualquer ambiente, When o runner inicia, Then usa
+  `retries=0`, `workers=1` e `trace=retain-on-failure`, sem trace condicionado
+  a retry.
+- Given pagamentos canônicos PIX, cartão ou múltiplos, When RefundDialog abre,
+  Then deriva o primeiro método compatível em ordem, normaliza cartão para
+  `card_external` e deixa o usuário ajustar com aviso acessível em múltiplos.
+- Given linha de duas unidades com `line_total=18.00`, When uma unidade é
+  devolvida, Then o resumo mostra `R$ 9.00` usando aritmética monetária precisa.
+- Given `qty <= 0`, When a API processa o retorno, Then responde
+  `invalid_quantity`/422; Given excesso positivo, Then responde
+  `insufficient_returnable`/409.
+- Given retorno ou reembolso sem itens/pagamentos, When o detalhe carrega, Then
+  há estado vazio acessível e a confirmação fica desabilitada.
+
+### Raw outputs do follow-up
+
+```text
+Backend/API/serviços/CI contracts: 14 passed in 20.92s; EXIT=0
+Workflow static contract: 7 passed in 0.07s; DURATION=2.33s; EXIT=0
+Frontend compensations: 35 passed in 5.90s; EXIT=0
+Vitest completo: 22 files, 347 passed; runner Duration 23.58s;
+wrapper DURATION=25.88s; EXIT=0
+```
+
+O runner Vitest imprimiu `Error: test error` do teste intencional de estado de
+erro em jsdom, mas terminou com zero falhas e exit 0. O diff final foi
+rechecado, Graphify foi atualizado após o código, e nenhum push foi feito.

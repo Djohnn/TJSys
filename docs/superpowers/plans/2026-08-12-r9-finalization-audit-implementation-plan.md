@@ -222,7 +222,7 @@
 
 - [ ] Adicionar `@action(detail=True, methods=['post']) def refund(...)`, calcular o valor total restante quando `amount` for omitido e retornar `SaleRefundSerializer` com `201`.
 - [ ] Manter `/returns/` como rota canônica e retrocompatível. Não criar uma segunda rota singular no backend; o consumidor web será corrigido na Task 6.
-- [ ] Fazer `_problem()` incluir `'code': code`. Converter validações dos comandos para Problem Details, sem deixar `ValidationError` do DRF voltar como `application/json`; usar `422 validation_error` para payload inválido e manter `400` para header idempotente ausente.
+- [ ] Fazer `_problem()` incluir `'code': code`. Converter validações dos comandos para Problem Details, sem deixar `ValidationError` do DRF voltar como `application/json`; usar `422 validation_error` para payload inválido, `422 invalid_quantity` para `qty <= 0` e manter `400` para header idempotente ausente.
 - [ ] Mapear as novas exceções no `_handle_sales_error()` e passar `actor=request.user` ao refund.
 - [ ] Executar a suíte de API e a suíte R9 focada completa:
 
@@ -373,7 +373,7 @@
 - Modify: `docs/10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md`
 - Modify: `docs/PRD.md:774-810`
 
-- [x] Atualizar o relatório com a base `77b36ef`, branch `codex/r9-finalization`, commit corretivo `a43701a`, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
+- [x] Atualizar o relatório com a base `77b36ef`, branch `codex/r9-finalization`, commits corretivos `a43701a` e `0ac90a7b`, decisões de concorrência, rota `/refund/`, compatibilidade `/returns/`, política fiscal manual e outputs brutos reais de cada gate.
 - [x] Substituir as antigas afirmações de “269 passed com 2 falhas preexistentes” pelos resultados atuais. Nenhuma contagem pode ser estimada ou copiada do baseline.
 - [x] Atualizar o PRD para apontar o design e este plano de auditoria, mantendo a R9 como concluída somente se todos os gates obrigatórios estiverem verdes.
 - [x] Conferir isolamento do worktree:
@@ -409,7 +409,7 @@
 
 O plano foi revalidado no worktree `C:\ERP\.worktrees\r9-finalization`,
 branch `codex/r9-finalization`. A implementação/testes/CI desta etapa está
-no commit `a43701a`; documentação foi registrada no commit documental isolado
+no commit `0ac90a7b`; documentação foi registrada no commit documental isolado
 desta branch.
 
 ### Cenários Gherkin executados
@@ -429,26 +429,41 @@ desta branch.
   indistinguíveis.
 - Given quantidade positiva acima do saldo devolvível, When a API processa o
   retorno, Then responde Problem Details `insufficient_returnable`/409;
-  quantidade não positiva permanece `validation_error`/422.
+  quantidade não positiva responde `invalid_quantity`/422.
 
 ### Evidência final
 
-- [x] Backend canônico R9/API: `110 passed in 75.13s`; wrapper
-      `DURATION=77.57s EXIT=0`.
-- [x] Backend completo: `822 passed in 493.50s`, cobertura 80.99%; wrapper
-      `DURATION=497.96s EXIT=0`.
-- [x] CI browser contract + seed guards: `10 passed in 15.94s`; wrapper
-      `DURATION=18.48s EXIT=0`.
-- [x] Frontend compensations: `29 passed`; typecheck/lint/build verdes.
-      Vitest completo: `341 passed in 24.06s`, wrapper
-      `DURATION=26.23s EXIT=0`.
-- [x] Playwright R9 Chromium real: `5 passed in 19.4s`, wrapper
-      `DURATION=21.36s EXIT=0`; spec completo: `13 passed in 43.2s`,
-      wrapper `DURATION=45.26s EXIT=0`; Firefox/WebKit: `26 skipped`,
-      `DURATION=3.66s EXIT=0`.
+- [x] Backend canônico R9/API: `110 passed in 81.01s`; wrapper
+      `DURATION=83.74s EXIT=0`.
+- [x] Backend completo: `825 passed in 454.81s`, cobertura 80.99%; wrapper
+      `DURATION=459.70s EXIT=0`.
+- [x] CI browser contract + seed guards: `7 passed in 0.07s`; wrapper
+      `DURATION=2.33s EXIT=0`.
+- [x] Frontend compensations: `35 passed`; typecheck/lint/build verdes.
+      Vitest completo: `347 passed`, runner `23.58s`, wrapper
+      `DURATION=25.88s EXIT=0`.
+- [x] Playwright R9 Chromium real: `5 passed (29.0s)`, wrapper
+      `DURATION=31.17s EXIT=0`; spec completo: `13 passed (1.2m)`,
+      wrapper `DURATION=74.77s EXIT=0`; Firefox/WebKit: `26 skipped`,
+      `DURATION=4.05s EXIT=0`.
 - [x] Ruff, mypy, Django check, `makemigrations --check`,
       `migrate --check`, `git diff --check` verdes; Graphify atualizado
       após o último código.
-- [x] Impeccable audit/polish executados; detector final `[]` nos três
-      dialogs. Critique single-context explicitamente degradada por ausência
-      de `spawn_agent`, snapshot `.impeccable/critique/`, score 36/40.
+- [x] Impeccable audit/polish bounded executados; detector final `[]` nos dois
+      dialogs alterados. Critique single-context explicitamente degradada por
+      ausência de `spawn_agent`, snapshot `.impeccable/critique/`, score 36/40,
+      sem P0/P1.
+
+### Follow-up da spec review — 2026-08-13
+
+- RED frontend original preservado: `18 failed | 11 passed (29)`, `Duration
+  23.80s`; a execução não registrou exit code, que não foi inventado. RED
+  reproduzível desta continuação: `4 failed | 31 passed (35)`, `Duration
+  6.49s`; GREEN: `35 passed (35)`, `Duration 5.90s`, exit 0.
+- `RefundDialog` deriva PIX/cartão/dinheiro de `payments.method`, alerta em
+  múltiplos pagamentos e permite ajuste; `ReturnDialog` usa `Decimal` para
+  ratear `line_total` com desconto pela quantidade devolvida; ambos têm testes
+  explícitos de empty.
+- `qty <= 0` agora é `invalid_quantity`/422; excesso positivo permanece
+  `insufficient_returnable`/409. CI mantém throttles job-scoped, Playwright
+  usa `retries=0`, `workers=1` e `trace=retain-on-failure`.
