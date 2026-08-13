@@ -268,7 +268,7 @@ class TestSaleCancellationService:
     def test_outbox_failure_rolls_back_cancellation_stock_cash_and_events(self, sale_context):
         """Given a valid sale, when Outbox fails, then cancellation is fully atomic."""
         ctx = sale_context
-        from sales.services import cancel_sale
+        from sales.services import cancel_sale, create_outbox_message
 
         sale = Sale.all_objects.get(pk=ctx['sale'].pk)
         key = 'cancel-outbox-failure-atomicity'
@@ -313,11 +313,23 @@ class TestSaleCancellationService:
             cash_expected_before = sale.cash_session.expected_amount
             effects_before = _effect_counts()
 
+            emitted_events = []
+
+            def fail_final_cancellation_event(*args, **kwargs):
+                event_type = kwargs['event_type'] if 'event_type' in kwargs else args[0]
+                emitted_events.append(event_type)
+                if event_type == 'sales.sale.cancelled':
+                    raise RuntimeError('final cancellation outbox unavailable')
+                return create_outbox_message(*args, **kwargs)
+
             with patch(
                 'sales.services.create_outbox_message',
-                side_effect=RuntimeError('outbox unavailable'),
+                side_effect=fail_final_cancellation_event,
             ):
-                with pytest.raises(RuntimeError, match='outbox unavailable'):
+                with pytest.raises(
+                    RuntimeError,
+                    match='final cancellation outbox unavailable',
+                ):
                     cancel_sale(
                         tenant=ctx['tenant'],
                         sale=sale,
@@ -325,6 +337,7 @@ class TestSaleCancellationService:
                         idempotency_key=key,
                     )
 
+            assert emitted_events == ['sales.refund.created', 'sales.sale.cancelled']
             sale.refresh_from_db()
             sale.cash_session.refresh_from_db()
             assert sale.status == 'confirmed'

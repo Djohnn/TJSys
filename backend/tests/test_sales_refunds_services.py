@@ -32,8 +32,9 @@ def _attempt_artifacts(tenant, idempotency_key):
     if refund is not None:
         cash_outs = CashMovement.all_objects.filter(
             tenant=tenant,
-            cash_session_id=refund.sale.cash_session_id,
             movement_type='cash_out',
+            cash_session_id=refund.sale.cash_session_id,
+            notes=f'Refund {refund.id}',
         )
 
     return {
@@ -493,32 +494,66 @@ class TestSaleRefundService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
-    def test_refund_snapshot_ignores_cash_out_from_another_session(self, sale_context):
-        """Given another session has a cash out, when refunding, then the snapshot is scoped."""
+    def test_refund_snapshot_ignores_preexisting_cash_out_same_session(self, sale_context):
+        """Given a same-session cash out, then only the refund movement counts."""
         ctx = sale_context
-        key = 'refund-session-scoped-snapshot'
+        key = 'refund-same-session-scoped-snapshot'
 
         def _test():
-            from sales.services import create_sale_refund, open_cash_session
+            from sales.services import create_sale_refund
 
-            other_operator = get_user_model().objects.create_user(
-                email='refund-snapshot-other-operator@example.test',
-                password='!',
-            )
-            other_session = open_cash_session(
-                tenant=ctx['tenant'],
-                branch=ctx['branch'],
-                operator=other_operator,
-                opening_amount=Decimal('50.00'),
-                idempotency_key='refund-snapshot-other-session',
-            )
+            cash_session = ctx['sale'].cash_session
+            cash_session.refresh_from_db()
+            expected_before = cash_session.expected_amount
             CashMovement.all_objects.create(
                 tenant=ctx['tenant'],
-                cash_session=other_session,
+                cash_session=cash_session,
                 movement_type='cash_out',
                 amount=Decimal('3.00'),
                 payment_method='cash',
-                reference='unrelated-cash-out',
+                reference='preexisting-cash-out',
+                notes='Preexisting sangria',
+            )
+            cash_session.expected_amount -= Decimal('3.00')
+            cash_session.version += 1
+            cash_session.save(update_fields=['expected_amount', 'version', 'updated_at'])
+
+            refund = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='cash',
+                amount=Decimal('10.00'),
+                reason='Sessao original',
+                idempotency_key=key,
+            )
+
+            cash_session.refresh_from_db()
+            assert refund.idempotency_key == key
+            assert cash_session.expected_amount == expected_before - Decimal('13.00')
+            assert _attempt_artifacts(ctx['tenant'], key) == {
+                'refunds': 1,
+                'cash_outs': 1,
+                'audits': 1,
+                'outbox': 1,
+            }
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_refund_snapshot_does_not_count_other_refund_cash_out(self, sale_context):
+        """Given another refund, then only this refund's cash movement counts."""
+        ctx = sale_context
+        key = 'refund-specific-cash-out-snapshot'
+
+        def _test():
+            from sales.services import create_sale_refund
+
+            other_refund = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='cash',
+                amount=Decimal('3.00'),
+                reason='Outro refund',
+                idempotency_key='refund-other-cash-out',
             )
 
             refund = create_sale_refund(
@@ -537,6 +572,10 @@ class TestSaleRefundService:
                 'audits': 1,
                 'outbox': 1,
             }
+            assert CashMovement.all_objects.filter(
+                cash_session=ctx['sale'].cash_session,
+                notes=f'Refund {other_refund.id}',
+            ).count() == 1
 
         _run_in_tenant(ctx['tenant'], _test)
 
