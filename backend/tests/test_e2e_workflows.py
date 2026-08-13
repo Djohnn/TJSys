@@ -1,7 +1,7 @@
+import re
 from pathlib import Path
 
 import pytest
-import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = (
@@ -22,61 +22,97 @@ REQUIRED_E2E_ENV = {
 }
 
 
-def _load_workflow(path: Path) -> dict:
-    with path.open(encoding='utf-8') as workflow_file:
-        workflow = yaml.load(workflow_file, Loader=yaml.BaseLoader)
-    assert isinstance(workflow, dict)
-    assert 'on' in workflow, f'{path} perdeu a chave literal on'
-    assert isinstance(workflow.get('jobs'), dict)
-    return workflow
+def _load_workflow(path: Path) -> dict[str, str]:
+    """Extract only the stable workflow/job blocks needed by this contract test.
+
+    This is deliberately not a general YAML parser: unsupported indentation or
+    layout fails closed instead of silently accepting a changed workflow.
+    """
+    text = path.read_text(encoding='utf-8')
+    assert re.search(r'(?m)^on:\s*$', text), f'{path} perdeu a chave literal on'
+    jobs_match = re.search(r'(?m)^jobs:\s*\r?\n', text)
+    assert jobs_match, f'{path} perdeu a seção jobs'
+    jobs_text = text[jobs_match.end():]
+    headers = list(re.finditer(r'(?m)^  ([A-Za-z0-9_-]+):\s*\r?$', jobs_text))
+    assert headers, f'{path} não possui jobs indentados'
+    jobs = {}
+    for index, header in enumerate(headers):
+        end = headers[index + 1].start() if index + 1 < len(headers) else len(jobs_text)
+        jobs[header.group(1)] = jobs_text[header.end():end]
+    return jobs
 
 
-def _is_backend_directory(value: object) -> bool:
-    return str(value).replace('./', '').strip('/') == 'backend'
+def _has_backend_directory(text: str) -> bool:
+    return bool(re.search(r'(?m)^[ \t]+working-directory:\s*(?:\./)?backend\s*$', text))
 
 
-def _run(step: dict) -> str:
-    return str(step.get('run', ''))
+def _steps(job_text: str) -> list[str]:
+    headers = list(re.finditer(r'(?m)^      - name:\s*.*?\r?$', job_text))
+    return [
+        job_text[
+            header.start() : headers[index + 1].start()
+            if index + 1 < len(headers)
+            else len(job_text)
+        ]
+        for index, header in enumerate(headers)
+    ]
+
+
+def _env(job_text: str) -> dict[str, str]:
+    match = re.search(
+        r'(?ms)^    env:\s*\r?\n(?P<body>(?:^      [^\r\n]*\r?\n?)+)',
+        job_text,
+    )
+    assert match, 'job seedado sem env no nível do job'
+    values = {}
+    for line in match.group('body').splitlines():
+        key, separator, value = line.strip().partition(':')
+        if separator:
+            values[key] = value.strip().strip("'").strip('"')
+    return values
 
 
 @pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
 def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_path: Path):
     """Given workflow com seed, When parseia CI, Then prova bootstrap E2E antes do browser."""
     workflow = _load_workflow(workflow_path)
-    seeded_jobs = []
-    for job_name, job in workflow['jobs'].items():
-        steps = job.get('steps', [])
-        if any('seed_e2e' in _run(step) for step in steps):
-            seeded_jobs.append((job_name, job, steps))
+    seeded_jobs = [
+        (job_name, job_text, _steps(job_text))
+        for job_name, job_text in workflow.items()
+        if 'seed_e2e' in job_text
+    ]
 
     assert seeded_jobs, f'{workflow_path} não possui job E2E com seed_e2e'
-    for job_name, job, steps in seeded_jobs:
-        env = job.get('env', {})
-        assert env == {**env, **REQUIRED_E2E_ENV}, f'{workflow_path}:{job_name} env incompleto'
+    for job_name, job_text, steps in seeded_jobs:
+        env = _env(job_text)
+        assert all(env.get(key) == value for key, value in REQUIRED_E2E_ENV.items()), (
+            f'{workflow_path}:{job_name} env incompleto: '
+            f'{ {key: env.get(key) for key in REQUIRED_E2E_ENV} }'
+        )
 
-        manage_steps = [step for step in steps if 'manage.py' in _run(step)]
+        manage_steps = [step for step in steps if 'manage.py' in step]
         assert manage_steps
-        assert all(_is_backend_directory(step.get('working-directory')) for step in manage_steps)
+        assert all(_has_backend_directory(step) for step in manage_steps)
 
         start_indexes = [
             index
             for index, step in enumerate(steps)
-            if 'runserver' in _run(step) or 'gunicorn' in _run(step)
+            if 'runserver' in step or 'gunicorn' in step
         ]
         assert start_indexes, f'{workflow_path}:{job_name} não inicia Django'
         start_index = min(start_indexes)
         start_step = steps[start_index]
-        assert _is_backend_directory(start_step.get('working-directory'))
-        assert '&' in _run(start_step), f'{workflow_path}:{job_name} não inicia em background'
+        assert _has_backend_directory(start_step)
+        assert '&' in start_step, f'{workflow_path}:{job_name} não inicia em background'
 
         health_indexes = [
             index
             for index, step in enumerate(steps)
-            if '/api/v1/health/' in _run(step) and 'curl --fail' in _run(step)
+            if '/api/v1/health/' in step and 'curl --fail' in step
         ]
         assert health_indexes, f'{workflow_path}:{job_name} sem health-check determinístico'
         health_index = min(health_indexes)
-        health_run = _run(steps[health_index])
+        health_run = steps[health_index]
         assert health_index > start_index
         assert 'seq 1 30' in health_run
         assert 'exit 1' in health_run
@@ -84,7 +120,7 @@ def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_pat
         consumer_indexes = [
             index
             for index, step in enumerate(steps)
-            if 'api:generate' in _run(step) or 'playwright test' in _run(step)
+            if 'api:generate' in step or 'playwright test' in step
         ]
         assert consumer_indexes
         assert health_index < min(consumer_indexes)
