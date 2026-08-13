@@ -840,6 +840,33 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Criar commits de implementação `a43701a`/`0ac90a7b` e manter commits documentais
       isolados em `codex/r9-finalization`, sem push.
 
+#### 9.5 Follow-up final da quality review - 2026-08-13
+
+- [x] Expor `refundable_balance` tenant-safe, descontando refunds concluídos,
+      com prefetch explícito dos itens/refunds e teste de refund parcial.
+- [x] Normalizar `reason` com `strip` no serializer/serviço e rejeitar
+      whitespace vazio sem efeitos em return/refund/cancel.
+- [x] Usar Modal compartilhado acessível nos três dialogs: foco inicial,
+      trap, Escape, restauração de foco e close/cancel durante loading.
+- [x] Usar Decimal para dinheiro/crédito e `unit_precision` até seis casas;
+      cobrir desconto proporcional e `step=0.000001`.
+- [x] Remover start manual/sleep do Vite no `e2e.yml`; `webServer` controla
+      readiness e o teste estático cobre host/configuração.
+- [x] Cobrir 404 de cancelamento na UI, documentando o mock como edge de rede;
+      manter testes API cross-tenant reais para os três comandos.
+- [x] Confirmar RED/GREEN e contagens correntes: backend `111`, frontend
+      focado `44`, Vitest `356`, E2E R9 `6`, spec Chromium `14`,
+      Firefox/WebKit `28 skipped`.
+- [x] Commit de código/testes/CI:
+      `31d8bfc114735b3e15fc6486d1c948ca5f576365`; documentação em commit
+      separado, sem push.
+
+Evidência corrente: workflow contract `10 passed`; Ruff e mypy focados sem
+issues; typecheck/build/diff check verdes. O RED frontend original
+`18 failed | 11 passed (29)`, `Duration 23.80s`, sem exit registrado, é
+preservado honestamente no relatório; o RED reproduzível desta continuação foi
+`34 passed | 9 failed`, `Duration 7.75s`, `EXIT=1`, seguido de GREEN `44 passed`.
+
 ### Sprint 10 — Compras, Recebimento e Contas a Pagar
 
 **Estado:** Concluída em 2026-07-21.

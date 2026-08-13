@@ -467,4 +467,62 @@ desta branch.
   explícitos de empty.
 - `qty <= 0` agora é `invalid_quantity`/422; excesso positivo permanece
   `insufficient_returnable`/409. CI mantém throttles job-scoped, Playwright
-  usa `retries=0`, `workers=1` e `trace=retain-on-failure`.
+usa `retries=0`, `workers=1` e `trace=retain-on-failure`.
+
+## Fechamento corrente da quality review - 2026-08-13
+
+Este bloco supersede as contagens anteriores do plano. A entrega corrente esta
+no commit de codigo/testes/CI
+`31d8bfc114735b3e15fc6486d1c948ca5f576365`; a documentacao deste bloco sera
+commitada separadamente.
+
+### Cenarios Gherkin adicionais
+
+- Given `refundable_balance` apos refund parcial, When o detalhe e serializado,
+  Then o saldo usa `net_total - completed refunds`, tenant explicito e prefetch
+  sem N+1 relevante; o dialog valida contra esse Decimal.
+- Given reason whitespace, When qualquer comando return/refund/cancel e
+  validado, Then o servico/serializer rejeita vazio ou persiste o texto com
+  `strip`, sem efeitos parciais.
+- Given os tres dialogs, When o operador abre, carrega, fecha com Escape/close
+  ou navega com Tab, Then o Modal compartilhado anuncia o estado, confina o
+  foco e restaura o opener.
+- Given `qty <= 0` ou excesso positivo, When a API processa o retorno, Then os
+  codigos sao respectivamente `invalid_quantity`/422 e
+  `insufficient_returnable`/409.
+
+### Evidencia corrente (raw)
+
+```text
+Backend R9/API/CI: 111 passed in 84.06s; EXIT=0
+Workflow contract: 10 passed in 0.28s; EXIT=0
+Frontend compensations: 44 passed; runner Duration 7.08s; EXIT=0
+Vitest: 22 files, 356 passed; runner Duration 24.96s; EXIT=0
+Playwright R9 Chromium: 6 passed (40.5s); EXIT=0
+Playwright spec Chromium: 14 passed (1.6m); EXIT=0
+Playwright Firefox/WebKit: 28 skipped; EXIT=0
+Ruff: All checks passed; EXIT=0
+mypy: Success: no issues found in 4 source files; EXIT=0
+typecheck/build: EXIT=0
+lint: 0 errors, 4 pre-existing warnings; EXIT=0
+git diff --check: EXIT=0
+```
+
+O RED frontend historico `18 failed | 11 passed (29)`, `Duration 23.80s`,
+sem exit registrado, permanece documentado sem invencao. O RED reproduzivel
+desta continuacao foi `34 passed | 9 failed`, `Duration 7.75s`, `EXIT=1`.
+O seed atingiu o limite fail-closed de 16 geracoes em uma tentativa de nova
+execucao; nenhum reset do banco E2E foi feito.
+
+### Commits de referencia completos
+
+- `a43701a902aff628139520931491441a0a47bf35` - implementacao inicial dos
+  gaps de contrato/finalizacao R9.
+- `0ac90a7b4590cd83e88471000c28a4264a0361b2` - codigo/testes/CI da revisao de
+  especificacao.
+- `621ef807dfdb3be6b77e8fd991c70d49a1b926f6`,
+  `4d5dfbf59ea3f98a210c79945da9e9febdd47def` e
+  `145bb26cd27b5aa6f577994f9e0ad7a6beb0ca46` - commits documentais anteriores.
+
+O mapeamento de excecoes duplicado entre os ViewSets foi avaliado e mantido
+fora de refactor por seguranca de contrato; fica como minor tecnico explicito.

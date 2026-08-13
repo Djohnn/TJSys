@@ -562,3 +562,184 @@ wrapper DURATION=25.88s; EXIT=0
 O runner Vitest imprimiu `Error: test error` do teste intencional de estado de
 erro em jsdom, mas terminou com zero falhas e exit 0. O diff final foi
 rechecado, Graphify foi atualizado após o código, e nenhum push foi feito.
+
+## Adendo final da quality review - evidencia corrente - 2026-08-13
+
+Este adendo substitui as contagens de execucao anteriores deste relatorio. A
+contagem corrente da remediation e `111` no backend focado, `44` no arquivo
+frontend focado, `356` no Vitest completo, `6` no foco E2E R9 e `14` no spec
+completo Chromium. Os numeros historicos `109`/`110`, `347` e `13` permanecem
+apenas como contexto de execucoes anteriores; nao sao usados como aceite atual.
+
+### Decisoes finais da quality review
+
+- `refundable_balance` e calculado como `net_total` menos refunds
+  `completed`, com `Decimal`, filtro explicito de tenant e `Prefetch` dos
+  itens/refunds para evitar N+1 no detalhe. O cliente normaliza o campo real e
+  o `RefundDialog` mostra e valida o saldo corrente.
+- O validador compartilhado `normalize_reason` faz `strip`, rejeita motivo
+  vazio e preserva a forma normalizada no fato, auditoria e Outbox para
+  return/refund/cancel.
+- `Modal` e compartilhado pelos tres dialogs e fornece foco inicial, trap de
+  Tab, Escape, restauracao de foco, close/cancel durante loading e bloqueio
+  apenas durante a mutacao. Os estados loading, empty, erro/404 e sucesso
+  permanecem distintos.
+- Quantidades usam a precisao do serializer (`unit_precision`, ate seis casas)
+  e `Decimal`; dinheiro nao usa `parseFloat` nem `Number` nos dialogs.
+- O start manual do Vite e o `sleep` de frontend foram removidos do
+  `e2e.yml`; o `webServer` do Playwright controla readiness com host explicito
+  `127.0.0.1`. O health check do backend mantem seu polling operacional
+  separado.
+- A duplicacao de `_handle_sales_error` foi avaliada. `CashSessionViewSet` e
+  `SaleViewSet` possuem conjuntos de excecoes/codigos diferentes; o helper
+  comum nao foi extraido nesta remediation para nao alterar o contrato de
+  caixa. Fica registrado como minor tecnico delimitado.
+
+### Cenarios Gherkin finais
+
+- Given o workflow CI, When as variaveis sao analisadas, Then
+  `AUTH_LOGIN_RATE`, `AUTH_MFA_RATE` e `E2E_RECOVERY_CODE` aparecem somente no
+  job E2E e os tres browsers instalados correspondem aos projetos executados.
+- Given uma venda com refund parcial concluido, When o detalhe e consultado,
+  Then `refundable_balance` e o saldo restante tenant-safe e o dialog impede
+  valor acima dele.
+- Given um motivo com padding ou somente whitespace, When return/refund/cancel
+  e processado, Then o motivo persistido e normalizado ou a operacao rejeita
+  sem efeitos.
+- Given uma linha de `line_total=18.00`, quantidade vendida `2` e desconto,
+  When `1` unidade e devolvida, Then o credito e `9.00` com precisao Decimal;
+  com precisao de unidade 6 o input usa `step=0.000001`.
+- Given um modal em loading, When o operador usa close, Escape ou teclado,
+  Then pode cancelar com foco confinado e o foco retorna ao opener.
+- Given uma venda seedada distinta, When return/refund/cancel sao executados,
+  Then as tres mutacoes reais retornam `201`; os tres 404 de dialog sao bordas
+  de UI com mock de rede explicito e nao substituem os testes API cross-tenant
+  reais (`404` para os tres comandos).
+
+### Raw outputs finais desta continuacao
+
+RED frontend original preservado, sem exit registrado na execucao interrompida:
+
+```text
+npm.cmd test -- --run src/salesManagement/compensations.test.tsx
+18 failed | 11 passed (29)
+Duration 23.80s
+```
+
+RED reproduzivel desta continuacao, antes da ultima correcao de fixture:
+
+```text
+npm.cmd test -- --run src/salesManagement/compensations.test.tsx
+34 passed | 9 failed
+Duration 7.75s
+EXIT=1
+```
+
+Backend/API/servicos/CI focado:
+
+```text
+........................................................................ [ 64%]
+.......................................                                  [100%]
+111 passed in 84.06s (0:01:24)
+EXIT=0
+```
+
+Workflow contract:
+
+```text
+..........                                                               [100%]
+10 passed in 0.28s
+EXIT=0
+```
+
+Frontend focado:
+
+```text
+Test Files 1 passed (1)
+Tests 44 passed (44)
+Duration 7.08s
+EXIT=0
+```
+
+Vitest completo:
+
+```text
+Test Files 22 passed (22)
+Tests 356 passed (356)
+Duration 24.96s
+EXIT=0
+```
+
+O `Error: test error` exibido no output completo vem do componente de teste
+intencional em `AppShell.test.tsx`; o runner terminou com zero falhas e exit 0.
+
+Qualidade estatica e build:
+
+```text
+Ruff: All checks passed! - EXIT=0
+mypy: Success: no issues found in 4 source files - EXIT=0
+typecheck: tsc --noEmit - EXIT=0
+lint: EXIT=0, 0 errors, 4 warnings preexistentes fora do escopo
+build: built in 3.60s - EXIT=0
+git diff --check: EXIT=0 (somente avisos LF/CRLF do Git)
+```
+
+E2E real, `cwd=...\\frontend`:
+
+```text
+npx.cmd playwright test e2e/pdv-management-financial.spec.ts --project=chromium --grep "[R9]"
+6 passed (40.5s)
+EXIT=0
+
+npx.cmd playwright test e2e/pdv-management-financial.spec.ts --project=chromium
+14 passed (1.6m)
+EXIT=0
+
+npx.cmd playwright test e2e/pdv-management-financial.spec.ts --project=firefox --project=webkit
+Running 28 tests using 1 worker
+28 skipped
+EXIT=0
+```
+
+O teste inicial de readiness falhou com `Timed out waiting 60000ms from
+config.webServer`; a causa foi o binding local sem host explicito. Apos
+`--host 127.0.0.1`, o foco ficou verde. Uma tentativa posterior de semear uma
+nova geracao retornou o guard esperado:
+
+```text
+CommandError: Limite de 16 geracoes da venda R9 atingido; resete o banco E2E dedicado antes de semear novamente.
+```
+
+Nenhum reset foi feito; os fatos auditaveis e o limite fail-closed foram
+preservados.
+
+### Impeccable e commits completos
+
+O detector final nos quatro alvos (`Modal`, `CancellationDialog`,
+`RefundDialog`, `ReturnDialog`) retornou `[]`. Audit e polish foram feitos em
+bounded pass manual conforme o sistema incumbente; a critique final foi
+armazenada em `.impeccable/critique/2026-08-13T19-03-48Z__r9-sales-compensation-dialogs.md`,
+score `39/40`, `P0=0`, `P1=0`. A execucao foi single-context porque
+`spawn_agent` nao esta exposto nesta sessao.
+
+Hashes completos e escopos:
+
+```text
+a43701a902aff628139520931491441a0a47bf35
+  fix(r9): close finalization contract gaps - implementacao inicial dos gaps de contrato R9.
+0ac90a7b4590cd83e88471000c28a4264a0361b2
+  fix(r9): close spec review gaps - codigo/testes/CI da revisao de especificacao.
+621ef807dfdb3be6b77e8fd991c70d49a1b926f6
+  docs(r9): record final remediation evidence - evidencia documental anterior.
+4d5dfbf59ea3f98a210c79945da9e9febdd47def
+  docs(r9): record spec review evidence - evidencia documental da spec review.
+145bb26cd27b5aa6f577994f9e0ad7a6beb0ca46
+  docs(r9): record final post-commit gates - gates documentais anteriores.
+31d8bfc114735b3e15fc6486d1c948ca5f576365
+  fix(r9): close quality review blockers - codigo, testes e CI desta continuacao.
+```
+
+O commit documental deste adendo e separado do commit `31d8bfc`; os artefatos
+dirty `frontend/playwright-report/index.html`,
+`frontend/test-results/.last-run.json` e `graphify-out/` continuam fora dos
+commits. Nenhum push foi realizado.
