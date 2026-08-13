@@ -79,6 +79,39 @@ class TestSaleReturnService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
+    def test_reason_is_stripped_and_blank_reason_has_no_effects(self, sale_context):
+        """Given a padded return reason, only the normalized value persists."""
+        ctx = sale_context
+        from sales.services import create_sale_return
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+        sale_item = SaleItem.all_objects.get(sale=sale)
+
+        def _test():
+            with pytest.raises(ValueError, match='Reason is required'):
+                create_sale_return(
+                    tenant=ctx['tenant'],
+                    sale=sale,
+                    items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
+                    reason='   ',
+                    idempotency_key='return-blank-reason',
+                )
+            _assert_no_return_effects(
+                tenant=ctx['tenant'],
+                idempotency_key='return-blank-reason',
+            )
+
+            sale_return = create_sale_return(
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
+                reason='  Devolução normalizada  ',
+                idempotency_key='return-normalized-reason',
+            )
+            assert sale_return.reason == 'Devolução normalizada'
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_non_confirmed_sale_is_rejected_without_effects(self, sale_context):
         """Given a cancelled sale, when returning, then no compensation effect is persisted."""
         ctx = sale_context

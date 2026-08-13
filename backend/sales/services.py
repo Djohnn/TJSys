@@ -22,6 +22,7 @@ from sales.models import (
     SaleReturn,
     SaleReturnItem,
 )
+from sales.validators import normalize_reason
 
 
 class DuplicateIdempotencyKey(Exception):
@@ -473,8 +474,7 @@ def create_sale_return(
     items = list(items)
     if not items:
         raise ValueError('Return must have at least one item.')
-    if not reason:
-        raise ValueError('Reason is required.')
+    reason = normalize_reason(reason)
 
     locked_sale = _lock_compensable_sale(tenant, sale)
     legacy_items = [
@@ -820,8 +820,7 @@ def create_sale_refund(
         raise ValueError('Idempotency-Key is required.')
     if method not in dict(SaleRefund.METHOD_CHOICES):
         raise ValueError('Refund method is invalid.')
-    if not reason or not reason.strip():
-        raise ValueError('Reason is required.')
+    reason = normalize_reason(reason)
 
     requested_amount = None if amount is None else _money(Decimal(str(amount)))
     if requested_amount is not None and requested_amount <= 0:
@@ -881,8 +880,7 @@ def cancel_sale(
 ):
     if not idempotency_key:
         raise ValueError('Idempotency-Key is required.')
-    if not reason or not reason.strip():
-        raise ValueError('Reason is required.')
+    reason = normalize_reason(reason)
 
     payload = {
         'sale_id': str(sale.id),

@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { useState, type ReactElement } from 'react'
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
@@ -57,6 +58,7 @@ const SALE_DETAIL = {
   gross_total: '150.00',
   discount_total: '0.00',
   net_total: '150.00',
+  refundable_balance: '150.00',
   created_at: '2026-07-22T10:00:00Z',
   version: 1,
   payments: [
@@ -72,6 +74,7 @@ const SALE_DETAIL = {
       id: 'sale-item-1',
       product: 'prod-1',
       unit: 'unit-1',
+      unit_precision: 0,
       stock_operation: 'stock-op-1',
       quantity: '10.000000',
       factor: '1.000000',
@@ -83,6 +86,7 @@ const SALE_DETAIL = {
       id: 'sale-item-2',
       product: 'prod-2',
       unit: 'unit-1',
+      unit_precision: 0,
       stock_operation: 'stock-op-2',
       quantity: '5.000000',
       factor: '1.000000',
@@ -142,6 +146,14 @@ beforeEach(() => {
     http.get(`${BASE}/sales/sale-refund-empty/`, () =>
       HttpResponse.json({ ...SALE_DETAIL, id: 'sale-refund-empty', payments: [] }),
     ),
+    http.get(`${BASE}/sales/sale-refund-partial/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-refund-partial',
+        net_total: '150.00',
+        refundable_balance: '100.00',
+      }),
+    ),
     http.get(`${BASE}/sales/sale-return-empty/`, () =>
       HttpResponse.json({ ...SALE_DETAIL, id: 'sale-return-empty', items: [] }),
     ),
@@ -155,6 +167,26 @@ beforeEach(() => {
             id: 'sale-item-discount',
             product: 'prod-discount',
             quantity: '2.000000',
+            unit_precision: 6,
+            unit_price: '10.00',
+            discount_amount: '2.00',
+            line_total: '18.00',
+          },
+        ],
+      }),
+    ),
+    http.get(`${BASE}/sales/sale-return-fractional/`, () =>
+      HttpResponse.json({
+        ...SALE_DETAIL,
+        id: 'sale-return-fractional',
+        items: [
+          {
+            ...SALE_DETAIL.items[0],
+            id: 'sale-item-fractional',
+            product: 'prod-fractional',
+            product_name: 'Produto prod-fractional',
+            quantity: '2.000000',
+            unit_precision: 6,
             unit_price: '10.00',
             discount_amount: '2.00',
             line_total: '18.00',
@@ -307,8 +339,49 @@ beforeEach(() => {
     http.get(`${BASE}/sales/sale-403/`, () =>
       HttpResponse.json({ ...SALE_DETAIL, id: 'sale-403' }),
     ),
+    http.get(`${BASE}/sales/sale-cancel-404/`, () =>
+      HttpResponse.json(
+        {
+          type: 'https://zyrp.local/problems/not_found',
+          title: 'Sales operation rejected',
+          status: 404,
+          detail: 'Resource not found.',
+          code: 'not_found',
+        },
+        {
+          status: 404,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      ),
+    ),
   )
 })
+
+function renderDialogHarness(
+  testId: string,
+  createDialog: (onClose: () => void) => ReactElement,
+) {
+  const onClose = vi.fn()
+
+  function Harness() {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <button type="button" data-testid={`${testId}-opener`} onClick={() => setOpen(true)}>
+          Abrir
+        </button>
+        {open &&
+          createDialog(() => {
+            onClose()
+            setOpen(false)
+          })}
+      </>
+    )
+  }
+
+  renderWithProviders(<Harness />)
+  return onClose
+}
 
 // ---------------------------------------------------------------------------
 // ReturnDialog
@@ -411,6 +484,24 @@ describe('ReturnDialog', () => {
     // Then the credit is the proportional discounted amount, R$ 9,00
     await waitFor(() => {
       expect(screen.getByTestId('return-summary')).toHaveTextContent(/R\$ 9\.00/)
+    })
+  })
+
+  it('supports fractional quantities at the backend precision without losing discounted credit', async () => {
+    // Given a two-unit discounted line from the real serializer shape
+    renderWithProviders(
+      <ReturnDialog saleId="sale-return-fractional" onClose={() => {}} />,
+    )
+    const user = userEvent.setup()
+
+    // When half a unit is selected
+    const input = await screen.findByTestId('return-qty-prod-fractional')
+    expect(input).toHaveAttribute('step', '0.000001')
+    await user.type(input, '0.5')
+
+    // Then the proportional credit uses Decimal arithmetic: R$ 4,50
+    await waitFor(() => {
+      expect(screen.getByTestId('return-summary')).toHaveTextContent(/R\$ 4\.50/)
     })
   })
 
@@ -759,6 +850,25 @@ describe('CancellationDialog', () => {
       )
     })
   })
+
+  it('renders a cancellation not-found state without the form', async () => {
+    // Given the dialog request is answered with Problem Details 404
+    renderWithProviders(
+      <CancellationDialog saleId="sale-cancel-404" onClose={() => {}} />,
+    )
+
+    // When the sale cannot be loaded
+    const dialog = await screen.findByTestId('cancel-dialog')
+    await waitFor(() =>
+      expect(within(dialog).queryByTestId('cancel-error')).toBeInTheDocument(),
+    )
+
+    // Then the user gets an accessible indistinguishable not-found state
+    expect(within(dialog).getByTestId('cancel-error')).toHaveTextContent(
+      /venda n[aã]o encontrada/i,
+    )
+    expect(within(dialog).queryByTestId('cancel-reason')).not.toBeInTheDocument()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -958,6 +1068,36 @@ describe('RefundDialog', () => {
     })
   })
 
+  it('displays and validates the real refundable balance after a previous partial refund', async () => {
+    // Given the serializer exposes R$ 100,00 refundable after a prior R$ 50,00 refund
+    let requestCount = 0
+    server.use(
+      http.post(`${BASE}/sales/sale-refund-partial/refund/`, async () => {
+        requestCount += 1
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(
+      <RefundDialog saleId="sale-refund-partial" onClose={() => {}} />,
+    )
+    const user = userEvent.setup()
+
+    // When the operator enters more than that balance
+    const summary = await screen.findByTestId('refund-summary')
+    expect(summary).toHaveTextContent(/R\$ 100,00/)
+    const amount = screen.getByTestId('refund-amount')
+    expect(amount).toHaveAttribute('max', '100.00')
+    await user.type(amount, '100.01')
+    await user.type(screen.getByTestId('refund-reason'), 'Excesso de saldo')
+    await user.click(
+      screen.getByRole('button', { name: /confirmar reembolso/i }),
+    )
+
+    // Then validation uses the exact Decimal balance and sends no request
+    await waitFor(() => expect(screen.getByTestId('refund-error')).toHaveTextContent(/saldo/i))
+    expect(requestCount).toBe(0)
+  })
+
   it('handles 403 MFA/permission denial on refund', async () => {
     renderWithProviders(<RefundDialog saleId="sale-403" onClose={() => {}} />)
     const user = userEvent.setup()
@@ -1141,5 +1281,56 @@ describe('RefundDialog', () => {
       )
     })
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+})
+
+describe('shared compensation dialog modal contract', () => {
+  it.each([
+    ['return-dialog', 'sale-1', (onClose: () => void) => <ReturnDialog saleId="sale-1" onClose={onClose} />],
+    ['cancel-dialog', 'sale-1', (onClose: () => void) => <CancellationDialog saleId="sale-1" onClose={onClose} />],
+    ['refund-dialog', 'sale-1', (onClose: () => void) => <RefundDialog saleId="sale-1" onClose={onClose} />],
+  ])('traps focus, closes with Escape, and restores focus for %s', async (testId, saleId, createDialog) => {
+    // Given an operator opened one of the compensation dialogs from a focused trigger
+    const onClose = renderDialogHarness(testId, createDialog)
+    const user = userEvent.setup()
+    const opener = screen.getByTestId(`${testId}-opener`)
+    await user.click(opener)
+    const dialog = await screen.findByTestId(testId)
+    await within(dialog).findByText(saleId)
+
+    // Then initial focus enters the dialog and reverse tab cannot escape it
+    const closeButton = within(dialog).getByRole('button', { name: /fechar/i })
+    expect(closeButton).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(dialog).toContainElement(document.activeElement as HTMLElement | null)
+
+    // When Escape closes it, focus returns to the trigger
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(opener).toHaveFocus()
+  })
+
+  it.each([
+    ['return-dialog', 'sale-loading-return', (onClose: () => void) => <ReturnDialog saleId="sale-loading-return" onClose={onClose} />],
+    ['cancel-dialog', 'sale-loading-cancel', (onClose: () => void) => <CancellationDialog saleId="sale-loading-cancel" onClose={onClose} />],
+    ['refund-dialog', 'sale-loading-refund', (onClose: () => void) => <RefundDialog saleId="sale-loading-refund" onClose={onClose} />],
+  ])('keeps a close action available while %s is loading', async (testId, saleId, createDialog) => {
+    // Given the sale request remains pending
+    server.use(
+      http.get(`${BASE}/sales/${saleId}/`, async () => await new Promise<never>(() => {})),
+    )
+    const onClose = renderDialogHarness(testId, createDialog)
+    const user = userEvent.setup()
+    await user.click(screen.getByTestId(`${testId}-opener`))
+
+    // When loading is visible, the operator can still cancel/close
+    const dialog = await screen.findByTestId(testId)
+    expect(within(dialog).getByRole('status')).toBeInTheDocument()
+    await user.click(
+      within(dialog).getByRole('button', { name: /^Fechar$/ }),
+    )
+
+    // Then the parent is notified and the pending request is abandoned on unmount
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

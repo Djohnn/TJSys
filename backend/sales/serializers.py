@@ -14,6 +14,7 @@ from sales.models import (
     SaleReturn,
     SaleReturnItem,
 )
+from sales.validators import normalize_reason
 
 
 def _money(value):
@@ -306,6 +307,8 @@ class CloseCashSessionSerializer(serializers.Serializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
+    unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
+
     class Meta:
         model = SaleItem
         fields = [
@@ -318,6 +321,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
             'unit_price',
             'discount_amount',
             'line_total',
+            'unit_precision',
         ]
         read_only_fields = fields
 
@@ -332,6 +336,7 @@ class SalePaymentSerializer(serializers.ModelSerializer):
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     payments = SalePaymentSerializer(many=True, read_only=True)
+    refundable_balance = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -349,8 +354,24 @@ class SaleSerializer(serializers.ModelSerializer):
             'version',
             'items',
             'payments',
+            'refundable_balance',
         ]
         read_only_fields = fields
+
+    def get_refundable_balance(self, obj):
+        refunds = getattr(obj, '_completed_refunds_for_serializer', None)
+        if refunds is None:
+            refunds = SaleRefund.all_objects.filter(
+                tenant_id=obj.tenant_id,
+                sale_id=obj.pk,
+                status='completed',
+            )
+        refunded_total = sum(
+            (refund.amount for refund in refunds if refund.tenant_id == obj.tenant_id),
+            Decimal('0'),
+        )
+        balance = max(Decimal('0'), obj.net_total - refunded_total)
+        return format(balance.quantize(Decimal('0.01')), 'f')
 
 
 class CounterSaleItemInputSerializer(serializers.Serializer):
@@ -433,6 +454,12 @@ class CreateSaleReturnSerializer(serializers.Serializer):
     items = ReturnItemInputSerializer(many=True, min_length=1)  # type: ignore[call-arg]
     reason = serializers.CharField(min_length=1, max_length=500)
 
+    def validate_reason(self, value):
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
 
 class SaleRefundSerializer(serializers.ModelSerializer):
     class Meta:
@@ -452,9 +479,10 @@ class CreateSaleRefundSerializer(serializers.Serializer):
     reason = serializers.CharField(min_length=1, max_length=500)
 
     def validate_reason(self, value):
-        if not value.strip():
-            raise serializers.ValidationError('Reason is required.')
-        return value
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class SaleCancellationSerializer(serializers.ModelSerializer):
@@ -466,3 +494,9 @@ class SaleCancellationSerializer(serializers.ModelSerializer):
 
 class CreateSaleCancellationSerializer(serializers.Serializer):
     reason = serializers.CharField(min_length=1, max_length=500)
+
+    def validate_reason(self, value):
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc

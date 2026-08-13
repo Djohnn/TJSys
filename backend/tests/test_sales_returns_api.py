@@ -59,7 +59,12 @@ def returns_api_context(client):
     api_client = _auth_client(client, user, tenant)
 
     def _create():
-        unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
+        unit = Unit.all_objects.create(
+            tenant=tenant,
+            symbol='KG',
+            name='Quilograma',
+            precision=6,
+        )
         product = Product.all_objects.create(
             tenant=tenant,
             sku='RET-API',
@@ -242,6 +247,31 @@ class TestSaleReturnAPI:
             status_code=status.HTTP_409_CONFLICT,
             code='insufficient_returnable',
         )
+
+    def test_return_accepts_backend_quantity_scale_of_six_decimal_places(
+        self, returns_api_context
+    ):
+        """Given the backend scale, when six decimals are requested, then the API preserves it."""
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        sale_item_id = str(SaleItem.all_objects.filter(sale=sale).first().id)
+        response = ctx['api_client'].post(
+            reverse('sale-returns', kwargs={'pk': sale.id}),
+            data=json.dumps(
+                {
+                    'items': [
+                        {'sale_item_id': sale_item_id, 'quantity': '0.000001'},
+                    ],
+                    'reason': 'Quantidade fracionada',
+                }
+            ),
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY='api-return-six-decimals',
+            HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED, response.json()
+        assert response.json()['items'][0]['quantity'] == '0.000001'
 
     def test_return_reason_over_500_is_rejected_before_service(self, returns_api_context):
         ctx = returns_api_context
@@ -445,6 +475,45 @@ class TestSaleReturnAPI:
             code='validation_error',
         )
 
+    @pytest.mark.parametrize(
+        ('route_name', 'service_name'),
+        [
+            ('sale-returns', 'create_sale_return'),
+            ('sale-refund', 'create_sale_refund'),
+            ('sale-cancel', 'cancel_sale'),
+        ],
+    )
+    def test_whitespace_reason_is_rejected_before_any_compensation_service(
+        self, returns_api_context, route_name, service_name
+    ):
+        """Given whitespace only, a compensation command has no effects."""
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        payload = {'reason': '   '}
+        if route_name == 'sale-returns':
+            sale_item_id = str(SaleItem.all_objects.filter(sale=sale).first().id)
+            payload['items'] = [{'sale_item_id': sale_item_id, 'quantity': '1'}]
+        elif route_name == 'sale-refund':
+            payload['method'] = 'cash'
+
+        with patch(
+            f'sales.views.{service_name}',
+            side_effect=AssertionError('blank reason must not reach service'),
+        ):
+            response = ctx['api_client'].post(
+                reverse(route_name, kwargs={'pk': sale.id}),
+                data=json.dumps(payload),
+                content_type='application/json',
+                HTTP_IDEMPOTENCY_KEY=f'api-blank-reason-{route_name}',
+                HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+            )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code='validation_error',
+        )
+
     def test_refund_partial_then_omitted_amount_refunds_remaining_balance(
         self, returns_api_context
     ):
@@ -472,6 +541,37 @@ class TestSaleReturnAPI:
         assert partial.json()['amount'] == '5.00'
         assert total.status_code == status.HTTP_201_CREATED, total.json()
         assert total.json()['amount'] == '15.00'
+
+    def test_sale_detail_exposes_refundable_balance_after_completed_partial_refund(
+        self, returns_api_context
+    ):
+        """Given a completed partial refund, when reading the sale, then its balance is current."""
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        url = reverse('sale-refund', kwargs={'pk': sale.id})
+        refund = ctx['api_client'].post(
+            url,
+            data=json.dumps(
+                {
+                    'method': 'pix',
+                    'amount': '5.00',
+                    'reason': 'Saldo parcial',
+                }
+            ),
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY='api-refund-balance-detail',
+            HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        )
+        assert refund.status_code == status.HTTP_201_CREATED, refund.json()
+
+        detail = ctx['api_client'].get(
+            reverse('sale-detail', kwargs={'pk': sale.id}),
+            HTTP_X_TENANT_ID=str(ctx['tenant'].id),
+        )
+
+        assert detail.status_code == status.HTTP_200_OK, detail.content
+        assert detail.json()['net_total'] == '20.00'
+        assert detail.json()['refundable_balance'] == '15.00'
 
     def test_refund_invalid_method_is_validation_problem(self, returns_api_context):
         ctx = returns_api_context
@@ -601,6 +701,44 @@ class TestSaleReturnAPI:
         )
         assert missing.content == response.content or (
             missing.json()['code'] == response.json()['code']
+        )
+
+    @pytest.mark.parametrize('route_name', ['sale-returns', 'sale-refund', 'sale-cancel'])
+    def test_each_compensation_command_is_cross_tenant_404(
+        self, returns_api_context, client, route_name
+    ):
+        """Given tenant A's sale, tenant B's command is indistinguishable from absent."""
+        ctx = returns_api_context
+        sale = self._sale(ctx)
+        sale_item_id = str(SaleItem.all_objects.filter(sale=sale).first().id)
+        other_tenant = Tenant.objects.create(
+            name=f'Other {route_name}',
+            slug=f'other-{route_name}',
+        )
+        other_client = client.__class__()
+        _run_in_tenant(
+            other_tenant,
+            lambda: _auth_client(other_client, ctx['user'], other_tenant),
+        )
+
+        payload = {'reason': 'Cross tenant'}
+        if route_name == 'sale-returns':
+            payload['items'] = [{'sale_item_id': sale_item_id, 'quantity': '1'}]
+        elif route_name == 'sale-refund':
+            payload['method'] = 'cash'
+
+        response = other_client.post(
+            reverse(route_name, kwargs={'pk': sale.id}),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY=f'api-cross-{route_name}',
+            HTTP_X_TENANT_ID=str(other_tenant.id),
+        )
+
+        _assert_problem(
+            response,
+            status_code=status.HTTP_404_NOT_FOUND,
+            code='not_found',
         )
 
     def test_unauthenticated_request_is_problem(self, returns_api_context, client):

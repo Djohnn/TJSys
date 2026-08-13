@@ -494,6 +494,33 @@ class TestSaleRefundService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
+    def test_refund_reason_is_stripped_before_persistence_and_events(self, sale_context):
+        """Given a padded refund reason, audit and outbox use its normalized value."""
+        ctx = sale_context
+        key = 'refund-normalized-reason'
+
+        def _test():
+            from sales.services import create_sale_refund
+
+            refund = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='  Produto avariado  ',
+                idempotency_key=key,
+            )
+
+            assert refund.reason == 'Produto avariado'
+            assert AuditRecord.objects.get(correlation_id=key).detail['reason'] == (
+                'Produto avariado'
+            )
+            assert OutboxMessage.objects.get(correlation_id=key).payload['reason'] == (
+                'Produto avariado'
+            )
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_refund_snapshot_ignores_preexisting_cash_out_same_session(self, sale_context):
         """Given a same-session cash out, then only the refund movement counts."""
         ctx = sale_context

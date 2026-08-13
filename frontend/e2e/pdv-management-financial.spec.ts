@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page } from '@playwright/test'
 import { test } from './fixtures'
 
@@ -161,6 +162,17 @@ async function findR9ReturnSale(page: Page) {
   return findSaleForSku(page, 'E2E-R9-RETURN-001', true)
 }
 
+async function expectNoSeriousDialogViolations(page: Page, testId: string) {
+  const results = await new AxeBuilder({ page })
+    .include(`[data-testid="${testId}"]`)
+    .analyze()
+  expect(
+    results.violations.filter(
+      (violation) => violation.impact === 'critical' || violation.impact === 'serious',
+    ),
+  ).toEqual([])
+}
+
 test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
   test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -214,6 +226,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
     const dialog = page.getByTestId('return-dialog')
     await expect(dialog).toBeVisible()
+    await expectNoSeriousDialogViolations(page, 'return-dialog')
     await dialog.getByTestId(`return-qty-${product.id}`).fill('1')
     await dialog
       .getByLabel('Motivo')
@@ -297,6 +310,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
     const dialog = page.getByTestId('refund-dialog')
     await expect(dialog.getByTestId('refund-amount')).toBeVisible()
+    await expectNoSeriousDialogViolations(page, 'refund-dialog')
     await dialog.getByTestId('refund-amount').fill('10.00')
     await dialog
       .getByTestId('refund-reason')
@@ -353,6 +367,8 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     await page.getByRole('button', { name: 'Cancelar venda' }).click()
 
     const dialog = page.getByTestId('cancel-dialog')
+    await expect(dialog).toBeVisible()
+    await expectNoSeriousDialogViolations(page, 'cancel-dialog')
     await dialog
       .getByTestId('cancel-reason')
       .fill('Cancel E2E R9 automated test')
@@ -471,6 +487,45 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
       /venda n[aã]o encontrada/i,
     )
     await expect(dialog.getByRole('table')).toHaveCount(0)
+  })
+
+  test('[R9] mostra erro acessivel quando o dialog de cancelamento recebe 404', async ({
+    authenticatedPage,
+  }) => {
+    // Este cenário usa mock de rede para a borda de UI; não substitui o teste API cross-tenant real.
+    const page = authenticatedPage
+    // Use a stable confirmed seed distinct from the real cancellation journey;
+    // this UI edge is mocked and must not depend on the prior mutation.
+    const { sale } = await findSaleForSku(page, 'E2E-PROD-001')
+    await page.goto(`/sales/${sale.id}`)
+    await expect(page.getByTestId('sale-detail-page')).toBeVisible()
+
+    const saleUrl = `**/api/v1/sales/${sale.id}/`
+    await page.route(saleUrl, async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Not Found',
+          status: 404,
+          detail: 'Resource not found.',
+          code: 'not_found',
+        }),
+      })
+    })
+
+    await page.getByRole('button', { name: 'Cancelar venda' }).click()
+
+    const dialog = page.getByTestId('cancel-dialog')
+    await expect(dialog.getByTestId('cancel-error')).toHaveText(
+      /venda .* encontrada/i,
+    )
+    await expect(dialog.getByTestId('cancel-reason')).toHaveCount(0)
   })
 
   test('Sessões de caixa — lista carrega', async ({ authenticatedPage }) => {

@@ -192,6 +192,42 @@ def test_auth_throttles_are_scoped_to_seeded_e2e_job(workflow_path: Path):
         assert job_env['AUTH_MFA_RATE'] == '100/minute'
 
 
+@pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
+def test_recovery_code_is_scoped_to_seeded_e2e_job(workflow_path: Path):
+    """Given CI workflows, When recovery is configured, Then it stays E2E-job scoped."""
+    workflow_text = workflow_path.read_text(encoding='utf-8')
+    assert 'E2E_RECOVERY_CODE' not in _top_level_env_keys(workflow_text)
+
+    workflow = _load_workflow(workflow_path)
+    seeded_jobs = [job_text for job_text in workflow.values() if 'seed_e2e' in job_text]
+    assert seeded_jobs
+    assert all(_env(job_text)['E2E_RECOVERY_CODE'] == 'e2e0000001' for job_text in seeded_jobs)
+
+
+def test_e2e_workflow_delegates_frontend_readiness_to_playwright_web_server():
+    """Given the dedicated E2E workflow, When Playwright runs, Then Vite is not started twice."""
+    workflow_path = PROJECT_ROOT / '.github' / 'workflows' / 'e2e.yml'
+    workflow = _load_workflow(workflow_path)
+    job_text = workflow['e2e']
+    steps = _steps(job_text)
+
+    assert not any('Start frontend' in step for step in steps)
+    frontend_install_index = job_text.index('- name: Install frontend deps')
+    playwright_index = job_text.index('- name: Run Playwright E2E')
+    frontend_start_region = job_text[frontend_install_index:playwright_index]
+    assert not re.search(r'(?m)^\s*npx vite\b', frontend_start_region)
+    assert not re.search(r'(?m)^\s*sleep\s+\d+\s*$', frontend_start_region)
+    assert any('playwright test' in step for step in steps)
+    assert _env(job_text)['VITE_API_BASE_URL'] == '/api/v1'
+
+    config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(
+        encoding='utf-8'
+    )
+    assert re.search(r'(?m)^\s*webServer:\s*\{', config)
+    assert re.search(r"url:\s*baseURL", config)
+    assert '--host 127.0.0.1' in config
+
+
 def test_playwright_config_is_deterministic_and_traces_failures_without_retries():
     """Given Playwright projects, When CI runs them, Then scheduling is fixed and traceable."""
     config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(encoding='utf-8')

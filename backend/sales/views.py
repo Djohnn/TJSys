@@ -1,6 +1,7 @@
 import csv
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -13,7 +14,7 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleReturn
+from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
@@ -225,7 +226,23 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 'operator',
             )
             .filter(tenant=self.request.tenant)
-            .prefetch_related('items', 'payments')
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=SaleItem.all_objects.filter(
+                        tenant=self.request.tenant,
+                    ).select_related('unit'),
+                ),
+                'payments',
+                Prefetch(
+                    'refunds',
+                    queryset=SaleRefund.all_objects.filter(
+                        tenant=self.request.tenant,
+                        status='completed',
+                    ),
+                    to_attr='_completed_refunds_for_serializer',
+                ),
+            )
         )
         branch_id = self.request.query_params.get('branch')
         cash_session_id = self.request.query_params.get('cash_session')

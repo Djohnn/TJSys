@@ -24,6 +24,7 @@ jobs:
       E2E_RECOVERY_CODE: e2e0000001
       AUTH_LOGIN_RATE: 100/minute
       AUTH_MFA_RATE: 100/minute
+      VITE_API_BASE_URL: /api/v1
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     services:
@@ -94,14 +95,6 @@ jobs:
       - name: Install Playwright browsers
         working-directory: ./frontend
         run: npx playwright install --with-deps chromium firefox webkit
-
-      - name: Start frontend
-        working-directory: ./frontend
-        env:
-          VITE_API_BASE_URL: /api/v1
-        run: |
-          npx vite --host 0.0.0.0 --port 5173 &
-          sleep 3
 
       - name: Run Playwright E2E
         working-directory: ./frontend

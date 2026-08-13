@@ -15,6 +15,7 @@ export interface SaleItem {
   quantity: string
   unit_price: string
   total: string
+  unit_precision?: number
 }
 
 export interface SalePayment {
@@ -65,6 +66,7 @@ export interface Sale {
   device: string
   device_name: string
   total: string
+  refundable_balance: string
   status: string
   status_label: string
   items: SaleItem[]
@@ -121,6 +123,7 @@ export interface CashSessionsQuery {
 interface CanonicalSaleItem extends Partial<SaleItem> {
   product?: string
   line_total?: string
+  unit_precision?: number
 }
 
 interface CanonicalSalePayment extends Partial<SalePayment> {
@@ -131,6 +134,7 @@ interface CanonicalSalePayment extends Partial<SalePayment> {
 interface CanonicalSale extends Omit<Partial<Sale>, 'items' | 'payments'> {
   gross_total?: string
   net_total?: string
+  refundable_balance?: string
   items?: CanonicalSaleItem[]
   payments?: CanonicalSalePayment[]
 }
@@ -149,6 +153,8 @@ function normalizeSale(raw: CanonicalSale): Sale {
     device: raw.device ?? '',
     device_name: raw.device_name ?? '-',
     total: raw.total ?? raw.net_total ?? raw.gross_total ?? '0.00',
+    refundable_balance:
+      raw.refundable_balance ?? raw.net_total ?? raw.total ?? raw.gross_total ?? '0.00',
     status,
     status_label:
       raw.status_label ?? (status === 'completed' ? 'Concluída' : status),
@@ -163,6 +169,7 @@ function normalizeSale(raw: CanonicalSale): Sale {
       quantity: item.quantity ?? '0',
       unit_price: item.unit_price ?? '0.00',
       total: item.total ?? item.line_total ?? '0.00',
+      unit_precision: item.unit_precision ?? 6,
     })),
     payments: (raw.payments ?? []).map((payment) => ({
       id: payment.id ?? '',

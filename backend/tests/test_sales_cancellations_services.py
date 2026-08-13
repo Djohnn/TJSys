@@ -420,6 +420,30 @@ class TestSaleCancellationService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
+    def test_cancel_reason_is_stripped_for_cancellation_and_refunds(self, sale_context):
+        """Given a padded reason, every persisted cancellation compensation is normalized."""
+        ctx = sale_context
+        from sales.services import cancel_sale
+
+        sale = Sale.all_objects.get(pk=ctx['sale'].pk)
+
+        def _test():
+            cancellation = cancel_sale(
+                tenant=ctx['tenant'],
+                sale=sale,
+                reason='  Cliente desistiu  ',
+                idempotency_key='cancel-normalized-reason',
+            )
+            refund = SaleRefund.all_objects.get(
+                tenant=ctx['tenant'],
+                sale=sale,
+            )
+
+            assert cancellation.reason == 'Cliente desistiu'
+            assert refund.reason == 'Cliente desistiu'
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_cancel_sale_idempotent(self, sale_context):
         ctx = sale_context
         from sales.services import cancel_sale
