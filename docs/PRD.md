@@ -773,22 +773,34 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 9 — Devoluções, Cancelamentos e Estornos
 
-#### 9.0 Proveniencia canonica pos-f399 e snapshots historicos
+#### 9.0 Proveniência canônica pós-236eaf36 e snapshots históricos
 
-Os blocos de fechamento anteriores da Sprint 9 sao snapshots historicos e
-preservam seus outputs sem reescrita; contagens como 110/347/356/13 nao sao o
-aceite corrente. A cadeia canonica de codigo/testes/CI pos-f399 e
+Todos os blocos de fechamento e baselines anteriores a
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` são snapshots históricos
+**superseded** e preservam seus outputs sem reescrita; contagens como
+110/111/347/356/13 não são o aceite corrente. A cadeia canônica de
+código/testes/CI é
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
 `31d8bfc114735b3e15fc6486d1c948ca5f576365` +
-`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
+`f3996678d77891d670acc5b8fbad1e75ba924e0f` +
+`7d9a5767d87f987e079a662089d57b7ed19212f0` (runtime/Dockerfile/dependências) +
+`aad9a792cf3cfaeb7741a1db37246117648ad07f` (MFA `storageState`) +
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness).
+Commits documentais intermediários constam apenas do inventário.
 
-Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
-`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
-Evidencia TDD: RED `2 failed | 11 passed`, runner `2.20s`, total `4.17s`,
-`EXIT=1`; GREEN `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`.
-Vitest `356 passed` em `22 files` e os demais outputs pre-f399 sao snapshots
-historicos superseded, preservados no relatorio sem reescrita.
+Aceite corrente: workflow isolado `13 passed` e workflow+seed `19 passed`,
+ambos `EXIT=0`; distribuição isolada comprovou `requests` e SimpleJWT e o build
+backend terminou `EXIT=0`; compose backend `healthy` e `/health/` HTTP `200`
+com database/cache `ok`. TDD readiness: RED `1 failed | 12 passed`
+(`KeyError: healthcheck`, `EXIT=1`) e GREEN `13 passed` (`EXIT=0`). Chromium:
+R9 `6 passed (22.2s)`, wrapper `24.46s`; PDV/finance `14 passed (33.6s)`,
+wrapper `35.69s`; auth `8 passed (18.2s)`, wrapper `20.1s`; todos `EXIT=0`.
+Firefox+WebKit: `12 skipped`, `EXIT=0`. Vitest: `359 passed` em `22 files`;
+auditoria backend `121 passed`; fault injection `3 passed`. Ruff, mypy,
+migrations e checks seguem a evidência registrada no relatório. Axe dos dialogs
+R9 permanece coberto; a execução ampla teve `10` violações preexistentes fora
+das telas R9 e não constitui gate global verde.
 
 **Estado:** Concluída tecnicamente em 2026-08-13, após comprovação dos gates
 obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md).

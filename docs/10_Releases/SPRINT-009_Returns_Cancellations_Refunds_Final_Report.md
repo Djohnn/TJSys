@@ -8,25 +8,46 @@
 
 ## Resultado executivo
 
-### Proveniencia canonica pos-f399 e snapshots historicos
+### Proveniência canônica pós-236eaf36 e snapshots históricos
 
-Este relatorio preserva outputs brutos de execucoes anteriores para auditoria.
-Em qualquer ponto deste relatorio, toda evidencia com contagens pre-f399 —
-109/110 backend, 347 ou 356 Vitest, client anterior ou correlata — e **snapshot
-historico superseded**, independentemente de sua posicao; somente esta secao
-canonica pos-f399 e estado corrente. A proveniencia canonica de codigo/testes/CI
-pos-f399 e a cadeia completa
+Este relatório preserva outputs brutos de execuções anteriores para auditoria.
+Toda evidência, métrica, gate ou afirmação de baseline anterior a
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` — inclusive os blocos pós-`f399`
+abaixo e contagens 109/110/111 backend, 347/356 Vitest, clientes e E2E
+anteriores — é **snapshot histórico superseded**, independentemente de sua
+posição. Somente esta seção é o estado corrente. A proveniência canônica de
+código/testes/CI é a cadeia completa
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
 `31d8bfc114735b3e15fc6486d1c948ca5f576365` +
-`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
+`f3996678d77891d670acc5b8fbad1e75ba924e0f` +
+`7d9a5767d87f987e079a662089d57b7ed19212f0` (contratos runtime do backend,
+Dockerfile e dependências) +
+`aad9a792cf3cfaeb7741a1db37246117648ad07f` (MFA com `storageState`) +
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (readiness do backend por health).
+Commits documentais intermediários permanecem somente no inventário; não são
+classificados como commits de código.
 
-Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
-`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
-O RED TDD real foi `2 failed | 11 passed`, runner `2.20s`, total `4.17s`,
-`EXIT=1`; o GREEN foi `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`.
-As evidencias pre-f399, inclusive Vitest `356 passed` em `22 files`, permanecem
-somente como snapshots historicos superseded, sem reescrever seus logs.
+#### Evidência corrente registrada
+
+- Workflow isolado: `13 passed`, `EXIT=0`. Workflow com seed: `19 passed`,
+  `EXIT=0`; a segunda contagem cobre workflow **e** seed e não é apresentada
+  como apenas workflow.
+- A distribuição isolada do backend comprovou `requests` e SimpleJWT; o build
+  do backend terminou com `EXIT=0`. No compose E2E, o backend ficou `healthy` e
+  `GET /health/` respondeu HTTP `200` com `database` e `cache` em estado `ok`.
+- TDD de readiness: RED `1 failed | 12 passed`, `KeyError: healthcheck`,
+  `EXIT=1`; GREEN `13 passed`, `EXIT=0`.
+- Playwright Chromium: R9 `6 passed (22.2s)`, wrapper `24.46s`, `EXIT=0`;
+  PDV/finance completo `14 passed (33.6s)`, wrapper `35.69s`, `EXIT=0`; auth
+  `8 passed (18.2s)`, wrapper `20.1s`, `EXIT=0`. Firefox+WebKit: `12 skipped`,
+  `EXIT=0`.
+- Vitest permanece `22 files`, `359 passed`; auditoria backend `121 passed` e
+  fault injection `3 passed`. Ruff, mypy, migrations e checks permanecem
+  conforme os outputs já registrados nesta auditoria.
+- O axe dos dialogs R9 permanece coberto. A execução ampla de acessibilidade
+  encontrou `10` violações preexistentes fora das telas R9; elas não são
+  convertidas em gate global verde desta sprint.
 
 A auditoria fecha a implementação técnica da R9 com os gates obrigatórios
 comprovados nesta branch. Devoluções, reembolsos e cancelamentos são fatos

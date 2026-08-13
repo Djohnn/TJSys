@@ -10,23 +10,35 @@
 
 ---
 
-## Nota de proveniencia canonica pos-f399 e snapshots
+## Nota de proveniência canônica pós-236eaf36 e snapshots
 
-Tasks 1--9, o fechamento de 2026-08-13 e o follow-up da spec review abaixo
-sao registros de plano e **snapshots historicos**. Eles preservam seus outputs
-originais (inclusive 110/347/356/13) e nao competem com o aceite corrente. A
-proveniencia canonica de codigo/testes/CI pos-f399 e a cadeia
+Tasks 1--9, o fechamento de 2026-08-13 e todo baseline anterior a
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` são registros de plano e
+**snapshots históricos superseded**. Eles preservam seus outputs originais
+(inclusive 110/111/347/356/13), mas não competem com o aceite corrente. A
+proveniência canônica de código/testes/CI é a cadeia
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
 `31d8bfc114735b3e15fc6486d1c948ca5f576365` +
-`f3996678d77891d670acc5b8fbad1e75ba924e0f`.
+`f3996678d77891d670acc5b8fbad1e75ba924e0f` +
+`7d9a5767d87f987e079a662089d57b7ed19212f0` (contratos runtime,
+Dockerfile/dependências) +
+`aad9a792cf3cfaeb7741a1db37246117648ad07f` (MFA `storageState`) +
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness). Commits
+documentais intermediários são inventário, não código.
 
-Estado corrente pos-f399: client focado `13 passed (13)`; Vitest `22 files`,
-`359 passed`; typecheck, lint, build e `git diff --check` com `EXIT=0`.
-TDD real: RED `2 failed | 11 passed`, runner `2.20s`, total `4.17s`, `EXIT=1`;
-GREEN `13 passed`, runner `2.40s`, total `4.48s`, `EXIT=0`. Vitest `356 passed`
-em `22 files` permanece somente como evidencia pre-f399, em snapshot historico
-superseded.
+Estado corrente: workflow isolado `13 passed`; workflow+seed `19 passed`
+(`EXIT=0` nos dois, sem atribuir 19 somente ao workflow). Runtime isolado
+comprovou `requests` e SimpleJWT; build backend `EXIT=0`; compose backend
+`healthy`; `/health/` HTTP `200` com database/cache `ok`. TDD readiness: RED
+`1 failed | 12 passed`, `KeyError: healthcheck`, `EXIT=1`; GREEN `13 passed`,
+`EXIT=0`. Playwright: R9 Chromium `6 passed (22.2s)`, wrapper `24.46s`;
+PDV/finance `14 passed (33.6s)`, wrapper `35.69s`; auth `8 passed (18.2s)`,
+wrapper `20.1s`; todos `EXIT=0`; Firefox+WebKit `12 skipped`, `EXIT=0`.
+Vitest `359 passed`/`22 files`; auditoria backend `121 passed`; fault injection
+`3 passed`. Ruff, mypy, migrations e checks estão cobertos na evidência já
+registrada. Axe dos dialogs R9 está coberto; as `10` violações amplas são
+preexistentes e fora do escopo R9, não um gate global verde.
 
 **Execution note:** Execute cada bloco a partir da raiz `C:\ERP\.worktrees\r9-finalization`, exceto quando o próprio bloco usar `Set-Location`. Cada bloco deve ser tratado como uma nova sessão de shell.
 
