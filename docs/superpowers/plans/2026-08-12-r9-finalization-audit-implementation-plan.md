@@ -10,10 +10,10 @@
 
 ---
 
-## Nota de proveniência canônica pós-f5c918fb e snapshots
+## Nota de proveniência canônica pós-b7be70d e snapshots
 
 Tasks 1--9, o fechamento de 2026-08-13 e todo baseline anterior a
-`f5c918fb21c965f91f720aa6febd1cae6cafb337` são registros de plano e
+`b7be70d885914c11336872f5b9f374f4713117d2` são registros de plano e
 **snapshots históricos superseded**. Eles preservam seus outputs originais
 (inclusive 110/111/347/356/13), mas não competem com o aceite corrente. A
 proveniência canônica de código/testes/CI é a cadeia
@@ -27,22 +27,27 @@ Dockerfile/dependências) +
 `236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness) +
 `14e0ed931fcb9e4f45e30c517209e8401f51e2ec` (auth cleanup/logout) +
 `1c2c4cad0bf9932169ca361c4ad2a982d26b5462` (Docker context/offline) +
-`f5c918fb21c965f91f720aa6febd1cae6cafb337` (lint E2E minor). Commits
+`f5c918fb21c965f91f720aa6febd1cae6cafb337` (lint E2E minor) +
+`b7be70d885914c11336872f5b9f374f4713117d2` (mypy exclui build derivado).
+Commits
 documentais intermediários são inventário, não código.
 
-Estado corrente: workflow isolado `13 passed in 0.28s`; workflow+seed
-`19 passed`; e exclusivamente workflow+seed+`test_session_auth` com logout real
-`20 passed in 16.02s`, todos `EXIT=0`. Runtime isolado comprovou `requests` e
-SimpleJWT; contexto Docker `789.05kB`, build `77.12s`, `EXIT=0`; compose backend
+Estado corrente: backend R9/API `134 passed in 67.95s`, `EXIT=0`; fault
+injection `3 passed in 14.78s`, `EXIT=0`; workflow isolado `14 passed`, incluindo
+o novo contrato mypy; workflow+seed+logout real `24 passed in 14.84s`, `EXIT=0`.
+As contagens anteriores `13`, `19` e `20` são snapshots históricos superseded.
+Runtime isolado comprovou `requests` e SimpleJWT; contexto Docker `789.05kB`,
+build `77.12s`, `EXIT=0`; compose backend
 `healthy`; `/health/` HTTP `200` com database/cache `ok`; digest Docker é minor
-deferido. TDD: RED `2 failed | 11 passed`, `EXIT=1`; GREEN `13 passed`,
-`EXIT=0`. Playwright Chromium: auth `8 passed (18.0s)`, R9
+deferido. TDD mypy: RED `2 failed | 11 passed`, duplicação em `backend/build`,
+`EXIT=2`; GREEN `Success: no issues found in 299 source files`, `0.8s`,
+`EXIT=0`. O artefato derivado foi removido, o ignore confirmado e o contrato
+fornece proteção permanente. Playwright Chromium: auth `8 passed (18.0s)`, R9
 `6 passed (24.4s)`, PDV/finance `14 passed (49.7s)`, todos `EXIT=0`;
 Firefox+WebKit `12 skipped`, `EXIT=0`; auth state ausente após logout. Vitest
-`359 passed`/`22 files`; auditoria backend `121 passed`; fault injection
-`3 passed`; ESLint E2E pós-`f5c918fb` e typecheck `EXIT=0`. Ruff, mypy,
-migrations e checks estão cobertos na evidência já
-registrada. Axe dos dialogs R9 está coberto; as `10` violações amplas são
+`359 passed`/`22 files`; lint, ESLint E2E, typecheck e build `EXIT=0`; Ruff,
+Django check e `makemigrations --check` canônicos verdes. Axe dos dialogs R9
+está coberto; as `10` violações amplas são
 preexistentes e fora do escopo R9, não um gate global verde.
 
 **Execution note:** Execute cada bloco a partir da raiz `C:\ERP\.worktrees\r9-finalization`, exceto quando o próprio bloco usar `Set-Location`. Cada bloco deve ser tratado como uma nova sessão de shell.

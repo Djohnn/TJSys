@@ -8,11 +8,11 @@
 
 ## Resultado executivo
 
-### Proveniência canônica pós-f5c918fb e snapshots históricos
+### Proveniência canônica pós-b7be70d e snapshots históricos
 
 Este relatório preserva outputs brutos de execuções anteriores para auditoria.
 Toda evidência, métrica, gate ou afirmação de baseline anterior a
-`f5c918fb21c965f91f720aa6febd1cae6cafb337` — inclusive os blocos pós-`f399`
+`b7be70d885914c11336872f5b9f374f4713117d2` — inclusive os blocos pós-`f399`
 abaixo e contagens 109/110/111 backend, 347/356 Vitest, clientes e E2E
 anteriores — é **snapshot histórico superseded**, independentemente de sua
 posição. Somente esta seção é o estado corrente. A proveniência canônica de
@@ -29,32 +29,38 @@ Dockerfile e dependências) +
 e asserção de logout) +
 `1c2c4cad0bf9932169ca361c4ad2a982d26b5462` (contexto Docker e contratos
 offline) +
-`f5c918fb21c965f91f720aa6febd1cae6cafb337` (ajuste menor de lint E2E).
+`f5c918fb21c965f91f720aa6febd1cae6cafb337` (ajuste menor de lint E2E) +
+`b7be70d885914c11336872f5b9f374f4713117d2` (exclusão mypy das árvores de
+build derivadas).
 Commits documentais intermediários permanecem somente no inventário; não são
 classificados como commits de código.
 
 #### Evidência corrente registrada
 
-- Contrato de workflow isolado: `13 passed in 0.28s`, `EXIT=0`. Workflow com
-  seed: `19 passed`,
-  `EXIT=0`; a segunda contagem cobre workflow **e** seed e não é apresentada
-  como apenas workflow. A contagem `20 passed in 16.02s` é exclusivamente o
-  escopo combinado workflow + seed + `test_session_auth` com logout real.
+- A auditoria fresca do backend R9/API terminou com `134 passed in 67.95s`,
+  `EXIT=0`; fault injection terminou com `3 passed in 14.78s`, `EXIT=0`.
+- A suíte isolada de contratos de workflow agora tem `14 passed`, incluindo o
+  novo contrato de exclusão mypy. O escopo combinado workflow + seed + logout
+  real terminou com `24 passed in 14.84s`, `EXIT=0`. As contagens anteriores
+  `13` (workflow), `19` (workflow+seed) e `20` (workflow+seed+logout) são
+  snapshots históricos superseded e não representam o gate corrente.
 - A distribuição isolada do backend comprovou `requests` e SimpleJWT; o build
   do backend usou contexto de `789.05kB`, terminou em `77.12s` com `EXIT=0`.
   No compose E2E, o backend ficou `healthy` e `GET /health/` respondeu HTTP
   `200` com `database` e `cache` em estado `ok`. A fixação da imagem por digest
   Docker permanece melhoria minor deferida, sem invalidar estes contratos.
-- TDD do quality hardening: RED `2 failed | 11 passed`,
-  `EXIT=1`; GREEN `13 passed`, `EXIT=0`.
+- TDD mypy: RED `2 failed | 11 passed`, com árvore duplicada em
+  `backend/build`, `EXIT=2`; GREEN pós-fix `Success: no issues found in 299
+  source files`, `0.8s`, `EXIT=0`. O artefato derivado foi removido, sua
+  ausência/ignore foi confirmada e a exclusão permanente ficou protegida pelo
+  novo contrato.
 - Playwright Chromium: auth `8 passed (18.0s)`, R9 `6 passed (24.4s)` e
   PDV/finance completo `14 passed (49.7s)`, todos `EXIT=0`. Firefox+WebKit:
   `12 skipped`, `EXIT=0`. Depois do logout, o auth state compartilhado foi
   comprovado ausente.
-- Vitest permanece `22 files`, `359 passed`; auditoria backend `121 passed` e
-  fault injection `3 passed`. ESLint E2E após `f5c918fb` e typecheck terminaram
-  com `EXIT=0`; Ruff, mypy, migrations e checks permanecem conforme os outputs
-  já registrados nesta auditoria.
+- Vitest permanece `22 files`, `359 passed`; lint, ESLint E2E, typecheck e build
+  terminaram com `EXIT=0`. Ruff, Django check e `makemigrations --check` estão
+  verdes no gate canônico.
 - O axe dos dialogs R9 permanece coberto. A execução ampla de acessibilidade
   encontrou `10` violações preexistentes fora das telas R9; elas não são
   convertidas em gate global verde desta sprint.
