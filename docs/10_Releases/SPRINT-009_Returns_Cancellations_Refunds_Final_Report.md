@@ -11,9 +11,10 @@
 ### Proveniencia canonica pos-f399 e snapshots historicos
 
 Este relatorio preserva outputs brutos de execucoes anteriores para auditoria.
-Todo bloco anterior a esta secao e um **snapshot historico**, inclusive as
-contagens 109/110, 347, 356, 13 e os commits documentais intermediarios; ele
-nao e criterio de aceite corrente. A proveniencia canonica de codigo/testes/CI
+Em qualquer ponto deste relatorio, toda evidencia com contagens pre-f399 —
+109/110 backend, 347 ou 356 Vitest, client anterior ou correlata — e **snapshot
+historico superseded**, independentemente de sua posicao; somente esta secao
+canonica pos-f399 e estado corrente. A proveniencia canonica de codigo/testes/CI
 pos-f399 e a cadeia completa
 `a43701a902aff628139520931491441a0a47bf35` +
 `0ac90a7b4590cd83e88471000c28a4264a0361b2` +
