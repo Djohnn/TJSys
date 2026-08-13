@@ -600,22 +600,22 @@ export const handlers = [
     return HttpResponse.json(sale)
   }),
 
-  http.post(`${BASE}/sales/:id/return/`, async ({ request, params }) => {
+  http.post(`${BASE}/sales/:id/returns/`, async ({ request, params }) => {
     const saleId = params.id as string
     if (saleId === 'sale-409-return' || saleId === 'sale-conflict') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui devolução registrada.', code: 'already_returned' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    const body = await request.json() as { items?: { product: string; quantity: string }[]; reason?: string }
-    if (!body.items?.length || !body.reason?.trim()) {
+    const body = await request.json() as { items?: { sale_item_id?: string; quantity: string; product?: string }[]; reason?: string }
+    if (!body.items?.length || body.items.some((item) => !item.sale_item_id || item.product) || !body.reason?.trim()) {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { reason: !body.reason?.trim() ? ['Este campo é obrigatório.'] : undefined } },
-        { status: 422 },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 201 })
   }),
 
   http.post(`${BASE}/sales/:id/cancel/`, async ({ request, params }) => {
@@ -623,17 +623,17 @@ export const handlers = [
     if (saleId === 'sale-409-cancel' || saleId === 'sale-already-cancelled') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já está cancelada.', code: 'already_cancelled' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
     const body = await request.json() as { reason?: string }
     if (!body.reason?.trim()) {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
-        { status: 422 },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 201 })
   }),
 
   http.post(`${BASE}/sales/:id/refund/`, async ({ request, params }) => {
@@ -641,7 +641,7 @@ export const handlers = [
     if (saleId === 'sale-409-refund' || saleId === 'sale-already-refunded') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui reembolso.', code: 'already_refunded' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
     if (saleId === 'sale-403') {
@@ -650,14 +650,14 @@ export const handlers = [
         { status: 403 },
       )
     }
-    const body = await request.json() as { amount?: string; reason?: string }
-    if (!body.reason?.trim()) {
+    const body = await request.json() as { method?: string; amount?: string; reason?: string }
+    if (!body.method || !['cash', 'pix', 'card_external'].includes(body.method) || !body.reason?.trim()) {
       return HttpResponse.json(
-        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
-        { status: 422 },
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Método e motivo são obrigatórios.', errors: { reason: ['Este campo é obrigatório.'] } },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 201 })
   }),
 
   // Cash sessions — management

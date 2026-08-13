@@ -40,6 +40,9 @@ const SALE_DETAIL = {
   branch_name: 'Centro',
   total: '150.00',
   created_at: '2026-07-22T10:00:00Z',
+  payments: [
+    { id: 'payment-1', method: 'cash', method_name: 'Dinheiro', amount: '150.00', status: 'confirmed', status_label: 'Confirmado' },
+  ],
   items: [
     { id: 'sale-item-1', product: 'prod-1', product_name: 'Parafuso', quantity: '10', unit_price: '10.00', total: '100.00' },
     { id: 'sale-item-2', product: 'prod-2', product_name: 'Porca', quantity: '5', unit_price: '10.00', total: '50.00' },
@@ -70,7 +73,7 @@ beforeEach(() => {
     http.get(`${BASE}/sales/sale-1/`, () =>
       HttpResponse.json(SALE_DETAIL),
     ),
-    http.post(`${BASE}/sales/sale-1/return/`, async ({ request }) => {
+    http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
       const body = await request.json() as { items?: unknown[]; reason?: string }
       if (!body.items || body.items.length === 0 || !body.reason?.trim()) {
         return HttpResponse.json(
@@ -78,7 +81,7 @@ beforeEach(() => {
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 200 })
+      return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 201 })
     }),
     http.post(`${BASE}/sales/sale-1/cancel/`, async ({ request }) => {
       const body = await request.json() as { reason?: string }
@@ -88,19 +91,19 @@ beforeEach(() => {
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 200 })
+      return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 201 })
     }),
     http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
-      const body = await request.json() as { amount?: string; reason?: string }
+      const body = await request.json() as { method?: string; amount?: string; reason?: string }
       if (!body.reason?.trim()) {
         return HttpResponse.json(
           { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
           { status: 422 },
         )
       }
-      return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 200 })
+      return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 201 })
     }),
-    http.post(`${BASE}/sales/sale-409-return/return/`, () =>
+    http.post(`${BASE}/sales/sale-409-return/returns/`, () =>
       HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui devolução registrada.', code: 'already_returned' },
         { status: 409 },
@@ -112,7 +115,7 @@ beforeEach(() => {
         { status: 409 },
       ),
     ),
-    http.post(`${BASE}/sales/sale-403/return/`, () =>
+    http.post(`${BASE}/sales/sale-403/returns/`, () =>
       HttpResponse.json(
         { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Permissão negada. Reautenticação MFA necessária.', code: 'mfa_required' },
         { status: 403 },
@@ -247,7 +250,7 @@ describe('ReturnDialog', () => {
   it('sends Idempotency-Key header on return', async () => {
     let capturedKey: string | null = null
     server.use(
-      http.post(`${BASE}/sales/sale-1/return/`, async ({ request }) => {
+      http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
         capturedKey = request.headers.get('Idempotency-Key')
         const body = await request.json() as { items?: unknown[]; reason?: string }
         if (!body.items?.length || !body.reason?.trim()) {
@@ -256,7 +259,7 @@ describe('ReturnDialog', () => {
             { status: 422 },
           )
         }
-        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 200 })
+        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
       }),
     )
     renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
@@ -279,6 +282,64 @@ describe('ReturnDialog', () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
     })
+  })
+
+  it('sends the plural return contract with sale item ids and no legacy product field', async () => {
+    let capturedBody: { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string } | null = null
+    let capturedKey: string | null = null
+    server.use(
+      http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
+        capturedKey = request.headers.get('Idempotency-Key')
+        capturedBody = await request.json() as { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string }
+        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByText('Parafuso')).toBeInTheDocument())
+    await user.type(screen.getAllByTestId(/^return-qty-/)[0], '1')
+    await user.type(screen.getByTestId('return-reason'), 'Teste de contrato')
+    await user.click(screen.getByRole('button', { name: /confirmar/i }))
+
+    await waitFor(() => expect(capturedBody).not.toBeNull())
+    const body = capturedBody as unknown as { items?: { sale_item_id?: string; quantity?: string; product?: string }[]; reason?: string }
+    expect(body).toEqual({ items: [{ sale_item_id: 'sale-item-1', quantity: '1' }], reason: 'Teste de contrato' })
+    expect(body.items?.[0]).not.toHaveProperty('product')
+    expect(capturedKey).toBeTruthy()
+  })
+
+  it('keeps one return request and key when submit is clicked twice', async () => {
+    const capturedKeys: string[] = []
+    let requestCount = 0
+    let resolveRequest: (() => void) | undefined
+    const requestCompleted = new Promise<void>((resolve) => {
+      resolveRequest = resolve
+    })
+    server.use(
+      http.post(`${BASE}/sales/sale-1/returns/`, async ({ request }) => {
+        requestCount += 1
+        const key = request.headers.get('Idempotency-Key')
+        if (key) capturedKeys.push(key)
+        await requestCompleted
+        return HttpResponse.json({ detail: 'Devolução registrada.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(<ReturnDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByText('Parafuso')).toBeInTheDocument())
+    await user.type(screen.getAllByTestId(/^return-qty-/)[0], '1')
+    await user.type(screen.getByTestId('return-reason'), 'Teste de duplicidade')
+    const submit = screen.getByRole('button', { name: /confirmar/i })
+    await user.click(submit)
+    await waitFor(() => expect(requestCount).toBe(1))
+    await user.click(submit)
+
+    expect(requestCount).toBe(1)
+    expect(capturedKeys).toHaveLength(1)
+    expect(capturedKeys[0]).toBeTruthy()
+    resolveRequest?.()
   })
 
   it('handles 403 MFA/permission denial', async () => {
@@ -386,6 +447,31 @@ describe('CancellationDialog', () => {
 // RefundDialog
 // ---------------------------------------------------------------------------
 describe('RefundDialog', () => {
+  it.each([
+    ['cash', 'Dinheiro'],
+    ['pix', 'PIX'],
+    ['card_external', 'Cartão externo'],
+  ])('offers the %s refund method as %s', async (method, label) => {
+    let capturedBody: { method?: string; reason?: string } | null = null
+    server.use(
+      http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
+        capturedBody = await request.json() as { method?: string; reason?: string }
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    const methodSelect = await screen.findByRole('combobox', { name: 'Método do reembolso' })
+    expect(screen.getByRole('option', { name: label })).toBeInTheDocument()
+    await user.selectOptions(methodSelect, method)
+    await user.type(screen.getByTestId('refund-reason'), 'Teste de método')
+    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+
+    await waitFor(() => expect(capturedBody).not.toBeNull())
+    expect(capturedBody).toMatchObject({ method, reason: 'Teste de método' })
+  })
+
   it('processes partial refund successfully', async () => {
     const onClose = vi.fn()
     renderWithProviders(<RefundDialog saleId="sale-1" onClose={onClose} />)
@@ -406,6 +492,53 @@ describe('RefundDialog', () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('sends a partial amount explicitly', async () => {
+    let capturedBody: { method?: string; amount?: string; reason?: string } | null = null
+    server.use(
+      http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
+        capturedBody = await request.json() as { method?: string; amount?: string; reason?: string }
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Método do reembolso' }), 'pix')
+    await user.type(screen.getByTestId('refund-amount'), '50.00')
+    await user.type(screen.getByTestId('refund-reason'), 'Reembolso parcial')
+    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+
+    await waitFor(() => expect(capturedBody).not.toBeNull())
+    expect(capturedBody).toEqual({ method: 'pix', amount: '50', reason: 'Reembolso parcial' })
+  })
+
+  it('omits amount when the field is empty and preserves an explicit full amount', async () => {
+    const capturedBodies: Record<string, unknown>[] = []
+    server.use(
+      http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
+        capturedBodies.push(await request.json() as Record<string, unknown>)
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+      }),
+    )
+    const firstClose = vi.fn()
+    const firstRender = renderWithProviders(<RefundDialog saleId="sale-1" onClose={firstClose} />)
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByTestId('refund-reason'), 'Saldo total')
+    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await waitFor(() => expect(firstClose).toHaveBeenCalledTimes(1))
+    expect(capturedBodies[0]).toEqual({ method: 'cash', reason: 'Saldo total' })
+    firstRender.unmount()
+
+    const secondClose = vi.fn()
+    renderWithProviders(<RefundDialog saleId="sale-1" onClose={secondClose} />)
+    await user.type(await screen.findByTestId('refund-amount'), '150.00')
+    await user.type(screen.getByTestId('refund-reason'), 'Total explícito')
+    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+    await waitFor(() => expect(secondClose).toHaveBeenCalledTimes(1))
+    expect(capturedBodies[1]).toEqual({ method: 'cash', amount: '150', reason: 'Total explícito' })
   })
 
   it('shows consequence summary with full amount by default', async () => {
@@ -437,7 +570,7 @@ describe('RefundDialog', () => {
     server.use(
       http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
         capturedKey = request.headers.get('Idempotency-Key')
-        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 200 })
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
       }),
     )
     const onClose = vi.fn()
@@ -457,5 +590,57 @@ describe('RefundDialog', () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       )
     })
+  })
+
+  it('renders Problem Details without exposing the raw response', async () => {
+    server.use(
+      http.post(`${BASE}/sales/sale-1/refund/`, () =>
+        HttpResponse.json(
+          { type: 'about:blank', title: 'Conflict', status: 409, detail: 'O reembolso já foi registrado.', code: 'already_refunded' },
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByTestId('refund-reason'), 'Conflito')
+    await user.click(screen.getByRole('button', { name: /confirmar reembolso/i }))
+
+    await waitFor(() => expect(screen.getByTestId('refund-error')).toHaveTextContent('O reembolso já foi registrado.'))
+    expect(screen.getByTestId('refund-error')).not.toHaveTextContent('already_refunded')
+    expect(screen.getByTestId('refund-error')).not.toHaveTextContent('application/problem+json')
+  })
+
+  it('keeps one refund request and key when submit is clicked twice', async () => {
+    const capturedKeys: string[] = []
+    let requestCount = 0
+    let resolveRequest: (() => void) | undefined
+    const requestCompleted = new Promise<void>((resolve) => {
+      resolveRequest = resolve
+    })
+    server.use(
+      http.post(`${BASE}/sales/sale-1/refund/`, async ({ request }) => {
+        requestCount += 1
+        const key = request.headers.get('Idempotency-Key')
+        if (key) capturedKeys.push(key)
+        await requestCompleted
+        return HttpResponse.json({ detail: 'Reembolso processado.' }, { status: 201 })
+      }),
+    )
+    renderWithProviders(<RefundDialog saleId="sale-1" onClose={() => {}} />)
+    const user = userEvent.setup()
+
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Método do reembolso' }), 'card_external')
+    await user.type(screen.getByTestId('refund-reason'), 'Teste de duplicidade')
+    const submit = screen.getByRole('button', { name: /confirmar reembolso/i })
+    await user.click(submit)
+    await waitFor(() => expect(requestCount).toBe(1))
+    await user.click(submit)
+
+    expect(requestCount).toBe(1)
+    expect(capturedKeys).toHaveLength(1)
+    expect(capturedKeys[0]).toBeTruthy()
+    resolveRequest?.()
   })
 })

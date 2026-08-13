@@ -53,15 +53,15 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
     mutationFn: () => {
       const items = sale!.items
         .filter((item) => {
-          const qty = Number.parseFloat(selectedQtys[item.product] ?? '0')
+          const qty = Number.parseFloat(selectedQtys[item.id] ?? '0')
           return qty > 0
         })
         .map((item) => ({
-          product: item.product,
-          quantity: selectedQtys[item.product]!,
+          sale_item_id: item.id,
+          quantity: selectedQtys[item.id]!,
         }))
 
-      return apiRequest(`/sales/${saleId}/return/`, {
+      return apiRequest(`/sales/${saleId}/returns/`, {
         method: 'POST',
         tenantId,
         body: { items, reason },
@@ -86,7 +86,7 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
 
   const handleSubmit = () => {
     const hasItems = sale!.items.some((item) => {
-      const qty = Number.parseFloat(selectedQtys[item.product] ?? '0')
+      const qty = Number.parseFloat(selectedQtys[item.id] ?? '0')
       return qty > 0
     })
     if (!hasItems) {
@@ -97,25 +97,27 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
       setError('O motivo da devolução é obrigatório.')
       return
     }
+    if (returnMutation.isPending) return
     setError(null)
     returnMutation.mutate()
   }
 
   const totalQty = sale?.items.reduce((acc, item) => {
-    const qty = Number.parseFloat(selectedQtys[item.product] ?? '0')
+    const qty = Number.parseFloat(selectedQtys[item.id] ?? '0')
     return acc + (qty > 0 ? qty : 0)
   }, 0) ?? 0
 
   const totalCredit = sale?.items.reduce((acc, item) => {
-    const qty = new Decimal(selectedQtys[item.product] ?? '0')
+    const qty = new Decimal(selectedQtys[item.id] ?? '0')
     if (qty.isZero() || qty.isNegative()) return acc
     return acc.plus(qty.mul(item.unit_price))
   }, new Decimal(0)) ?? new Decimal(0)
 
   if (isLoading) {
     return (
-      <div data-testid="return-dialog" role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div data-testid="return-dialog" role="dialog" aria-modal="true" aria-labelledby="return-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
+          <h3 id="return-dialog-title" className="sr-only">Devolução de Itens</h3>
           <p className="text-sm text-neutral-500">Carregando itens da venda...</p>
         </div>
       </div>
@@ -123,11 +125,11 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
   }
 
   return (
-    <div data-testid="return-dialog" role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div data-testid="return-dialog" role="dialog" aria-modal="true" aria-labelledby="return-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-neutral-900">Devolução de Itens</h3>
-          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl leading-none">&times;</button>
+          <h3 id="return-dialog-title" className="text-lg font-semibold text-neutral-900">Devolução de Itens</h3>
+          <button type="button" aria-label="Fechar devolução" onClick={onClose} className="p-2 -mr-2 text-neutral-400 hover:text-neutral-600 text-xl leading-none">&times;</button>
         </div>
 
         <div className="p-6 space-y-4">
@@ -136,7 +138,7 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
           </p>
 
           {error && (
-            <div data-testid="return-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <div role="alert" aria-live="polite" data-testid="return-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -157,17 +159,19 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
                       <td className="px-4 py-3 text-neutral-700">{item.product_name}</td>
                       <td className="px-4 py-3 text-neutral-700">{item.quantity}</td>
                       <td className="px-4 py-3">
+                        <label htmlFor={`return-qty-${item.id}`} className="sr-only">Quantidade de {item.product_name} para devolver</label>
                         <input
+                          id={`return-qty-${item.id}`}
                           type="number"
                           min="0"
                           max={item.quantity}
                           step="1"
                           data-testid={`return-qty-${item.product}`}
-                          value={selectedQtys[item.product] ?? ''}
+                          value={selectedQtys[item.id] ?? ''}
                           onChange={(e) =>
                             setSelectedQtys((prev) => ({
                               ...prev,
-                              [item.product]: e.target.value,
+                              [item.id]: e.target.value,
                             }))
                           }
                           className="w-24 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm"
@@ -192,6 +196,7 @@ export default function ReturnDialog({ saleId, onClose }: ReturnDialogProps) {
             <textarea
               id="return-reason"
               data-testid="return-reason"
+              aria-required="true"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm min-h-[80px]"
