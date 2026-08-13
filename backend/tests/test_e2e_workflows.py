@@ -333,3 +333,14 @@ def test_runtime_imports_are_declared_in_backend_distribution_metadata():
     assert 'requests' in requirements
     assert 'rest_framework_simplejwt' in device_auth
     assert 'djangorestframework-simplejwt' in requirements
+
+
+def test_mypy_excludes_derived_build_directories_on_windows_and_linux():
+    """Given derived package builds, mypy ignores them on either path separator."""
+    backend_root = PROJECT_ROOT / 'backend'
+    metadata = tomllib.loads((backend_root / 'pyproject.toml').read_text(encoding='utf-8'))
+    exclusions = metadata['tool']['mypy']['exclude']
+
+    assert any(re.search(pattern, 'build/lib/accounts/__init__.py') for pattern in exclusions)
+    assert any(re.search(pattern, r'build\lib\accounts\__init__.py') for pattern in exclusions)
+    assert not any(re.search(pattern, 'accounts/__init__.py') for pattern in exclusions)
