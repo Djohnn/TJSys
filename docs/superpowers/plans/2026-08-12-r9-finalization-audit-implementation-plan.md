@@ -10,6 +10,23 @@
 
 ---
 
+## Nota de proveniencia e snapshots
+
+Tasks 1--9, o fechamento de 2026-08-13 e o follow-up da spec review abaixo
+sao registros de plano e **snapshots historicos**. Eles preservam seus outputs
+originais (inclusive 110/347/13) e nao competem com o aceite corrente. A
+proveniencia corrente de codigo/testes/CI e a cadeia
+`a43701a902aff628139520931491441a0a47bf35` +
+`0ac90a7b4590cd83e88471000c28a4264a0361b2` +
+`31d8bfc114735b3e15fc6486d1c948ca5f576365`.
+
+O snapshot corrente dessa cadeia registra: backend R9/API/CI `111 passed`;
+workflow contracts `10 passed`; frontend compensations `44 passed`; Vitest
+`356 passed` em `22 files`; Playwright R9 Chromium `6 passed`; spec Chromium
+`14 passed`; Firefox/WebKit `28 skipped`. As duracoes e os exit codes originais
+permanecem no bloco `Evidencia corrente (raw)`, sem substituir evidencia
+historica.
+
 **Execution note:** Execute cada bloco a partir da raiz `C:\ERP\.worktrees\r9-finalization`, exceto quando o próprio bloco usar `Set-Location`. Cada bloco deve ser tratado como uma nova sessão de shell.
 
 ## Cenários de aceite (BDD/EARS)
@@ -469,12 +486,12 @@ desta branch.
   `insufficient_returnable`/409. CI mantém throttles job-scoped, Playwright
 usa `retries=0`, `workers=1` e `trace=retain-on-failure`.
 
-## Fechamento corrente da quality review - 2026-08-13
+## Snapshot historico da quality review - 2026-08-13
 
-Este bloco supersede as contagens anteriores do plano. A entrega corrente esta
-no commit de codigo/testes/CI
-`31d8bfc114735b3e15fc6486d1c948ca5f576365`; a documentacao deste bloco sera
-commitada separadamente.
+Este bloco preserva o fechamento registrado em 2026-08-13. Ele e um snapshot
+historico da cadeia de codigo/testes/CI e nao substitui a proveniencia canonica
+indicada no inicio deste plano; a documentacao correspondente foi mantida em
+commits isolados.
 
 ### Cenarios Gherkin adicionais
 

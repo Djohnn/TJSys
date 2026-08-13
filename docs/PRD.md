@@ -773,6 +773,21 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 9 — Devoluções, Cancelamentos e Estornos
 
+#### 9.0 Proveniencia canonica e snapshots historicos
+
+Os blocos de fechamento anteriores da Sprint 9 sao snapshots historicos e
+preservam seus outputs sem reescrita; contagens como 110/347/13 nao sao o
+aceite corrente. A cadeia corrente de codigo/testes/CI e
+`a43701a902aff628139520931491441a0a47bf35` +
+`0ac90a7b4590cd83e88471000c28a4264a0361b2` +
+`31d8bfc114735b3e15fc6486d1c948ca5f576365`.
+
+Evidencias correntes dessa cadeia: backend R9/API/CI `111 passed`; workflow
+contracts `10 passed`; frontend compensations `44 passed`; Vitest `356 passed`
+em `22 files`; Playwright R9 Chromium `6 passed`; spec Chromium `14 passed`;
+Firefox/WebKit `28 skipped`. Os outputs brutos e duracoes pertencem ao relatorio
+final da R9; esta sintese nao substitui os snapshots historicos.
+
 **Estado:** Concluída tecnicamente em 2026-08-13, após comprovação dos gates
 obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md).
 O `migrate --check` foi comprovado em `config.settings.test` contra
@@ -840,7 +855,7 @@ estoque, reembolso/estorno, contratos REST e jornada administrativa real.
 - [x] Criar commits de implementação `a43701a`/`0ac90a7b` e manter commits documentais
       isolados em `codex/r9-finalization`, sem push.
 
-#### 9.5 Follow-up final da quality review - 2026-08-13
+#### 9.5 Snapshot histórico do follow-up da quality review - 2026-08-13
 
 - [x] Expor `refundable_balance` tenant-safe, descontando refunds concluídos,
       com prefetch explícito dos itens/refunds e teste de refund parcial.
@@ -1256,7 +1271,7 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
-| 9 | 2026-08-13 | `codex/r9-finalization`, base `77b36ef`, implementation `0ac90a7b` | Fault injection GREEN `3 passed`; R9/API final `110 passed`; backend `825 passed`, cobertura 80.99%; frontend `347 passed`; E2E R9 `5 passed (29.0s)`, Chromium `13 passed (1.2m)`, Firefox/WebKit `26 skipped`; CI browser contract/seed `7 passed`; Ruff, mypy, migrations E2E, Django check, typecheck, build e `git diff --check` verdes | Deploy check sem `MFA_ENCRYPTION_KEY` continua bloqueado sem secret real; `frontend/playwright-report/index.html`, `frontend/test-results/.last-run.json` e `graphify-out/` preservados fora dos commits | Aprovado tecnicamente com ressalvas documentadas |
+| 9 | 2026-08-13 | Snapshot histórico: `codex/r9-finalization`, base `77b36ef`, implementation `0ac90a7b` | Snapshot histórico: Fault injection GREEN `3 passed`; R9/API final `110 passed`; backend `825 passed`, cobertura 80.99%; frontend `347 passed`; E2E R9 `5 passed (29.0s)`, Chromium `13 passed (1.2m)`, Firefox/WebKit `26 skipped`; CI browser contract/seed `7 passed`; Ruff, mypy, migrations E2E, Django check, typecheck, build e `git diff --check` verdes | Deploy check sem `MFA_ENCRYPTION_KEY` continua bloqueado sem secret real; `frontend/playwright-report/index.html`, `frontend/test-results/.last-run.json` e `graphify-out/` preservados fora dos commits | Snapshot histórico; aceite corrente em 9.0 |
 | 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
 | 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
 | 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |
