@@ -10,10 +10,10 @@
 
 ---
 
-## Nota de proveniência canônica pós-236eaf36 e snapshots
+## Nota de proveniência canônica pós-f5c918fb e snapshots
 
 Tasks 1--9, o fechamento de 2026-08-13 e todo baseline anterior a
-`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` são registros de plano e
+`f5c918fb21c965f91f720aa6febd1cae6cafb337` são registros de plano e
 **snapshots históricos superseded**. Eles preservam seus outputs originais
 (inclusive 110/111/347/356/13), mas não competem com o aceite corrente. A
 proveniência canônica de código/testes/CI é a cadeia
@@ -24,19 +24,24 @@ proveniência canônica de código/testes/CI é a cadeia
 `7d9a5767d87f987e079a662089d57b7ed19212f0` (contratos runtime,
 Dockerfile/dependências) +
 `aad9a792cf3cfaeb7741a1db37246117648ad07f` (MFA `storageState`) +
-`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness). Commits
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness) +
+`14e0ed931fcb9e4f45e30c517209e8401f51e2ec` (auth cleanup/logout) +
+`1c2c4cad0bf9932169ca361c4ad2a982d26b5462` (Docker context/offline) +
+`f5c918fb21c965f91f720aa6febd1cae6cafb337` (lint E2E minor). Commits
 documentais intermediários são inventário, não código.
 
-Estado corrente: workflow isolado `13 passed`; workflow+seed `19 passed`
-(`EXIT=0` nos dois, sem atribuir 19 somente ao workflow). Runtime isolado
-comprovou `requests` e SimpleJWT; build backend `EXIT=0`; compose backend
-`healthy`; `/health/` HTTP `200` com database/cache `ok`. TDD readiness: RED
-`1 failed | 12 passed`, `KeyError: healthcheck`, `EXIT=1`; GREEN `13 passed`,
-`EXIT=0`. Playwright: R9 Chromium `6 passed (22.2s)`, wrapper `24.46s`;
-PDV/finance `14 passed (33.6s)`, wrapper `35.69s`; auth `8 passed (18.2s)`,
-wrapper `20.1s`; todos `EXIT=0`; Firefox+WebKit `12 skipped`, `EXIT=0`.
-Vitest `359 passed`/`22 files`; auditoria backend `121 passed`; fault injection
-`3 passed`. Ruff, mypy, migrations e checks estão cobertos na evidência já
+Estado corrente: workflow isolado `13 passed in 0.28s`; workflow+seed
+`19 passed`; e exclusivamente workflow+seed+`test_session_auth` com logout real
+`20 passed in 16.02s`, todos `EXIT=0`. Runtime isolado comprovou `requests` e
+SimpleJWT; contexto Docker `789.05kB`, build `77.12s`, `EXIT=0`; compose backend
+`healthy`; `/health/` HTTP `200` com database/cache `ok`; digest Docker é minor
+deferido. TDD: RED `2 failed | 11 passed`, `EXIT=1`; GREEN `13 passed`,
+`EXIT=0`. Playwright Chromium: auth `8 passed (18.0s)`, R9
+`6 passed (24.4s)`, PDV/finance `14 passed (49.7s)`, todos `EXIT=0`;
+Firefox+WebKit `12 skipped`, `EXIT=0`; auth state ausente após logout. Vitest
+`359 passed`/`22 files`; auditoria backend `121 passed`; fault injection
+`3 passed`; ESLint E2E pós-`f5c918fb` e typecheck `EXIT=0`. Ruff, mypy,
+migrations e checks estão cobertos na evidência já
 registrada. Axe dos dialogs R9 está coberto; as `10` violações amplas são
 preexistentes e fora do escopo R9, não um gate global verde.
 
