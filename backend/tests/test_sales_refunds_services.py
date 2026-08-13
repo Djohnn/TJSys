@@ -252,6 +252,196 @@ class TestSaleRefundService:
 
         _run_in_tenant(ctx['tenant'], _test)
 
+    def test_completed_refund_replays_after_sale_is_cancelled(self, sale_context):
+        """Given a completed refund, when its sale is cancelled, then the same request replays."""
+        ctx = sale_context
+        key = 'refund-replay-after-cancel'
+
+        def _test():
+            from sales.services import create_sale_refund
+
+            first = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='Produto avariado',
+                idempotency_key=key,
+            )
+            before = _attempt_artifacts(ctx['tenant'], key)
+            ctx['sale'].status = 'cancelled'
+            ctx['sale'].save(update_fields=['status', 'updated_at'])
+
+            replay = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.000'),
+                reason='Produto avariado',
+                idempotency_key=key,
+            )
+
+            assert replay.id == first.id
+            assert _attempt_artifacts(ctx['tenant'], key) == before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_divergent_payload_after_sale_cancellation_conflicts(self, sale_context):
+        """Given a completed refund, when a cancelled-sale replay diverges, then it conflicts."""
+        ctx = sale_context
+        key = 'refund-conflict-after-cancel'
+
+        def _test():
+            from sales.services import DuplicateIdempotencyKey, create_sale_refund
+
+            create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='Motivo original',
+                idempotency_key=key,
+            )
+            before = _attempt_artifacts(ctx['tenant'], key)
+            ctx['sale'].status = 'cancelled'
+            ctx['sale'].save(update_fields=['status', 'updated_at'])
+
+            with pytest.raises(DuplicateIdempotencyKey):
+                create_sale_refund(
+                    tenant=ctx['tenant'],
+                    sale=ctx['sale'],
+                    method='pix',
+                    amount=Decimal('10.00'),
+                    reason='Motivo divergente',
+                    idempotency_key=key,
+                )
+
+            assert _attempt_artifacts(ctx['tenant'], key) == before
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_cancelled_different_sale_cannot_reuse_refund_key(self, sale_context):
+        """Given a refund for sale A, when sale B reuses its key, then the facts are not reused."""
+        ctx = sale_context
+        key = 'refund-cross-sale-key'
+
+        def _test():
+            from sales.services import DuplicateIdempotencyKey, create_sale_refund
+
+            first = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='Motivo original',
+                idempotency_key=key,
+            )
+            other_sale = Sale.all_objects.create(
+                tenant=ctx['tenant'],
+                branch=ctx['sale'].branch,
+                cash_session=ctx['sale'].cash_session,
+                operator=ctx['sale'].operator,
+                status='cancelled',
+                gross_total=Decimal('20.00'),
+                net_total=Decimal('20.00'),
+            )
+
+            with pytest.raises(DuplicateIdempotencyKey):
+                create_sale_refund(
+                    tenant=ctx['tenant'],
+                    sale=other_sale,
+                    method='pix',
+                    amount=Decimal('10.00'),
+                    reason='Motivo original',
+                    idempotency_key=key,
+                )
+
+            assert SaleRefund.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key=key,
+            ).values_list('id', flat=True).get() == first.id
+
+        _run_in_tenant(ctx['tenant'], _test)
+
+    def test_refund_key_is_scoped_to_tenant(self, sale_context):
+        """Given a refund in tenant A, when tenant B uses its key, then B gets its own fact."""
+        ctx = sale_context
+        key = 'refund-cross-tenant-key'
+
+        def _test():
+            from sales.services import create_sale_refund
+
+            first = create_sale_refund(
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='Motivo compartilhado',
+                idempotency_key=key,
+            )
+            other_tenant = Tenant.objects.create(
+                name='Other refund key tenant',
+                slug='other-refund-key-tenant',
+            )
+            other_token = set_current_tenant_id(other_tenant.id)
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SET app.current_tenant_id = %s',
+                        [str(other_tenant.id)],
+                    )
+                other_user = get_user_model().objects.create_user(
+                    email='other-refund-key@example.test',
+                    password='!',
+                )
+                other_company = Company.all_objects.create(
+                    tenant=other_tenant,
+                    name='Other Refund Key Company',
+                )
+                other_branch = Branch.all_objects.create(
+                    tenant=other_tenant,
+                    company=other_company,
+                    name='Other Refund Key Branch',
+                )
+                other_session = CashSession.all_objects.create(
+                    tenant=other_tenant,
+                    branch=other_branch,
+                    operator=other_user,
+                    opening_amount=Decimal('0'),
+                    expected_amount=Decimal('0'),
+                )
+                other_sale = Sale.all_objects.create(
+                    tenant=other_tenant,
+                    branch=other_branch,
+                    cash_session=other_session,
+                    operator=other_user,
+                    gross_total=Decimal('20.00'),
+                    net_total=Decimal('20.00'),
+                )
+                other_refund = create_sale_refund(
+                    tenant=other_tenant,
+                    sale=other_sale,
+                    method='pix',
+                    amount=Decimal('10.00'),
+                    reason='Motivo compartilhado',
+                    idempotency_key=key,
+                )
+            finally:
+                reset_current_tenant_id(other_token)
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        'SET app.current_tenant_id = %s',
+                        [str(ctx['tenant'].id)],
+                    )
+
+            assert other_refund.id != first.id
+            assert SaleRefund.all_objects.filter(
+                tenant=ctx['tenant'],
+                idempotency_key=key,
+            ).count() == 1
+
+        _run_in_tenant(ctx['tenant'], _test)
+
     def test_cash_refund_creates_one_cash_out_and_events(self, sale_context):
         """Given the original session is open, when refunding, then one cash effect is recorded."""
         ctx = sale_context

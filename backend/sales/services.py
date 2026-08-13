@@ -664,26 +664,21 @@ def create_sale_refund(
     if not reason or not reason.strip():
         raise ValueError('Reason is required.')
 
-    locked_sale = _lock_compensable_sale(tenant, sale)
-
     payload = {
-        'sale_id': str(locked_sale.id),
+        'sale_id': str(sale.id),
         'method': method,
         'amount': str(amount),
         'reason': reason,
         'sale_return_id': str(sale_return.id) if sale_return else None,
     }
     fingerprint = _payload_hash(payload)
-    existing = SaleRefund.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).first()
-    if existing:
+
+    def resolve_existing(existing):
         if existing.payload_hash == fingerprint:
             return existing
         is_semantically_matching_legacy_refund = (
             not existing.reason
-            and existing.sale_id == locked_sale.id
+            and existing.sale_id == sale.id
             and existing.method == method
             and existing.amount == amount
             and existing.sale_return_id == (sale_return.id if sale_return else None)
@@ -691,6 +686,22 @@ def create_sale_refund(
         if is_semantically_matching_legacy_refund:
             return existing
         raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
+
+    existing = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing:
+        return resolve_existing(existing)
+
+    locked_sale = _lock_compensable_sale(tenant, sale)
+
+    existing = SaleRefund.all_objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing:
+        return resolve_existing(existing)
 
     if sale_return:
         if sale_return.tenant_id != tenant.id:
