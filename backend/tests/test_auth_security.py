@@ -1,4 +1,6 @@
+import tomllib
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -8,6 +10,21 @@ from accounts.security import decrypt_secret, digest_value, encrypt_secret, secu
 from accounts.tokens import consume_token, issue_token
 
 User = get_user_model()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_cryptography_dependency_requires_a_pip_audit_fixed_release():
+    """Given MFA Fernet, When packaging resolves cryptography, Then it selects a fixed release."""
+    metadata = tomllib.loads(
+        (PROJECT_ROOT / 'backend' / 'pyproject.toml').read_text(encoding='utf-8')
+    )
+    cryptography_requirement = next(
+        requirement
+        for requirement in metadata['project']['dependencies']
+        if requirement.startswith('cryptography')
+    )
+
+    assert cryptography_requirement == 'cryptography>=50.0.0,<51'
 
 
 def test_digest_and_encryption_do_not_store_plaintext(settings):
