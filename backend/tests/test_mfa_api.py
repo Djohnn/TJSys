@@ -31,6 +31,9 @@ def _temporary_throttle_rate(scope, rate, throttle_class):
             scope: rate,
         },
     }
+    # LocMemCache has no portable public API to enumerate every request-specific
+    # DRF throttle key. The suite is serial, so clear its process-local cache to
+    # prevent temporary throttle state from leaking into another scenario.
     cache.clear()
     try:
         with override_settings(REST_FRAMEWORK=framework_settings):
@@ -40,6 +43,38 @@ def _temporary_throttle_rate(scope, rate, throttle_class):
     finally:
         throttle_class.THROTTLE_RATES = original_rates
         api_settings.reload()
+        cache.clear()
+
+
+def test_temporary_throttle_rate_restores_state_after_exception():
+    """Given temporary throttle state, an exception shall restore all settings and clear cache."""
+    original_framework = settings.REST_FRAMEWORK
+    original_api_rates = api_settings.DEFAULT_THROTTLE_RATES
+    original_login_rates = LoginThrottle.THROTTLE_RATES
+    original_mfa_rates = MFAThrottle.THROTTLE_RATES
+    sentinel_key = 'temporary-throttle-rate-sentinel'
+
+    # Given the persistent test configuration and an empty sentinel key
+    cache.delete(sentinel_key)
+    try:
+        # When the temporary context mutates the login rate and raises
+        with pytest.raises(RuntimeError, match='forced cleanup failure'):
+            with _temporary_throttle_rate('auth_login', '2/minute', LoginThrottle):
+                assert settings.REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['auth_login'] == '2/minute'
+                assert api_settings.DEFAULT_THROTTLE_RATES['auth_login'] == '2/minute'
+                assert LoginThrottle.THROTTLE_RATES['auth_login'] == '2/minute'
+                assert MFAThrottle.THROTTLE_RATES is original_mfa_rates
+                cache.set(sentinel_key, 'temporary')
+                assert cache.get(sentinel_key) == 'temporary'
+                raise RuntimeError('forced cleanup failure')
+
+        # Then original settings and throttle classes are restored without cache leakage
+        assert settings.REST_FRAMEWORK == original_framework
+        assert api_settings.DEFAULT_THROTTLE_RATES == original_api_rates
+        assert LoginThrottle.THROTTLE_RATES is original_login_rates
+        assert MFAThrottle.THROTTLE_RATES is original_mfa_rates
+        assert cache.get(sentinel_key) is None
+    finally:
         cache.clear()
 
 
