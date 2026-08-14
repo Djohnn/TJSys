@@ -110,6 +110,27 @@ class Payable(VersionedFinancialModel):
     ]
 
     supplier_name = models.CharField(max_length=200)
+    supplier = models.ForeignKey(
+        'purchasing.Supplier',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='payables',
+    )
+    purchase_order = models.ForeignKey(
+        'purchasing.PurchaseOrder',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='payables',
+    )
+    purchase_receipt = models.OneToOneField(
+        'purchasing.PurchaseReceipt',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='payable',
+    )
     branch = models.ForeignKey(
         'tenancy.Branch',
         on_delete=models.PROTECT,

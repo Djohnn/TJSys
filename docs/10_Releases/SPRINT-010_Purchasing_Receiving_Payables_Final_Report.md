@@ -32,6 +32,48 @@ Migrations: No changes detected
 Cross-tenant focado: 1 passed in 12.76s
 ```
 
+## Remediação de integridade — 2026-08-14
+
+Auditoria posterior encontrou e corrigiu cinco gaps no aceite original:
+
+- linhas repetidas do mesmo item agora são agregadas antes da validação do saldo;
+- o pedido é travado com `select_for_update()` durante recebimento e cancelamento;
+- replay compara o payload canônico e rejeita divergência com conflito idempotente;
+- pedidos e itens aprovados não aceitam atualização ou exclusão pela API;
+- recebimentos vazios ou com decimais inválidos retornam Problem Details, sem `500`;
+- `Payable` mantém FKs protegidas para fornecedor, pedido e recebimento de origem.
+
+Evidência TDD e gates focados:
+
+```text
+RED funcional:
+9 failed, 22 deselected in 27.79s
+
+RED concorrente sem trava (mutação reversível):
+1 failed in 27.41s
+results = ['confirmed', 'confirmed']
+
+GREEN integrado R10 + financial + cancellations:
+84 passed in 50.08s
+
+Ruff:
+All checks passed!
+
+mypy:
+Success: no issues found in 19 source files
+
+Migrations/Django:
+No changes detected
+migrate --check: exit 0 com config.settings.migration em test_tjsys
+System check identified no issues (0 silenced).
+```
+
+A suíte backend global registrou `855 passed, 4 failed` antes do ajuste de
+instância stale no cancelamento. A suíte completa de cancelamentos ficou verde
+depois do ajuste (`16 passed`). As três falhas restantes foram reproduzidas
+isoladamente e são externas à R10: uma validação fiscal de CNPJ e duas asserções
+sobre `CREATEDB` do papel PostgreSQL local.
+
 ## Decisões e limites
 
 - A obrigação financeira nasce do recebimento confirmado e não do pedido aprovado.
@@ -49,6 +91,8 @@ Cross-tenant focado: 1 passed in 12.76s
 - `backend/purchasing/urls.py`
 - `backend/financial/models.py`
 - `backend/financial/services.py`
+- `backend/financial/migrations/0004_payable_purchase_order_payable_purchase_receipt_and_more.py`
+- `backend/purchasing/migrations/0006_purchaseorder_uniq_purchase_order_idempotency_tenant_and_more.py`
 - `backend/tests/test_purchasing_models.py`
 - `backend/tests/test_purchasing_services.py`
 - `backend/tests/test_purchase_receiving_services.py`

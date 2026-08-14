@@ -1,6 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from threading import Barrier
 
 import pytest
+from django.db import IntegrityError, close_old_connections, models, transaction
 
 from catalog.models import Product, Unit
 from financial.models import Payable
@@ -8,10 +11,12 @@ from inventory.models import StockBalance, StockLocation
 from purchasing.models import (
     PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseReceipt,
     PurchaseReceiptItem,
     Supplier,
 )
 from purchasing.services import (
+    DuplicateIdempotencyKey,
     OverReceiptError,
     ReceiptWithoutApprovedOrder,
     approve_purchase_order,
@@ -208,9 +213,161 @@ class TestReceivePurchaseOrder:
         )
         assert r1.id == r2.id
 
-    def test_receipt_creates_payable(self, approved_po_context):
+    def test_duplicate_item_rows_are_aggregated_before_pending_validation(
+        self,
+        approved_po_context,
+    ):
+        """Given duplicate rows, when their sum exceeds pending, then reject the receipt."""
+        ctx = approved_po_context
+
+        with pytest.raises(OverReceiptError):
+            receive_purchase_order(
+                tenant=ctx['tenant'],
+                purchase_order=ctx['po'],
+                items=[
+                    {
+                        'purchase_order_item_id': ctx['item'].id,
+                        'quantity_received': Decimal('6'),
+                    },
+                    {
+                        'purchase_order_item_id': ctx['item'].id,
+                        'quantity_received': Decimal('6'),
+                    },
+                ],
+                idempotency_key='recv-duplicate-over',
+            )
+
+    def test_duplicate_item_rows_create_one_canonical_receipt_item(
+        self,
+        approved_po_context,
+    ):
+        """Given duplicate rows, when their sum fits pending, then persist one canonical row."""
+        ctx = approved_po_context
+
+        receipt = receive_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=ctx['po'],
+            items=[
+                {
+                    'purchase_order_item_id': ctx['item'].id,
+                    'quantity_received': Decimal('4'),
+                },
+                {
+                    'purchase_order_item_id': ctx['item'].id,
+                    'quantity_received': Decimal('6'),
+                },
+            ],
+            idempotency_key='recv-duplicate-fit',
+        )
+
+        receipt_items = PurchaseReceiptItem.all_objects.filter(receipt=receipt)
+        assert receipt_items.count() == 1
+        assert receipt_items.get().quantity_received == Decimal('10')
+
+    def test_replay_with_divergent_payload_raises_conflict(self, approved_po_context):
+        """Given an existing key, when payload changes, then reject the replay."""
         ctx = approved_po_context
         receive_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=ctx['po'],
+            items=[
+                {
+                    'purchase_order_item_id': ctx['item'].id,
+                    'quantity_received': Decimal('4'),
+                }
+            ],
+            idempotency_key='recv-divergent',
+        )
+
+        with pytest.raises(DuplicateIdempotencyKey):
+            receive_purchase_order(
+                tenant=ctx['tenant'],
+                purchase_order=ctx['po'],
+                items=[
+                    {
+                        'purchase_order_item_id': ctx['item'].id,
+                        'quantity_received': Decimal('5'),
+                    }
+                ],
+                idempotency_key='recv-divergent',
+            )
+
+    def test_receipt_idempotency_key_is_unique_per_tenant(self, approved_po_context):
+        """Given a persisted receipt key, when duplicated directly, then the DB rejects it."""
+        ctx = approved_po_context
+        receive_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=ctx['po'],
+            items=[
+                {
+                    'purchase_order_item_id': ctx['item'].id,
+                    'quantity_received': Decimal('4'),
+                }
+            ],
+            idempotency_key='recv-db-unique',
+        )
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            PurchaseReceipt.all_objects.create(
+                tenant=ctx['tenant'],
+                purchase_order=ctx['po'],
+                status='confirmed',
+                idempotency_key='recv-db-unique',
+                payload_hash='different',
+            )
+
+    def test_empty_receipt_is_rejected(self, approved_po_context):
+        """Given no items, when receiving an order, then reject without side effects."""
+        ctx = approved_po_context
+
+        with pytest.raises(ValueError, match='At least one receipt item is required'):
+            receive_purchase_order(
+                tenant=ctx['tenant'],
+                purchase_order=ctx['po'],
+                items=[],
+                idempotency_key='recv-empty',
+            )
+
+    @pytest.mark.django_db(transaction=True)
+    def test_concurrent_receipts_cannot_exceed_pending(self, approved_po_context):
+        """Given two simultaneous full receipts, when committed, then only one succeeds."""
+        ctx = approved_po_context
+        start = Barrier(2)
+
+        def receive(key):
+            close_old_connections()
+            start.wait(timeout=10)
+            try:
+                return _run_in_tenant(
+                    ctx['tenant'],
+                    lambda: receive_purchase_order(
+                        tenant=ctx['tenant'],
+                        purchase_order=PurchaseOrder.all_objects.get(pk=ctx['po'].pk),
+                        items=[
+                            {
+                                'purchase_order_item_id': ctx['item'].id,
+                                'quantity_received': Decimal('10'),
+                            }
+                        ],
+                        idempotency_key=key,
+                    ),
+                ).status
+            except ReceiptWithoutApprovedOrder:
+                return 'rejected'
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(receive, ('recv-race-a', 'recv-race-b')))
+
+        assert sorted(results) == ['confirmed', 'rejected']
+        assert PurchaseReceiptItem.all_objects.filter(
+            purchase_order_item=ctx['item'],
+        ).aggregate(total=models.Sum('quantity_received'))['total'] == Decimal('10')
+
+    def test_receipt_creates_payable(self, approved_po_context):
+        ctx = approved_po_context
+        receipt = receive_purchase_order(
             tenant=ctx['tenant'],
             purchase_order=ctx['po'],
             items=[{'purchase_order_item_id': ctx['item'].id, 'quantity_received': Decimal('10')}],
@@ -221,3 +378,6 @@ class TestReceivePurchaseOrder:
         assert payable.supplier_name == ctx['supplier'].name
         assert payable.amount == Decimal('50.00')
         assert payable.status == 'pending'
+        assert payable.supplier_id == ctx['supplier'].id
+        assert payable.purchase_order_id == ctx['po'].id
+        assert payable.purchase_receipt_id == receipt.id
