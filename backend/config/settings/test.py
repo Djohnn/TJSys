@@ -1,6 +1,11 @@
+from typing import Any, cast
+
 from decouple import config
 
 from .base import *
+from .base import REST_FRAMEWORK as base_rest_framework
+
+BASE_REST_FRAMEWORK = cast(dict[str, Any], base_rest_framework)
 
 DEBUG = False
 
@@ -24,6 +29,18 @@ PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+}
+
+# The test client shares its anonymous loopback identity across the suite.
+# Keep authentication flows runnable while individual throttle tests override
+# their scopes with deliberately low limits.
+REST_FRAMEWORK = {
+    **BASE_REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {
+        **BASE_REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'],
+        'auth_login': '1000/minute',
+        'auth_mfa': '1000/minute',
     },
 }
 
