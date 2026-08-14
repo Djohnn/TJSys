@@ -94,11 +94,11 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E
         working-directory: ./frontend
-        run: npx playwright test --reporter=html,json
+        run: npx playwright test --project=chromium --reporter=html,json
 
       - uses: actions/upload-artifact@v4
         if: failure()

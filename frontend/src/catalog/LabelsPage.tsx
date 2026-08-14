@@ -260,6 +260,7 @@ export default function LabelsPage() {
                         })
                       }}
                       checked={filteredProducts.length > 0 && filteredProducts.every((p) => selectedItems.has(p.id))}
+                      aria-label="Selecionar todos os produtos"
                       data-testid="label-select-all"
                     />
                   </th>
@@ -282,6 +283,7 @@ export default function LabelsPage() {
                         type="checkbox"
                         checked={selectedItems.has(product.id)}
                         onChange={() => toggleItem(product.id)}
+                        aria-label={`Selecionar ${product.name}`}
                         data-testid={`label-checkbox-${product.id}`}
                       />
                     </td>
@@ -297,6 +299,7 @@ export default function LabelsPage() {
                         onChange={(e) => setQuantity(product.id, parseInt(e.target.value, 10) || 1)}
                         disabled={!selectedItems.has(product.id)}
                         className="w-16 px-2 py-1 border border-border rounded text-sm"
+                        aria-label={`Quantidade de etiquetas para ${product.name}`}
                         data-testid={`label-qty-${product.id}`}
                       />
                     </td>

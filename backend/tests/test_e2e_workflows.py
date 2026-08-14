@@ -273,6 +273,20 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
     assert 'expect(requestCount).toBe(1)' in auth_spec
 
 
+def test_e2e_workflow_runs_the_browser_owned_by_the_single_mfa_session():
+    """Given one Chromium login state, CI must not reuse it in other browsers."""
+    workflow = _load_workflow(PROJECT_ROOT / '.github' / 'workflows' / 'e2e.yml')
+    steps = _steps(workflow['e2e'])
+
+    install_step = next(step for step in steps if 'playwright install' in step)
+    run_step = next(step for step in steps if 'playwright test' in step)
+
+    assert 'playwright install --with-deps chromium' in install_step
+    assert 'firefox' not in install_step
+    assert 'webkit' not in install_step
+    assert '--project=chromium' in run_step
+
+
 def test_compose_e2e_backend_image_contract_is_buildable_for_seeded_django_runtime():
     """Given the official compose file, its backend image can run Django bootstrap."""
     compose_file = PROJECT_ROOT / 'docker-compose.e2e.yml'
