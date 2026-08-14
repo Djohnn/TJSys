@@ -344,3 +344,28 @@ def test_mypy_excludes_derived_build_directories_on_windows_and_linux():
     assert any(re.search(pattern, 'build/lib/accounts/__init__.py') for pattern in exclusions)
     assert any(re.search(pattern, r'build\lib\accounts\__init__.py') for pattern in exclusions)
     assert not any(re.search(pattern, 'accounts/__init__.py') for pattern in exclusions)
+
+
+def test_ci_preprovisions_test_database_for_the_unprivileged_test_runtime():
+    """Given CI pytest uses test_zyrp, When roles bootstrap, Then owner creates it before pytest."""
+    workflow_path = PROJECT_ROOT / '.github' / 'workflows' / 'ci.yml'
+    workflow = _load_workflow(workflow_path)
+    ci_job = workflow['ci']
+    steps = _steps(ci_job)
+    workflow_text = workflow_path.read_text(encoding='utf-8')
+    roles_script = (
+        PROJECT_ROOT / 'infra' / 'postgres' / 'init' / '001_roles.sh'
+    ).read_text(encoding='utf-8')
+
+    assert 'POSTGRES_TEST_DB: test_zyrp' in workflow_text
+    bootstrap_index = next(
+        index for index, step in enumerate(steps) if '001_roles.sh' in step
+    )
+    pytest_index = next(
+        index for index, step in enumerate(steps) if 'python -m pytest -v' in step
+    )
+    assert bootstrap_index < pytest_index
+    assert 'CREATE DATABASE %I OWNER %I' in roles_script
+    assert "--set test_db=\"${POSTGRES_TEST_DB}\"" in roles_script
+    assert "GRANT CONNECT ON DATABASE %I TO %I" in roles_script
+    assert "NOBYPASSRLS NOCREATEDB', :'test_user'" in roles_script
