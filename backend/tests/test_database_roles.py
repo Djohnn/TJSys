@@ -8,23 +8,34 @@ class TestDatabaseRuntimeRole:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT current_user, rolsuper, rolbypassrls
+                SELECT current_user, rolsuper, rolbypassrls, rolcreatedb
                 FROM pg_roles
                 WHERE rolname = current_user
                 """
             )
-            role, is_superuser, bypasses_rls = cursor.fetchone()
+            role, is_superuser, bypasses_rls, can_create_databases = cursor.fetchone()
+            cursor.execute(
+                """
+                SELECT
+                    has_database_privilege(current_user, current_database(), 'CONNECT'),
+                    has_schema_privilege(current_user, 'public', 'USAGE'),
+                    has_schema_privilege(current_user, 'public', 'CREATE')
+                """
+            )
+            privileges = cursor.fetchone()
 
         assert role
         assert is_superuser is False
         assert bypasses_rls is False
+        assert can_create_databases is False
+        assert privileges == (True, True, True)
 
     def test_runtime_role_is_unprivileged_and_tenant_tables_exist(self):
         runtime_role = connection.settings_dict['USER']
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT rolsuper, rolbypassrls
+                SELECT rolsuper, rolbypassrls, rolcreatedb
                 FROM pg_roles
                 WHERE rolname = %s
                 """,
@@ -41,7 +52,7 @@ class TestDatabaseRuntimeRole:
             )
             ownership = cursor.fetchall()
 
-        assert role_flags == (False, False)
+        assert role_flags == (False, False, False)
         assert len(ownership) == 2
         # The disposable pytest schema is intentionally migrated by the runtime
         # role so migration tests can move between historical states. Production

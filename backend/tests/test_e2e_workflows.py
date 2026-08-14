@@ -1,3 +1,4 @@
+import ast
 import json
 import re
 import subprocess
@@ -353,19 +354,78 @@ def test_ci_preprovisions_test_database_for_the_unprivileged_test_runtime():
     ci_job = workflow['ci']
     steps = _steps(ci_job)
     workflow_text = workflow_path.read_text(encoding='utf-8')
+    test_settings = ast.parse(
+        (PROJECT_ROOT / 'backend' / 'config' / 'settings' / 'test.py').read_text(encoding='utf-8')
+    )
     roles_script = (
         PROJECT_ROOT / 'infra' / 'postgres' / 'init' / '001_roles.sh'
     ).read_text(encoding='utf-8')
 
     assert 'POSTGRES_TEST_DB: test_zyrp' in workflow_text
+    databases_assignment = next(
+        statement
+        for statement in test_settings.body
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == 'DATABASES'
+            for target in statement.targets
+        )
+    )
+    default_database = next(
+        value
+        for key, value in zip(databases_assignment.value.keys, databases_assignment.value.values)
+        if isinstance(key, ast.Constant) and key.value == 'default'
+    )
+    test_database = next(
+        value
+        for key, value in zip(default_database.keys, default_database.values)
+        if isinstance(key, ast.Constant) and key.value == 'TEST'
+    )
+    test_name = next(
+        value
+        for key, value in zip(test_database.keys, test_database.values)
+        if isinstance(key, ast.Constant) and key.value == 'NAME'
+    )
+    assert isinstance(test_name, ast.Call)
+    assert isinstance(test_name.func, ast.Name) and test_name.func.id == 'config'
+    assert len(test_name.args) == 1
+    assert isinstance(test_name.args[0], ast.Constant)
+    assert test_name.args[0].value == 'POSTGRES_TEST_DB'
     bootstrap_index = next(
         index for index, step in enumerate(steps) if '001_roles.sh' in step
+    )
+    makemigrations_index = next(
+        index for index, step in enumerate(steps) if 'makemigrations --check --dry-run' in step
+    )
+    migration_index = next(
+        index
+        for index, step in enumerate(steps)
+        if 'manage.py migrate --settings=config.settings.migration' in step
+        and 'migrate --check' not in step
     )
     pytest_index = next(
         index for index, step in enumerate(steps) if 'python -m pytest -v' in step
     )
-    assert bootstrap_index < pytest_index
+    assert bootstrap_index < makemigrations_index < migration_index < pytest_index
     assert 'CREATE DATABASE %I OWNER %I' in roles_script
     assert "--set test_db=\"${POSTGRES_TEST_DB}\"" in roles_script
-    assert "GRANT CONNECT ON DATABASE %I TO %I" in roles_script
+    test_database_bootstrap = re.search(
+        r'(?ms)^psql --set ON_ERROR_STOP=1 \\\r?\n'
+        r'(?:.*\r?\n)*?'
+        r'  --dbname "\$\{POSTGRES_TEST_DB\}" \\\r?\n'
+        r"  --set test_user=\"\$\{POSTGRES_TEST_USER\}\" <<'SQL'\r?\n"
+        r'(?P<sql>.*?)^SQL$',
+        roles_script,
+    )
+    assert test_database_bootstrap, (
+        'bootstrap do banco de testes não delimitado pelo segundo heredoc psql'
+    )
+    test_database_sql = test_database_bootstrap.group('sql')
+    assert (
+        "SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), "
+        ":'test_user') \\gexec"
+    ) in test_database_sql
+    assert (
+        "SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'test_user') \\gexec"
+    ) in test_database_sql
     assert "NOBYPASSRLS NOCREATEDB', :'test_user'" in roles_script
