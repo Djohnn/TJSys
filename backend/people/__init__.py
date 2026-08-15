@@ -1,1 +1,2 @@
+# People app package
 

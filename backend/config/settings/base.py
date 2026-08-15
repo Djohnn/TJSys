@@ -16,7 +16,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in config(
         'CSRF_TRUSTED_ORIGINS',
-        default='http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174',
+        default='http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://192.168.1.70:5174,http://192.168.1.70:5173',
     ).split(',')
     if origin.strip()
 ]
@@ -110,7 +110,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Zyrp API',
+    'TITLE': 'TJSys API',
     'VERSION': '1.0.0',
 }
 
@@ -150,7 +150,7 @@ SITE_ID = 1
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@zyrp.local')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@tjsys.local')
 EMAIL_BACKEND = config(
     'EMAIL_BACKEND',
     default='django.core.mail.backends.console.EmailBackend',
@@ -164,7 +164,7 @@ EMAIL_MFA_RESEND_COOLDOWN_SECONDS = config(
     cast=int,
 )
 _DEV_MFA_KEY = base64.urlsafe_b64encode(
-    hashlib.sha256(b'zyrp-local-development-only').digest(),
+    hashlib.sha256(b'tjsys-local-development-only').digest(),
 ).decode()
 MFA_ENCRYPTION_KEY = config('MFA_ENCRYPTION_KEY', default=_DEV_MFA_KEY)
 

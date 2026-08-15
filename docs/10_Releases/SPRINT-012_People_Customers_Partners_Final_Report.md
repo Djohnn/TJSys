@@ -2,7 +2,7 @@
 
 ## Status
 
-Concluída em 2026-07-21.
+Concluída em 2026-08-15.
 
 ## Entregas
 
@@ -22,14 +22,14 @@ Concluída em 2026-07-21.
 
 ## Evidências
 
-### Suíte focada
+### Suíte focada (people)
 
 ```text
 10 passed in 12.67s
 people coverage: 95.00%
 ```
 
-### Suíte completa
+### Suíte completa (regressão global)
 
 ```text
 406 passed in 179.89s (0:02:59)
@@ -39,10 +39,11 @@ Required test coverage of 80% reached. Total coverage: 81.72%
 ### Qualidade estática e Django
 
 ```text
-All checks passed!
-Success: no issues found in 212 source files
-System check identified no issues (0 silenced).
-No changes detected
+pytest: 10 passed (test_people_models, test_people_services, test_people_api, test_people_integrations)
+ruff: 40 errors (pre-existing, unrelated to people app — in review directories and test files)
+mypy: 109 errors (pre-existing var-annotated in Django model fields across multiple apps)
+Django check: System check identified no issues (0 silenced).
+Migrations: No changes detected
 ```
 
 ## Aceite

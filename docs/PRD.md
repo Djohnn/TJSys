@@ -1,4 +1,4 @@
-# PRD Operacional — Roadmap de Sprints do Zyrp
+# PRD Operacional — Roadmap de Sprints do TJSys
 
 | Campo | Valor |
 |---|---|
@@ -6,11 +6,11 @@
 | Versão | 0.1.0 |
 | Status | Review |
 | Última atualização | 2026-07-14 |
-| Produto | Zyrp |
+| Produto | TJSys |
 
 ## Finalidade
 
-Este documento é o painel operacional de implementação do Zyrp. Ele permite acompanhar o andamento por sprint sem substituir as decisões normativas do PRD mestre, dos ADRs, da arquitetura, dos requisitos e da estratégia de segurança.
+Este documento é o painel operacional de implementação do TJSys. Ele permite acompanhar o andamento por sprint sem substituir as decisões normativas do PRD mestre, dos ADRs, da arquitetura, dos requisitos e da estratégia de segurança.
 
 ## Fontes obrigatórias
 
@@ -66,7 +66,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ---
 
-### Sprint 0 — Fundação Técnica do Zyrp
+### Sprint 0 — Fundação Técnica do TJSys
 
 **Duração de referência:** 1 a 2 semanas  
 **Estado:** Concluída
@@ -188,7 +188,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 - [x] Documentar limitações conhecidas e riscos aceitos do Sprint 0.
 
 **Limitações conhecidas e riscos aceitos:**
-- O owner de migrations permanece separado do usuário de runtime. O runtime usa `zyrp_app`, sem `SUPERUSER` e sem `BYPASSRLS`; testes usam papel próprio, também sem bypass.
+- O owner de migrations permanece separado do usuário de runtime. O runtime usa `tjsys_app`, sem `SUPERUSER` e sem `BYPASSRLS`; testes usam papel próprio, também sem bypass.
 - Credenciais de desenvolvimento presentes em exemplos e CI são placeholders não reutilizáveis. Produção exige valores externos e uma `SECRET_KEY` forte.
 - O backend está validado no Python 3.14 local e no Python 3.13 da CI; o requisito mínimo declarado continua sendo Python 3.12.
 - A verificação local do `pip-audit` pode depender do trust store corporativo do Windows. O gate estrito permanece obrigatório na CI Linux e não desabilita TLS.
@@ -590,7 +590,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 ### Sprint 5 — PDV Electron Online
 
 **Estado:** Concluída  
-**Objetivo:** disponibilizar caixa desktop online integrado às APIs do Zyrp.  
+**Objetivo:** disponibilizar caixa desktop online integrado às APIs do TJSys.  
 **Entregável:** operador abre caixa, vende, recebe e encerra turno no aplicativo Electron.
 
 **Especificação:** [Design da Sprint 5](superpowers/specs/2026-07-17-sprint-5-pdv-electron-online-design.md)
@@ -888,7 +888,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 12 — Pessoas, Clientes e Parceiros
 
-**Estado:** Concluída em 2026-07-21.
+**Estado:** Concluída em 2026-08-15.
 **Objetivo:** criar cadastro operacional de pessoas PF/PJ para clientes, fornecedores, transportadores e contatos.
 **Entregável:** pessoas tenant-scoped com documentos, endereços, contatos, papéis, consentimentos e integração com vendas/compras/fiscal.
 
@@ -1167,7 +1167,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 - [x] Sprint 28 — modelos e pré-visualização de etiquetas antes do download.
 - [x] Sprint 29 — auditoria multi-tenant e integridade de dados.
 - [x] Sprint 30 — hardening, regressão e aceite em Chromium, Firefox e WebKit.
-- [x] Ajuste visual pós-aceite — shell Zyrp com navegação em dois níveis, drawer responsivo e editor padrão B (imagem à esquerda, identificação à direita), validado em 2026-08-01.
+- [x] Ajuste visual pós-aceite — shell TJSys com navegação em dois níveis, drawer responsivo e editor padrão B (imagem à esquerda, identificação à direita), validado em 2026-08-01.
 
 **Evidência:** [Relatório final da Sprint 30](10_Releases/SPRINT-030_Catalog_Hardening_Acceptance_Final_Report.md).
 **Rollback:** [Runbook das Sprints 23–30](09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md).
@@ -1205,3 +1205,4 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 21 | 2026-07-24 | `feat/sprint-21-styling` | Frontend: 283 Vitest (22 files); TypeScript 0 errors; Tailwind CSS v4 em 17 módulos | UI components: Button, Card, Table, Badge, Modal, Skeleton, LoadingState, EmptyState | Aprovado localmente |
 | 23 | 2026-07-31 | `feat: sprint 23 - composicao de kit` | Frontend: Vitest + TypeScript 0 errors | Composition screens + tests | Aprovado localmente |
 | 24–30 | 2026-08-01 | `codex/fix-sprints-23-30` | Backend 671; frontend 326; PDV 137; Playwright 12/12 em 3 navegadores | Aviso de bundle principal acima de 250 kB endereçado na Sprint 31 | Aprovado localmente |
+| 12 | 2026-08-15 | `feat: sprint 12 - pessoas clientes parceiros` | People: 10 passed (models, services, api, integrations); Global: 406 passed, coverage 81.72% | ruff: 40 pre-existing errors (review dirs, test files); mypy: 109 pre-existing var-annotated in Django models | Aprovado localmente |

@@ -32,3 +32,22 @@ estoque exigem aprovação humana e workflow transacional fora do contexto do mo
 
 Eventos de pessoas carregam somente identificadores técnicos e papéis. Documentos, contatos e
 endereços não podem aparecer em logs, detalhes de auditoria ou payloads de Outbox.
+
+### Detalhamento dos modelos People (Sprint 12)
+
+| Modelo / Campo | Classe | Notas |
+|---|---|---|
+| `Person.name` / `trade_name` | Confidential | Identificação básica, tenant-scoped |
+| `Person.person_type` (PF/PJ) | Confidential | Classificação do sujeito |
+| `PersonRole.role` | Confidential | Papel operacional (customer, supplier, carrier, contact) |
+| `PersonDocument.value` (CPF/CNPJ) | Restricted | Normalizado, único ativo por tenant, LGPD Art. 5º |
+| `PersonDocument.document_type` | Restricted | Tipo do documento (CPF/CNPJ) |
+| `PersonAddress` (street, number, district, city, state, postal_code, country) | Restricted | Endereço completo, normalizado via CEP |
+| `PersonContact.value` (e-mail, telefone) | Restricted | Normalizado, marcado como primário quando aplicável |
+| `ConsentRecord.purpose` / `granted` / `revoked_at` | Restricted | Base legal LGPD Art. 7º, histórico imutável |
+| `ConsentRecord.source` | Restricted | Origem do consentimento (web, PDV, API, importação) |
+
+Integrações:
+- `Sale.customer` → `Person` (role=customer): apenas `person_id` e `role` em eventos/Outbox
+- `Supplier.person` → `Person` (role=supplier): vínculo 1:1, dados fiscais via `PersonDocument` + `PersonAddress`
+- Fiscal recipient: montado a partir de `PersonDocument` + `PersonAddress` (primary), nunca logado
