@@ -6,14 +6,14 @@ raiz nem executa suites ou instalação de dependências.
 
 | Functional unit | Source path | Candidate source | Decision | Evidence |
 |---|---|---|---|---|
-| R0 — baseline e governança visual | `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts` | `bb375bd` (`fix(r0): add visual regression screenshot assertion to e2e test`) | incorporate | `git show --stat bb375bd` registra 3 linhas adicionadas no spec; commit é ancestral direto na cadeia verificada. |
-| R1 — tokens e componentes fundamentais | `frontend/e2e/r1-tokens-e-componentes-fundamentais.spec.ts`; `docs/DOCUMENT_INDEX.md` | `a8d447d` (`test(r1): close visual acceptance`) | incorporate | `git show --stat a8d447d` registra 20 linhas no spec e 2 no índice; commit é ancestral direto na cadeia verificada. |
-| R2 — shell, navegação e responsividade | `frontend/e2e/r2-shell-navegacao-e-responsividade.spec.ts` | `a987407` (`fix(r2): add mobile viewport drawer test to E2E`) | incorporate | `git show --stat a987407` registra 25 adições e 2 remoções no spec; commit é ancestral direto na cadeia verificada. |
-| R3 — verificação de sprint e configuração Playwright | `CHECKPOINT-R3.md`; `frontend/playwright.config.ts`; `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts`; `frontend/e2e/r1-tokens-e-componentes-fundamentais.spec.ts`; `frontend/e2e/r2-shell-navegacao-e-responsividade.spec.ts` | `2c4c945` (`chore(r3): close sprint verification`) | incorporate | `git show --stat 2c4c945` registra checkpoint, configuração e os três specs; commit é ancestral direto na cadeia verificada. |
-| R4 — produto/custo/margens e autenticação MFA | `frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts`; `frontend/src/auth/AuthProvider.test.tsx`; `frontend/src/auth/authApi.ts`; `docs/DOCUMENT_INDEX.md` | `ee10b3a` (`fix(r4): stabilize MFA E2E authentication`) | incorporate | `git show --stat ee10b3a` registra 2 linhas no E2E, 15 no teste de auth, 13 na API e atualização do índice; commit é ancestral direto na cadeia verificada. |
+| R0 — baseline e governança visual | `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts`; `frontend/src/styles/designGovernance.test.ts`; `frontend/scripts/check-design-tokens.mjs`; `docs/02_Architecture/design-system/reference/` | `bb375bd` e commits R0 ancestrais (`eafd6eb`, `a2ef360`, `b9573c0`, `d04232f`) | incorporate | Somente os cinco commits finais R0 foram reaplicados sobre `df579cd`; `bb375bd` acrescenta a asserção visual, e os demais fornecem contrato, assets, hashes, índice e regra de cores literais. A cadeia anterior de R1+ não foi incorporada. |
+| R1 — tokens e componentes fundamentais | `frontend/e2e/r1-tokens-e-componentes-fundamentais.spec.ts`; `docs/DOCUMENT_INDEX.md` | `a8d447d` (`test(r1): close visual acceptance`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0; alterações R1 foram explicitamente excluídas da árvore final. |
+| R2 — shell, navegação e responsividade | `frontend/e2e/r2-shell-navegacao-e-responsividade.spec.ts` | `a987407` (`fix(r2): add mobile viewport drawer test to E2E`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0; alterações R2 foram explicitamente excluídas da árvore final. |
+| R3 — verificação de sprint e configuração Playwright | `CHECKPOINT-R3.md`; `frontend/playwright.config.ts`; specs R0–R2 | `2c4c945` (`chore(r3): close sprint verification`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0; alterações R3 foram explicitamente excluídas da árvore final. |
+| R4 — produto/custo/margens e autenticação MFA | `frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts`; auth | `ee10b3a` (`fix(r4): stabilize MFA E2E authentication`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0; alterações R4 foram explicitamente excluídas da árvore final. |
 | Linha de integração | branch `codex/r0-r4-consolidation` na worktree dedicada | `master` em `8636cf18066a7586fe8f1d67e08186731621cbe2` | retain-for-later | Worktree criada em `8636cf1`; o documento é a única alteração desta linha até o commit documental. |
 | Estado publicado de referência | `origin/master` | `c3653ea876f200c68fc2892095503439fe8ce1d2` | already-represented | Ref existe, mas não é a base solicitada; a integração usa o `master` local exato `8636cf1`. |
-| Fixtures canônicas de regressão visual R0/R1/R2 | `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts-snapshots/r0-baseline-e-governanca-do-design-system-chromium-win32.png`; `frontend/e2e/r1-tokens-e-componentes-fundamentais.spec.ts-snapshots/r1-tokens-e-componentes-fundamentais-chromium-win32.png`; `frontend/e2e/r2-shell-navegacao-e-responsividade.spec.ts-snapshots/r2-shell-navegacao-e-responsividade-chromium-win32.png` | PNGs adicionados por `2c4c945` | incorporate | Cada spec correspondente chama `expect(page).toHaveScreenshot('r[0|1|2]-...png')`; os três caminhos literais são fixtures versionadas consumidas pelo Playwright. São distintos de `frontend/playwright-report/index.html` e `frontend/test-results/.last-run.json`, que são artefatos runtime/generated. |
+| Fixtures canônicas de regressão visual R0/R1/R2 | `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts-snapshots/r0-baseline-e-governanca-do-design-system-chromium-win32.png`; `frontend/e2e/r1-tokens-e-componentes-fundamentais.spec.ts-snapshots/r1-tokens-e-componentes-fundamentais-chromium-win32.png`; `frontend/e2e/r2-shell-navegacao-e-responsividade.spec.ts-snapshots/r2-shell-navegacao-e-responsividade-chromium-win32.png` | PNGs adicionados por `2c4c945` | retain-for-later | As chamadas normativas são `expect(page).toHaveScreenshot('r0-baseline-e-governanca-do-design-system.png')`, `expect(page).toHaveScreenshot('r1-tokens-e-componentes-fundamentais.png')` e `expect(page).toHaveScreenshot('r2-shell-navegacao-e-responsividade.png')`. Nesta task, somente o spec R0 é integrado; os demais permanecem para R1/R2. `frontend/playwright-report/index.html` e `frontend/test-results/.last-run.json` continuam artefatos runtime/generated. |
 
 ## Evidência read-only do checkout raiz
 
@@ -33,11 +33,7 @@ captura e os números não devem ser tratados como estado permanente.
 
 ## Classificação
 
-As cinco unidades funcionais R0–R4 são candidatas válidas e foram marcadas
-`incorporate` porque a cadeia de commits é sequencial e o branch R4 aponta para
-o último commit. As três imagens listadas são fixtures canônicas incorporáveis,
-pois os specs as consomem via `toHaveScreenshot`; `playwright-report` e
-`test-results` permanecem classificados como artefatos generated/runtime, não
-como baselines. A linha de integração e a referência remota foram preservadas
-como evidência (`retain-for-later`/`already-represented`); não há candidatos
-inválidos nesta baseline.
+R0 é a única unidade marcada `incorporate`. R1–R4 e suas fixtures foram
+preservados como `retain-for-later`, apesar de aparecerem na ancestralidade do
+commit candidato, porque aceitar essa cadeia reclassificaria trabalho fora do
+boundary. A matriz documenta essa proveniência para a próxima consolidação.

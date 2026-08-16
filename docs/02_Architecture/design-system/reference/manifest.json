@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "assets": {
+    "redesign": {
+      "path": "docs/02_Architecture/design-system/reference/redesign.html",
+      "sha256": "2E52F8BA91E418EAA0E31AE0E48C125998DC2D69E08697358FBFB447C1C1AF45"
+    },
+    "paleta": {
+      "path": "docs/02_Architecture/design-system/reference/design-system-paleta-cor.md",
+      "sha256": "7D9486F1164B39A004C7744A9301D2953BEDAE4B7206A9790562569899C80D53"
+    },
+    "logoBlue": {
+      "path": "docs/02_Architecture/design-system/reference/logo_fundo_azul.png.png",
+      "sha256": "8DF077FA7F5F87D51C9F0A940F5AE6B670B555A41EB51EA1DE0F90BE1AEA59C2"
+    },
+    "logoWhite": {
+      "path": "docs/02_Architecture/design-system/reference/logo_fundo_branco.png.png",
+      "sha256": "FC8D7F1E8A0D4882CED8F1996FE4ED829D9EDBD5CEA611ED1DFD44CC23D23BA5"
+    }
+  }
+}

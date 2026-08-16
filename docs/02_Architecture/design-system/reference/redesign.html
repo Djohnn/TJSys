@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TJSys ERP — Cadastro de Produto</title>
+<style>
+/* ==========================================================================
+   TJSys Design System — tokens (v1.1)
+   ========================================================================== */
+:root {
+  --color-primary-900: #001B73;
+  --color-primary-800: #00269A;
+  --color-primary-700: #0B3DBF;
+  --color-primary-600: #2A5DDA;
+  --color-primary-500: #5D8BF4;
+  --color-primary-100: #EAF1FF;
+  --color-primary-50:  #F5F8FF;
+
+  --color-success-950: #1F5C24;
+  --color-success-900: #2E7D32;
+  --color-success-800: #3E950D;
+  --color-success-700: #4AAC0F;
+  --color-success-600: #63C132;
+  --color-success-500: #7DD95A;
+  --color-success-100: #EAF8DF;
+  --color-success-50:  #F4FBEF;
+
+  --color-info-700: #1D4ED8;
+  --color-info-600: #2563EB;
+  --color-info-100: #DBEAFE;
+  --color-info-50:  #EFF6FF;
+
+  --color-warning-800: #9A6700;
+  --color-warning-600: #F4B400;
+  --color-warning-100: #FEF3C7;
+  --color-warning-50:  #FFFBEB;
+
+  --color-alert-800: #C2410C;
+  --color-alert-600: #EA580C;
+  --color-alert-100: #FFEDD5;
+  --color-alert-50:  #FFF7ED;
+
+  --color-danger-900: #991B1B;
+  --color-danger-700: #B91C1C;
+  --color-danger-600: #DC2626;
+  --color-danger-100: #FEE2E2;
+  --color-danger-50:  #FEF2F2;
+
+  --color-gray-900: #1F2937;
+  --color-gray-800: #374151;
+  --color-gray-700: #4B5563;
+  --color-gray-600: #6B7280;
+  --color-gray-500: #9CA3AF;
+  --color-gray-400: #D1D5DB;
+  --color-gray-300: #E5E7EB;
+  --color-gray-200: #F3F4F6;
+  --color-gray-100: #F9FAFB;
+  --color-white:    #FFFFFF;
+
+  --color-background: #F9FAFB;
+  --color-surface: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-text: #374151;
+  --color-text-muted: #6B7280;
+
+  --color-module-estoque: #7C3AED;
+  --color-module-fiscal:  #0891B2;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: "Inter", "Source Sans 3", -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ==========================================================================
+   Shell layout
+   ========================================================================== */
+.app-shell {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  grid-template-rows: 56px 1fr;
+  min-height: 100vh;
+}
+
+/* Top-left home square */
+.topbar-home {
+  grid-column: 1;
+  grid-row: 1;
+  background: var(--color-primary-900);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.topbar-home-btn {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.topbar-home-btn:hover { background: rgba(255,255,255,0.08); }
+.topbar-home-btn svg { width: 22px; height: 22px; }
+
+/* Top bar */
+.topbar {
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--color-primary-900);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-5);
+  color: var(--color-white);
+}
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+.logo-mark {
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+  color: var(--color-white);
+}
+.logo-word {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.2px;
+  color: var(--color-white);
+}
+.logo-word .dot {
+  width: 6px; height: 6px;
+  background: var(--color-success-700);
+  display: inline-block;
+  margin-left: 1px;
+  transform: translateY(-1px);
+}
+.brand-chevron {
+  opacity: 0.55;
+  margin-left: var(--space-2);
+  display: flex;
+}
+.topbar-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+  padding-left: var(--space-6);
+  border-left: 1px solid rgba(255,255,255,0.12);
+  margin-left: var(--space-2);
+}
+.topbar-search svg { flex-shrink: 0; opacity: 0.6; }
+.topbar-date {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+}
+
+/* Side nav */
+.sidenav {
+  grid-column: 1;
+  grid-row: 2;
+  background: var(--color-primary-800);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: var(--space-3);
+}
+.sidenav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 4px;
+  color: rgba(255,255,255,0.65);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidenav-item svg { width: 20px; height: 20px; }
+.sidenav-item:hover { background: rgba(255,255,255,0.06); color: var(--color-white); }
+.sidenav-item.active {
+  background: var(--color-primary-900);
+  color: var(--color-white);
+  border-left-color: var(--color-success-700);
+}
+.sidenav-item {
+  width: 100%;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+.sidenav-item.is-open {
+  background: var(--color-primary-900);
+  color: var(--color-white);
+}
+
+/* Nav flyout submenus */
+.nav-flyout-backdrop {
+  position: fixed;
+  inset: 56px 0 0 0;
+  background: transparent;
+  z-index: 35;
+  display: none;
+}
+.nav-flyout-backdrop.is-active { display: block; }
+
+.nav-flyout {
+  position: fixed;
+  top: 56px;
+  left: 84px;
+  width: 248px;
+  max-height: calc(100vh - 56px - 16px);
+  overflow-y: auto;
+  background: var(--color-primary-800);
+  box-shadow: var(--shadow-lg);
+  display: none;
+  flex-direction: column;
+  z-index: 40;
+  animation: flyoutIn 0.14s ease;
+}
+.nav-flyout.is-open { display: flex; }
+@keyframes flyoutIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.nav-flyout-list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-3) var(--space-2);
+}
+.nav-flyout-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 12px var(--space-3);
+  color: var(--color-white);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  text-align: left;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.nav-flyout-item:hover { background: rgba(255, 255, 255, 0.12); }
+.nav-flyout-item svg { flex-shrink: 0; opacity: 0.7; }
+
+.nav-flyout-also {
+  padding: var(--space-3) var(--space-4) var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.nav-flyout-also .also-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: var(--space-2);
+}
+.nav-flyout-also a {
+  display: block;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+}
+.nav-flyout-also a:hover { color: var(--color-white); text-decoration: underline; }
+
+.nav-flyout-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.nav-flyout-footer button {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: none;
+  color: var(--color-white);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s ease;
+}
+.nav-flyout-footer button:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* Main content */
+.main {
+  grid-column: 2;
+  grid-row: 2;
+  padding: var(--space-6) var(--space-8) var(--space-12);
+  max-width: 1180px;
+}
+
+/* Page header */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+.page-header .eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin: 0 0 2px;
+}
+.page-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-primary-800);
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+.header-actions { display: flex; gap: var(--space-2); }
+.icon-btn {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-primary-700);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.icon-btn:hover { background: var(--color-primary-50); border-color: var(--color-primary-500); }
+
+/* Card */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-6);
+  overflow: hidden;
+}
+.card-body { padding: var(--space-6); }
+
+/* ==========================================================================
+   Product form — top section
+   ========================================================================== */
+.product-form {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--space-8);
+}
+
+/* Left: image / barcode column */
+.identity-col { display: flex; flex-direction: column; gap: var(--space-3); }
+.barcode-preview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3) 0;
+  background: var(--color-white);
+  text-align: center;
+}
+.barcode-bars {
+  height: 46px;
+  background: repeating-linear-gradient(90deg, var(--color-gray-900) 0 2px, transparent 2px 4px, var(--color-gray-900) 4px 6px, transparent 6px 9px);
+  margin-bottom: var(--space-2);
+}
+.barcode-number {
+  width: 100%;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--color-gray-800);
+  background: var(--color-gray-100);
+  border: none;
+  border-top: 1px solid var(--color-border);
+  padding: 8px 4px;
+  margin: 0 -1px;
+  outline: none;
+  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+}
+.barcode-number:focus {
+  background: var(--color-white);
+  box-shadow: inset 0 0 0 2px var(--color-primary-100);
+}
+.barcode-number::placeholder { color: var(--color-gray-500); font-weight: 500; letter-spacing: 0.5px; }
+.product-photo {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px dashed var(--color-gray-400);
+  border-radius: var(--radius-md);
+  background: var(--color-gray-100);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: var(--space-2);
+  color: var(--color-gray-500);
+  overflow: hidden;
+}
+.product-photo svg { width: 34px; height: 34px; opacity: 0.6; }
+.product-photo span { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+
+.photo-overlay {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  transform: translateY(100%);
+  transition: transform 0.18s ease;
+}
+.product-photo:hover .photo-overlay {
+  transform: translateY(0);
+}
+.photo-overlay-btn {
+  flex: 1;
+  height: 36px;
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--color-white);
+  background: rgba(31, 41, 55, 0.85);
+  transition: background 0.15s ease;
+}
+.photo-overlay-btn + .photo-overlay-btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+}
+.photo-overlay-btn.edit:hover { background: var(--color-primary-800); }
+.photo-overlay-btn.delete:hover { background: var(--color-danger-600); }
+
+.status-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.status-toggle button {
+  border: none;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: var(--color-white);
+  color: var(--color-gray-500);
+}
+.status-toggle button.is-active {
+  background: var(--color-primary-800);
+  color: var(--color-white);
+}
+
+.link-btn {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary-700);
+  background: none;
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
+  padding: 8px 0;
+}
+.link-btn:hover { background: var(--color-primary-50); }
+
+/* Right: fields */
+.fields-col h2 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-gray-900);
+  margin: 0 0 var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4) var(--space-5);
+}
+.field-grid .span-3 { grid-column: 1 / -1; }
+.field-grid .span-2 { grid-column: span 2; }
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-gray-600);
+  margin-bottom: 6px;
+}
+.field label .hint-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  color: var(--color-gray-400);
+}
+.input, select.input {
+  width: 100%;
+  padding: 9px 11px;
+  font-size: 13px;
+  color: var(--color-gray-800);
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-400);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+}
+.input::placeholder { color: var(--color-gray-500); }
+.input:focus, select.input:focus {
+  border-color: var(--color-primary-800);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
+.field-with-btn { display: flex; gap: 6px; }
+.field-with-btn .input { flex: 1; }
+.add-btn {
+  flex-shrink: 0;
+  width: 36px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-success-900);
+  color: var(--color-white);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease;
+}
+.add-btn:hover { background: var(--color-success-950); }
+
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 12px; top: 50%;
+  width: 8px; height: 8px;
+  border-right: 2px solid var(--color-gray-500);
+  border-bottom: 2px solid var(--color-gray-500);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.select-wrap select { padding-right: 32px; }
+
+.info-box {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  background: var(--color-info-50);
+  border: 1px solid var(--color-info-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: 11.5px;
+  color: var(--color-info-700);
+  line-height: 1.4;
+}
+.info-box svg { flex-shrink: 0; color: var(--color-info-600); margin-top: 1px; }
+
+/* ==========================================================================
+   Pricing panel
+   ========================================================================== */
+.pricing-card .card-body {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.2fr 1fr;
+  gap: var(--space-6);
+  align-items: center;
+}
+.price-field label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--color-gray-600);
+  display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px;
+}
+.price-field label .sub { font-size: 10px; font-weight: 500; text-transform: none; color: var(--color-gray-500); }
+.price-display {
+  font-size: 15px; font-weight: 600; color: var(--color-gray-700);
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 9px 11px;
+}
+.margin-block { text-align: left; }
+.margin-value { font-size: 24px; font-weight: 700; color: var(--color-success-700); line-height: 1; }
+.margin-label { font-size: 10.5px; color: var(--color-gray-600); margin-top: 4px; line-height: 1.3; }
+.min-wholesale-field label { color: var(--color-alert-800); display: flex; align-items: center; gap: 6px; }
+
+/* ==========================================================================
+   Características / tabs
+   ========================================================================== */
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-gray-900);
+  margin: 0 0 var(--space-4);
+}
+.tabbar {
+  display: flex;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+}
+.tabbar button {
+  flex: 1;
+  border: none;
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 13px 0;
+  border-right: 1px solid var(--color-border);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tabbar button:last-child { border-right: none; }
+.tabbar button:hover { background: var(--color-gray-200); color: var(--color-gray-800); }
+.tabbar button.is-active {
+  background: var(--color-module-estoque);
+  color: var(--color-white);
+}
+
+.tab-panel {
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--color-surface);
+  padding: var(--space-6);
+  display: none;
+}
+.tab-panel.is-active { display: block; }
+
+/* --- Estoque tab --- */
+.toggle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.toggle-item { display: flex; gap: var(--space-3); }
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px; height: 24px;
+  background: var(--color-gray-300);
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  background: var(--color-white);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: left 0.15s ease;
+}
+.switch.is-on { background: var(--color-success-700); }
+.switch.is-on::after { left: 21px; }
+.toggle-copy strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin-bottom: 3px;
+}
+.toggle-copy p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.stock-controls {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-8);
+}
+.stock-type-group { min-width: 170px; }
+.stock-type-group .field-label-row {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--color-gray-600); margin-bottom: 8px;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.segmented button {
+  border: none;
+  background: var(--color-white);
+  color: var(--color-gray-600);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 8px 16px;
+}
+.segmented button + button { border-left: 1px solid var(--color-border); }
+.segmented button.is-active { background: var(--color-success-700); color: var(--color-white); }
+
+.stock-detail {
+  display: none;
+}
+.stock-controls.is-controlling .stock-qty-row.stock-detail {
+  display: flex;
+}
+.stock-controls.is-controlling .stock-move-block.stock-detail {
+  display: block;
+}
+.stock-qty-row {
+  display: flex;
+  gap: var(--space-6);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.stock-qty-row .mini-field { width: 88px; }
+.stock-qty-row .mini-field label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+  text-transform: uppercase; color: var(--color-gray-600); margin-bottom: 6px; display: block;
+}
+.stock-current {
+  font-size: 22px; font-weight: 700; color: var(--color-gray-900);
+  padding: 8px 0;
+}
+.stock-move-block {
+  padding-top: var(--space-5);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+.stock-move-block .field-label-row { margin-bottom: var(--space-3); }
+.stock-move-row { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+.stock-move-row .field { min-width: 170px; }
+.stock-move-row .field.qty { width: 130px; min-width: 0; }
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 20px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.btn-success { background: var(--color-success-900); color: var(--color-white); }
+.btn-success:hover { background: var(--color-success-950); }
+.btn-neutral { background: var(--color-gray-700); color: var(--color-white); }
+.btn-neutral:hover { background: var(--color-gray-800); }
+.btn-primary { background: var(--color-primary-800); color: var(--color-white); }
+.btn-primary:hover { background: var(--color-primary-900); }
+.btn-secondary { background: var(--color-white); color: var(--color-gray-800); border: 1px solid var(--color-gray-400); }
+.btn-secondary:hover { background: var(--color-gray-100); }
+
+/* --- Fiscal tab --- */
+.fiscal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+}
+.fiscal-grid .span-full { grid-column: 1 / -1; }
+.divider { height: 1px; background: var(--color-border); margin: var(--space-5) 0; }
+.helper-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-info-50);
+  border: 1px solid var(--color-info-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 12.5px;
+  color: var(--color-gray-800);
+}
+.helper-banner .avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--color-info-100);
+  color: var(--color-info-700);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.helper-banner a { color: var(--color-info-700); font-weight: 700; text-decoration: underline; }
+
+/* --- Fragmentação tab --- */
+.frag-intro { margin-bottom: var(--space-5); }
+.frag-intro p { margin: 0 0 4px; font-size: 13px; color: var(--color-gray-800); }
+.frag-intro span { font-size: 11.5px; color: var(--color-text-muted); }
+.frag-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+.frag-equals { font-size: 20px; font-weight: 700; color: var(--color-gray-500); padding-bottom: 9px; }
+.stepper {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--color-gray-400);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 130px;
+}
+.stepper button {
+  border: none; background: var(--color-gray-100); color: var(--color-gray-700);
+  width: 32px; font-weight: 700; font-size: 15px;
+}
+.stepper button:hover { background: var(--color-gray-200); }
+.stepper input {
+  border: none; text-align: center; width: 100%; font-size: 13px;
+  color: var(--color-gray-800); outline: none;
+}
+.frag-consumo {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  text-transform: uppercase; color: var(--color-gray-600);
+}
+.checkbox {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--color-gray-400);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Help + footer actions
+   ========================================================================== */
+.help-card .card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.help-card h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--color-gray-900); }
+.help-links { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+.help-link {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 600; color: var(--color-primary-700);
+  text-decoration: none;
+}
+.help-link svg { color: var(--color-primary-600); }
+.help-link:hover { color: var(--color-primary-900); }
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+.action-bar .btn { padding: 11px 28px; font-size: 13px; }
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 64px 1fr; }
+  .product-form { grid-template-columns: 1fr; }
+  .field-grid { grid-template-columns: 1fr 1fr; }
+  .pricing-card .card-body { grid-template-columns: 1fr 1fr; }
+  .fiscal-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Top bar -->
+  <!-- Home square -->
+  <div class="topbar-home">
+    <button class="topbar-home-btn" type="button" title="Início">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3l9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9.5V20a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L4 7v9c0 7 5 11.7 12 14 7-2.3 12-7 12-14V7L16 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M11 10h10M16 10v11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <div class="logo-word">TJSys<span class="dot"></span></div>
+    </div>
+    <div class="brand-chevron">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="topbar-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Procure por...
+    </div>
+    <div class="topbar-date">09/08/2026</div>
+  </header>
+
+  <!-- Side nav -->
+  <nav class="sidenav">
+    <button class="sidenav-item" type="button" data-menu="favoritos">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7L12 2.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      Favoritos
+    </button>
+    <button class="sidenav-item active" type="button" data-menu="catalogo">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M9 4v16" stroke="currentColor" stroke-width="1.8"/></svg>
+      Catálogo
+    </button>
+    <button class="sidenav-item" type="button" data-menu="vendas">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16l-1.5 9.5a2 2 0 01-2 1.5H7.5a2 2 0 01-2-1.5L4 6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 6a4 4 0 018 0" stroke="currentColor" stroke-width="1.8"/></svg>
+      Vendas
+    </button>
+    <button class="sidenav-item" type="button" data-menu="estoque">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 9l1.5-4.5A2 2 0 016.4 3h11.2a2 2 0 011.9 1.5L21 9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 9h18v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 13a2 2 0 004 0" stroke="currentColor" stroke-width="1.8"/></svg>
+      Estoque
+    </button>
+    <button class="sidenav-item" type="button" data-menu="compras">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Compras
+    </button>
+    <button class="sidenav-item" type="button" data-menu="financeiro">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Financeiro
+    </button>
+    <button class="sidenav-item" type="button" data-menu="relatorios">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Relatórios
+    </button>
+    <button class="sidenav-item" type="button" data-menu="loja">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 2l1.5 4M18 2l-1.5 4M3 6h18l-1.6 12.2A2 2 0 0117.4 20H6.6a2 2 0 01-2-1.8L3 6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Loja
+    </button>
+
+    <!-- Flyouts -->
+    <div class="nav-flyout" id="flyout-favoritos" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Financeiro
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="nav-flyout-item" href="#">Vendas
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="nav-flyout-item" href="#">Produtos
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="nav-flyout-item" href="#">Estoque
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="nav-flyout-item" href="#">Clientes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-catalogo" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Produtos</a>
+        <a class="nav-flyout-item" href="#">Categorias</a>
+        <a class="nav-flyout-item" href="#">Subcategorias</a>
+        <a class="nav-flyout-item" href="#">Marcas</a>
+        <a class="nav-flyout-item" href="#">Unidades</a>
+        <a class="nav-flyout-item" href="#">Tags</a>
+      </div>
+      <div class="nav-flyout-also">
+        <span class="also-label">Veja também</span>
+        <a href="#">Estoque</a>
+        <a href="#">Loja virtual</a>
+        <a href="#">Relatórios</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-vendas" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Orçamentos</a>
+        <a class="nav-flyout-item" href="#">Pedidos</a>
+        <a class="nav-flyout-item" href="#">Cupons</a>
+        <a class="nav-flyout-item" href="#">Consignados</a>
+        <a class="nav-flyout-item" href="#">Clientes</a>
+        <a class="nav-flyout-item" href="#">CRM</a>
+        <a class="nav-flyout-item" href="#">Comissões</a>
+        <a class="nav-flyout-item" href="#">Devoluções</a>
+        <a class="nav-flyout-item" href="#">Lista de preços</a>
+        <button class="nav-flyout-item" type="button">Serviços
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="nav-flyout-also">
+        <span class="also-label">Veja também</span>
+        <a href="#">Recebimentos</a>
+        <a href="#">Loja virtual</a>
+        <a href="#">Relatórios</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-estoque" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Produção</a>
+        <a class="nav-flyout-item" href="#">Consulta de estoque</a>
+        <a class="nav-flyout-item" href="#">Movimentações</a>
+        <a class="nav-flyout-item" href="#">Locais de estoque</a>
+        <a class="nav-flyout-item" href="#">Tipos de estocagem</a>
+        <a class="nav-flyout-item" href="#">Inventário</a>
+        <a class="nav-flyout-item" href="#">Mapa de estoque</a>
+        <a class="nav-flyout-item" href="#">Motivo movimentação</a>
+      </div>
+      <div class="nav-flyout-also">
+        <span class="also-label">Veja também</span>
+        <a href="#">Relatórios</a>
+        <a href="#">Marketplaces</a>
+        <a href="#">Produtos</a>
+        <a href="#">Repor estoque</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-compras" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Orçamentos</a>
+        <a class="nav-flyout-item" href="#">Pedidos</a>
+        <a class="nav-flyout-item" href="#">Fornecedores</a>
+        <a class="nav-flyout-item" href="#">Devoluções</a>
+        <a class="nav-flyout-item" href="#">Compras em aberto</a>
+      </div>
+      <div class="nav-flyout-also">
+        <span class="also-label">Veja também</span>
+        <a href="#">Relatórios</a>
+        <a href="#">Pagamentos</a>
+        <a href="#">Movimentação de caixa</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-financeiro" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Fluxo de caixa</a>
+        <a class="nav-flyout-item" href="#">Movimentação de caixa</a>
+        <a class="nav-flyout-item" href="#">Conciliação bancária</a>
+        <button class="nav-flyout-item" type="button">Pagamentos
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="nav-flyout-item" type="button">Recebimentos
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="nav-flyout-item" type="button">Faturamento
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <a class="nav-flyout-item" href="#">Saldo e extrato integrados</a>
+      </div>
+      <div class="nav-flyout-also">
+        <span class="also-label">Veja também</span>
+        <a href="#">Relatórios</a>
+        <a href="#">Conta corrente</a>
+        <a href="#">Notas fiscais</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-relatorios" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Vendas</a>
+        <a class="nav-flyout-item" href="#">Estoque</a>
+        <a class="nav-flyout-item" href="#">Compras</a>
+        <a class="nav-flyout-item" href="#">Financeiro</a>
+        <a class="nav-flyout-item" href="#">DRE</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-flyout" id="flyout-loja" role="menu">
+      <div class="nav-flyout-list">
+        <a class="nav-flyout-item" href="#">Loja virtual</a>
+        <a class="nav-flyout-item" href="#">Marketplaces</a>
+        <a class="nav-flyout-item" href="#">Pedidos online</a>
+        <a class="nav-flyout-item" href="#">Configurações</a>
+      </div>
+      <div class="nav-flyout-footer">
+        <button type="button" title="Ajuda">?</button>
+        <button type="button" title="Imprimir">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+  <div class="nav-flyout-backdrop" id="nav-flyout-backdrop"></div>
+  <main class="main">
+
+    <div class="page-header">
+      <div>
+        <p class="eyebrow">Catálogo</p>
+        <h1>Produtos</h1>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" title="Listagem">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="icon-btn" title="Imprimir">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-5a1 1 0 011-1h16a1 1 0 011 1v5a1 1 0 01-1 1h-2M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" title="Duplicar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.8"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dados do produto -->
+    <section class="card">
+      <div class="card-body product-form">
+
+        <div class="identity-col">
+          <div class="barcode-preview">
+            <div class="barcode-bars"></div>
+            <input class="barcode-number" type="text" value="2000000000008" placeholder="Digite o código de barras" inputmode="numeric">
+          </div>
+          <div class="product-photo">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="10" r="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M21 16l-5.5-5-4 4-2-1.6L3 17" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            <span>Sem foto</span>
+            <div class="photo-overlay">
+              <button class="photo-overlay-btn edit" type="button" title="Editar foto">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                Editar
+              </button>
+              <button class="photo-overlay-btn delete" type="button" title="Excluir foto">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Excluir
+              </button>
+            </div>
+          </div>
+          <div class="status-toggle">
+            <button class="is-active" type="button">Ativo</button>
+            <button type="button">Inativo</button>
+          </div>
+          <button class="link-btn" type="button">Download de imagem</button>
+        </div>
+
+        <div class="fields-col">
+          <h2>Produto próprio</h2>
+
+          <div class="field-grid">
+            <div class="field span-3">
+              <label for="descricao">Descrição</label>
+              <input class="input" id="descricao" type="text" placeholder="Nome do produto">
+            </div>
+
+            <div class="field">
+              <label for="tipoItem">Tipo de item</label>
+              <div class="select-wrap">
+                <select class="input" id="tipoItem">
+                  <option>Produto</option>
+                  <option>Serviço</option>
+                  <option>Kit</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="unidade">Unidade</label>
+              <div class="field-with-btn">
+                <div class="select-wrap" style="flex:1;">
+                  <select class="input" id="unidade">
+                    <option>Selecione</option>
+                    <option>UN</option>
+                    <option>CX</option>
+                    <option>KG</option>
+                  </select>
+                </div>
+                <button class="add-btn" type="button" title="Nova unidade">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Código de balança</label>
+              <div class="info-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8h.01M11 12h1v5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                Utilizado para realizar vendas por peso
+              </div>
+            </div>
+
+            <div class="field span-2">
+              <label for="categoria">Categoria</label>
+              <div class="field-with-btn">
+                <div class="select-wrap" style="flex:1;">
+                  <select class="input" id="categoria"><option>Selecione</option></select>
+                </div>
+                <button class="add-btn" type="button" title="Nova categoria">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="subcategoria">Subcategoria</label>
+              <div class="field-with-btn">
+                <div class="select-wrap" style="flex:1;">
+                  <select class="input" id="subcategoria"><option>Selecione</option></select>
+                </div>
+                <button class="add-btn" type="button" title="Nova subcategoria">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="marca">Marca</label>
+              <div class="field-with-btn">
+                <div class="select-wrap" style="flex:1;">
+                  <select class="input" id="marca"><option>Selecione</option></select>
+                </div>
+                <button class="add-btn" type="button" title="Nova marca">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="modelo">Modelo</label>
+              <input class="input" id="modelo" type="text">
+            </div>
+            <div class="field">
+              <label>Código interno</label>
+              <div class="info-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8h.01M11 12h1v5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                Crie um código próprio para seu controle
+              </div>
+            </div>
+
+            <div class="field span-3">
+              <label for="tags">Tags</label>
+              <input class="input" id="tags" type="text" placeholder="Adicione uma tag">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Preços -->
+    <section class="card pricing-card">
+      <div class="card-body">
+        <div class="price-field">
+          <label>Custo <span class="sub">(última compra)</span></label>
+          <div class="price-display">R$ 0,00</div>
+        </div>
+        <div class="price-field">
+          <label>Venda varejo</label>
+          <div class="price-display">R$ 0,00</div>
+        </div>
+        <div class="margin-block">
+          <div class="margin-value">N/D</div>
+          <div class="margin-label">Margem de lucro<br>(aproximada no varejo)</div>
+        </div>
+        <div class="price-field min-wholesale-field">
+          <label>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3l10 18H2L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Qtde mínima p/ atacado
+          </label>
+          <input class="input" type="text" placeholder="0">
+        </div>
+
+        <div class="price-field">
+          <label>Venda atacado</label>
+          <div class="price-display">R$ 0,00</div>
+        </div>
+        <div class="price-field"></div>
+        <div class="margin-block">
+          <div class="margin-value">N/D</div>
+          <div class="margin-label">Margem de lucro<br>(aproximada no atacado)</div>
+        </div>
+        <div class="price-field"></div>
+      </div>
+    </section>
+
+    <!-- Características -->
+    <section>
+      <h2 class="section-title">Características</h2>
+
+      <div class="tabbar">
+        <button class="is-active" data-tab="estoque" type="button">Estoque</button>
+        <button data-tab="fiscal" type="button">Fiscal</button>
+        <button data-tab="fragmentacao" type="button">Fragmentação</button>
+      </div>
+
+      <!-- Estoque -->
+      <div class="tab-panel is-active" id="tab-estoque">
+        <div class="toggle-row">
+          <div class="toggle-item">
+            <button class="switch is-on" type="button" id="switch-movimentar-estoque" aria-label="Movimentar estoque"></button>
+            <div class="toggle-copy">
+              <strong>Movimentar estoque</strong>
+              <p>Ao ativar este recurso o sistema movimentará o estoque deste produto, automaticamente, sempre que uma compra ou venda for realizada.</p>
+            </div>
+          </div>
+          <div class="toggle-item">
+            <button class="switch" type="button" aria-label="Movimentar estoque da composição"></button>
+            <div class="toggle-copy">
+              <strong>Movimentar estoque da composição</strong>
+              <p>Ao ativar este recurso o sistema movimentará o estoque dos produtos que fazem parte da composição, automaticamente, sempre que uma venda for realizada ou uma produção estiver em andamento.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="stock-controls is-controlling" id="stock-controls">
+          <div class="stock-type-group">
+            <div class="field-label-row">Tipo de estoque</div>
+            <div class="segmented">
+              <button class="is-active" type="button">Único</button>
+              <button type="button">Grade</button>
+            </div>
+            <div class="stock-qty-row stock-detail" style="margin-top:var(--space-5);">
+              <div class="mini-field">
+                <label>Mínimo</label>
+                <input class="input" type="text" placeholder="0">
+              </div>
+              <div class="mini-field">
+                <label>Atual</label>
+                <div class="stock-current">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stock-move-block stock-detail" style="border-top:none; margin-top:0; padding-top:0;">
+            <div class="field-label-row">Realizar movimentação de estoque</div>
+            <div class="stock-move-row">
+              <div class="field">
+                <label>Movimento de</label>
+                <div class="select-wrap">
+                  <select class="input"><option>Selecione</option><option>Entrada</option><option>Saída</option><option>Ajuste</option></select>
+                </div>
+              </div>
+              <div class="field qty">
+                <label>Quantidade</label>
+                <input class="input" type="text" placeholder="0">
+              </div>
+              <button class="btn btn-success" type="button">OK</button>
+
+              <div class="field" style="margin-left:var(--space-8);">
+                <label>Transferência</label>
+                <button class="btn btn-neutral" type="button">Realizar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fiscal -->
+      <div class="tab-panel" id="tab-fiscal">
+        <div class="fiscal-grid">
+          <div class="field">
+            <label>Tipo</label>
+            <div class="select-wrap">
+              <select class="input">
+                <option value="" selected>Selecione</option>
+                <option value="9">Ativo Imobilizado</option>
+                <option value="3">Embalagem</option>
+                <option value="8">Material de Uso e Consumo</option>
+                <option value="2">Matéria-Prima</option>
+                <option value="1">Mercadoria para revenda</option>
+                <option value="12">Outras</option>
+                <option value="11">Outros insumos</option>
+                <option value="5">Produto Acabado</option>
+                <option value="4">Produto em Processo</option>
+                <option value="7">Produto Intermediário</option>
+                <option value="10">Serviços</option>
+                <option value="6">Subproduto</option>
+              </select>
+            </div>
+          </div>
+          <div class="field span-full" style="grid-column: span 2;">
+            <label>NCM</label>
+            <input class="input" type="text">
+          </div>
+          <div class="field">
+            <label>Origem</label>
+            <div class="select-wrap">
+              <select class="input">
+                <option value="" selected>Selecione</option>
+                <option value="0">0 - Nacional, exceto as indicadas nos códigos 3 a 5</option>
+                <option value="1">1 - Estrangeira – Importação direta, exceto a indicada no código 6</option>
+                <option value="2">2 - Estrangeira – Adquirida no mercado interno, exceto a indicada no código 7</option>
+                <option value="3">3 - Nacional, mercadoria ou bem com conteúdo de importação superior a 40%</option>
+                <option value="4">4 - Nacional, cuja produção tenha sido feita em conformidade com os processos produtivos básicos</option>
+                <option value="5">5 - Nacional, mercadoria ou bem com Conteúdo de Importação inferior ou igual a 40%</option>
+                <option value="6">6 - Estrangeira - Importação direta, sem similar nacional, constante em lista de Resolução CAMEX</option>
+                <option value="7">7 - Estrangeira - Adquirida no mercado interno, sem similar nacional, constante em lista de Resolução CAMEX</option>
+                <option value="8">8 - Nacional, Conteúdo de Importação superior a 70%</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field" style="grid-column: 4;">
+            <label>CEST
+              <span class="hint-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8h.01M11 12h1v5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </span>
+            </label>
+            <input class="input" type="text">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="fiscal-grid" style="margin-bottom: var(--space-5);">
+          <div class="field">
+            <label>Classificação</label>
+            <div class="select-wrap">
+              <select class="input">
+                <option value="" selected>Comum</option>
+                <option value="1">Medicamentos</option>
+                <option value="2">Armamentos</option>
+                <option value="3">Combustiveis</option>
+                <option value="4">Veículos novos</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="helper-banner">
+          <span class="avatar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 20c1.6-3.6 5-5.5 8-5.5s6.4 1.9 8 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </span>
+          Está com dúvidas sobre como preencher estes dados fiscais de produto? <a href="#">Clique aqui e pergunte ao contador</a>
+        </div>
+      </div>
+
+      <!-- Fragmentação -->
+      <div class="tab-panel" id="tab-fragmentacao">
+        <div class="frag-intro">
+          <p>Para realizar a venda fracionada deste produto, informe abaixo a condição de fragmentação.</p>
+          <span>Exemplos: 1 Litro = 1000ml &nbsp;/&nbsp; 1 Caixa = 10 pacotes</span>
+        </div>
+
+        <div class="frag-row">
+          <span class="frag-equals">1 =</span>
+
+          <div class="field" style="width:130px;">
+            <label>Quantidade</label>
+            <div class="stepper">
+              <button type="button">–</button>
+              <input type="text" value="0">
+              <button type="button">+</button>
+            </div>
+          </div>
+
+          <div class="field" style="width:180px;">
+            <label>Unidade</label>
+            <div class="field-with-btn">
+              <div class="select-wrap" style="flex:1;">
+                <select class="input"><option>Selecione</option></select>
+              </div>
+              <button class="add-btn" type="button" title="Nova unidade">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field" style="width:140px;">
+            <label>Valor de venda</label>
+            <input class="input" type="text" placeholder="R$ 0,00">
+          </div>
+
+          <label class="frag-consumo">
+            <span class="checkbox"></span>
+            Estoque de consumo
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ajuda -->
+    <section class="card help-card">
+      <div class="card-body">
+        <h3>Precisando de ajuda?</h3>
+        <div class="help-links">
+          <a class="help-link" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l5 3-5 3V9z" fill="currentColor"/></svg>
+            Vídeo tutorial
+          </a>
+          <a class="help-link" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13h6M9 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Tutorial (PDF)
+          </a>
+          <a class="help-link" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9a2.5 2.5 0 015 .3c0 1.7-2.5 1.7-2.5 3.7M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            FAQ
+          </a>
+          <a class="help-link" href="#">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" stroke-width="1.8"/></svg>
+            Manual do usuário
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <div class="action-bar">
+      <button class="btn btn-secondary" type="button">Salvar e voltar</button>
+      <button class="btn btn-primary" type="button">Salvar</button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+var navBackdrop = document.getElementById('nav-flyout-backdrop');
+var navItems = document.querySelectorAll('.sidenav-item[data-menu]');
+
+function closeAllFlyouts() {
+  document.querySelectorAll('.nav-flyout.is-open').forEach(function (f) { f.classList.remove('is-open'); });
+  navItems.forEach(function (i) { i.classList.remove('is-open'); });
+  navBackdrop.classList.remove('is-active');
+}
+
+navItems.forEach(function (item) {
+  item.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var menuId = 'flyout-' + item.dataset.menu;
+    var flyout = document.getElementById(menuId);
+    var alreadyOpen = flyout.classList.contains('is-open');
+    closeAllFlyouts();
+    if (!alreadyOpen) {
+      flyout.classList.add('is-open');
+      item.classList.add('is-open');
+      navBackdrop.classList.add('is-active');
+    }
+  });
+});
+
+navBackdrop.addEventListener('click', closeAllFlyouts);
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeAllFlyouts();
+});
+document.querySelectorAll('.nav-flyout').forEach(function (fly) {
+  fly.addEventListener('click', function (e) { e.stopPropagation(); });
+});
+
+document.querySelectorAll('.tabbar button').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.tabbar button').forEach(function (b) { b.classList.remove('is-active'); });
+    document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('is-active'); });
+    btn.classList.add('is-active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('is-active');
+  });
+});
+
+document.querySelectorAll('.switch').forEach(function (sw) {
+  sw.addEventListener('click', function () { sw.classList.toggle('is-on'); });
+});
+
+var switchMovimentarEstoque = document.getElementById('switch-movimentar-estoque');
+var stockControls = document.getElementById('stock-controls');
+if (switchMovimentarEstoque && stockControls) {
+  switchMovimentarEstoque.addEventListener('click', function () {
+    stockControls.classList.toggle('is-controlling', switchMovimentarEstoque.classList.contains('is-on'));
+  });
+}
+
+document.querySelectorAll('.status-toggle button').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    btn.parentElement.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-active'); });
+    btn.classList.add('is-active');
+  });
+});
+
+document.querySelectorAll('.segmented').forEach(function (group) {
+  group.querySelectorAll('button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      group.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+});
+
+document.querySelectorAll('.stepper').forEach(function (stepper) {
+  var input = stepper.querySelector('input');
+  var buttons = stepper.querySelectorAll('button');
+  buttons[0].addEventListener('click', function () {
+    input.value = Math.max(0, (parseInt(input.value, 10) || 0) - 1);
+  });
+  buttons[1].addEventListener('click', function () {
+    input.value = (parseInt(input.value, 10) || 0) + 1;
+  });
+});
+</script>
+</body>
+</html>

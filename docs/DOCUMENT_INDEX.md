@@ -43,6 +43,7 @@ Registro oficial dos documentos do Zyrp.
 | OPS-CATALOG-ROLLBACK | Rollback Catálogo Sprints 23–30 | 1.0.0 | Approved | `09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md` |
 | DESIGN-CATALOG-NEXT | Especificação Sprints 31–33 | 1.0.0 | Approved | `superpowers/specs/2026-08-01-catalog-next-sprints-design.md` |
 | PLAN-CATALOG-NEXT | Plano Sprints 31–33 | 1.0.0 | Approved | `superpowers/plans/2026-08-01-catalog-next-sprints-implementation-plan.md` |
+| DESIGN-SYSTEM-MANIFEST | Design System Reference Manifest | 1.0.0 | Approved | `02_Architecture/design-system/reference/manifest.json` |
 
 ## Material histórico
 
