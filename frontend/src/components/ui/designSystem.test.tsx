@@ -80,10 +80,10 @@ it('expõe o catálogo de primitives com estados e interação por teclado', asy
 it('mantém o contrato de modal nomeado, Escape, foco e retorno', async () => {
   const user = userEvent.setup()
   const onClose = vi.fn()
-  render(
+  const view = render(
     <>
       <button type="button">Abrir</button>
-      <Modal open title="Confirmar exclusão" onClose={onClose}>
+      <Modal open={false} title="Confirmar exclusão" onClose={onClose}>
         <button type="button">Confirmar</button>
       </Modal>
     </>,
@@ -91,13 +91,38 @@ it('mantém o contrato de modal nomeado, Escape, foco e retorno', async () => {
 
   const opener = screen.getByRole('button', { name: 'Abrir' })
   opener.focus()
+  view.rerender(
+    <>
+      <button type="button">Abrir</button>
+      <Modal open title="Confirmar exclusão" onClose={onClose}>
+        <button type="button">Confirmar</button>
+      </Modal>
+    </>,
+  )
   expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toHaveAttribute('aria-modal', 'true')
   expect(screen.getByRole('button', { name: 'Fechar' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Confirmar' })).toHaveFocus()
+  expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toContainElement(document.activeElement)
 
   await user.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledTimes(1)
+  view.rerender(
+    <>
+      <button type="button">Abrir</button>
+      <Modal open={false} title="Confirmar exclusão" onClose={onClose}>
+        <button type="button">Confirmar</button>
+      </Modal>
+    </>,
+  )
+  expect(screen.getByRole('button', { name: 'Abrir' })).toHaveFocus()
 
+  view.rerender(
+    <>
+      <button type="button">Abrir</button>
+      <Modal open title="Confirmar exclusão" onClose={onClose}>
+        <button type="button">Confirmar</button>
+      </Modal>
+    </>,
+  )
   fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
   expect(onClose).toHaveBeenCalledTimes(2)
 })

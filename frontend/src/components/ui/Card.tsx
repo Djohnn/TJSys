@@ -7,7 +7,7 @@ interface CardProps {
   actions?: ReactNode
 }
 
-export default function Card({ title, children, className = '', actions }: CardProps): ReactNode {
+export function Card({ title, children, className = '', actions }: CardProps): ReactNode {
   return (
     <div data-testid="card" className={`bg-surface rounded-xl border border-border shadow-sm ${className}`}>
       {(title || actions) && (
@@ -20,3 +20,5 @@ export default function Card({ title, children, className = '', actions }: CardP
     </div>
   )
 }
+
+export default Card

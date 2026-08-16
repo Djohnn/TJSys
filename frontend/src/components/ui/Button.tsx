@@ -9,13 +9,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+const base = 'inline-flex min-h-11 items-center justify-center rounded-[var(--radius-md)] px-4 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-800)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-  secondary: 'bg-white text-neutral-700 border border-border hover:bg-neutral-50 active:bg-neutral-100',
-  danger: 'bg-danger text-white hover:bg-red-700 active:bg-red-800',
-  ghost: 'text-neutral-600 hover:bg-neutral-100 active:bg-neutral-200',
+  primary: 'bg-[var(--color-primary-800)] text-white hover:bg-[var(--color-primary-900)] active:bg-[var(--color-primary-900)]',
+  secondary: 'border border-[var(--color-border)] bg-[var(--color-white)] text-[var(--color-gray-800)] hover:bg-[var(--color-gray-200)] active:bg-[var(--color-gray-300)]',
+  danger: 'bg-[var(--color-danger-600)] text-white hover:bg-[var(--color-danger-700)] active:bg-[var(--color-danger-900)]',
+  ghost: 'text-[var(--color-gray-700)] hover:bg-[var(--color-gray-200)] active:bg-[var(--color-gray-300)]',
 }
 
 const sizes: Record<Size, string> = {

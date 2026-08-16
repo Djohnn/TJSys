@@ -17,10 +17,12 @@ const styles: Record<BadgeVariant, string> = {
   neutral: 'bg-neutral-100 text-neutral-700',
 }
 
-export default function Badge({ children, variant = 'neutral', testId, className = '' }: BadgeProps): ReactNode {
+export function Badge({ children, variant = 'neutral', testId, className = '' }: BadgeProps): ReactNode {
   return (
     <span data-testid={testId} className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[variant]} ${className}`}>
       {children}
     </span>
   )
 }
+
+export default Badge

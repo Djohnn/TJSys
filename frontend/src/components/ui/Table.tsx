@@ -6,7 +6,7 @@ interface TableProps {
   testId?: string
 }
 
-export default function Table({ headers, rows, testId = 'data-table' }: TableProps): ReactNode {
+export function Table({ headers, rows, testId = 'data-table' }: TableProps): ReactNode {
   return (
     <div className="overflow-x-auto rounded-lg border border-border" data-testid={testId}>
       <table className="w-full text-sm">
@@ -30,3 +30,5 @@ export default function Table({ headers, rows, testId = 'data-table' }: TablePro
     </div>
   )
 }
+
+export default Table
