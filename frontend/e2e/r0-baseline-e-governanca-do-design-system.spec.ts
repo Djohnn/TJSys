@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 test.describe('R0 - Baseline e Governança do Design System', () => {
-  test('r0 visual and keyboard contract', async ({ page }) => {
+  test('r0 visual and accessibility contract', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('body')).toBeVisible()
 
