@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { expect, it } from 'vitest'
 import manifest from '../../../docs/02_Architecture/design-system/reference/manifest.json'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../')
