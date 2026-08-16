@@ -16,16 +16,19 @@ raiz nem executa suites ou instalação de dependências.
 
 ## Evidência read-only do checkout raiz
 
-Os comandos foram executados sem modificar `C:\ERP`:
+Os comandos foram executados sem modificar `C:\ERP`. O bloco abaixo é um
+snapshot checkout-sensível, capturado em uma única execução em
+`2026-08-16T18:33:29-03:00` (America/Sao_Paulo); a raiz pode mudar depois da
+captura e os números não devem ser tratados como estado permanente.
 
 * `git show-ref --verify refs/heads/master` → `8636cf18066a7586fe8f1d67e08186731621cbe2`.
 * `git show-ref --verify refs/remotes/origin/master` → `c3653ea876f200c68fc2892095503439fe8ce1d2`.
 * `git show-ref --verify refs/heads/codex/frontend-redesign-r4` → `ee10b3a812d9892f054deb22c085a9533f3971b2`.
 * Ancestralidade (`git merge-base --is-ancestor`): `bb375bd -> a8d447d`, `a8d447d -> a987407`, `a987407 -> 2c4c945` e `2c4c945 -> ee10b3a`; todos retornaram exit code `0`.
 * `git check-ignore -q .worktrees` → exit code `0` (diretório ignorado).
-* `git -C C:\ERP status --porcelain=v1 -uall` → **8558** entradas; `git diff --name-only` → **172** caminhos; `git ls-files --others --exclude-standard` → **8386** caminhos.
-* Categorias top-level observadas: `backend` (424 status; 27 diff; 397 untracked), `frontend` (55; 51; 4), `docs` (61; 55; 6), `graphify-out` (5636 status; 5636 untracked), `pdv` (22; 22; 0), `.review-task5` (785; 0; 787), `.review-49d31de` (783; 0; 785), `.tmp.driveupload` (766; 0; 794), `.codex-tmp` (259; 0; 259), além de arquivos de raiz e outras pastas menores.
-* `git -C C:\ERP diff --check` falhou por problemas preexistentes: `.gitignore:133: new blank line at EOF`; `frontend/src/catalog/CatalogHomePage.tsx:22: trailing whitespace`; `frontend/src/catalog/CatalogHomePage.tsx:23: trailing whitespace`. O comando também emitiu avisos LF→CRLF para três testes de estoque.
+* No mesmo script, `git -C C:\ERP status --porcelain=v1 -z -uall` foi analisado por registros NUL: **8564** entradas lógicas = **172 tracked** + **8392 untracked**. A soma confere exatamente (`172 + 8392 = 8564`).
+* Categorias top-level reproduzíveis do mesmo parsing NUL (contagem de entradas lógicas): `.claude=3`, `.codex-tmp=259`, `.github=2`, `.review-49d31de=786`, `.review-task5=788`, `.superpowers=12`, `.tmp.driveupload=474`, `backend=424`, `docs=61`, `frontend=64`, `graphify-out=5636`, `infra=7`, `pdv=22`; demais categorias/arquivos de raiz somam **26** entradas (`_review_task7`, `.env.example`, `.gitattributes`, `.gitignore`, `.npm-cache-r4`, `.secrets.baseline`, `backups`, `CHECKPOINT-R3.md`, `CLAUDE.md`, `Desingn-System`, `docker-compose.e2e.yml`, `fix-tests.ps1`, `instruction-sys.md`, `mfa-qr-e2e.png`, `mfa-qr-web-admin.png`, `orientaçoes.md`, `README.md`, `recomendação.txt`, `review-5227175`, `sync.ffs_db`, `test_restore.ps1`).
+* Na mesma captura, `git -C C:\ERP diff --check` reportou os erros concretos atuais: `.gitignore:133: new blank line at EOF`; `frontend/src/catalog/CatalogHomePage.tsx:22: trailing whitespace`; `frontend/src/catalog/CatalogHomePage.tsx:23: trailing whitespace`. Também emitiu avisos LF→CRLF para `backend/tests/test_product_stock_api.py`, `backend/tests/test_product_stock_control_new.py` e `backend/tests/test_product_stock_policy.py`. Esses achados são evidência do snapshot e não uma promessa de que o checkout permanecerá estático.
 
 ## Classificação
 
