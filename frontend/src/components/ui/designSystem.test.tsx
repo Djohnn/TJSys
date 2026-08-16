@@ -150,6 +150,38 @@ it('expõe tokens semânticos R1 completos e logos normativos sem alteração de
   )
 })
 
+it('expõe grupos normativos critical e module em CSS e TypeScript', () => {
+  expect(colors.critical[900]).toBe('var(--color-critical-900)')
+  expect(colors.critical[800]).toBe('var(--color-critical-800)')
+  expect(colors.critical[100]).toBe('var(--color-critical-100)')
+  expect(colors.module.vendas).toBe('var(--color-module-vendas)')
+  expect(colors.module.financeiro).toBe('var(--color-module-financeiro)')
+  expect(colors.module.compras).toBe('var(--color-module-compras)')
+  expect(colors.module.estoque).toBe('var(--color-module-estoque)')
+  expect(colors.module.fiscal).toBe('var(--color-module-fiscal)')
+  expect(colors.module.pessoas).toBe('var(--color-module-pessoas)')
+  expect(colors.module.relatorios).toBe('var(--color-module-relatorios)')
+  expect(colors.module.admin).toBe('var(--color-module-admin)')
+
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+  for (const token of [
+    '--color-critical-900', '--color-critical-800', '--color-critical-100',
+    '--color-module-vendas', '--color-module-financeiro', '--color-module-compras',
+    '--color-module-estoque', '--color-module-fiscal', '--color-module-pessoas',
+    '--color-module-relatorios', '--color-module-admin',
+  ]) {
+    expect(css).toContain(token)
+  }
+})
+
+it('rejeita classes de cor Tailwind legadas nos primitives governados', () => {
+  const legacyColorClass = /(?:bg|text|border)-(?:surface|border|neutral|green|yellow|red|blue)(?:-[0-9]+)?(?:\b|\/)/
+  for (const primitive of ['Card.tsx', 'Badge.tsx', 'Table.tsx']) {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/ui', primitive), 'utf8')
+    expect(source).not.toMatch(legacyColorClass)
+  }
+})
+
 expect(Button).toBe(NamedButton)
 expect(Card).toBe(NamedCard)
 expect(Badge).toBe(NamedBadge)
