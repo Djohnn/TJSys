@@ -103,7 +103,7 @@ it('mantém o contrato de modal nomeado, Escape, foco e retorno', async () => {
   )
   expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toHaveAttribute('aria-modal', 'true')
   expect(screen.getByRole('button', { name: 'Fechar' })).toBeInTheDocument()
-  expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toContainElement(document.activeElement)
+  expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toContainElement(document.activeElement as HTMLElement)
 
   const closeButton = screen.getByRole('button', { name: 'Fechar' })
   const confirmButton = screen.getByRole('button', { name: 'Confirmar' })

@@ -1,26 +1,38 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-danger: #dc2626;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f9fafb;
-  --color-border: #e5e7eb;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+/* Tailwind utilities consume R1 aliases; values live only in tokens.css. */
+@theme inline {
+  --color-primary-50: var(--r1-color-primary-50);
+  --color-primary-100: var(--r1-color-primary-100);
+  --color-primary-200: var(--r1-color-primary-100);
+  --color-primary-300: var(--r1-color-primary-100);
+  --color-primary-400: var(--r1-color-primary-500);
+  --color-primary-500: var(--r1-color-primary-500);
+  --color-primary-600: var(--r1-color-primary-600);
+  --color-primary-700: var(--r1-color-primary-700);
+  --color-primary-800: var(--r1-color-primary-800);
+  --color-primary-900: var(--r1-color-primary-900);
+  --color-success: var(--r1-color-success-700);
+  --color-warning: var(--r1-color-warning-600);
+  --color-danger: var(--r1-color-danger-600);
+  --color-surface: var(--r1-color-white);
+  --color-surface-muted: var(--r1-color-gray-100);
+  --color-border: var(--r1-color-gray-300);
+  --color-text: var(--r1-color-gray-800);
+  --color-text-muted: var(--r1-color-gray-600);
+  --color-white: var(--r1-color-white);
+  --color-neutral-50: var(--r1-color-gray-100);
+  --color-neutral-100: var(--r1-color-gray-200);
+  --color-neutral-200: var(--r1-color-gray-300);
+  --color-neutral-300: var(--r1-color-gray-400);
+  --color-neutral-400: var(--r1-color-gray-500);
+  --color-neutral-500: var(--r1-color-gray-500);
+  --color-neutral-600: var(--r1-color-gray-600);
+  --color-neutral-700: var(--r1-color-gray-700);
+  --color-neutral-800: var(--r1-color-gray-800);
+  --color-neutral-900: var(--r1-color-gray-900);
+  --font-sans: var(--r1-font-family-sans);
+  --font-mono: var(--r1-font-family-mono);
 }
 
 body {
