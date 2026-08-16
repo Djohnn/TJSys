@@ -18,6 +18,8 @@ import Tabs from './Tabs'
 import Textarea from './Textarea'
 import { colors, focus, logoAssets, radii, shadows, spacing, states, typography } from '@/design-system/tokens'
 
+const legacyColorClass = /(?:bg|text|border)-(?:surface|border|neutral|green|yellow|red|blue)(?:-[0-9]+)?(?:\b|\/)/
+
 it('expõe botão e campo com semântica acessível', async () => {
   const { container } = render(
     <>
@@ -103,6 +105,15 @@ it('mantém o contrato de modal nomeado, Escape, foco e retorno', async () => {
   expect(screen.getByRole('button', { name: 'Fechar' })).toBeInTheDocument()
   expect(screen.getByRole('dialog', { name: 'Confirmar exclusão' })).toContainElement(document.activeElement)
 
+  const closeButton = screen.getByRole('button', { name: 'Fechar' })
+  const confirmButton = screen.getByRole('button', { name: 'Confirmar' })
+  confirmButton.focus()
+  await user.tab()
+  expect(closeButton).toHaveFocus()
+  closeButton.focus()
+  await user.tab({ shift: true })
+  expect(confirmButton).toHaveFocus()
+
   await user.keyboard('{Escape}')
   expect(onClose).toHaveBeenCalledTimes(1)
   view.rerender(
@@ -170,16 +181,38 @@ it('expõe grupos normativos critical e module em CSS e TypeScript', () => {
     '--color-module-estoque', '--color-module-fiscal', '--color-module-pessoas',
     '--color-module-relatorios', '--color-module-admin',
   ]) {
-    expect(css).toContain(token)
+  expect(css).toContain(token)
   }
 })
 
+it('expõe a escala danger normativa e não deixa global.css redefinir tokens', () => {
+  expect(colors.danger[900]).toBe('var(--color-danger-900)')
+  expect(colors.danger[700]).toBe('var(--color-danger-700)')
+  expect(colors.danger[600]).toBe('var(--color-danger-600)')
+  expect(colors.danger[100]).toBe('var(--color-danger-100)')
+  expect(colors.danger[50]).toBe('var(--color-danger-50)')
+
+  const tokensCss = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+  const globalCss = readFileSync(resolve(process.cwd(), 'src/styles/global.css'), 'utf8')
+  expect(tokensCss).toContain('--color-danger-900:')
+  expect(tokensCss).toContain('--color-danger-700:')
+  expect(tokensCss).toContain('--color-danger-600:')
+  expect(tokensCss).toContain('--color-danger-100:')
+  expect(tokensCss).toContain('--color-danger-50:')
+  expect(globalCss).not.toMatch(/--color-(?:primary|success|warning|danger|surface|border|text)[\w-]*\s*:\s*#/i)
+})
+
 it('rejeita classes de cor Tailwind legadas nos primitives governados', () => {
-  const legacyColorClass = /(?:bg|text|border)-(?:surface|border|neutral|green|yellow|red|blue)(?:-[0-9]+)?(?:\b|\/)/
   for (const primitive of ['Card.tsx', 'Badge.tsx', 'Table.tsx']) {
     const source = readFileSync(resolve(process.cwd(), 'src/components/ui', primitive), 'utf8')
     expect(source).not.toMatch(legacyColorClass)
   }
+})
+
+it('governa Skeleton com token semântico, sem classes de cor legadas', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/components/ui/Skeleton.tsx'), 'utf8')
+  expect(source).not.toMatch(legacyColorClass)
+  expect(source).toContain('var(--color-gray-200)')
 })
 
 expect(Button).toBe(NamedButton)
