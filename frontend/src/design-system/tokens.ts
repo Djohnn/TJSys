@@ -44,6 +44,11 @@ export const colors = {
     100: 'var(--color-alert-100)',
     50: 'var(--color-alert-50)',
   },
+  critical: {
+    900: 'var(--color-critical-900)',
+    800: 'var(--color-critical-800)',
+    100: 'var(--color-critical-100)',
+  },
   gray: {
     900: 'var(--color-gray-900)',
     800: 'var(--color-gray-800)',
@@ -54,6 +59,16 @@ export const colors = {
     300: 'var(--color-gray-300)',
     200: 'var(--color-gray-200)',
     100: 'var(--color-gray-100)',
+  },
+  module: {
+    vendas: 'var(--color-module-vendas)',
+    financeiro: 'var(--color-module-financeiro)',
+    compras: 'var(--color-module-compras)',
+    estoque: 'var(--color-module-estoque)',
+    fiscal: 'var(--color-module-fiscal)',
+    pessoas: 'var(--color-module-pessoas)',
+    relatorios: 'var(--color-module-relatorios)',
+    admin: 'var(--color-module-admin)',
   },
 } as const
 

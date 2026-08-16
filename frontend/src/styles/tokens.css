@@ -31,6 +31,9 @@
   --color-danger-600: #DC2626;
   --color-danger-100: #FEE2E2;
   --color-danger-50: #FEF2F2;
+  --color-critical-900: #7F1D1D;
+  --color-critical-800: #991B1B;
+  --color-critical-100: #FECACA;
   --color-gray-900: #1F2937;
   --color-gray-800: #374151;
   --color-gray-700: #4B5563;
@@ -41,6 +44,14 @@
   --color-gray-200: #F3F4F6;
   --color-gray-100: #F9FAFB;
   --color-white: #FFFFFF;
+  --color-module-vendas: #0B3DBF;
+  --color-module-financeiro: #854D0E;
+  --color-module-compras: #9A3412;
+  --color-module-estoque: #7C3AED;
+  --color-module-fiscal: #0891B2;
+  --color-module-pessoas: #A21CAF;
+  --color-module-relatorios: #6B7280;
+  --color-module-admin: #374151;
   --color-brand: var(--color-primary-800);
   --color-background: var(--color-gray-100);
   --color-surface: var(--color-white);
