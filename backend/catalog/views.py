@@ -4,6 +4,7 @@ import uuid
 
 from django.db import models, transaction
 from django.core.serializers.json import DjangoJSONEncoder
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -629,6 +630,16 @@ class ProductChannelProfileViewSet(CatalogViewSetBase):
         )
         return instance
 
+    def perform_destroy(self, instance):
+        emit_catalog_event(
+            action='catalog.channelprofile.deactivated',
+            event_type='catalog.channelprofile.deactivated',
+            instance=instance,
+            request=self.request,
+        )
+        instance.status = 'archived'
+        instance.save(update_fields=['status', 'updated_at'])
+
 
 class ChannelProfilePublishView(APIView):
     permission_classes = [
@@ -824,9 +835,8 @@ class LabelGenerateView(APIView):
             show_name=template.show_name,
         )
 
-        return Response(
+        return HttpResponse(
             pdf_bytes,
-            status=status.HTTP_200_OK,
             content_type='application/pdf',
             headers={
                 'Content-Disposition': 'attachment; filename="labels.pdf"',
