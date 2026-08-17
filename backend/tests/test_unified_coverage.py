@@ -1016,7 +1016,7 @@ class TestCreateSaleRefund:
         with pytest.raises(ValueError):
             create_sale_refund(
                 tenant=uc['tenant'], sale=uc['sale'], method='cash',
-                amount=Decimal('10'), idempotency_key='',
+                amount=Decimal('10'), reason='Teste sem chave', idempotency_key='',
             )
 
     @pytest.mark.django_db
@@ -1025,7 +1025,7 @@ class TestCreateSaleRefund:
         with pytest.raises(ValueError):
             create_sale_refund(
                 tenant=uc['tenant'], sale=uc['sale'], method='cash',
-                amount=Decimal('0'), idempotency_key='sr-zero',
+                amount=Decimal('0'), reason='Teste zero', idempotency_key='sr-zero',
             )
 
     @pytest.mark.django_db
@@ -1033,7 +1033,8 @@ class TestCreateSaleRefund:
         from sales.services import create_sale_refund
         refund = create_sale_refund(
             tenant=uc['tenant'], sale=uc['sale'], method='cash',
-            amount=Decimal('10.00'), idempotency_key='sr-cash', actor=uc['user'],
+            amount=Decimal('10.00'), reason='Devolução ao cliente',
+            idempotency_key='sr-cash', actor=uc['user'],
         )
         assert refund.status == 'completed'
 
@@ -1042,7 +1043,8 @@ class TestCreateSaleRefund:
         from sales.services import create_sale_refund
         refund = create_sale_refund(
             tenant=uc['tenant'], sale=uc['sale'], method='pix',
-            amount=Decimal('10.00'), idempotency_key='sr-pix',
+            amount=Decimal('10.00'), reason='Devolução ao cliente',
+            idempotency_key='sr-pix',
         )
         assert refund.method == 'pix'
 
@@ -1051,11 +1053,13 @@ class TestCreateSaleRefund:
         from sales.services import create_sale_refund
         create_sale_refund(
             tenant=uc['tenant'], sale=uc['sale'], method='pix',
-            amount=Decimal('5.00'), idempotency_key='sr-idem2',
+            amount=Decimal('5.00'), reason='Devolução ao cliente',
+            idempotency_key='sr-idem2',
         )
         refund2 = create_sale_refund(
             tenant=uc['tenant'], sale=uc['sale'], method='pix',
-            amount=Decimal('5.00'), idempotency_key='sr-idem2',
+            amount=Decimal('5.00'), reason='Devolução ao cliente',
+            idempotency_key='sr-idem2',
         )
         assert refund2 is not None
 
@@ -1304,7 +1308,7 @@ class TestSalesViews:
             HTTP_IDEMPOTENCY_KEY='view-cancel-1',
             HTTP_X_TENANT_ID=str(uc['tenant'].id),
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
 
     @pytest.mark.django_db
     def test_sale_export(self, uc):

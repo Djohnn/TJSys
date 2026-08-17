@@ -833,7 +833,9 @@ class TestSalesErrorHandler:
 
     def test_value_error(self):
         from sales.views import SaleViewSet
-        assert self._vs(SaleViewSet)._handle_sales_error(ValueError('x')).status_code == 400
+        viewset = self._vs(SaleViewSet)
+        viewset.action = 'counter'
+        assert viewset._handle_sales_error(ValueError('x')).status_code == 400
 
     def test_unhandled_reraise(self):
         from sales.views import SaleViewSet
@@ -1084,18 +1086,25 @@ class TestSalesServiceHelpers:
     def test_refund_zero(self):
         from sales.services import create_sale_refund
         with pytest.raises(ValueError, match='positive'):
-            create_sale_refund(tenant=_t(), sale=MagicMock(), method='cash', amount=Decimal('0'), idempotency_key='rf1')
+            create_sale_refund(
+                tenant=_t(), sale=MagicMock(), method='cash', amount=Decimal('0'),
+                reason='Teste de valor zero', idempotency_key='rf1',
+            )
 
     def test_refund_negative(self):
         from sales.services import create_sale_refund
         with pytest.raises(ValueError, match='positive'):
-            create_sale_refund(tenant=_t(), sale=MagicMock(), method='pix', amount=Decimal('-5'), idempotency_key='rf2')
+            create_sale_refund(
+                tenant=_t(), sale=MagicMock(), method='pix', amount=Decimal('-5'),
+                reason='Teste de valor negativo', idempotency_key='rf2',
+            )
 
     def test_cancel_already_cancelled(self):
         from sales.services import SaleAlreadyCancelled, cancel_sale
         sale = MagicMock(); sale.status = 'cancelled'
-        with pytest.raises(SaleAlreadyCancelled):
-            cancel_sale(tenant=_t(), sale=sale, reason='x', idempotency_key='cs1')
+        with patch('sales.services._lock_sale_for_cancellation', return_value=sale):
+            with pytest.raises(SaleAlreadyCancelled):
+                cancel_sale(tenant=_t(), sale=sale, reason='x', idempotency_key='cs1')
 
     def test_cancel_no_reason(self):
         from sales.services import cancel_sale

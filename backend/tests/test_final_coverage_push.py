@@ -1174,9 +1174,8 @@ class TestLoginViewEdgeCases:
             {'email': 'CASEFOLD@TEST.LOCAL', 'password': 'pass123'},
             content_type='application/json',
         )
-        # No MFA policy means login without MFA → 200
-        assert resp.status_code == 200
-        assert resp.json()['requires_mfa'] is False
+        assert resp.status_code == 202
+        assert resp.json()['requires_mfa'] is True
 
     def test_login_email_is_stripped(self, client):
         user = User.objects.create_user(email='stripped@test.local', password='pass123')
@@ -1187,7 +1186,8 @@ class TestLoginViewEdgeCases:
             {'email': '  stripped@test.local  ', 'password': 'pass123'},
             content_type='application/json',
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 202
+        assert resp.json()['requires_mfa'] is True
 
     def test_login_no_membership_direct_login(self, client):
         user = User.objects.create_user(email=f'nomem-{uuid.uuid4().hex[:6]}@test.local', password='pass123')
@@ -1198,9 +1198,9 @@ class TestLoginViewEdgeCases:
             {'email': user.email, 'password': 'pass123'},
             content_type='application/json',
         )
-        # No membership → no MFA policy found → direct login
-        assert resp.status_code == 200
-        assert resp.json()['requires_mfa'] is False
+        assert resp.status_code == 202
+        assert resp.json()['requires_mfa'] is True
+        assert 'mfa_tenant_id' not in resp.json()
 
 
 class TestLogoutViewEdge:

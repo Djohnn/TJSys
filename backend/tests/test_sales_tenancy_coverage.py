@@ -774,7 +774,7 @@ def test_create_sale_refund_requires_idempotency_key(full_sales_context):
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
             create_sale_refund(
                 tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('10.00'), idempotency_key='',
+                amount=Decimal('10.00'), reason='Teste sem chave', idempotency_key='',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -792,7 +792,8 @@ def test_create_sale_refund_negative_amount_raises(full_sales_context):
         with pytest.raises(ValueError, match='must be positive'):
             create_sale_refund(
                 tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('-5.00'), idempotency_key='refund-neg',
+                amount=Decimal('-5.00'), reason='Teste negativo',
+                idempotency_key='refund-neg',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -810,7 +811,7 @@ def test_create_sale_refund_zero_amount_raises(full_sales_context):
         with pytest.raises(ValueError, match='must be positive'):
             create_sale_refund(
                 tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('0'), idempotency_key='refund-zero',
+                amount=Decimal('0'), reason='Teste zero', idempotency_key='refund-zero',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -837,7 +838,8 @@ def test_create_sale_refund_pix_happy_path(full_sales_context):
         )
         refund = create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-pix-key',
+            amount=Decimal('15.00'), reason='Devolução ao cliente',
+            idempotency_key='refund-pix-key',
             actor=ctx['user'],
         )
         assert refund.status == 'completed'
@@ -869,7 +871,8 @@ def test_create_sale_refund_cash_creates_cash_movement(full_sales_context):
         )
         refund = create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='cash',
-            amount=Decimal('30.00'), idempotency_key='refund-cash-key',
+            amount=Decimal('30.00'), reason='Devolução ao cliente',
+            idempotency_key='refund-cash-key',
             actor=ctx['user'],
         )
         assert refund.status == 'completed'
@@ -913,7 +916,8 @@ def test_create_sale_refund_cash_no_open_session_raises(full_sales_context):
         with pytest.raises(CashSessionRequired):
             create_sale_refund(
                 tenant=ctx['tenant'], sale=sale, method='cash',
-                amount=Decimal('5.00'), idempotency_key='refund-nosess-key',
+                amount=Decimal('5.00'), reason='Devolução ao cliente',
+                idempotency_key='refund-nosess-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -951,7 +955,8 @@ def test_create_sale_refund_with_return(full_sales_context):
         )
         refund = create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-ret-key',
+            amount=Decimal('15.00'), reason='Produto com defeito',
+            idempotency_key='refund-ret-key',
             sale_return=sale_return,
         )
         assert refund.sale_return_id == sale_return.id
@@ -980,11 +985,13 @@ def test_create_sale_refund_idempotent_replay(full_sales_context):
         )
         first = create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-idem-key',
+            amount=Decimal('15.00'), reason='Devolução ao cliente',
+            idempotency_key='refund-idem-key',
         )
         replay = create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-idem-key',
+            amount=Decimal('15.00'), reason='Devolução ao cliente',
+            idempotency_key='refund-idem-key',
         )
         assert replay.id == first.id
 
@@ -1017,12 +1024,14 @@ def test_create_sale_refund_duplicate_idempotency_different_payload(full_sales_c
         )
         create_sale_refund(
             tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('10.00'), idempotency_key='refund-dup-key',
+            amount=Decimal('10.00'), reason='Devolução ao cliente',
+            idempotency_key='refund-dup-key',
         )
         with pytest.raises(DuplicateIdempotencyKey):
             create_sale_refund(
                 tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('20.00'), idempotency_key='refund-dup-key',
+                amount=Decimal('20.00'), reason='Devolução ao cliente',
+                idempotency_key='refund-dup-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -1562,7 +1571,7 @@ def test_sale_cancel_action(sales_api_ctx):
         {'reason': 'Cliente desistiu'},
         tenant=ctx['tenant'], idempotency_key='view-can-key',
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()['status'] == 'completed'
 
 
