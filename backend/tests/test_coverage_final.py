@@ -955,14 +955,30 @@ class TestPurchasingServices:
             cancel_purchase_order(tenant=t, purchase_order=po, reason='x')
 
     def test_cancel_already_cancelled(self):
+        from purchasing.models import PurchaseOrder, Supplier
         from purchasing.services import AlreadyCancelled, cancel_purchase_order
-        t = _t(); po = MagicMock(); po.tenant_id = t.id; po.status = 'cancelled'
+        t = _t()
+        supplier = Supplier.all_objects.create(tenant=t, name='Cancelado')
+        po = PurchaseOrder.all_objects.create(
+            tenant=t,
+            supplier=supplier,
+            branch=_b(t),
+            status='cancelled',
+        )
         with pytest.raises(AlreadyCancelled):
             cancel_purchase_order(tenant=t, purchase_order=po, reason='x', idempotency_key='ck1')
 
     def test_cancel_cannot_cancel_received(self):
+        from purchasing.models import PurchaseOrder, Supplier
         from purchasing.services import CannotCancelPurchaseOrder, cancel_purchase_order
-        t = _t(); po = MagicMock(); po.tenant_id = t.id; po.status = 'received'
+        t = _t()
+        supplier = Supplier.all_objects.create(tenant=t, name='Recebido')
+        po = PurchaseOrder.all_objects.create(
+            tenant=t,
+            supplier=supplier,
+            branch=_b(t),
+            status='received',
+        )
         with pytest.raises(CannotCancelPurchaseOrder):
             cancel_purchase_order(tenant=t, purchase_order=po, reason='x', idempotency_key='ck2')
 
@@ -974,8 +990,16 @@ class TestPurchasingServices:
             receive_purchase_order(tenant=t, purchase_order=po, items=[], idempotency_key='rk1')
 
     def test_receive_not_approved(self):
+        from purchasing.models import PurchaseOrder, Supplier
         from purchasing.services import ReceiptWithoutApprovedOrder, receive_purchase_order
-        t = _t(); po = MagicMock(); po.tenant_id = t.id; po.status = 'draft'
+        t = _t()
+        supplier = Supplier.all_objects.create(tenant=t, name='Rascunho')
+        po = PurchaseOrder.all_objects.create(
+            tenant=t,
+            supplier=supplier,
+            branch=_b(t),
+            status='draft',
+        )
         with pytest.raises(ReceiptWithoutApprovedOrder):
             receive_purchase_order(tenant=t, purchase_order=po, items=[], idempotency_key='rk2')
 

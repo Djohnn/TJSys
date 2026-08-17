@@ -49,7 +49,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 7 | A detalhar | Integração fiscal por provider |
 | 8 | A detalhar | Piloto, observabilidade e hardening |
 | 9 | Concluída e reconciliada em 2026-08-17 | Devoluções, cancelamentos e estornos; gates atuais comprovados sobre a linha da master |
-| 10 | A detalhar | Compras, recebimento e contas a pagar |
+| 10 | Concluída e reconciliada em 2026-08-17 | Compras, recebimento e contas a pagar; integridade e gates focais comprovados sobre a linha da master |
 | 11 | A detalhar | Financeiro, fluxo de caixa e relatórios |
 | 12 | A detalhar | Pessoas, clientes e parceiros |
 | 13 | Concluída | Pagamentos integrados e conciliação |

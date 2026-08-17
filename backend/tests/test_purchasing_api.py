@@ -306,6 +306,152 @@ class TestPurchaseOrderAPI:
         )
         assert resp.status_code == 400
 
+    def test_approved_purchase_order_cannot_be_updated(self, api_context):
+        """Given an approved order, when patched, then preserve its immutable snapshot."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key='immutable-update',
+        )
+
+        response = ctx['client'].patch(
+            f'/api/v1/purchasing/orders/{po.id}/',
+            {'notes': 'mutated'},
+            content_type='application/json',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        po.refresh_from_db()
+        assert po.notes == ''
+
+    def test_approved_purchase_order_cannot_be_deleted(self, api_context):
+        """Given an approved order, when deleted, then preserve its audit history."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key='immutable-delete',
+        )
+
+        response = ctx['client'].delete(
+            f'/api/v1/purchasing/orders/{po.id}/',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        assert PurchaseOrder.all_objects.filter(pk=po.id).exists()
+
+    def test_receive_requires_non_empty_items(self, api_context):
+        """Given an approved order, when receipt items are empty, then return Problem Details."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key='empty-api-approve',
+        )
+
+        response = ctx['client'].post(
+            f'/api/v1/purchasing/orders/{po.id}/receive/',
+            {'items': []},
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY='empty-api-receive',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        assert response.json()['type'].endswith('/invalid_receipt')
+        assert response['Content-Type'].startswith('application/problem+json')
+
+    @pytest.mark.parametrize(
+        'item_payload',
+        [
+            {'quantity_received': 'not-a-number'},
+            {'quantity_received': '1', 'unit_cost': '-1'},
+        ],
+    )
+    def test_receive_rejects_invalid_decimals_as_problem_details(
+        self,
+        api_context,
+        item_payload,
+    ):
+        """Given invalid receipt decimals, when posted, then return 400 instead of 500."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        item = PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key=f'invalid-{po.id}',
+        )
+
+        response = ctx['client'].post(
+            f'/api/v1/purchasing/orders/{po.id}/receive/',
+            {'items': [{'purchase_order_item_id': str(item.id), **item_payload}]},
+            content_type='application/json',
+            HTTP_IDEMPOTENCY_KEY=f'invalid-receipt-{po.id}',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        assert response.json()['type'].endswith('/invalid_receipt')
+        assert response['Content-Type'].startswith('application/problem+json')
+
 
 @pytest.mark.django_db
 class TestPurchaseOrderItemAPI:
@@ -354,6 +500,71 @@ class TestPurchaseOrderItemAPI:
         )
         assert resp.status_code == 200
         assert len(resp.json()['results']) == 1
+
+    def test_approved_purchase_order_item_cannot_be_deleted(self, api_context):
+        """Given an approved order item, when deleted, then preserve the immutable snapshot."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        item = PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key='immutable-item-delete',
+        )
+
+        response = ctx['client'].delete(
+            f'/api/v1/purchase-order-items/{item.id}/',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        assert PurchaseOrderItem.all_objects.filter(pk=item.id).exists()
+
+    def test_approved_purchase_order_item_cannot_be_updated(self, api_context):
+        """Given an approved order item, when patched, then preserve its snapshot."""
+        ctx = api_context
+        po = PurchaseOrder.all_objects.create(
+            tenant=ctx['tenant'],
+            supplier=ctx['supplier'],
+            branch=ctx['branch'],
+        )
+        item = PurchaseOrderItem.all_objects.create(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            product=ctx['product'],
+            unit=ctx['unit'],
+            quantity=Decimal('1'),
+            unit_cost=Decimal('10'),
+            factor=Decimal('1'),
+        )
+        approve_purchase_order(
+            tenant=ctx['tenant'],
+            purchase_order=po,
+            idempotency_key='immutable-item-update',
+        )
+
+        response = ctx['client'].patch(
+            f'/api/v1/purchase-order-items/{item.id}/',
+            {'quantity': '2'},
+            content_type='application/json',
+            **_h({}, ctx),
+        )
+
+        assert response.status_code == 400
+        item.refresh_from_db()
+        assert item.quantity == Decimal('1')
 
 
 @pytest.mark.django_db
