@@ -70,6 +70,17 @@ Gate backend global após formatação e tipagem:
 1913 passed in 717.29s (0:11:57)
 ```
 
+Validação final após merge na `master` (`0e2b1ec`):
+
+```text
+1913 passed in 672.34s (0:11:12)
+All checks passed!
+321 files already formatted
+Success: no issues found in 320 source files
+No changes detected
+System check identified no issues (0 silenced).
+```
+
 Django e migrations com o papel documentado de migration:
 
 ```text
@@ -84,6 +95,8 @@ System check identified no issues (0 silenced).
 - `f17bd10` — reconciliação de catálogo, estoque e fiscal;
 - `d4e966c` — papel PostgreSQL de testes restrito;
 - `e69a325` — Ruff, formatter e mypy globais.
+- `745c76a` — relatório e rastreabilidade dos gates globais;
+- `0e2b1ec` — merge do hardening validado na `master`.
 
 ## Limites
 
