@@ -61,15 +61,12 @@ describe('AppShell', () => {
     const nav = await screen.findByTestId('main-navigation')
     expect(nav).toBeInTheDocument()
 
-    const links = nav.querySelectorAll('a')
-    const linkTexts = Array.from(links).map((l) => l.textContent)
-    expect(linkTexts).toContain('Início')
-    expect(linkTexts).toContain('Catálogo')
-    expect(linkTexts).toContain('Estoque')
-    expect(linkTexts).toContain('Vendas')
-    expect(linkTexts).toContain('Financeiro')
-    expect(linkTexts).toContain('Relatórios')
-    expect(linkTexts).toContain('Administração')
+    for (const label of [
+      'Início', 'Catálogo', 'Estoque', 'Financeiro', 'Relatórios', 'Administração',
+    ]) {
+      expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
+    }
+    expect(within(nav).getByRole('button', { name: 'Vendas' })).toBeInTheDocument()
   })
 
   it('shows the complete contextual catalog navigation', async () => {
@@ -91,11 +88,74 @@ describe('AppShell', () => {
 
     const trigger = await screen.findByRole('button', { name: /abrir menu/i })
     await user.click(trigger)
-    expect(screen.getByTestId('mobile-navigation-drawer')).toBeInTheDocument()
+    const drawer = screen.getByTestId('mobile-navigation-drawer')
+    const dialog = within(drawer).getByRole('dialog', { name: 'Menu principal' })
+    const closeButton = within(dialog).getByRole('button', { name: 'Fechar menu' })
+    expect(closeButton).toHaveFocus()
+
+    const drawerLinks = within(dialog).getAllByRole('link')
+    const lastLink = drawerLinks.at(-1)
+    expect(lastLink).toBeDefined()
+    lastLink?.focus()
+    await user.tab()
+    expect(closeButton).toHaveFocus()
+
+    await user.tab({ shift: true })
+    expect(lastLink).toHaveFocus()
 
     await user.keyboard('{Escape}')
     expect(screen.queryByTestId('mobile-navigation-drawer')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
+  })
+
+  it('fecha o flyout com Escape e não navega para item planned', async () => {
+    const user = userEvent.setup()
+    renderShell()
+    const trigger = screen.getByRole('button', { name: 'Vendas' })
+    await user.click(trigger)
+    expect(screen.getByRole('menu', { name: 'Vendas' })).toBeVisible()
+
+    // Contracto: item planned (ex.: Serviços no flyout Vendas) NÃO navega.
+    // No HTML de referência, Serviços é um <button> dentro do flyout, não um link
+    // com href/rota. Esta assertiva falha em RED (flyout não implementado) e é o
+    // comportamento a entregar na Task 2: planned não dispara navigate.
+    const flyout = screen.getByRole('menu', { name: 'Vendas' })
+    expect(within(flyout).getByRole('menuitem', { name: 'Pedidos de Venda' }))
+      .toHaveAttribute('href', '/sales')
+    expect(within(flyout).getByRole('menuitem', { name: 'Serviços' })).toBeInTheDocument()
+    expect(within(flyout).getByRole('menuitem', { name: 'Serviços' }).closest('a')).toBeNull()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu', { name: 'Vendas' })).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('fecha o flyout ao clicar fora sem roubar o foco do destino', async () => {
+    const user = userEvent.setup()
+    renderShell()
+
+    await user.click(screen.getByRole('button', { name: 'Vendas' }))
+    expect(screen.getByRole('menu', { name: 'Vendas' })).toBeVisible()
+
+    const logout = screen.getByRole('button', { name: /sair/i })
+    await user.click(logout)
+
+    expect(screen.queryByRole('menu', { name: 'Vendas' })).not.toBeInTheDocument()
+    expect(logout).toHaveFocus()
+  })
+
+  it('abre um único flyout de Vendas dentro do drawer móvel', async () => {
+    const user = userEvent.setup()
+    renderShell()
+
+    await user.click(screen.getByRole('button', { name: /abrir menu/i }))
+    const mobileNavigation = screen.getByRole('navigation', { name: 'Navegação móvel' })
+    const mobileSalesTrigger = within(mobileNavigation).getByRole('button', { name: 'Vendas' })
+
+    await user.click(mobileSalesTrigger)
+
+    expect(within(mobileNavigation).getByRole('menu', { name: 'Vendas' })).toBeVisible()
+    expect(screen.getAllByRole('menu', { name: 'Vendas' })).toHaveLength(1)
   })
 
   it('highlights active route', async () => {

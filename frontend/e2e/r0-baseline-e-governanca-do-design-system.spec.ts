@@ -1,12 +1,13 @@
-import { test, expect } from '@playwright/test'
+import { expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { openAuthenticatedShell, test } from './fixtures'
 
 test.describe('R0 - Baseline e Governança do Design System', () => {
   test('r0 visual and accessibility contract', async ({ page }) => {
-    await page.goto('/')
-    await expect(page.locator('body')).toBeVisible()
+    // Given an authenticated user on the approved R0-R2 shell.
+    await openAuthenticatedShell(page)
 
-    // Visual regression: compare against baseline
+    // Then the canonical visual baseline and WCAG gate remain stable.
     await expect(page.locator('body')).toHaveScreenshot('r0-baseline-e-governanca-do-design-system.png')
 
     // Accessibility check

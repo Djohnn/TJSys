@@ -87,7 +87,7 @@ jobs:
 
       - name: Run Playwright E2E
         working-directory: ./frontend
-        run: npx playwright test --reporter=html,json
+        run: npx playwright test --project=chromium --retries=0 --reporter=html,json
 
       - name: Check Design Tokens
         working-directory: ./frontend

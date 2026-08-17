@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
-import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationItem } from './navigationModel'
+import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationIcon, type NavigationItem } from './navigationModel'
 
-function ModuleIcon({ type }: { type: NavigationItem['icon'] }): ReactNode {
-  const paths: Record<NavigationItem['icon'], string> = {
+function ModuleIcon({ type }: { type: NavigationIcon }): ReactNode {
+  const paths: Record<NavigationIcon, string> = {
     home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
     star: 'm12 3 2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.35l-5.4 2.84 1.03-6.02L3.26 9.35l6.04-.88z',
     catalog: 'M4 5.5h16v13H4zM8 5.5v13M16 5.5v13',
@@ -18,29 +18,133 @@ function ModuleIcon({ type }: { type: NavigationItem['icon'] }): ReactNode {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6"><path strokeLinecap="round" strokeLinejoin="round" d={paths[type]} /></svg>
 }
 
-function ModuleRail({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): ReactNode {
+interface FlyoutProps {
+  item: NavigationItem
+  flyoutId: string
+  openFlyout: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
+}
+
+function FlyoutTrigger({ item, flyoutId, openFlyout, onToggleFlyout, onFlyoutClose }: FlyoutProps): ReactNode {
+  const isOpen = openFlyout === flyoutId
   return (
-    <div data-testid="module-navigation" className="flex w-[88px] shrink-0 flex-col bg-[var(--shell-ink)] text-white">
+    <div data-flyout-root data-flyout-id={flyoutId}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={(event) => {
+          if (isOpen) onFlyoutClose?.()
+          else onToggleFlyout?.(flyoutId, event.currentTarget)
+        }}
+        className={`group flex min-h-[58px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors ${isOpen ? 'bg-[var(--shell-active)] text-white ring-1 ring-white/25' : 'text-blue-100/75 hover:bg-white/10 hover:text-white'}`}>
+        <ModuleIcon type={item.icon ?? 'sales'} />
+        <span className="text-[10px] font-semibold leading-tight">{item.label}</span>
+      </button>
+    </div>
+  )
+}
+
+function FlyoutMenu({ item, top, onFlyoutClose, onNavigate }: {
+  item: NavigationItem
+  top: number
+  onFlyoutClose?: () => void
+  onNavigate?: () => void
+}): ReactNode {
+  return (
+    <div data-flyout-root role="menu" aria-label={item.label} data-testid={`flyout-${item.id}`} style={{ top }} className="absolute left-full z-50 ml-1 w-56 rounded-xl border border-white/10 bg-[var(--shell-ink)] p-2 shadow-2xl">
+      {item.children?.map((child) => {
+        if (child.status === 'planned' || !child.route) {
+          return (
+            <span key={child.id} role="menuitem" aria-disabled="true" className="flex min-h-11 cursor-default items-center rounded-lg px-4 text-sm font-semibold text-blue-100/45">
+              {child.label}
+            </span>
+          )
+        }
+        return (
+          <Link key={child.id} role="menuitem" to={child.route} onClick={onNavigate ?? onFlyoutClose} className="flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-blue-50/90 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            {child.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+function ModuleRail({ pathname, flyoutScope, openFlyout, onToggleFlyout, onFlyoutClose, onNavigate }: {
+  pathname: string
+  flyoutScope: 'desktop' | 'drawer'
+  openFlyout: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
+  onNavigate?: () => void
+}): ReactNode {
+  const railRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [flyoutTop, setFlyoutTop] = useState<number | null>(null)
+  const openItem = MODULE_ITEMS.find(
+    (item) => item.children && openFlyout === `${flyoutScope}:${item.id}`,
+  )
+
+  useLayoutEffect(() => {
+    if (!openItem) {
+      setFlyoutTop(null)
+      return
+    }
+    const updatePosition = () => {
+      const rail = railRef.current
+      const trigger = rail?.querySelector<HTMLElement>(`[data-flyout-id="${flyoutScope}:${openItem.id}"]`)
+      if (!rail || !trigger) return
+      setFlyoutTop(trigger.getBoundingClientRect().top - rail.getBoundingClientRect().top)
+    }
+    updatePosition()
+    const scroller = scrollerRef.current
+    window.addEventListener('resize', updatePosition)
+    scroller?.addEventListener('scroll', updatePosition)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      scroller?.removeEventListener('scroll', updatePosition)
+    }
+  }, [flyoutScope, openItem])
+
+  return (
+    <div ref={railRef} data-testid="module-navigation" className="relative flex w-[88px] shrink-0 flex-col bg-[var(--shell-ink)] text-white">
       <h1 aria-label="Zyrp ERP" className="flex h-[78px] flex-col items-center justify-center border-b border-white/10">
         <span className="text-lg font-black tracking-tight">Zyrp </span>
         <span className="text-[9px] font-semibold tracking-[0.28em] text-cyan-300">ERP</span>
       </h1>
-      <div className="shell-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-3">
+      <div ref={scrollerRef} className="shell-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-3">
         {MODULE_ITEMS.map((item) => {
+          if (item.children) {
+            return (
+              <FlyoutTrigger
+                key={item.id}
+                item={item}
+                flyoutId={`${flyoutScope}:${item.id}`}
+                openFlyout={openFlyout}
+                onToggleFlyout={onToggleFlyout}
+                onFlyoutClose={onFlyoutClose}
+              />
+            )
+          }
           const active = item.id === 'catalog'
             ? pathname.startsWith('/catalog')
             : item.id === 'favorites'
               ? false
-              : isRouteActive(pathname, item.to)
+              : isRouteActive(pathname, item.route ?? '')
           return (
-            <Link key={item.id} to={item.to} onClick={onNavigate} aria-current={active ? 'page' : undefined}
+            <Link key={item.id} to={item.route ?? '#'} onClick={onNavigate} aria-current={active ? 'page' : undefined}
               className={`group flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-center transition-colors ${active ? 'bg-[var(--shell-active)] text-white ring-1 ring-white/25' : 'text-blue-100/75 hover:bg-white/10 hover:text-white'}`}>
-              <ModuleIcon type={item.icon} />
+              <ModuleIcon type={item.icon ?? 'home'} />
               <span className="text-[10px] font-semibold leading-tight">{item.label}</span>
             </Link>
           )
         })}
       </div>
+      {openItem && flyoutTop !== null && (
+        <FlyoutMenu item={openItem} top={flyoutTop} onFlyoutClose={onFlyoutClose} onNavigate={onNavigate} />
+      )}
     </div>
   )
 }
@@ -72,12 +176,15 @@ function CatalogContext({ pathname, onNavigate }: { pathname: string; onNavigate
 interface NavigationProps {
   variant?: 'desktop' | 'drawer'
   onNavigate?: () => void
+  openFlyout?: string | null
+  onToggleFlyout?: (id: string, trigger: HTMLElement) => void
+  onFlyoutClose?: () => void
 }
 
-export default function Navigation({ variant = 'desktop', onNavigate }: NavigationProps): ReactNode {
+export default function Navigation({ variant = 'desktop', onNavigate, openFlyout = null, onToggleFlyout, onFlyoutClose }: NavigationProps): ReactNode {
   const { pathname } = useLocation()
   const className = variant === 'desktop'
     ? 'hidden min-h-screen shrink-0 lg:flex'
     : 'flex h-full min-h-0 w-full shrink-0'
-  return <nav data-testid={variant === 'desktop' ? 'main-navigation' : undefined} aria-label={variant === 'desktop' ? 'Navegação principal' : 'Navegação móvel'} className={className}><ModuleRail pathname={pathname} onNavigate={onNavigate} /><CatalogContext pathname={pathname} onNavigate={onNavigate} /></nav>
+  return <nav data-testid={variant === 'desktop' ? 'main-navigation' : undefined} aria-label={variant === 'desktop' ? 'Navegação principal' : 'Navegação móvel'} className={className}><ModuleRail pathname={pathname} flyoutScope={variant} openFlyout={openFlyout} onToggleFlyout={onToggleFlyout} onFlyoutClose={onFlyoutClose} onNavigate={onNavigate} /><CatalogContext pathname={pathname} onNavigate={onNavigate} /></nav>
 }
