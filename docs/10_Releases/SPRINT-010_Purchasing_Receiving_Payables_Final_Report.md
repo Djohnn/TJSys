@@ -1,13 +1,45 @@
 # Sprint 10 — Compras, Recebimento e Contas a Pagar — Relatório Final
 
-**Data de conclusão:** 2026-07-21  
-**Branch:** `feat/on-demand-fiscal`
+**Data de conclusão:** 2026-07-21
+
+**Branch histórica:** `feat/on-demand-fiscal`
+
+**Reconciliação com a master:** 2026-08-17, commit `df39d2a`
 
 ## Resumo
 
 Sprint concluída com o fluxo fornecedor → pedido de compra → aprovação → recebimento
 parcial ou total → entrada de estoque → conta a pagar. Operações transacionais usam
 idempotência, escopo por tenant, auditoria e eventos Outbox.
+
+### Revalidação da consolidação — 2026-08-17
+
+A remediação `6f7a783` foi reconciliada sobre a `master` pós-R9 sem conflitos e
+sem trazer mudanças fora de `purchasing`, `financial`, migrations, testes e
+documentação da R10. Três testes legados usavam `MagicMock` como pedido de compra
+e deixaram de representar o contrato real depois do lock/reload obrigatório; os
+testes foram convertidos para pedidos persistidos, mantendo a proteção concorrente
+do serviço.
+
+Evidência fresca:
+
+```text
+Baseline antes da R10: 23 passed in 38.85s
+Matriz R10 integrada: 84 passed in 64.36s
+Matriz final com compatibilidade legada: 87 passed in 29.99s
+Ruff focal: All checks passed!
+mypy focal: Success: no issues found in 9 source files
+Django check: System check identified no issues (0 silenced).
+Migrations: No changes detected
+```
+
+A suíte backend global encontrou `1849 passed, 64 failed in 1118.32s` antes do
+alinhamento dos três testes legados da R10. A reexecução exclusiva dos failures
+confirmou os três casos corrigidos e deixou `61 failed, 398 deselected in 43.80s`.
+As 61 falhas residuais estão fora do diff da R10 e permanecem registradas para a
+etapa separada de saneamento global. Da mesma forma, os gates globais registram
+`474` erros Ruff e `29` erros mypy em catálogo e PDV; os gates focais da R10 estão
+limpos, mas esses resultados globais não são declarados como sucesso.
 
 ## Entregas
 
