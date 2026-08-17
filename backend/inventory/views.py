@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -39,7 +40,6 @@ from inventory.services import (
     InsufficientStock,
     InvalidLotError,
     ProductStockControlError,
-    ProductStockControlResult,
     create_adjustment,
     create_issue,
     create_receipt,
@@ -629,7 +629,11 @@ class ProductStockControlDeactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
 
@@ -684,7 +688,11 @@ class ProductStockControlReactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
         initial_stocks = data.get('initial_stocks', [])

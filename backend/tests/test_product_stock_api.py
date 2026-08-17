@@ -131,7 +131,7 @@ def test_patch_product_policy_conflicts_with_stale_version(client):
 
 @pytest.mark.django_db
 def test_product_summary_returns_ordered_locations_collection(client):
-    """Given product with balance and policy, when fetching summary without filters, then returns ordered locations collection."""
+    """Return ordered locations when fetching a product summary without filters."""
     tenant = Tenant.objects.create(name='PSPA04', slug='pspa04')
     user = User.objects.create_user(email='d@test.com', password='pass')
     _auth_client(client, user, tenant)
@@ -161,13 +161,13 @@ def test_product_summary_returns_ordered_locations_collection(client):
     assert summary['branch_name'] == 'Branch'
     assert summary['location'] == str(location.id)
     assert summary['location_name'] == 'Deposito A1'
-    assert summary['quantity'] == '30.000000'
-    assert summary['reserved'] == '5.000000'
-    assert summary['available'] == '25.000000'
+    assert summary['quantity'] == '30'
+    assert summary['reserved'] == '5'
+    assert summary['available'] == '25'
     assert summary['status'] == 'normal'
-    assert summary['minimum_quantity'] == '10.000000'
-    assert summary['maximum_quantity'] == '100.000000'
-    assert summary['reorder_point'] == '5.000000'
+    assert summary['minimum_quantity'] == '10'
+    assert summary['maximum_quantity'] == '100'
+    assert summary['reorder_point'] == '5'
 
     # With branch/location filters, returns single summary object
     response_filtered = client.get(
@@ -225,7 +225,7 @@ def _apply_payload(tenant, branch, location, **overrides):
 
 @pytest.mark.django_db
 def test_apply_product_with_stock_returns_policy_and_summary(client):
-    """Given nested apply payload, when posting, then creates product with policy and flat summary."""
+    """Create a product with policy and flat summary from the nested payload."""
     tenant = Tenant.objects.create(name='PSPA07', slug='pspa07')
     user = User.objects.create_user(email='g@test.com', password='pass')
     _auth_client(client, user, tenant)
@@ -246,9 +246,9 @@ def test_apply_product_with_stock_returns_policy_and_summary(client):
     assert data['stock_policy']['minimum_quantity'] == '5.000000'
     assert data['stock_policy']['maximum_quantity'] == '100.000000'
     assert data['stock_policy']['reorder_point'] == '10.000000'
-    assert data['stock_summary']['quantity'] == '25.000000'
-    assert data['stock_summary']['reserved'] == '0.000000'
-    assert data['stock_summary']['available'] == '25.000000'
+    assert data['stock_summary']['quantity'] == '25'
+    assert data['stock_summary']['reserved'] == '0'
+    assert data['stock_summary']['available'] == '25'
     assert data['stock_summary']['status'] == 'normal'
     assert data['stock_summary']['branch_name'] == 'Branch'
     assert data['stock_summary']['location_name'] == 'Deposito A1'

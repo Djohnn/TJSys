@@ -170,7 +170,7 @@ def test_negative_balance_is_allowed_only_by_active_policy():
 
 @pytest.mark.django_db
 def test_policy_unique_per_tenant_product_branch_location():
-    """Given existing policy for (product, branch, location), then duplicate raises IntegrityError."""
+    """Reject a duplicate policy for the same product, branch, and location."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP07')
     _in_tenant(tenant, lambda: _create_policy(tenant, product, branch, location))
     with pytest.raises(Exception):
@@ -186,8 +186,12 @@ def test_backfill_migration_creates_zero_limit_policy_per_location():
 
     executor = MigrationExecutor(connection)
     executor.loader.build_graph()
-    executor.migrate([('inventory', '0006_add_product_stock_policy')])
-    apps = executor.loader.project_state([('inventory', '0006_add_product_stock_policy')]).apps
+    migration_targets = [
+        ('catalog', '0016_product_subcategory'),
+        ('inventory', '0006_add_product_stock_policy'),
+    ]
+    executor.migrate(migration_targets)
+    apps = executor.loader.project_state(migration_targets).apps
 
     Tenant = apps.get_model('tenancy', 'Tenant')
     Company = apps.get_model('tenancy', 'Company')
@@ -215,6 +219,7 @@ def test_backfill_migration_creates_zero_limit_policy_per_location():
         tenant=tenant,
         sku='BACKFILL-1',
         name='Backfill Product',
+        subcategory='',
         tracks_inventory=True,
         base_unit=unit,
     )
@@ -228,8 +233,12 @@ def test_backfill_migration_creates_zero_limit_policy_per_location():
     reset_current_tenant_id(token)
 
     executor.loader.build_graph()
-    executor.migrate([('inventory', '0007_backfill_product_stock_policy')])
-    apps = executor.loader.project_state([('inventory', '0007_backfill_product_stock_policy')]).apps
+    migration_targets = [
+        ('catalog', '0016_product_subcategory'),
+        ('inventory', '0007_backfill_product_stock_policy'),
+    ]
+    executor.migrate(migration_targets)
+    apps = executor.loader.project_state(migration_targets).apps
 
     Policy = apps.get_model('inventory', 'ProductStockPolicy')
     Balance = apps.get_model('inventory', 'StockBalance')
@@ -250,6 +259,8 @@ def test_backfill_migration_creates_zero_limit_policy_per_location():
     assert StockMovement.objects.count() == movements_before
     assert Balance.objects.filter(tenant_id=tenant.id).count() == 2
     reset_current_tenant_id(token)
+    executor.loader.build_graph()
+    executor.migrate(executor.loader.graph.leaf_nodes())
 
 
 @pytest.mark.django_db(transaction=True)
@@ -260,8 +271,12 @@ def test_backfill_migration_skips_products_without_inventory_control():
 
     executor = MigrationExecutor(connection)
     executor.loader.build_graph()
-    executor.migrate([('inventory', '0006_add_product_stock_policy')])
-    apps = executor.loader.project_state([('inventory', '0006_add_product_stock_policy')]).apps
+    migration_targets = [
+        ('catalog', '0016_product_subcategory'),
+        ('inventory', '0006_add_product_stock_policy'),
+    ]
+    executor.migrate(migration_targets)
+    apps = executor.loader.project_state(migration_targets).apps
 
     Tenant = apps.get_model('tenancy', 'Tenant')
     Company = apps.get_model('tenancy', 'Company')
@@ -285,6 +300,7 @@ def test_backfill_migration_skips_products_without_inventory_control():
         tenant=tenant,
         sku='SVC-BACKFILL',
         name='Service Backfill',
+        subcategory='',
         product_kind='servico',
         tracks_inventory=False,
         base_unit=unit,
@@ -295,8 +311,14 @@ def test_backfill_migration_skips_products_without_inventory_control():
     reset_current_tenant_id(token)
 
     executor.loader.build_graph()
-    executor.migrate([('inventory', '0007_backfill_product_stock_policy')])
-    apps = executor.loader.project_state([('inventory', '0007_backfill_product_stock_policy')]).apps
+    migration_targets = [
+        ('catalog', '0016_product_subcategory'),
+        ('inventory', '0007_backfill_product_stock_policy'),
+    ]
+    executor.migrate(migration_targets)
+    apps = executor.loader.project_state(migration_targets).apps
 
     Policy = apps.get_model('inventory', 'ProductStockPolicy')
     assert Policy.objects.filter(tenant_id=tenant.id).count() == 0
+    executor.loader.build_graph()
+    executor.migrate(executor.loader.graph.leaf_nodes())
