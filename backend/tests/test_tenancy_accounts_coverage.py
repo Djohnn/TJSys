@@ -1,4 +1,4 @@
-"""High-coverage tests for tenancy/views_access.py, accounts/views/mfa.py, accounts/services/mfa.py."""
+"""High-coverage tests for tenancy access and accounts MFA services and views."""
 
 import re
 import uuid
@@ -42,7 +42,10 @@ def _make_admin(client, tenant, email=None):
     user = User.objects.create_user(email=email, password='test-password')
     TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
     MFADevice.objects.create(
-        user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+        user=user,
+        tenant=tenant,
+        method='totp',
+        verified_at=timezone.now(),
     )
     client.force_login(user)
     session = client.session
@@ -84,6 +87,7 @@ def _run_in_tenant(tenant, callback):
     from django.db import connection
 
     from tenancy.context import reset_current_tenant_id, set_current_tenant_id
+
     token = set_current_tenant_id(tenant.id)
     try:
         with connection.cursor() as cursor:
@@ -104,14 +108,16 @@ def _clear_cache():
 
 
 class TestInvitationListCreateView:
-
     @pytest.mark.django_db
     def test_list_invitations(self, client):
         tenant = Tenant.objects.create(name='ILC List', slug=f'ilc-list-{_uid()}')
         admin = _make_admin(client, tenant)
         inv = Invitation.objects.create(
-            tenant=tenant, invited_by=admin, email='someone@test.local',
-            role='operator', token_digest='abc',
+            tenant=tenant,
+            invited_by=admin,
+            email='someone@test.local',
+            role='operator',
+            token_digest='abc',
             expires_at=timezone.now() + timezone.timedelta(days=7),
         )
         resp = client.get('/api/v1/invitations/', HTTP_X_TENANT_ID=str(tenant.id))
@@ -150,8 +156,11 @@ class TestInvitationListCreateView:
         t2 = Tenant.objects.create(name='ILC T2', slug=f'ilc-t2-{_uid()}')
         admin1 = _make_admin(client, t1)
         Invitation.objects.create(
-            tenant=t2, invited_by=admin1, email='other@test.local',
-            role='operator', token_digest='x',
+            tenant=t2,
+            invited_by=admin1,
+            email='other@test.local',
+            role='operator',
+            token_digest='x',
             expires_at=timezone.now() + timezone.timedelta(days=7),
         )
         resp = client.get('/api/v1/invitations/', HTTP_X_TENANT_ID=str(t1.id))
@@ -180,13 +189,16 @@ class TestInvitationListCreateView:
 
 
 class TestInvitationAcceptView:
-
     @pytest.mark.django_db(transaction=True)
     def test_accept_valid_token(self, client):
         tenant = Tenant.objects.create(name='IA Valid', slug=f'ia-valid-{_uid()}')
-        admin = User.objects.create_user(email=f'ia-admin-{_uid()}@test.local', password='test-password')
+        admin = User.objects.create_user(
+            email=f'ia-admin-{_uid()}@test.local', password='test-password'
+        )
         TenantMembership.objects.create(user=admin, tenant=tenant, role='admin')
-        invitee = User.objects.create_user(email=f'ia-invitee-{_uid()}@test.local', password='test-password')
+        invitee = User.objects.create_user(
+            email=f'ia-invitee-{_uid()}@test.local', password='test-password'
+        )
         client.force_login(admin)
         session = client.session
         session['mfa_tenant_id'] = str(tenant.id)
@@ -208,12 +220,17 @@ class TestInvitationAcceptView:
         )
         assert resp.status_code == 204
         assert TenantMembership.objects.filter(
-            user=invitee, tenant=tenant, role='operator', is_active=True,
+            user=invitee,
+            tenant=tenant,
+            role='operator',
+            is_active=True,
         ).exists()
 
     @pytest.mark.django_db
     def test_accept_invalid_token(self, client):
-        invitee = User.objects.create_user(email=f'ia-bad-{_uid()}@test.local', password='test-password')
+        invitee = User.objects.create_user(
+            email=f'ia-bad-{_uid()}@test.local', password='test-password'
+        )
         client.force_login(invitee)
         bad_token = f'{uuid.uuid4()}.badsecret'
         resp = client.post(
@@ -226,14 +243,16 @@ class TestInvitationAcceptView:
 
 
 class TestInvitationResendView:
-
     @pytest.mark.django_db
     def test_resend_invitation(self, client):
         tenant = Tenant.objects.create(name='IR Resend', slug=f'ir-resend-{_uid()}')
         admin = _make_admin(client, tenant)
         inv = Invitation.objects.create(
-            tenant=tenant, invited_by=admin, email='resend@test.local',
-            role='operator', token_digest='old-digest',
+            tenant=tenant,
+            invited_by=admin,
+            email='resend@test.local',
+            role='operator',
+            token_digest='old-digest',
             expires_at=timezone.now() + timezone.timedelta(days=7),
         )
         resp = client.post(
@@ -259,8 +278,11 @@ class TestInvitationResendView:
         tenant = Tenant.objects.create(name='IR 409', slug=f'ir-409-{_uid()}')
         admin = _make_admin(client, tenant)
         inv = Invitation.objects.create(
-            tenant=tenant, invited_by=admin, email='accepted@test.local',
-            role='operator', token_digest='x',
+            tenant=tenant,
+            invited_by=admin,
+            email='accepted@test.local',
+            role='operator',
+            token_digest='x',
             expires_at=timezone.now() + timezone.timedelta(days=7),
             accepted_at=timezone.now(),
         )
@@ -282,7 +304,6 @@ class TestInvitationResendView:
 
 
 class TestMembershipListView:
-
     @pytest.mark.django_db
     def test_list_members(self, client):
         tenant = Tenant.objects.create(name='ML List', slug=f'ml-list-{_uid()}')
@@ -302,7 +323,9 @@ class TestMembershipListView:
         t1 = Tenant.objects.create(name='ML T1', slug=f'ml-t1-{_uid()}')
         t2 = Tenant.objects.create(name='ML T2', slug=f'ml-t2-{_uid()}')
         _make_admin(client, t1)
-        other = User.objects.create_user(email=f'ml-other-{_uid()}@test.local', password='test-password')
+        other = User.objects.create_user(
+            email=f'ml-other-{_uid()}@test.local', password='test-password'
+        )
         TenantMembership.objects.create(user=other, tenant=t2, role='operator')
         resp = client.get('/api/v1/memberships/', HTTP_X_TENANT_ID=str(t1.id))
         assert resp.status_code == 200
@@ -311,12 +334,13 @@ class TestMembershipListView:
 
 
 class TestMembershipDetailView:
-
     @pytest.mark.django_db
     def test_update_role(self, client):
         tenant = Tenant.objects.create(name='MD Role', slug=f'md-role-{_uid()}')
         _make_admin(client, tenant)
-        member = User.objects.create_user(email=f'md-m-{_uid()}@test.local', password='test-password')
+        member = User.objects.create_user(
+            email=f'md-m-{_uid()}@test.local', password='test-password'
+        )
         membership = TenantMembership.objects.create(user=member, tenant=tenant, role='operator')
         resp = client.patch(
             f'/api/v1/memberships/{membership.id}/',
@@ -357,11 +381,20 @@ class TestMembershipDetailView:
     def test_update_with_valid_branches(self, client):
         tenant = Tenant.objects.create(name='MD Branches', slug=f'md-br-{_uid()}')
         _make_admin(client, tenant)
-        company = _run_in_tenant(tenant, lambda: Company.all_objects.create(tenant=tenant, name='MD Co'))
-        branch = _run_in_tenant(tenant, lambda: Branch.all_objects.create(
-            tenant=tenant, company=company, name='MD Br',
-        ))
-        member = User.objects.create_user(email=f'md-brm-{_uid()}@test.local', password='test-password')
+        company = _run_in_tenant(
+            tenant, lambda: Company.all_objects.create(tenant=tenant, name='MD Co')
+        )
+        branch = _run_in_tenant(
+            tenant,
+            lambda: Branch.all_objects.create(
+                tenant=tenant,
+                company=company,
+                name='MD Br',
+            ),
+        )
+        member = User.objects.create_user(
+            email=f'md-brm-{_uid()}@test.local', password='test-password'
+        )
         membership = TenantMembership.objects.create(user=member, tenant=tenant, role='operator')
         resp = client.patch(
             f'/api/v1/memberships/{membership.id}/',
@@ -377,13 +410,24 @@ class TestMembershipDetailView:
         tenant = Tenant.objects.create(name='MD BadBr', slug=f'md-bb-{_uid()}')
         _make_admin(client, tenant)
         other_tenant = Tenant.objects.create(name='MD Other', slug=f'md-other-{_uid()}')
-        other_co = _run_in_tenant(other_tenant, lambda: Company.all_objects.create(
-            tenant=other_tenant, name='Other Co',
-        ))
-        other_br = _run_in_tenant(other_tenant, lambda: Branch.all_objects.create(
-            tenant=other_tenant, company=other_co, name='Other Br',
-        ))
-        member = User.objects.create_user(email=f'md-bbm-{_uid()}@test.local', password='test-password')
+        other_co = _run_in_tenant(
+            other_tenant,
+            lambda: Company.all_objects.create(
+                tenant=other_tenant,
+                name='Other Co',
+            ),
+        )
+        other_br = _run_in_tenant(
+            other_tenant,
+            lambda: Branch.all_objects.create(
+                tenant=other_tenant,
+                company=other_co,
+                name='Other Br',
+            ),
+        )
+        member = User.objects.create_user(
+            email=f'md-bbm-{_uid()}@test.local', password='test-password'
+        )
         membership = TenantMembership.objects.create(user=member, tenant=tenant, role='operator')
         resp = client.patch(
             f'/api/v1/memberships/{membership.id}/',
@@ -397,7 +441,9 @@ class TestMembershipDetailView:
     def test_operator_gets_empty_queryset(self, client):
         tenant = Tenant.objects.create(name='MD Empty', slug=f'md-empty-{_uid()}')
         _make_operator(client, tenant)
-        member = User.objects.create_user(email=f'md-em-{_uid()}@test.local', password='test-password')
+        member = User.objects.create_user(
+            email=f'md-em-{_uid()}@test.local', password='test-password'
+        )
         membership = TenantMembership.objects.create(user=member, tenant=tenant, role='operator')
         resp = client.patch(
             f'/api/v1/memberships/{membership.id}/',
@@ -412,7 +458,9 @@ class TestMembershipDetailView:
         t1 = Tenant.objects.create(name='MD T1', slug=f'md-t1-{_uid()}')
         t2 = Tenant.objects.create(name='MD T2', slug=f'md-t2-{_uid()}')
         _make_admin(client, t1)
-        other = User.objects.create_user(email=f'md-t2m-{_uid()}@test.local', password='test-password')
+        other = User.objects.create_user(
+            email=f'md-t2m-{_uid()}@test.local', password='test-password'
+        )
         target = TenantMembership.objects.create(user=other, tenant=t2, role='operator')
         resp = client.patch(
             f'/api/v1/memberships/{target.id}/',
@@ -424,7 +472,6 @@ class TestMembershipDetailView:
 
 
 class TestMFAPolicyView:
-
     @pytest.mark.django_db
     def test_get_policy_creates_default(self, client):
         tenant = Tenant.objects.create(name='MFAP Get', slug=f'mfa-p-get-{_uid()}')
@@ -439,7 +486,10 @@ class TestMFAPolicyView:
         tenant = Tenant.objects.create(name='MFAP Patch', slug=f'mfa-p-patch-{_uid()}')
         admin = _make_admin(client, tenant)
         MFADevice.objects.create(
-            user=admin, tenant=tenant, method='email', verified_at=timezone.now(),
+            user=admin,
+            tenant=tenant,
+            method='email',
+            verified_at=timezone.now(),
         )
         resp = client.patch(
             '/api/v1/security/mfa-policy/',
@@ -482,7 +532,6 @@ class TestMFAPolicyView:
 
 
 class TestTOTPEnrollmentView:
-
     @pytest.mark.django_db
     def test_totp_enrollment(self, client):
         tenant = Tenant.objects.create(name='TE Enroll', slug=f'te-enroll-{_uid()}')
@@ -547,7 +596,6 @@ class TestTOTPEnrollmentView:
 
 
 class TestTOTPConfirmationView:
-
     @pytest.mark.django_db
     def test_totp_confirm_valid(self, client):
         tenant = Tenant.objects.create(name='TC Valid', slug=f'tc-valid-{_uid()}')
@@ -599,7 +647,6 @@ class TestTOTPConfirmationView:
 
 
 class TestEmailMFASendView:
-
     @pytest.mark.django_db(transaction=True)
     def test_email_mfa_send(self, client):
         tenant = Tenant.objects.create(name='EM Send', slug=f'em-send-{_uid()}')
@@ -665,7 +712,6 @@ class TestEmailMFASendView:
 
 
 class TestMFAChallengeView:
-
     @pytest.mark.django_db(transaction=True)
     def test_challenge_valid(self, client):
         tenant = Tenant.objects.create(name='MCH Valid', slug=f'mch-valid-{_uid()}')
@@ -714,14 +760,18 @@ class TestMFAChallengeView:
 
 
 class TestRecoveryRegenerateView:
-
     @pytest.mark.django_db
     def test_regenerate_codes(self, client):
         tenant = Tenant.objects.create(name='RR Gen', slug=f'rr-gen-{_uid()}')
-        user = User.objects.create_user(email=f'rr-gen-{_uid()}@test.local', password='test-password')
+        user = User.objects.create_user(
+            email=f'rr-gen-{_uid()}@test.local', password='test-password'
+        )
         TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         client.force_login(user)
         session = client.session
@@ -737,7 +787,9 @@ class TestRecoveryRegenerateView:
     @pytest.mark.django_db
     def test_regenerate_codes_no_device(self, client):
         tenant = Tenant.objects.create(name='RR NoDev', slug=f'rr-nodev-{_uid()}')
-        user = User.objects.create_user(email=f'rr-nodev-{_uid()}@test.local', password='test-password')
+        user = User.objects.create_user(
+            email=f'rr-nodev-{_uid()}@test.local', password='test-password'
+        )
         TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
         client.force_login(user)
         session = client.session
@@ -750,13 +802,15 @@ class TestRecoveryRegenerateView:
 
 
 class TestRecoveryVerifyView:
-
     @pytest.mark.django_db(transaction=True)
     def test_recovery_verify_valid(self, client):
         tenant = Tenant.objects.create(name='RV Valid', slug=f'rv-valid-{_uid()}')
         user, tenant = _setup_pre_mfa(client, tenant)
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         codes = regenerate_recovery_codes(device=device)
         resp = client.post(
@@ -775,7 +829,10 @@ class TestRecoveryVerifyView:
         TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
         TenantMFAPolicy.objects.create(tenant=tenant)
         MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         client.force_login(user)
         client.session['pre_mfa_user_id'] = str(user.id)
@@ -790,7 +847,7 @@ class TestRecoveryVerifyView:
 
     @pytest.mark.django_db
     def test_recovery_verify_no_membership(self, client):
-        tenant = Tenant.objects.create(name='RV NoMem', slug=f'rv-nomem-{_uid()}')
+        Tenant.objects.create(name='RV NoMem', slug=f'rv-nomem-{_uid()}')
         user = User.objects.create_user(email=f'rv-nm-{_uid()}@test.local', password='pass123')
         user.email_verified_at = timezone.now()
         user.save(update_fields=['email_verified_at'])
@@ -812,7 +869,6 @@ class TestRecoveryVerifyView:
 
 
 class TestBeginTOTPEnrollment:
-
     @pytest.mark.django_db
     def test_happy_path(self):
         user = User.objects.create_user(email=f'svc-totp-{_uid()}@test.local', password='test')
@@ -834,7 +890,6 @@ class TestBeginTOTPEnrollment:
 
 
 class TestConfirmTOTP:
-
     @pytest.mark.django_db
     def test_valid_code(self):
         user = User.objects.create_user(email=f'svc-ct1-{_uid()}@test.local', password='test')
@@ -865,7 +920,6 @@ class TestConfirmTOTP:
 
 
 class TestIssueEmailChallenge:
-
     @pytest.mark.django_db
     def test_happy_path(self):
         user = User.objects.create_user(email=f'svc-ec1-{_uid()}@test.local', password='test')
@@ -883,7 +937,6 @@ class TestIssueEmailChallenge:
 
 
 class TestVerifyEmailChallenge:
-
     @pytest.mark.django_db
     def test_valid_code(self):
         user = User.objects.create_user(email=f'svc-ev1-{_uid()}@test.local', password='test')
@@ -923,13 +976,15 @@ class TestVerifyEmailChallenge:
 
 
 class TestRegenerateRecoveryCodes:
-
     @pytest.mark.django_db
     def test_happy_path(self):
         user = User.objects.create_user(email=f'svc-rr1-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc RR1', slug=f'svc-rr1-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         codes = regenerate_recovery_codes(device=device)
         assert len(codes) == 10
@@ -940,7 +995,10 @@ class TestRegenerateRecoveryCodes:
         user = User.objects.create_user(email=f'svc-rr2-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc RR2', slug=f'svc-rr2-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         regenerate_recovery_codes(device=device, count=3)
         assert RecoveryCode.objects.filter(device=device).count() == 3
@@ -949,13 +1007,15 @@ class TestRegenerateRecoveryCodes:
 
 
 class TestConsumeRecoveryCode:
-
     @pytest.mark.django_db
     def test_valid_code(self):
         user = User.objects.create_user(email=f'svc-cr1-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc CR1', slug=f'svc-cr1-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         codes = regenerate_recovery_codes(device=device, count=1)
         assert consume_recovery_code(device=device, code=codes[0]) is True
@@ -965,7 +1025,10 @@ class TestConsumeRecoveryCode:
         user = User.objects.create_user(email=f'svc-cr2-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc CR2', slug=f'svc-cr2-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         regenerate_recovery_codes(device=device, count=1)
         assert consume_recovery_code(device=device, code='badcode') is False
@@ -975,7 +1038,10 @@ class TestConsumeRecoveryCode:
         user = User.objects.create_user(email=f'svc-cr3-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc CR3', slug=f'svc-cr3-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         codes = regenerate_recovery_codes(device=device, count=1)
         assert consume_recovery_code(device=device, code=codes[0]) is True
@@ -986,6 +1052,9 @@ class TestConsumeRecoveryCode:
         user = User.objects.create_user(email=f'svc-cr4-{_uid()}@test.local', password='test')
         tenant = Tenant.objects.create(name='Svc CR4', slug=f'svc-cr4-{_uid()}')
         device = MFADevice.objects.create(
-            user=user, tenant=tenant, method='totp', verified_at=timezone.now(),
+            user=user,
+            tenant=tenant,
+            method='totp',
+            verified_at=timezone.now(),
         )
         assert consume_recovery_code(device=device, code='anything') is False

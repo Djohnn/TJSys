@@ -87,7 +87,9 @@ def r4_pricing_context(client):
             factor=Decimal('1'),
         )
         receipt = PurchaseReceipt.objects.create(
-            tenant=tenant, purchase_order=order, status='confirmed',
+            tenant=tenant,
+            purchase_order=order,
+            status='confirmed',
         )
         PurchaseReceiptItem.objects.create(
             tenant=tenant,

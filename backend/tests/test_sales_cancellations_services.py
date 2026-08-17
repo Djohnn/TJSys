@@ -113,15 +113,21 @@ class TestSaleCancellationService:
                     reason='Cancelamento bloqueado',
                     idempotency_key=key,
                 )
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key=key
-            ).count() == 0
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count()
+                == 0
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 0
-            assert CashMovement.all_objects.filter(
-                tenant=ctx['tenant'],
-                cash_session=sale.cash_session,
-                movement_type='cash_out',
-            ).count() == 0
+            assert (
+                CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    cash_session=sale.cash_session,
+                    movement_type='cash_out',
+                ).count()
+                == 0
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -161,9 +167,12 @@ class TestSaleCancellationService:
                 )
             replacement.refresh_from_db()
             assert replacement.expected_amount == replacement_balance
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key=key
-            ).count() == 0
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count()
+                == 0
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 0
 
         _run_in_tenant(ctx['tenant'], _test)
@@ -185,15 +194,21 @@ class TestSaleCancellationService:
                     reason='Método sem refund compatível',
                     idempotency_key=key,
                 )
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key=key
-            ).count() == 0
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count()
+                == 0
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 0
-            assert CashMovement.all_objects.filter(
-                tenant=ctx['tenant'],
-                cash_session=sale.cash_session,
-                movement_type='cash_out',
-            ).count() == 0
+            assert (
+                CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    cash_session=sale.cash_session,
+                    movement_type='cash_out',
+                ).count()
+                == 0
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -214,15 +229,21 @@ class TestSaleCancellationService:
                     reason='Estoque inconsistente',
                     idempotency_key=key,
                 )
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key=key
-            ).count() == 0
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count()
+                == 0
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 0
-            assert CashMovement.all_objects.filter(
-                tenant=ctx['tenant'],
-                cash_session=sale.cash_session,
-                movement_type='cash_out',
-            ).count() == 0
+            assert (
+                CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    cash_session=sale.cash_session,
+                    movement_type='cash_out',
+                ).count()
+                == 0
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -249,19 +270,31 @@ class TestSaleCancellationService:
                 )
             sale.refresh_from_db()
             assert sale.status == 'confirmed'
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key=key
-            ).count() == 0
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key=key
+                ).count()
+                == 0
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 0
-            assert StockOperation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key__startswith=f'{key}:stock:'
-            ).count() == 0
-            assert AuditRecord.objects.filter(
-                tenant_id=str(ctx['tenant'].id), correlation_id=key
-            ).count() == 0
-            assert OutboxMessage.objects.filter(
-                tenant_id=str(ctx['tenant'].id), correlation_id=key
-            ).count() == 0
+            assert (
+                StockOperation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key__startswith=f'{key}:stock:'
+                ).count()
+                == 0
+            )
+            assert (
+                AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id=key
+                ).count()
+                == 0
+            )
+            assert (
+                OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id=key
+                ).count()
+                == 0
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -342,12 +375,15 @@ class TestSaleCancellationService:
             sale.cash_session.refresh_from_db()
             assert sale.status == 'confirmed'
             assert _effect_counts() == effects_before
-            assert StockBalance.all_objects.get(
-                tenant=ctx['tenant'],
-                product=ctx['product'],
-                location=ctx['location'],
-                lot=None,
-            ).quantity == balance_before
+            assert (
+                StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=ctx['product'],
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                == balance_before
+            )
             assert sale.cash_session.expected_amount == cash_expected_before
 
         _run_in_tenant(ctx['tenant'], _test)
@@ -474,21 +510,33 @@ class TestSaleCancellationService:
                 lot=None,
             )
             assert balance.quantity == Decimal('5.000000')
-            assert SaleCancellation.all_objects.filter(
-                tenant=ctx['tenant'], idempotency_key='cancel-idem-1'
-            ).count() == 1
+            assert (
+                SaleCancellation.all_objects.filter(
+                    tenant=ctx['tenant'], idempotency_key='cancel-idem-1'
+                ).count()
+                == 1
+            )
             assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=sale).count() == 1
-            assert CashMovement.all_objects.filter(
-                tenant=ctx['tenant'],
-                cash_session=sale.cash_session,
-                movement_type='cash_out',
-            ).count() == 1
-            assert AuditRecord.objects.filter(
-                tenant_id=str(ctx['tenant'].id), correlation_id='cancel-idem-1'
-            ).count() == 1
-            assert OutboxMessage.objects.filter(
-                tenant_id=str(ctx['tenant'].id), correlation_id='cancel-idem-1'
-            ).count() == 1
+            assert (
+                CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    cash_session=sale.cash_session,
+                    movement_type='cash_out',
+                ).count()
+                == 1
+            )
+            assert (
+                AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id='cancel-idem-1'
+                ).count()
+                == 1
+            )
+            assert (
+                OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id), correlation_id='cancel-idem-1'
+                ).count()
+                == 1
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -583,9 +631,12 @@ class TestSaleCancellationService:
             assert sum(refund.amount for refund in refunds) == sale.net_total
             assert all(refund.reason for refund in refunds)
             assert all(refund.payload_hash for refund in refunds)
-            assert CashMovement.all_objects.filter(
-                tenant=ctx['tenant'], cash_session=sale.cash_session, movement_type='cash_out'
-            ).count() == 2
+            assert (
+                CashMovement.all_objects.filter(
+                    tenant=ctx['tenant'], cash_session=sale.cash_session, movement_type='cash_out'
+                ).count()
+                == 2
+            )
             sale.cash_session.refresh_from_db()
             assert sale.cash_session.expected_amount == Decimal('50.00')
 
@@ -734,16 +785,17 @@ def test_concurrent_cancellation_and_manual_refund_have_one_economic_order(sale_
 
     assert cancel_result[0] in {'completed', 'already_cancelled'}
     assert refund_result[0] in {'completed', 'rejected'}
-    assert SaleCancellation.all_objects.filter(
-        tenant=ctx['tenant'], sale=ctx['sale']
-    ).count() == 1
+    assert SaleCancellation.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale']).count() == 1
     refunds = SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale'])
     assert sum(refund.amount for refund in refunds) == ctx['sale'].net_total
-    assert CashMovement.all_objects.filter(
-        tenant=ctx['tenant'],
-        cash_session=ctx['sale'].cash_session,
-        movement_type='cash_out',
-    ).count() == refunds.count()
+    assert (
+        CashMovement.all_objects.filter(
+            tenant=ctx['tenant'],
+            cash_session=ctx['sale'].cash_session,
+            movement_type='cash_out',
+        ).count()
+        == refunds.count()
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -758,9 +810,12 @@ def test_concurrent_distinct_cancellations_have_one_winner(sale_context):
     assert sorted(result[0] for result in results) == ['already_cancelled', 'completed']
     assert SaleCancellation.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale']).count() == 1
     assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale']).count() == 1
-    assert CashMovement.all_objects.filter(
-        tenant=ctx['tenant'], cash_session=ctx['sale'].cash_session, movement_type='cash_out'
-    ).count() == 1
+    assert (
+        CashMovement.all_objects.filter(
+            tenant=ctx['tenant'], cash_session=ctx['sale'].cash_session, movement_type='cash_out'
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -768,15 +823,16 @@ def test_concurrent_same_cancellation_key_replays_one_effect_set(sale_context):
     """Given one key, when cancellation requests race, then both return one cancellation."""
     ctx = sale_context
     key = 'cancel-race-same-key'
-    results = _run_concurrent_cancellations(
-        tenant=ctx['tenant'], sale=ctx['sale'], keys=(key, key)
-    )
+    results = _run_concurrent_cancellations(tenant=ctx['tenant'], sale=ctx['sale'], keys=(key, key))
     assert [result[0] for result in results] == ['completed', 'completed']
     assert results[0][1] == results[1][1]
-    assert SaleCancellation.all_objects.filter(
-        tenant=ctx['tenant'], idempotency_key=key
-    ).count() == 1
+    assert (
+        SaleCancellation.all_objects.filter(tenant=ctx['tenant'], idempotency_key=key).count() == 1
+    )
     assert SaleRefund.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale']).count() == 1
-    assert CashMovement.all_objects.filter(
-        tenant=ctx['tenant'], cash_session=ctx['sale'].cash_session, movement_type='cash_out'
-    ).count() == 1
+    assert (
+        CashMovement.all_objects.filter(
+            tenant=ctx['tenant'], cash_session=ctx['sale'].cash_session, movement_type='cash_out'
+        ).count()
+        == 1
+    )

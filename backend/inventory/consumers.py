@@ -28,7 +28,9 @@ def handle_sale_confirmed_for_kit_decomposition(message):
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.filter(
-            tenant=tenant, branch=sale.branch, is_primary=True,
+            tenant=tenant,
+            branch=sale.branch,
+            is_primary=True,
         ).first()
 
         results = []
@@ -42,11 +44,13 @@ def handle_sale_confirmed_for_kit_decomposition(message):
                     sale_event_id=str(message.id),
                     location=location,
                 )
-                results.append({
-                    'item_id': str(item.id),
-                    'kit_sku': item.product.sku,
-                    'movements_created': len(movements),
-                })
+                results.append(
+                    {
+                        'item_id': str(item.id),
+                        'kit_sku': item.product.sku,
+                        'movements_created': len(movements),
+                    }
+                )
 
         return {'sale_id': sale_id, 'decompositions': results}
     finally:

@@ -230,7 +230,10 @@ def test_channel_profile_tenant_isolation(channel_ctx, client):
     product_beta = _run_in_tenant(
         tenant_beta,
         lambda: Product.all_objects.create(
-            tenant=tenant_beta, sku='BETA-SKU', name='Beta', base_unit=unit_beta,
+            tenant=tenant_beta,
+            sku='BETA-SKU',
+            name='Beta',
+            base_unit=unit_beta,
         ),
     )
 

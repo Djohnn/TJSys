@@ -384,16 +384,28 @@ class ApplyProductStockSerializer(serializers.Serializer):
     branch = serializers.UUIDField()
     location = serializers.UUIDField()
     initial_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=Decimal('0'),
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     minimum_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=Decimal('0'),
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     maximum_quantity = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, allow_null=True,
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
     )
     reorder_point = serializers.DecimalField(
-        max_digits=18, decimal_places=6, required=False, default=Decimal('0'),
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        default=Decimal('0'),
     )
     allow_negative = serializers.BooleanField(required=False, default=False)
 
@@ -431,7 +443,5 @@ class ApplyProductSerializer(serializers.Serializer):
                 {'stock': 'Stock is required when the product tracks inventory.'}
             )
         if product_data.get('product_kind') == 'servico' and stock:
-            raise serializers.ValidationError(
-                {'stock': 'Services cannot have stock.'}
-            )
+            raise serializers.ValidationError({'stock': 'Services cannot have stock.'})
         return attrs

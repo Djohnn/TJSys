@@ -345,7 +345,8 @@ class R4ProductPriceViewSet(ProductPriceViewSet):
 
     def list(self, request, *args, **kwargs):
         product = Product.objects.filter(
-            id=self.kwargs.get('product_pk'), tenant=request.tenant,
+            id=self.kwargs.get('product_pk'),
+            tenant=request.tenant,
         ).first()
         if product is None:
             return Response({'results': []})
@@ -942,10 +943,14 @@ class ProductApplyView(APIView):
             json.dumps(request.data, sort_keys=True, separators=(',', ':'), default=str).encode()
         ).hexdigest()
         command_id = data['command_id']
-        receipt = ProductApplyCommand.all_objects.select_for_update().filter(
-            tenant=tenant,
-            command_id=command_id,
-        ).first()
+        receipt = (
+            ProductApplyCommand.all_objects.select_for_update()
+            .filter(
+                tenant=tenant,
+                command_id=command_id,
+            )
+            .first()
+        )
         if receipt:
             if receipt.payload_hash != payload_hash:
                 return Response(

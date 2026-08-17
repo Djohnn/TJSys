@@ -15,9 +15,7 @@ def issue_token(*, purpose, user, ttl=None):
         user=user,
         purpose=purpose,
         digest=digest_value(secret),
-        expires_at=timezone.now() + (
-            ttl or timedelta(minutes=settings.AUTH_TOKEN_TTL_MINUTES)
-        ),
+        expires_at=timezone.now() + (ttl or timedelta(minutes=settings.AUTH_TOKEN_TTL_MINUTES)),
     )
     return f'{record.pk}.{secret}', record
 
@@ -30,7 +28,8 @@ def consume_token(raw, *, purpose):
     with transaction.atomic():
         try:
             record = OneTimeToken.objects.select_for_update().get(
-                pk=token_id, purpose=purpose,
+                pk=token_id,
+                purpose=purpose,
             )
         except (OneTimeToken.DoesNotExist, ValueError):
             return None

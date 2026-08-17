@@ -173,10 +173,13 @@ def test_concurrent_distinct_keys_cannot_overconsume_returnable_quantity(sale_co
     assert sorted(result[0] for result in results) == ['completed', 'insufficient']
     assert len({result[2] for result in results}) == 2
     assert SaleReturn.all_objects.filter(tenant=tenant, idempotency_key__in=keys).count() == 1
-    assert SaleReturnItem.all_objects.filter(
-        sale_return__tenant=tenant,
-        sale_return__idempotency_key__in=keys,
-    ).count() == 1
+    assert (
+        SaleReturnItem.all_objects.filter(
+            sale_return__tenant=tenant,
+            sale_return__idempotency_key__in=keys,
+        ).count()
+        == 1
+    )
 
     stock_operations = _return_stock_operations(tenant=tenant, idempotency_keys=keys)
     assert stock_operations.count() == 1
@@ -189,16 +192,22 @@ def test_concurrent_distinct_keys_cannot_overconsume_returnable_quantity(sale_co
 
     balance_after = StockBalance.all_objects.get(pk=balance_before.pk)
     assert balance_after.quantity == Decimal('5.000000')
-    assert AuditRecord.objects.filter(
-        tenant_id=str(tenant.id),
-        action='sales.return.created',
-        correlation_id__in=keys,
-    ).count() == 1
-    assert OutboxMessage.objects.filter(
-        tenant_id=str(tenant.id),
-        event_type='sales.return.created',
-        correlation_id__in=keys,
-    ).count() == 1
+    assert (
+        AuditRecord.objects.filter(
+            tenant_id=str(tenant.id),
+            action='sales.return.created',
+            correlation_id__in=keys,
+        ).count()
+        == 1
+    )
+    assert (
+        OutboxMessage.objects.filter(
+            tenant_id=str(tenant.id),
+            event_type='sales.return.created',
+            correlation_id__in=keys,
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -229,14 +238,20 @@ def test_concurrent_same_key_replays_single_return_and_single_stock_effect(sale_
     assert [result[0] for result in results] == ['completed', 'completed']
     assert results[0][1] == results[1][1]
     assert len({result[2] for result in results}) == 2
-    assert SaleReturn.all_objects.filter(
-        tenant=tenant,
-        idempotency_key=idempotency_key,
-    ).count() == 1
-    assert SaleReturnItem.all_objects.filter(
-        sale_return__tenant=tenant,
-        sale_return__idempotency_key=idempotency_key,
-    ).count() == 1
+    assert (
+        SaleReturn.all_objects.filter(
+            tenant=tenant,
+            idempotency_key=idempotency_key,
+        ).count()
+        == 1
+    )
+    assert (
+        SaleReturnItem.all_objects.filter(
+            sale_return__tenant=tenant,
+            sale_return__idempotency_key=idempotency_key,
+        ).count()
+        == 1
+    )
 
     stock_operations = _return_stock_operations(tenant=tenant, idempotency_keys=keys)
     assert stock_operations.count() == 1
@@ -249,16 +264,22 @@ def test_concurrent_same_key_replays_single_return_and_single_stock_effect(sale_
 
     balance_after = StockBalance.all_objects.get(pk=balance_before.pk)
     assert balance_after.quantity == Decimal('5.000000')
-    assert AuditRecord.objects.filter(
-        tenant_id=str(tenant.id),
-        action='sales.return.created',
-        correlation_id=idempotency_key,
-    ).count() == 1
-    assert OutboxMessage.objects.filter(
-        tenant_id=str(tenant.id),
-        event_type='sales.return.created',
-        correlation_id=idempotency_key,
-    ).count() == 1
+    assert (
+        AuditRecord.objects.filter(
+            tenant_id=str(tenant.id),
+            action='sales.return.created',
+            correlation_id=idempotency_key,
+        ).count()
+        == 1
+    )
+    assert (
+        OutboxMessage.objects.filter(
+            tenant_id=str(tenant.id),
+            event_type='sales.return.created',
+            correlation_id=idempotency_key,
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -286,23 +307,32 @@ def test_concurrent_distinct_refund_keys_cannot_exceed_sale_total(sale_context):
     )
     assert completed.count() == 1
     assert sum(refund.amount for refund in completed) <= sale.net_total
-    assert CashMovement.all_objects.filter(
-        tenant=tenant,
-        cash_session=sale.cash_session,
-        movement_type='cash_out',
-    ).count() == 1
+    assert (
+        CashMovement.all_objects.filter(
+            tenant=tenant,
+            cash_session=sale.cash_session,
+            movement_type='cash_out',
+        ).count()
+        == 1
+    )
     sale.cash_session.refresh_from_db()
     assert sale.cash_session.expected_amount == Decimal('55.00')
-    assert AuditRecord.objects.filter(
-        tenant_id=str(tenant.id),
-        action='sales.refund.created',
-        correlation_id__in=keys,
-    ).count() == 1
-    assert OutboxMessage.objects.filter(
-        tenant_id=str(tenant.id),
-        event_type='sales.refund.created',
-        correlation_id__in=keys,
-    ).count() == 1
+    assert (
+        AuditRecord.objects.filter(
+            tenant_id=str(tenant.id),
+            action='sales.refund.created',
+            correlation_id__in=keys,
+        ).count()
+        == 1
+    )
+    assert (
+        OutboxMessage.objects.filter(
+            tenant_id=str(tenant.id),
+            event_type='sales.refund.created',
+            correlation_id__in=keys,
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -324,25 +354,37 @@ def test_concurrent_same_refund_key_replays_one_refund_and_one_effect_set(sale_c
     assert [result[0] for result in results] == ['completed', 'completed']
     assert results[0][1] == results[1][1]
     assert len({result[2] for result in results}) == 2
-    assert SaleRefund.all_objects.filter(
-        tenant=tenant,
-        sale=sale,
-        idempotency_key=idempotency_key,
-    ).count() == 1
-    assert CashMovement.all_objects.filter(
-        tenant=tenant,
-        cash_session=sale.cash_session,
-        movement_type='cash_out',
-    ).count() == 1
+    assert (
+        SaleRefund.all_objects.filter(
+            tenant=tenant,
+            sale=sale,
+            idempotency_key=idempotency_key,
+        ).count()
+        == 1
+    )
+    assert (
+        CashMovement.all_objects.filter(
+            tenant=tenant,
+            cash_session=sale.cash_session,
+            movement_type='cash_out',
+        ).count()
+        == 1
+    )
     sale.cash_session.refresh_from_db()
     assert sale.cash_session.expected_amount == Decimal('60.00')
-    assert AuditRecord.objects.filter(
-        tenant_id=str(tenant.id),
-        action='sales.refund.created',
-        correlation_id=idempotency_key,
-    ).count() == 1
-    assert OutboxMessage.objects.filter(
-        tenant_id=str(tenant.id),
-        event_type='sales.refund.created',
-        correlation_id=idempotency_key,
-    ).count() == 1
+    assert (
+        AuditRecord.objects.filter(
+            tenant_id=str(tenant.id),
+            action='sales.refund.created',
+            correlation_id=idempotency_key,
+        ).count()
+        == 1
+    )
+    assert (
+        OutboxMessage.objects.filter(
+            tenant_id=str(tenant.id),
+            event_type='sales.refund.created',
+            correlation_id=idempotency_key,
+        ).count()
+        == 1
+    )

@@ -71,9 +71,14 @@ class PlatformProblemDetailsMixin:
         elif isinstance(exc, ValidationError) and _contains_unique_error(exc.detail):
             status_code = status.HTTP_409_CONFLICT
             code = 'conflict'
-        detail = response.data.get('detail', response.data) if isinstance(
-            response.data, dict,
-        ) else response.data
+        detail = (
+            response.data.get('detail', response.data)
+            if isinstance(
+                response.data,
+                dict,
+            )
+            else response.data
+        )
         return _problem_response(detail, code, status_code)
 
 
@@ -102,7 +107,9 @@ class PlanViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
         detail = {'plan_id': str(instance.id), 'plan_code': instance.code}
         instance.delete()
         PlatformAdminAudit.objects.create(
-            actor=self.request.user, action='plan.deleted', detail=detail,
+            actor=self.request.user,
+            action='plan.deleted',
+            detail=detail,
         )
 
 
@@ -249,14 +256,18 @@ class FeatureFlagViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
 
 class SupportAccessViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
     queryset = SupportAccessRequest.objects.select_related(
-        'requester', 'approved_by', 'target_tenant',
+        'requester',
+        'approved_by',
+        'target_tenant',
     ).all()
     serializer_class = SupportAccessRequestSerializer
     permission_classes = [IsAuthenticated, HasActiveTenant]
 
     def get_queryset(self):
         qs = SupportAccessRequest.objects.select_related(
-            'requester', 'approved_by', 'target_tenant',
+            'requester',
+            'approved_by',
+            'target_tenant',
         )
         user = self.request.user
         if not user.is_staff:
@@ -287,7 +298,8 @@ class SupportAccessViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         if not request.user.is_staff:
             return _problem_response(
-                'Only admins can approve.', 'permission_denied',
+                'Only admins can approve.',
+                'permission_denied',
                 status.HTTP_403_FORBIDDEN,
             )
         try:
@@ -295,9 +307,7 @@ class SupportAccessViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
         except ValueError as exc:
             code = 'not_found' if 'not found' in str(exc).lower() else 'conflict'
             status_code = (
-                status.HTTP_404_NOT_FOUND
-                if code == 'not_found'
-                else status.HTTP_409_CONFLICT
+                status.HTTP_404_NOT_FOUND if code == 'not_found' else status.HTTP_409_CONFLICT
             )
             return _problem_response(str(exc), code, status_code)
         return Response({'status': 'approved'})
@@ -306,7 +316,8 @@ class SupportAccessViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
     def revoke(self, request, pk=None):
         if not request.user.is_staff:
             return _problem_response(
-                'Only admins can revoke.', 'permission_denied',
+                'Only admins can revoke.',
+                'permission_denied',
                 status.HTTP_403_FORBIDDEN,
             )
         try:
@@ -314,9 +325,7 @@ class SupportAccessViewSet(PlatformProblemDetailsMixin, viewsets.ModelViewSet):
         except ValueError as exc:
             code = 'not_found' if 'not found' in str(exc).lower() else 'conflict'
             status_code = (
-                status.HTTP_404_NOT_FOUND
-                if code == 'not_found'
-                else status.HTTP_409_CONFLICT
+                status.HTTP_404_NOT_FOUND if code == 'not_found' else status.HTTP_409_CONFLICT
             )
             return _problem_response(str(exc), code, status_code)
         return Response({'status': 'revoked'})
@@ -348,12 +357,15 @@ class TenantCapabilitiesView(viewsets.ViewSet):
         if sub and sub.plan and sub.plan.capabilities:
             capabilities = sub.plan.capabilities.copy()
         from platform_admin.models import TenantEntitlement
+
         entitlements = TenantEntitlement.objects.filter(tenant=tenant)
         for ent in entitlements:
             capabilities[ent.capability] = ent.is_enabled
-        return Response({
-            'tenant': tenant.slug,
-            'subscription_status': sub.status if sub else 'none',
-            'capabilities': capabilities,
-            'is_restricted': sub.status in ('suspended', 'cancelled') if sub else True,
-        })
+        return Response(
+            {
+                'tenant': tenant.slug,
+                'subscription_status': sub.status if sub else 'none',
+                'capabilities': capabilities,
+                'is_restricted': sub.status in ('suspended', 'cancelled') if sub else True,
+            }
+        )

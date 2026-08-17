@@ -24,7 +24,9 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email'].strip().casefold()
         user = authenticate(
-            request, username=email, password=serializer.validated_data['password'],
+            request,
+            username=email,
+            password=serializer.validated_data['password'],
         )
         if user is None:
             return Response({'detail': 'Invalid credentials.'}, status=401)
@@ -61,7 +63,9 @@ class LogoutView(APIView):
 
     def post(self, request):
         create_audit_record(
-            actor=request.user, action='auth.logout', resource_type='User',
+            actor=request.user,
+            action='auth.logout',
+            resource_type='User',
             resource_id=request.user.id,
             correlation_id=getattr(request, 'correlation_id', ''),
         )
@@ -74,8 +78,11 @@ class MeView(APIView):
 
     def get(self, request):
         from tenancy.models import TenantMembership
+
         memberships_qs = TenantMembership.objects.select_related('tenant').filter(
-            user=request.user, is_active=True, tenant__is_active=True,
+            user=request.user,
+            is_active=True,
+            tenant__is_active=True,
         )
         memberships = [
             {
@@ -86,11 +93,13 @@ class MeView(APIView):
             }
             for m in memberships_qs
         ]
-        return Response({
-            'id': str(request.user.id),
-            'email': request.user.email,
-            'memberships': memberships,
-        })
+        return Response(
+            {
+                'id': str(request.user.id),
+                'email': request.user.email,
+                'memberships': memberships,
+            }
+        )
 
 
 class CSRFView(APIView):

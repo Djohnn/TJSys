@@ -115,14 +115,8 @@ class StockLot(VersionedInventoryModel):
 
     def clean(self):
         super().clean()
-        if (
-            self.manufacture_date
-            and self.expiry_date
-            and self.manufacture_date >= self.expiry_date
-        ):
-            raise ValidationError(
-                {'expiry_date': 'Expiry date must be after manufacture date.'}
-            )
+        if self.manufacture_date and self.expiry_date and self.manufacture_date >= self.expiry_date:
+            raise ValidationError({'expiry_date': 'Expiry date must be after manufacture date.'})
         if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
             raise ValidationError({'product': 'Product must belong to the same tenant.'})
 
@@ -182,10 +176,14 @@ class StockOperation(VersionedInventoryModel):
         if self.branch_id and self.tenant_id and self.branch.tenant_id != self.tenant_id:
             raise ValidationError({'branch': 'Branch must belong to the same tenant.'})
         if self.idempotency_key:
-            exists = StockOperation.all_objects.filter(
-                tenant_id=self.tenant_id,
-                idempotency_key=self.idempotency_key,
-            ).exclude(pk=self.pk).exists()
+            exists = (
+                StockOperation.all_objects.filter(
+                    tenant_id=self.tenant_id,
+                    idempotency_key=self.idempotency_key,
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            )
             if exists:
                 raise ValidationError({'idempotency_key': 'Idempotency key already used.'})
 

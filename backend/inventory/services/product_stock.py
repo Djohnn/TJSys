@@ -235,10 +235,14 @@ def deactivate_product_stock_control(
     }
     payload_hash = _generate_payload_hash(payload)
 
-    existing = ProductStockControlCommand.all_objects.select_for_update().filter(
-        tenant=tenant,
-        command_id=command_id,
-    ).first()
+    existing = (
+        ProductStockControlCommand.all_objects.select_for_update()
+        .filter(
+            tenant=tenant,
+            command_id=command_id,
+        )
+        .first()
+    )
 
     if existing:
         if existing.payload_hash != payload_hash:
@@ -385,10 +389,14 @@ def reactivate_product_stock_control(
     }
     payload_hash = _generate_payload_hash(payload)
 
-    existing = ProductStockControlCommand.all_objects.select_for_update().filter(
-        tenant=tenant,
-        command_id=command_id,
-    ).first()
+    existing = (
+        ProductStockControlCommand.all_objects.select_for_update()
+        .filter(
+            tenant=tenant,
+            command_id=command_id,
+        )
+        .first()
+    )
 
     if existing:
         if existing.payload_hash != payload_hash:
@@ -428,11 +436,19 @@ def reactivate_product_stock_control(
         for stock_entry in validated_stocks:
             location_id = stock_entry['location_id']
             has_movements = StockMovement.all_objects.filter(
-                tenant=tenant, product=product, location_id=location_id,
+                tenant=tenant,
+                product=product,
+                location_id=location_id,
             ).exists()
-            has_nonzero_balance = StockBalance.all_objects.filter(
-                tenant=tenant, product=product, location_id=location_id,
-            ).exclude(quantity=0, reserved=0).exists()
+            has_nonzero_balance = (
+                StockBalance.all_objects.filter(
+                    tenant=tenant,
+                    product=product,
+                    location_id=location_id,
+                )
+                .exclude(quantity=0, reserved=0)
+                .exists()
+            )
             if has_movements or has_nonzero_balance:
                 locations_with_history.append(str(location_id))
         if locations_with_history:
@@ -449,6 +465,7 @@ def reactivate_product_stock_control(
     operations_created = 0
     if validated_stocks:
         from inventory.services.operations import create_receipt
+
         for stock_entry in validated_stocks:
             location_id = stock_entry['location_id']
             quantity = stock_entry['quantity']

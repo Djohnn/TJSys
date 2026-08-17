@@ -47,7 +47,9 @@ class Subscription(TimeStampedModel):
     ]
 
     tenant = models.ForeignKey(
-        'tenancy.Tenant', on_delete=models.PROTECT, related_name='subscriptions',
+        'tenancy.Tenant',
+        on_delete=models.PROTECT,
+        related_name='subscriptions',
     )
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name='subscriptions')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
@@ -75,7 +77,9 @@ class Subscription(TimeStampedModel):
 
 class TenantEntitlement(TimeStampedModel):
     tenant = models.ForeignKey(
-        'tenancy.Tenant', on_delete=models.CASCADE, related_name='entitlements',
+        'tenancy.Tenant',
+        on_delete=models.CASCADE,
+        related_name='entitlements',
     )
     capability = models.CharField(max_length=100)
     is_enabled = models.BooleanField(default=True)
@@ -141,11 +145,17 @@ class PlatformAdminAudit(TimeStampedModel):
     ]
 
     actor = models.ForeignKey(
-        'accounts.CustomUser', on_delete=models.SET_NULL, null=True, blank=True,
+        'accounts.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     action = models.CharField(max_length=50, choices=ACTION_CHOICES)
     target_tenant = models.ForeignKey(
-        'tenancy.Tenant', on_delete=models.SET_NULL, null=True, blank=True,
+        'tenancy.Tenant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
     detail = models.JSONField(default=dict, blank=True)
 
@@ -170,22 +180,32 @@ class SupportAccessRequest(TimeStampedModel):
     ]
 
     requester = models.ForeignKey(
-        'accounts.CustomUser', on_delete=models.PROTECT, related_name='support_requests',
+        'accounts.CustomUser',
+        on_delete=models.PROTECT,
+        related_name='support_requests',
     )
     target_tenant = models.ForeignKey(
-        'tenancy.Tenant', on_delete=models.PROTECT, related_name='support_requests',
+        'tenancy.Tenant',
+        on_delete=models.PROTECT,
+        related_name='support_requests',
     )
     reason = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     approved_by = models.ForeignKey(
-        'accounts.CustomUser', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='approved_support_requests',
+        'accounts.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_support_requests',
     )
     expires_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
     revoked_by = models.ForeignKey(
-        'accounts.CustomUser', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='revoked_support_requests',
+        'accounts.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_support_requests',
     )
 
     class Meta:

@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 def report_unhealthy_outbox(max_age_minutes=5):
     cutoff = timezone.now() - timedelta(minutes=max_age_minutes)
     stale_count = OutboxMessage.objects.filter(
-        status__in={'PENDING', 'FAILED'}, created_at__lt=cutoff,
+        status__in={'PENDING', 'FAILED'},
+        created_at__lt=cutoff,
     ).count()
     dead_letter_count = OutboxMessage.objects.filter(status='DEAD_LETTER').count()
     if stale_count or dead_letter_count:

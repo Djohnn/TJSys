@@ -30,9 +30,7 @@ def fiscal_coverage_context(django_user_model):
     from sales.services import create_counter_sale, open_cash_session
 
     tenant = Tenant.objects.create(name='Coverage Tenant', slug='coverage-tenant')
-    user = django_user_model.objects.create_user(
-        email='coverage@test.local', password='pass123'
-    )
+    user = django_user_model.objects.create_user(email='coverage@test.local', password='pass123')
     TenantMembership.objects.create(user=user, tenant=tenant, role='admin', is_active=True)
 
     def _create():

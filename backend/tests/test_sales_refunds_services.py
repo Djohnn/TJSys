@@ -193,10 +193,7 @@ class TestSaleRefundService:
 
             assert _attempt_artifacts(ctx['tenant'], rejected_key) == before
             assert SaleRefund.all_objects.get(pk=first.pk).status == 'completed'
-            assert (
-                SaleRefund.all_objects.filter(sale=ctx['sale'], status='completed').count()
-                == 1
-            )
+            assert SaleRefund.all_objects.filter(sale=ctx['sale'], status='completed').count() == 1
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -365,10 +362,15 @@ class TestSaleRefundService:
                     idempotency_key=key,
                 )
 
-            assert SaleRefund.all_objects.filter(
-                tenant=ctx['tenant'],
-                idempotency_key=key,
-            ).values_list('id', flat=True).get() == first.id
+            assert (
+                SaleRefund.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key=key,
+                )
+                .values_list('id', flat=True)
+                .get()
+                == first.id
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -444,10 +446,13 @@ class TestSaleRefundService:
                     )
 
             assert other_refund.id != first.id
-            assert SaleRefund.all_objects.filter(
-                tenant=ctx['tenant'],
-                idempotency_key=key,
-            ).count() == 1
+            assert (
+                SaleRefund.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key=key,
+                ).count()
+                == 1
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -599,10 +604,13 @@ class TestSaleRefundService:
                 'audits': 1,
                 'outbox': 1,
             }
-            assert CashMovement.all_objects.filter(
-                cash_session=ctx['sale'].cash_session,
-                notes=f'Refund {other_refund.id}',
-            ).count() == 1
+            assert (
+                CashMovement.all_objects.filter(
+                    cash_session=ctx['sale'].cash_session,
+                    notes=f'Refund {other_refund.id}',
+                ).count()
+                == 1
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 

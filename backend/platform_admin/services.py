@@ -7,9 +7,14 @@ from django.utils import timezone
 def tenant_active_subscription(tenant):
     from platform_admin.models import Subscription
 
-    return Subscription.objects.filter(
-        tenant=tenant, is_active=True,
-    ).select_related('plan').first()
+    return (
+        Subscription.objects.filter(
+            tenant=tenant,
+            is_active=True,
+        )
+        .select_related('plan')
+        .first()
+    )
 
 
 def tenant_has_capability(tenant, capability: str) -> bool:
@@ -22,7 +27,8 @@ def tenant_has_capability(tenant, capability: str) -> bool:
         return False
 
     entitlement = TenantEntitlement.objects.filter(
-        tenant=tenant, capability=capability,
+        tenant=tenant,
+        capability=capability,
     ).first()
     if entitlement is not None:
         return entitlement.is_enabled
@@ -40,7 +46,8 @@ def tenant_limit_for(tenant, limit_name: str) -> int:
         return 0
 
     entitlement = TenantEntitlement.objects.filter(
-        tenant=tenant, capability=limit_name,
+        tenant=tenant,
+        capability=limit_name,
     ).first()
     if entitlement is not None and entitlement.limit_value is not None:
         return entitlement.limit_value
@@ -152,6 +159,7 @@ def set_feature_flag(
         },
     )
     from outbox.services import create_outbox_message
+
     create_outbox_message(
         event_type='platform.feature_flag.updated',
         aggregate_type='feature_flag',
@@ -162,8 +170,7 @@ def set_feature_flag(
 
 
 @transaction.atomic
-def request_support_access(requester, target_tenant, reason: str,
-                           expires_at=None):
+def request_support_access(requester, target_tenant, reason: str, expires_at=None):
     from platform_admin.models import SupportAccessRequest
 
     if expires_at is None:
@@ -220,8 +227,7 @@ def revoke_support_access(request_id, revoker):
     except SupportAccessRequest.DoesNotExist:
         raise ValueError('Support access request not found.') from None
 
-    if req.status in {SupportAccessRequest.STATUS_EXPIRED,
-                      SupportAccessRequest.STATUS_REVOKED}:
+    if req.status in {SupportAccessRequest.STATUS_EXPIRED, SupportAccessRequest.STATUS_REVOKED}:
         raise ValueError(f'Request is already {req.status}.')
 
     req.status = SupportAccessRequest.STATUS_REVOKED

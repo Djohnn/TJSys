@@ -211,9 +211,7 @@ def test_request_fiscal_keeps_queued_document_when_publish_fails(
     session.save()
     monkeypatch.setattr(
         'fiscal.tasks.handle_sale_completed.delay',
-        lambda sale_id, **kwargs: (_ for _ in ()).throw(
-            ConnectionError('broker unavailable')
-        ),
+        lambda sale_id, **kwargs: (_ for _ in ()).throw(ConnectionError('broker unavailable')),
     )
 
     response = client.post(
@@ -357,9 +355,7 @@ def test_request_fiscal_recovers_when_concurrent_create_wins(monkeypatch, fiscal
             raise IntegrityError('unique_active_fiscal_document_per_sale')
 
         monkeypatch.setattr(FiscalDocument.all_objects, 'get_or_create', concurrent_insert)
-        document, created = _get_or_create_active_fiscal_document(
-            ctx['sale'], ctx['tenant']
-        )
+        document, created = _get_or_create_active_fiscal_document(ctx['sale'], ctx['tenant'])
         return winner, document, created
 
     winner, document, created = _run_in_tenant(ctx['tenant'], _run_race)

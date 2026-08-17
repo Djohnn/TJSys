@@ -62,9 +62,7 @@ class Command(BaseCommand):
                     is_active=True,
                 ).first()
                 if not policy or not policy.allow_negative:
-                    findings.append(
-                        f'{tenant.id}:negative_without_permission:{balance.id}'
-                    )
+                    findings.append(f'{tenant.id}:negative_without_permission:{balance.id}')
 
         with connection.cursor() as cursor:
             cursor.execute(

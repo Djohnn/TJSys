@@ -26,8 +26,11 @@ def _setup(*, tenant_name='PSP'):
     unit = Unit.objects.create(tenant=tenant, symbol='UN', name='Unidade')
     category = Category.objects.create(tenant=tenant, name='Cat')
     product = Product.objects.create(
-        tenant=tenant, sku='PSP-PROD', name='Test Product',
-        base_unit=unit, category=category,
+        tenant=tenant,
+        sku='PSP-PROD',
+        name='Test Product',
+        base_unit=unit,
+        category=category,
     )
     reset_current_tenant_id(token)
     return tenant, product, branch, location, company
@@ -74,14 +77,17 @@ def _create_policy(tenant, product, branch, location, **overrides):
 def test_policy_rejects_service_product():
     """Given a service product, when creating policy, then ValidationError."""
     tenant, _, branch, location, _ = _setup(tenant_name='PSP02')
-    service = _in_tenant(tenant, lambda: Product.objects.create(
-        tenant=tenant,
-        sku='SVC-01',
-        name='Service',
-        product_kind='servico',
-        tracks_inventory=False,
-        base_unit=Unit.objects.filter(tenant=tenant).first(),
-    ))
+    service = _in_tenant(
+        tenant,
+        lambda: Product.objects.create(
+            tenant=tenant,
+            sku='SVC-01',
+            name='Service',
+            product_kind='servico',
+            tracks_inventory=False,
+            base_unit=Unit.objects.filter(tenant=tenant).first(),
+        ),
+    )
     with pytest.raises(ValidationError):
         _in_tenant(tenant, lambda: _create_policy(tenant, service, branch, location))
 
@@ -90,9 +96,9 @@ def test_policy_rejects_service_product():
 def test_policy_rejects_location_from_different_branch():
     """Given location of branch A, but policy references branch B, then ValidationError."""
     tenant, product, branch, location, company = _setup(tenant_name='PSP03')
-    branch_b = _in_tenant(tenant, lambda: Branch.objects.create(
-        tenant=tenant, company=company, name='Branch B'
-    ))
+    branch_b = _in_tenant(
+        tenant, lambda: Branch.objects.create(tenant=tenant, company=company, name='Branch B')
+    )
     with pytest.raises(ValidationError):
         _in_tenant(tenant, lambda: _create_policy(tenant, product, branch_b, location))
 
@@ -102,21 +108,33 @@ def test_policy_rejects_max_lt_min():
     """Given max < min, when creating policy, then ValidationError."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP04')
     with pytest.raises(ValidationError):
-        _in_tenant(tenant, lambda: _create_policy(
-            tenant, product, branch, location,
-            minimum_quantity=Decimal('50'),
-            maximum_quantity=Decimal('10'),
-        ))
+        _in_tenant(
+            tenant,
+            lambda: _create_policy(
+                tenant,
+                product,
+                branch,
+                location,
+                minimum_quantity=Decimal('50'),
+                maximum_quantity=Decimal('10'),
+            ),
+        )
 
 
 @pytest.mark.django_db
 def test_policy_allows_null_max():
     """Given null max, when creating policy, then persists without error."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP05')
-    policy = _in_tenant(tenant, lambda: _create_policy(
-        tenant, product, branch, location,
-        maximum_quantity=None,
-    ))
+    policy = _in_tenant(
+        tenant,
+        lambda: _create_policy(
+            tenant,
+            product,
+            branch,
+            location,
+            maximum_quantity=None,
+        ),
+    )
     assert policy.maximum_quantity is None
 
 
@@ -125,11 +143,17 @@ def test_policy_rejects_negative_thresholds():
     """Given negative minimum_quantity, when creating, then ValidationError."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP06')
     with pytest.raises(ValidationError):
-        _in_tenant(tenant, lambda: _create_policy(
-            tenant, product, branch, location,
-            minimum_quantity=Decimal('-1'),
-            reorder_point=Decimal('0'),
-        ))
+        _in_tenant(
+            tenant,
+            lambda: _create_policy(
+                tenant,
+                product,
+                branch,
+                location,
+                minimum_quantity=Decimal('-1'),
+                reorder_point=Decimal('0'),
+            ),
+        )
 
 
 @pytest.mark.django_db
@@ -137,11 +161,17 @@ def test_policy_reports_reorder_point_error_on_negative_value():
     """Given a negative reorder point, validation reports the correct field."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP06B')
     with pytest.raises(ValidationError) as exc:
-        _in_tenant(tenant, lambda: _create_policy(
-            tenant, product, branch, location,
-            minimum_quantity=Decimal('0'),
-            reorder_point=Decimal('-1'),
-        ))
+        _in_tenant(
+            tenant,
+            lambda: _create_policy(
+                tenant,
+                product,
+                branch,
+                location,
+                minimum_quantity=Decimal('0'),
+                reorder_point=Decimal('-1'),
+            ),
+        )
     assert 'reorder_point' in exc.value.message_dict
 
 
@@ -149,15 +179,24 @@ def test_policy_reports_reorder_point_error_on_negative_value():
 def test_negative_balance_is_allowed_only_by_active_policy():
     """Given an active permissive policy, a stock delta may produce a negative balance."""
     tenant, product, branch, location, _ = _setup(tenant_name='PSP06C')
-    _in_tenant(tenant, lambda: _create_policy(
-        tenant, product, branch, location,
-        allow_negative=True,
-    ))
+    _in_tenant(
+        tenant,
+        lambda: _create_policy(
+            tenant,
+            product,
+            branch,
+            location,
+            allow_negative=True,
+        ),
+    )
 
     balance = _in_tenant(
         tenant,
         lambda: _apply_balance_delta(
-            tenant, product, location, Decimal('-2'),
+            tenant,
+            product,
+            location,
+            Decimal('-2'),
         ),
     )
 

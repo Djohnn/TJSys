@@ -167,8 +167,7 @@ def test_sales_rls_migration_enforces_tenant_isolation():
         states_after = _sales_rls_state()
         assert len(states_after) == len(SALES_RLS_TABLES)
         assert all(
-            enabled and forced and policies == 1
-            for _, enabled, forced, policies in states_after
+            enabled and forced and policies == 1 for _, enabled, forced, policies in states_after
         ), states_after
 
         policies = _sales_rls_policies()
@@ -185,9 +184,7 @@ def test_sales_rls_migration_enforces_tenant_isolation():
         tenant_token = _set_tenant(tenant_a.id)
         assert MigratedSaleReturn.objects.filter(pk=return_a.pk).exists() is True
         assert MigratedSaleReturn.objects.filter(pk=return_b.pk).exists() is False
-        assert set(MigratedSaleReturn.objects.values_list('tenant_id', flat=True)) == {
-            tenant_a.id
-        }
+        assert set(MigratedSaleReturn.objects.values_list('tenant_id', flat=True)) == {tenant_a.id}
         _reset_tenant(tenant_token)
         tenant_token = None
 
