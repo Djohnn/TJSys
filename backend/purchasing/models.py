@@ -77,6 +77,13 @@ class PurchaseOrder(VersionedPurchasingModel):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                condition=~models.Q(idempotency_key=''),
+                name='uniq_purchase_order_idempotency_tenant',
+            ),
+        ]
 
     def clean(self):
         if self.supplier_id and self.supplier.tenant_id != self.tenant_id:
@@ -161,6 +168,13 @@ class PurchaseReceipt(VersionedPurchasingModel):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                condition=~models.Q(idempotency_key=''),
+                name='uniq_purchase_receipt_idempotency_tenant',
+            ),
+        ]
 
     def clean(self):
         if self.purchase_order_id and self.purchase_order.tenant_id != self.tenant_id:

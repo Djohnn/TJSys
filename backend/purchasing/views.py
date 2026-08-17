@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -20,6 +20,7 @@ from purchasing.serializers import (
     PurchaseOrderItemSerializer,
     PurchaseOrderListSerializer,
     PurchaseReceiptCancellationSerializer,
+    PurchaseReceiptInputSerializer,
     PurchaseReceiptItemSerializer,
     PurchaseReceiptSerializer,
     RecurringPurchaseOrderTemplateSerializer,
@@ -148,7 +149,18 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
                 'detail': str(detail),
             },
             status=status_code,
+            content_type='application/problem+json',
         )
+
+    def perform_update(self, serializer):
+        if serializer.instance.status != 'draft':
+            raise serializers.ValidationError({'detail': 'Approved purchase orders are immutable.'})
+        return super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        if instance.status != 'draft':
+            raise serializers.ValidationError({'detail': 'Approved purchase orders are immutable.'})
+        return super().perform_destroy(instance)
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
@@ -169,19 +181,14 @@ class PurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def receive(self, request, pk=None):
         po = self.get_object()
-        items_data = request.data.get('items', [])
-        items = []
-        for entry in items_data:
-            items.append(
-                {
-                    'purchase_order_item_id': entry.get('purchase_order_item_id'),
-                    'quantity_received': Decimal(str(entry.get('quantity_received', 0))),
-                    'unit_cost': Decimal(str(entry['unit_cost']))
-                    if entry.get('unit_cost')
-                    else None,
-                }
+        input_serializer = PurchaseReceiptInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return self._problem(
+                input_serializer.errors,
+                code='invalid_receipt',
             )
-        notes = request.data.get('notes', '')
+        items = input_serializer.validated_data['items']
+        notes = input_serializer.validated_data['notes']
         try:
             key = _idempotency_key(request)
             receipt = receive_purchase_order(
@@ -265,6 +272,13 @@ class PurchaseOrderItemViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
             permissions.append(HasVerifiedMFA())
         permissions.append(PurchasingCapabilityPermission())
         return permissions
+
+    def perform_destroy(self, instance):
+        if instance.purchase_order.status != 'draft':
+            raise serializers.ValidationError(
+                {'detail': 'Approved purchase order items are immutable.'}
+            )
+        return super().perform_destroy(instance)
 
 
 class PurchaseReceiptViewSet(viewsets.ReadOnlyModelViewSet):
