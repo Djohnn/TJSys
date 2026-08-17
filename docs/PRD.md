@@ -64,6 +64,15 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 22 | Concluída | Refatoração do catálogo (fiscal-data, price-tiers, novos campos) |
 | 23 | Concluída | Kit composition with inventory decomposition |
 
+### Hardening global R0-R10 — 2026-08-17
+
+- [x] Reconciliar contratos legados sem enfraquecer MFA, locks, idempotência ou RLS.
+- [x] Zerar a suíte backend consolidada: `1913 passed in 717.29s`.
+- [x] Zerar Ruff, formatter e mypy globais.
+- [x] Validar Django check e ausência de migrations pendentes.
+
+Evidência completa: [R0_R10_GLOBAL_HARDENING_FINAL_REPORT.md](10_Releases/R0_R10_GLOBAL_HARDENING_FINAL_REPORT.md).
+
 ---
 
 ### Sprint 0 — Fundação Técnica do TJSys
