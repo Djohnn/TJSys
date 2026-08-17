@@ -56,6 +56,8 @@ def test_verified_login_creates_only_pre_mfa_session(client):
     user = User.objects.create_user(email='verified@test.local', password='valid-password')
     user.email_verified_at = timezone.now()
     user.save(update_fields=['email_verified_at'])
+    tenant = Tenant.objects.create(name='Verified Login', slug='verified-login')
+    TenantMembership.objects.create(user=user, tenant=tenant, role='admin')
 
     response = client.post(
         '/api/v1/auth/login/',

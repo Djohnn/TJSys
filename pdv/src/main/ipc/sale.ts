@@ -1,33 +1,22 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain } from 'electron';
 import { api } from '../services/api';
 import { buildEligibilityHeartbeat, extractServerTime } from './contingencyHeartbeat';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { contingencyPolicy } from '../services/contingencyPolicy';
 import { offlineSaleService } from '../services/offlineSaleService';
 import { logger } from '../utils/logger';
+import type { ElectronResult, OfflineSaleResult, SaleInput } from '../../shared/electron';
+import type { Sale, SaleDetail } from '../../shared/types';
+import { unwrapResults, type PaginatedResponse } from './response';
 
 export function setupSaleHandlers() {
-  ipcMain.handle('sale:create', async (event: IpcMainInvokeEvent, data: {
-    branch: string;
-    stock_location: string;
-    cash_session_id?: string;
-    operator_id?: string;
-    items: Array<{
-      product: string;
-      unit: string;
-      quantity: string;
-      factor: string;
-      discount_amount?: string;
-    }>;
-    payments: Array<{
-      method: string;
-      amount: string;
-      reference?: string;
-    }>;
-  }) => {
+  ipcMain.handle('sale:create', async (
+    _event,
+    data: SaleInput,
+  ): Promise<ElectronResult<Sale | OfflineSaleResult>> => {
     logger.info('Creating counter sale', { branch: data.branch, itemsCount: data.items.length });
     try {
-      const res = await api.post('/sales/counter/', data, {
+      const res = await api.post<Sale>('/sales/counter/', data, {
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
       contingencyPolicy.recordOnlineHeartbeat(
@@ -71,29 +60,37 @@ export function setupSaleHandlers() {
     }
   });
 
-  ipcMain.handle('sale:list', async (event: IpcMainInvokeEvent, params?: { branch?: string; limit?: number; offset?: number }) => {
+  ipcMain.handle('sale:list', async (
+    _event,
+    params?: { branch?: string; limit?: number; offset?: number },
+  ): Promise<ElectronResult<Sale[]>> => {
     try {
-      const res = await api.get('/sales/', { params });
-      return { success: true, data: res.data };
+      const res = await api.get<Sale[] | PaginatedResponse<Sale>>('/sales/', { params });
+      return { success: true, data: unwrapResults(res.data) };
     } catch (error) {
       logger.error('Failed to list sales:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to list sales' };
     }
   });
 
-  ipcMain.handle('sale:detail', async (event: IpcMainInvokeEvent, saleId: string) => {
+  ipcMain.handle('sale:detail', async (
+    _event,
+    saleId: string,
+  ): Promise<ElectronResult<SaleDetail>> => {
     try {
-      const res = await api.get(`/sales/${saleId}/`);
+      const res = await api.get<SaleDetail>(`/sales/${saleId}/`);
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to get sale detail:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get sale detail' };
     }
   });
-
-  ipcMain.handle('sale:receipt', async (event: IpcMainInvokeEvent, saleId: string) => {
+  ipcMain.handle('sale:receipt', async (
+    _event,
+    saleId: string,
+  ): Promise<ElectronResult<{ html: string }>> => {
     try {
-      const res = await api.get(`/sales/${saleId}/receipt/`);
+      const res = await api.get<{ html: string }>(`/sales/${saleId}/receipt/`);
       return { success: true, data: res.data };
     } catch (error) {
       logger.error('Failed to get receipt:', error);

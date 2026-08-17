@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'path';
 import { isDev } from './utils/env';
 import { setupAuthHandlers } from './ipc/auth';
@@ -12,8 +12,6 @@ import { setupCatalogCacheHandlers } from './ipc/catalog-cache';
 import { setupSyncHandlers } from './ipc/sync';
 import { setupConnectivityHandlers } from './ipc/connectivity';
 import { setupPrintingHandlers } from './ipc/printing';
-import { auth } from './services/auth';
-import { api } from './services/api';
 import { catalogCache } from './services/catalogCache';
 import { operationJournal } from './services/operationJournal';
 import { connectivityMonitor } from './services/connectivityMonitor';
@@ -43,7 +41,7 @@ function createWindow() {
     icon: join(__dirname, '../../build/icon.png'),
   });
 
-  if (isDev) {
+  if (isDev()) {
     const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();

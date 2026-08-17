@@ -26,15 +26,8 @@ interface UseCashSessionReturn {
   refreshSession: () => Promise<void>;
 }
 
-export function useCashSession() {
-  const [session, setSession] = useState<Partial<{
-    sessionId: string | null;
-    status: 'closed' | 'open';
-    openingAmount: string;
-    expectedAmount: string;
-    salesCount: number;
-    totalSales: string;
-  }>>({
+export function useCashSession(): UseCashSessionReturn {
+  const [session, setSessionState] = useState<CashSessionState>({
     sessionId: null,
     status: 'closed',
     openingAmount: '0.00',
@@ -48,15 +41,15 @@ export function useCashSession() {
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
-        setSession(parsed);
+        setSessionState(parsed);
       } catch (e) {
         console.error('Failed to parse saved session:', e);
       }
     }
   }, []);
 
-  const setSession = useCallback((newSession: Partial<typeof session>) => {
-    setSession(prev => {
+  const setSession = useCallback((newSession: Partial<CashSessionState>) => {
+    setSessionState(prev => {
       const updated = { ...prev, ...newSession };
       localStorage.setItem('cash_session', JSON.stringify(updated));
       return updated;
@@ -73,7 +66,7 @@ export function useCashSession() {
       totalSales: '0.00',
     };
     localStorage.removeItem('cash_session');
-    setSession(cleared);
+    setSessionState(cleared);
   }, []);
 
   const openSession = async (branchId: string, openingAmount: string) => {

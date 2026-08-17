@@ -1,11 +1,18 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
-import { api } from '../services/api';
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { auth } from '../services/auth';
-import { setItem, removeItem } from '../utils/storage';
+import { setItem } from '../utils/storage';
 import { logger } from '../utils/logger';
+import type {
+  AuthTokenSyncInput,
+  DeviceTokenResponse,
+  ElectronResult,
+} from '../../shared/electron';
 
-export function setupAuthHandlers() {
-  ipcMain.handle('auth:login', async (event: IpcMainInvokeEvent, apiKey: string) => {
+export function setupAuthHandlers(): void {
+  ipcMain.handle('auth:login', async (
+    _event: IpcMainInvokeEvent,
+    apiKey: string,
+  ): Promise<ElectronResult<DeviceTokenResponse>> => {
     logger.info('Attempting login with API key');
     try {
       const result = await auth.validateApiKey(apiKey);
@@ -16,14 +23,10 @@ export function setupAuthHandlers() {
     }
   });
 
-  ipcMain.handle('auth:sync-tokens', async (_event, data: {
-    token: string;
-    refresh_token: string;
-    device_id: string;
-    branch_id?: string;
-    tenant_id?: string;
-    api_key: string;
-  }) => {
+  ipcMain.handle('auth:sync-tokens', async (
+    _event: IpcMainInvokeEvent,
+    data: AuthTokenSyncInput,
+  ): Promise<ElectronResult<void>> => {
     setItem('access_token', data.token);
     setItem('refresh_token', data.refresh_token);
     setItem('device_id', data.device_id);
@@ -33,16 +36,17 @@ export function setupAuthHandlers() {
     return { success: true };
   });
 
-  ipcMain.handle('auth:logout', async () => {
+  ipcMain.handle('auth:logout', async (): Promise<ElectronResult<void>> => {
     auth.clearAuth();
     return { success: true };
   });
 
-  ipcMain.handle('auth:check', async () => {
-    return { success: true, authenticated: auth.isAuthenticated(), deviceId: auth.getDeviceId(), branchId: auth.getBranchId() };
-  });
+  ipcMain.handle('auth:check', async (): Promise<ElectronResult<{ isAuthenticated: boolean }>> => ({
+    success: true,
+    data: { isAuthenticated: auth.isAuthenticated() },
+  }));
 
-  ipcMain.handle('auth:refresh', async () => {
+  ipcMain.handle('auth:refresh', async (): Promise<ElectronResult<DeviceTokenResponse>> => {
     try {
       const result = await auth.refreshToken();
       return { success: true, data: result };

@@ -4,8 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { CashSessionProvider, useCashSession } from '../../contexts/CashSessionContext';
 
-const API_BASE = '/api/v1';
-
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();

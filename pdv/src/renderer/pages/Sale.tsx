@@ -1,10 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCashSession } from '../contexts/CashSessionContext';
 import { Card, Button, Input } from '../components/ui';
 import { SaleConfirmationToast } from '../components/SaleConfirmationToast';
 import { buildReceiptHtml } from '../utils/receipt';
+import { formatQuantity, type QuantityFormatOptions } from '../../shared/quantity';
+
+function parseProductPrice(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function quantityOptionsForProduct(product: any): QuantityFormatOptions {
+  const unit = product?.base_unit && typeof product.base_unit === 'object'
+    ? product.base_unit
+    : product?.unit && typeof product.unit === 'object'
+      ? product.unit
+      : null;
+  const flatSymbol = product?.unit_symbol ?? product?.base_unit_symbol;
+  const flatPrecision = product?.unit_precision ?? product?.quantity_precision ?? product?.decimal_places;
+  if (!unit) return { symbol: flatSymbol, precision: flatPrecision };
+  return {
+    symbol: flatSymbol ?? unit.symbol,
+    precision: flatPrecision ?? unit.precision ?? unit.quantity_precision ?? unit.decimal_places,
+  };
+}
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -88,7 +110,12 @@ export function Sale() {
     setShowSearch(false);
     setSearchQuery('');
     setSearchResults([]);
-    const unitPrice = Number(product.price ?? 0);
+    const unitPrice = parseProductPrice(product.price);
+    if (unitPrice === null) {
+      setError(`${product.name || 'Produto'} não pode ser adicionado sem preço válido.`);
+      return;
+    }
+    setError('');
 
     const existingIndex = items.findIndex(item => item.product.id === product.id);
     if (existingIndex >= 0) {
@@ -224,10 +251,15 @@ const paymentsPayload = payments.map(p => ({
         reference: p.reference || undefined
       }));
 
-      const electronAPI = (window as any).electronAPI;
+      const electronAPI = window.electronAPI;
+      const branch = localStorage.getItem('branch_id');
+      const stockLocation = localStorage.getItem('stock_location_id');
+      if (!branch || !stockLocation) {
+        throw new Error('Filial e local de estoque devem estar configurados.');
+      }
       const saleData = {
-        branch: localStorage.getItem('branch_id'),
-        stock_location: localStorage.getItem('stock_location_id'),
+        branch,
+        stock_location: stockLocation,
         items: itemsPayload,
         payments: paymentsPayload,
       };
@@ -291,7 +323,7 @@ const paymentsPayload = payments.map(p => ({
     if (!confirmationSale) return;
     const html = buildReceiptHtml(confirmationSale.data);
     const fileName = `cupom_balcao_${confirmationSale.saleNumber}`;
-    const electronAPI = (window as any).electronAPI;
+    const electronAPI = window.electronAPI;
     if (electronAPI?.printBalcaoReceipt) {
       await electronAPI.printBalcaoReceipt({ html, fileName });
     } else if (electronAPI?.printReceipt) {
@@ -326,7 +358,7 @@ const paymentsPayload = payments.map(p => ({
             chaveAcesso: statusData.xml_url || '',
           });
           const fileName = `cupom_fiscal_${confirmationSale.saleNumber}`;
-          const electronAPI = (window as any).electronAPI;
+          const electronAPI = window.electronAPI;
           if (electronAPI?.printFiscalReceipt) {
             await electronAPI.printFiscalReceipt({ html, fileName });
           } else if (electronAPI?.printReceipt) {
@@ -445,7 +477,9 @@ const paymentsPayload = payments.map(p => ({
                         <div style={{ fontSize: '0.75rem', color: '#757575' }}>SKU: {product.sku}</div>
                       </div>
                       <div style={{ fontWeight: 600, color: '#1976d2', fontSize: '0.875rem' }}>
-                        {product.price ? `R$ ${parseFloat(product.price).toFixed(2)}` : 'Sem preço'}
+                        {parseProductPrice(product.price) === null
+                          ? 'Sem preço'
+                          : `R$ ${parseProductPrice(product.price)!.toFixed(2)}`}
                       </div>
                     </div>
                   ))}
@@ -479,9 +513,11 @@ const paymentsPayload = payments.map(p => ({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '4px' }}>{item.product.name}</div>
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.75rem', color: '#757575' }}>Qtd:</span>
+                          <span style={{ fontSize: '0.75rem', color: '#757575' }}>
+                            Qtd: {formatQuantity(item.quantity, quantityOptionsForProduct(item.product))}
+                          </span>
                           <input type="number" min="1" value={item.quantity}
-                            onChange={(e) => updateItemQuantity(index, parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateItemQuantity(index, parseFloat(e.target.value) || 1)}
                             style={{ width: '60px', padding: '4px 8px', fontSize: '0.875rem' }} />
                           <span style={{ fontSize: '0.75rem', color: '#757575' }}>Desc:</span>
                           <input type="number" min="0" step="0.01" value={item.discount.toFixed(2)}
@@ -521,7 +557,6 @@ const paymentsPayload = payments.map(p => ({
                     <input type="radio" name="pendingMethod" value={method}
                       checked={pendingMethod === method}
                       onChange={() => {
-                        const prev = pendingMethod;
                         setPendingMethod(method);
                         if (method !== 'cash') {
                           setPendingReceived('');

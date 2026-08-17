@@ -4,8 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../contexts/AuthContext';
 import { Login } from '../../pages/Login';
 
-const API_BASE = '/api/v1';
-
 const mockNavigate = vi.fn();
 
 vi.mock('react-router-dom', async () => {

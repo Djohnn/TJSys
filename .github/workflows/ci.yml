@@ -263,3 +263,41 @@ jobs:
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
           E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
+
+  pdv-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pdv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pdv/package-lock.json
+
+      - name: Install PDV dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Type check E2E
+        run: npm run typecheck:e2e
+
+      - name: Run PDV mock E2E
+        run: npm run test:e2e -- --project=chromium-mock --retries=0
+
+      - name: Upload PDV Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv-playwright-report
+          path: |
+            pdv/playwright-report/
+            pdv/test-results/
+          if-no-files-found: ignore

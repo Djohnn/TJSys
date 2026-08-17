@@ -55,9 +55,11 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
-  baseUnit: string;
-  requiresLot: boolean;
-  requiresExpiry: boolean;
+  base_unit: string;
+  requires_lot: boolean;
+  requires_expiry: boolean;
+  unit_symbol?: string;
+  unit_precision?: number;
 }
 
 export interface Unit {
@@ -69,8 +71,8 @@ export interface Unit {
 export interface ProductPrice {
   id: string;
   amount: string;
-  validFrom: string;
-  validTo: string | null;
+  valid_from: string;
+  valid_to: string | null;
 }
 
 export interface Branch {
@@ -81,37 +83,42 @@ export interface Branch {
 
 export interface CashSession {
   id: string;
-  branch: Branch;
+  branch: string;
   operator: string;
   status: 'open' | 'closed';
-  openingAmount: string;
-  expectedAmount: string;
-  closingAmount: string | null;
-  openedAt: string;
-  closedAt: string | null;
+  opening_amount: string;
+  expected_amount: string;
+  closing_amount: string | null;
+  opened_at: string;
+  closed_at: string | null;
+  sales_count?: number;
+  total_sales?: string;
 }
 
 export interface Sale {
   id: string;
-  branch: Branch;
-  cashSession: string;
+  branch: string;
+  cash_session: string;
   operator: string;
+  customer?: string | null;
   status: 'confirmed' | 'cancelled';
-  grossTotal: string;
-  discountTotal: string;
-  netTotal: string;
-  createdAt: string;
+  gross_total: string;
+  discount_total: string;
+  net_total: string;
+  created_at: string;
 }
 
 export interface SaleItem {
   id: string;
-  product: Product;
+  product: Product | string;
   quantity: string;
-  unit: Unit;
+  unit: Unit | string;
+  unit_symbol?: string;
+  unit_precision?: number;
   factor: string;
-  unitPrice: string;
-  discountAmount: string;
-  lineTotal: string;
+  unit_price: string;
+  discount_amount: string;
+  line_total: string;
 }
 
 export interface SalePayment {
@@ -123,12 +130,12 @@ export interface SalePayment {
 
 export interface CashMovement {
   id: string;
-  movementType: string;
+  movement_type: string;
   amount: string;
-  paymentMethod: string;
+  payment_method: string;
   reference: string;
   notes: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface CashSessionDetail extends CashSession {

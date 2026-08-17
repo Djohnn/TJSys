@@ -1,10 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-const API_KEY = 'e2e-test-key-2026';
+const liveApiKey = process.env.E2E_LIVE_API_KEY;
 
-test.describe('QA Visual - Sprint 7', () => {
+test.describe('QA Visual @live - Sprint 7', () => {
+  test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e backend dedicado.');
+  test.beforeEach(() => {
+    if (!liveApiKey) {
+      throw new Error('Defina E2E_LIVE_API_KEY para executar o fluxo live do PDV.');
+    }
+  });
   test.setTimeout(180000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('cadastro de 3 produtos + venda no PDV + status fiscal', async ({ page }) => {
     await page.addInitScript(() => {
@@ -27,7 +32,7 @@ test.describe('QA Visual - Sprint 7', () => {
     // LOGIN
     await page.goto('/login', { waitUntil: 'networkidle' });
     await expect(page.getByLabel('Chave de API (API Key)')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Chave de API (API Key)').fill(API_KEY);
+    await page.getByLabel('Chave de API (API Key)').fill(liveApiKey!);
     await page.getByRole('button', { name: 'Entrar' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 30000 });
 
@@ -132,21 +137,27 @@ test.describe('QA Visual - Sprint 7', () => {
     const searchInput = page.getByPlaceholder('Buscar produto (SKU ou nome)...');
 
     for (const c of created) {
+      const productSearchResponse = page.waitForResponse(
+        response => response.url().includes('/api/v1/products/')
+          && response.url().includes(`search=${encodeURIComponent(c.name)}`)
+          && response.request().method() === 'GET',
+        { timeout: 10000 },
+      );
       await searchInput.fill(c.name);
-      await page.waitForTimeout(1200);
+      await productSearchResponse;
       const option = page.getByText(c.name).first();
-      await option.waitFor({ state: 'visible', timeout: 10000 });
+      await expect(option).toBeVisible({ timeout: 10000 });
       await option.click();
-      await page.waitForTimeout(500);
     }
 
     // PAYMENT — number input, use dot decimal
     const total = created.reduce((s, c) => s + c.price, 0);
     const paymentInput = page.locator('input[placeholder="0,00"]').first();
     await paymentInput.fill(total.toFixed(2));
-    await page.waitForTimeout(300);
-    await page.getByRole('button', { name: 'Adicionar Pagamento' }).click();
-    await page.waitForTimeout(500);
+    const addPaymentButton = page.getByRole('button', { name: 'Adicionar Pagamento' });
+    await expect(addPaymentButton).toBeEnabled();
+    await addPaymentButton.click();
+    await expect(page.getByText(`R$ ${total.toFixed(2)}`).first()).toBeVisible();
 
     // CONFIRM
     const responsePromise = page.waitForResponse(
@@ -205,8 +216,8 @@ test.describe('QA Visual - Sprint 7', () => {
 
     // Final screenshot
     await page.goto('/dashboard', { waitUntil: 'networkidle' });
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 });
-    await page.waitForTimeout(1000);
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 });
+    await expect(page.getByRole('heading').first()).toBeVisible();
     await page.screenshot({ path: 'qa-dashboard-final.png', fullPage: true });
     console.log('✓ QA Visual test completo!');
   });

@@ -109,9 +109,14 @@ export function SyncStatusBar() {
       )}
 
       {hasPending && !syncing && (
-        <button onClick={handleSyncNow} style={buttonStyle}>
-          Sincronizar agora
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <a href="/sync-pending" style={{ textDecoration: 'none' }}>
+            <button type="button" style={buttonStyle}>Pendências</button>
+          </a>
+          <button type="button" onClick={handleSyncNow} style={buttonStyle}>
+            Sincronizar agora
+          </button>
+        </div>
       )}
     </div>
   );

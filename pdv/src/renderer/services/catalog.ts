@@ -24,8 +24,6 @@ export interface SearchResult {
 }
 
 class CatalogCacheImpl {
-  private lastSync: Date | null = null;
-
   async init(): Promise<void> {
     if (!localStorage.getItem('catalog_db_initialized')) {
       localStorage.setItem('catalog_products', '[]');
@@ -36,7 +34,6 @@ class CatalogCacheImpl {
   }
 
   async syncFromBackend(): Promise<{ products: number; prices: number }> {
-    this.lastSync = new Date();
     localStorage.setItem('catalog_last_sync', Date.now().toString());
     return { products: 0, prices: 0 };
   }

@@ -1,11 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const livePdvEnabled = process.env.E2E_LIVE_PDV === '1';
+
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : '50%',
+  retries: Number(process.env.PLAYWRIGHT_RETRIES ?? (process.env.CI ? 2 : 0)),
+  workers: 1,
   reporter: process.env.CI
     ? [['github'], ['html'], ['junit', { outputFile: 'results.xml' }]]
     : 'list',
@@ -15,13 +18,19 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: {
-    command: 'npx vite --config vite.renderer.config.ts',
-    port: 5173,
-    timeout: 30000,
-    reuseExistingServer: true,
-  },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium-mock',
+      grepInvert: /@live/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    ...(livePdvEnabled ? [{
+      name: 'chromium-live',
+      grep: /@live/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.E2E_LIVE_BASE_URL ?? process.env.BASE_URL ?? 'http://localhost:5173',
+      },
+    }] : []),
   ],
 });
