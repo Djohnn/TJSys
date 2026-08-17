@@ -1,27 +1,35 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Decimal from 'decimal.js'
 
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
-import { useTenant } from '@/tenant/TenantProvider'
 import Button from '@/components/ui/Button'
-
-interface Sale {
-  id: string
-  number: string
-  status: string
-  customer_name?: string
-  branch_name?: string
-  total: string
-  created_at: string
-}
+import Modal from '@/components/ui/Modal'
+import { useTenant } from '@/tenant/TenantProvider'
+import {
+  fetchSale,
+  getSaleQueryErrorMessage,
+  type Sale,
+} from './salesManagementApi'
 
 interface CancellationDialogProps {
   saleId: string
   onClose: () => void
 }
 
-export default function CancellationDialog({ saleId, onClose }: CancellationDialogProps) {
+function formatMoney(value: string): string {
+  try {
+    return new Decimal(value).toFixed(2).replace('.', ',')
+  } catch {
+    return value.replace('.', ',')
+  }
+}
+
+export default function CancellationDialog({
+  saleId,
+  onClose,
+}: CancellationDialogProps) {
   const { selectedTenant } = useTenant()
   const queryClient = useQueryClient()
   const tenantId = selectedTenant?.tenant_id ?? ''
@@ -31,11 +39,13 @@ export default function CancellationDialog({ saleId, onClose }: CancellationDial
 
   const idempotencyKey = useRef(crypto.randomUUID())
 
-  const { data: sale } = useQuery({
-    queryKey: ['sale', tenantId, saleId],
-    queryFn: ({ signal }) => apiRequest<Sale>(`/sales/${saleId}/`, { signal, tenantId }),
+  const saleQuery = useQuery<Sale>({
+    queryKey: ['sale-dialog', tenantId, saleId],
+    queryFn: ({ signal }) => fetchSale(tenantId, saleId, signal),
     enabled: !!tenantId,
+    retry: false,
   })
+  const { data: sale, isLoading, isError, error: saleError } = saleQuery
 
   const cancelMutation = useMutation({
     mutationFn: () =>
@@ -53,61 +63,88 @@ export default function CancellationDialog({ saleId, onClose }: CancellationDial
       onClose()
     },
     onError: (err) => {
-      if (isApiProblemError(err)) {
-        setError(err.problem.detail)
-      } else {
-        setError('Erro ao cancelar venda.')
-      }
+      setError(
+        isApiProblemError(err) ? err.problem.detail : 'Erro ao cancelar venda.',
+      )
     },
   })
 
   const handleSubmit = () => {
+    if (!sale) return
     if (!reason.trim()) {
       setError('O motivo do cancelamento é obrigatório.')
       return
     }
+    if (cancelMutation.isPending) return
     setError(null)
     cancelMutation.mutate()
   }
 
+  if (isLoading) {
+    return (
+      <Modal
+        open
+        title="Cancelar Venda"
+        onClose={onClose}
+        testId="cancel-dialog"
+        closeLabel="Fechar cancelamento"
+        actions={
+          <Button variant="secondary" onClick={onClose} type="button">
+            Fechar
+          </Button>
+        }
+      >
+        <p role="status" aria-live="polite" className="text-sm text-neutral-500">
+          Carregando dados da venda...
+        </p>
+      </Modal>
+    )
+  }
+
+  if (isError || !sale) {
+    return (
+      <Modal
+        open
+        title="Cancelar Venda"
+        onClose={onClose}
+        testId="cancel-dialog"
+        closeLabel="Fechar cancelamento"
+        actions={
+          <Button variant="secondary" onClick={onClose} type="button">
+            Fechar
+          </Button>
+        }
+      >
+        <p
+          role="alert"
+          aria-live="assertive"
+          data-testid="cancel-error"
+          className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+        >
+          {isError
+            ? getSaleQueryErrorMessage(saleError)
+            : 'Venda não encontrada ou não está disponível neste tenant.'}
+        </p>
+      </Modal>
+    )
+  }
+
   return (
-    <div data-testid="cancel-dialog" role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h3 className="text-lg font-semibold text-neutral-900">Cancelar Venda</h3>
-          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-xl leading-none">&times;</button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-neutral-600">
-            Venda: <strong className="text-neutral-900">{sale?.number ?? saleId}</strong>
-          </p>
-
-          {error && (
-            <div data-testid="cancel-error" className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <p data-testid="cancel-summary" className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-border">
-            Isso irá estornar todos os itens e reverter o valor de{' '}
-            <strong className="text-neutral-900">R$ {(sale?.total ?? '0,00').replace('.', ',')}</strong>
-          </p>
-
-          <div>
-            <label htmlFor="cancel-reason" className="block text-sm font-medium text-neutral-700 mb-1">Motivo</label>
-            <textarea
-              id="cancel-reason"
-              data-testid="cancel-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm min-h-[80px]"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-neutral-50 rounded-b-xl">
-          <Button variant="secondary" onClick={onClose} disabled={cancelMutation.isPending} type="button">
+    <Modal
+      open
+      title="Cancelar Venda"
+      onClose={onClose}
+      testId="cancel-dialog"
+      closeLabel="Fechar cancelamento"
+      closeDisabled={cancelMutation.isPending}
+      actions={
+        <>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={cancelMutation.isPending}
+            type="button"
+          >
             Voltar
           </Button>
           <Button
@@ -119,8 +156,50 @@ export default function CancellationDialog({ saleId, onClose }: CancellationDial
           >
             {cancelMutation.isPending ? 'Cancelando...' : 'Confirmar Cancelamento'}
           </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-neutral-600">
+          Venda: <strong className="text-neutral-900">{sale.id}</strong>
+        </p>
+
+        {error && (
+          <div
+            role="alert"
+            aria-live="polite"
+            data-testid="cancel-error"
+            className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        <p
+          data-testid="cancel-summary"
+          className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-border"
+        >
+          Isso irá estornar todos os itens e reverter o valor de{' '}
+          <strong className="text-neutral-900">R$ {formatMoney(sale.total)}</strong>
+        </p>
+
+        <div>
+          <label
+            htmlFor="cancel-reason"
+            className="block text-sm font-medium text-neutral-700 mb-1"
+          >
+            Motivo
+          </label>
+          <textarea
+            id="cancel-reason"
+            data-testid="cancel-reason"
+            aria-required="true"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            className="block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm min-h-[80px]"
+          />
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

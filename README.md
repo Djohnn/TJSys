@@ -42,7 +42,7 @@ pytest backend/tests/
 
 - `POSTGRES_USER`: proprietário local, usado somente para bootstrap e migrations.
 - `POSTGRES_APP_USER`: runtime Django sem `SUPERUSER`, `BYPASSRLS` ou propriedade das tabelas.
-- `POSTGRES_TEST_USER`: cria apenas bancos efêmeros de teste e não ignora RLS.
+- `POSTGRES_TEST_USER`: executa a suíte no banco de teste pré-provisionado, sem `SUPERUSER`, `BYPASSRLS` ou `CREATEDB`.
 
 O script `infra/postgres/init/001_roles.sh` cria os papéis restritos em instalações novas. Em bancos locais existentes, execute-o uma vez pelo contêiner PostgreSQL. Nunca use o papel proprietário para iniciar o servidor Django.
 

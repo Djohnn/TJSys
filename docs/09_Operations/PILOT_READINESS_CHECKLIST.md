@@ -46,20 +46,20 @@ This checklist must be completed and signed off before initiating the Zyrp pilot
 | Item | Status | Evidence | Owner |
 |------|--------|----------|-------|
 | Automated backup scheduled | ☐ | Cron/job config | |
-| Backup retention configured (7+ days) | ☐ | Backup policy doc | |
-| Restore tested successfully | ☐ | Restore verification log | |
+| Backup retention configured (7+ days) | ☑ | `backup_postgres.ps1`: 7 dias | Engineering |
+| Restore tested successfully | ☑ | Relatório R8: restore descartável em 2026-08-12 | Engineering |
 | Backup encryption enabled | ☐ | Backup file format | |
 | Off-site backup location configured | ☐ | Storage location | |
 
 ### 6. Monitoring & Alerting
 | Item | Status | Evidence | Owner |
 |------|--------|----------|-------|
-| Health/readiness endpoints responding | ☐ | curl test output | |
-| Metrics endpoint accessible | ☐ | curl test output | |
+| Health/readiness endpoints responding | ☑ | Smoke R8: HTTP 200; negativos: HTTP 503 | Engineering |
+| Metrics endpoint accessible | ☑ | Smoke autenticado R8: HTTP 200 | Engineering |
 | Grafana/Prometheus dashboards configured | ☐ | Dashboard screenshots | |
 | Alert rules created for SEV-1/2 triggers | ☐ | Alert rule config | |
 | Notification channels tested (Slack/Email) | ☐ | Test notification | |
-| Runbooks accessible to on-call | ☐ | Doc links | |
+| Runbooks accessible to on-call | ☑ | `docs/09_Operations/RUNBOOK_*.md` | Engineering |
 
 ### 7. Security & Privacy
 | Item | Status | Evidence | Owner |

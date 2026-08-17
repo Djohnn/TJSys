@@ -9,6 +9,8 @@ from django.utils import timezone
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
 from tenancy.models import Branch, Company, Device, Tenant, TenantMembership
 
+pytest_plugins = ('tests.test_pdv_device_flow',)
+
 User = get_user_model()
 
 
@@ -308,6 +310,15 @@ def sale_context(django_user_model):
             tenant=tenant,
             company=company,
             name='Filial Venda',
+        )
+        device = Device.all_objects.create(
+            tenant=tenant,
+            branch=branch,
+            name='PDV Venda',
+            device_id='sale-context-device',
+            key_hash='sale-context-key-hash',
+            status='active',
+            registered_by=user,
         )
         location = StockLocation.all_objects.create(
             tenant=tenant,

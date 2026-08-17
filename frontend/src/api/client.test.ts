@@ -123,6 +123,67 @@ describe('apiRequest', () => {
     expect(capturedTenantId).toBe('tenant-abc')
   })
 
+  it('does not retry a GET rejected with AbortError', async () => {
+    // Given an in-flight GET that the browser aborts, when it rejects, then the abort propagates once.
+    const originalFetch = globalThis.fetch
+    const abortError = new DOMException('Request aborted', 'AbortError')
+    let attempts = 0
+    globalThis.fetch = (() => {
+      attempts += 1
+      return Promise.reject(abortError)
+    }) as typeof fetch
+
+    try {
+      await expect(apiRequest('/test/aborted')).rejects.toBe(abortError)
+      expect(attempts).toBe(1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('does not retry a GET when its signal is already aborted', async () => {
+    // Given an aborted signal, when the GET fails, then its first error propagates without retrying.
+    const originalFetch = globalThis.fetch
+    const controller = new AbortController()
+    const networkError = new Error('network failure')
+    let attempts = 0
+    controller.abort()
+    globalThis.fetch = (() => {
+      attempts += 1
+      return Promise.reject(networkError)
+    }) as typeof fetch
+
+    try {
+      await expect(
+        apiRequest('/test/already-aborted', { signal: controller.signal }),
+      ).rejects.toBe(networkError)
+      expect(attempts).toBe(1)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('retries one transient GET failure', async () => {
+    // Given a non-abort GET failure, when it is transient, then one existing retry may succeed.
+    const originalFetch = globalThis.fetch
+    const networkError = new Error('network failure')
+    let attempts = 0
+    globalThis.fetch = (() => {
+      attempts += 1
+      if (attempts === 1) {
+        return Promise.reject(networkError)
+      }
+      return Promise.resolve(new Response(JSON.stringify({ retried: true }), { status: 200 }))
+    }) as typeof fetch
+
+    try {
+      await expect(apiRequest('/test/transient')).resolves.toEqual({ retried: true })
+      expect(attempts).toBe(2)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('throws UnauthorizedError on 401 response', async () => {
     server.use(
       http.get(`${BASE}/test/401`, () =>

@@ -310,6 +310,7 @@ class SaleRefund(VersionedSalesModel):
     )
     method = models.CharField(max_length=30, choices=METHOD_CHOICES)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
+    reason = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     idempotency_key = models.CharField(max_length=100, blank=True, default='')
     payload_hash = models.CharField(max_length=64, blank=True, default='')
