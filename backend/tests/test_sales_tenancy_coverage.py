@@ -62,9 +62,7 @@ def _post_json(client, url, payload, *, tenant, idempotency_key):
 @pytest.fixture
 def full_sales_context(django_user_model):
     tenant = Tenant.objects.create(name='Full Sales', slug='full-sales')
-    user = django_user_model.objects.create_user(
-        email='full-sales@test.local', password='pass123'
-    )
+    user = django_user_model.objects.create_user(email='full-sales@test.local', password='pass123')
     TenantMembership.objects.create(user=user, tenant=tenant, role='admin', is_active=True)
 
     def _create():
@@ -81,12 +79,25 @@ def full_sales_context(django_user_model):
             tenant=tenant, branch=branch, code='BALCAO', name='Balcão', is_primary=True
         )
         create_receipt(
-            tenant, branch, product, location, Decimal('20'), unit, Decimal('1'),
-            idempotency_key='full-seed-stock', actor=user, reason='seed'
+            tenant,
+            branch,
+            product,
+            location,
+            Decimal('20'),
+            unit,
+            Decimal('1'),
+            idempotency_key='full-seed-stock',
+            actor=user,
+            reason='seed',
         )
         return {
-            'tenant': tenant, 'user': user, 'unit': unit, 'product': product,
-            'branch': branch, 'location': location, 'company': company,
+            'tenant': tenant,
+            'user': user,
+            'unit': unit,
+            'product': product,
+            'branch': branch,
+            'location': location,
+            'company': company,
         }
 
     return _run_in_tenant(tenant, _create)
@@ -112,12 +123,25 @@ def sales_api_ctx(client, django_user_model):
             tenant=tenant, branch=branch, code='BAL', name='Balcao', is_primary=True
         )
         create_receipt(
-            tenant, branch, product, location, Decimal('50'), unit, Decimal('1'),
-            idempotency_key='api2-seed', actor=user, reason='seed'
+            tenant,
+            branch,
+            product,
+            location,
+            Decimal('50'),
+            unit,
+            Decimal('1'),
+            idempotency_key='api2-seed',
+            actor=user,
+            reason='seed',
         )
         return {
-            'tenant': tenant, 'user': user, 'client': api_client, 'unit': unit,
-            'product': product, 'branch': branch, 'location': location,
+            'tenant': tenant,
+            'user': user,
+            'client': api_client,
+            'unit': unit,
+            'product': product,
+            'branch': branch,
+            'location': location,
         }
 
     return _run_in_tenant(tenant, _create)
@@ -137,8 +161,11 @@ def test_open_cash_session_requires_idempotency_key(full_sales_context):
     def _test():
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
             open_cash_session(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-                opening_amount=Decimal('10.00'), idempotency_key='',
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
+                opening_amount=Decimal('10.00'),
+                idempotency_key='',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -152,13 +179,19 @@ def test_open_cash_session_duplicate_idempotency_different_payload(full_sales_co
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('10.00'), idempotency_key='dup-cash',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('10.00'),
+            idempotency_key='dup-cash',
         )
         with pytest.raises(DuplicateIdempotencyKey):
             open_cash_session(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-                opening_amount=Decimal('20.00'), idempotency_key='dup-cash',
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
+                opening_amount=Decimal('20.00'),
+                idempotency_key='dup-cash',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -172,13 +205,19 @@ def test_open_cash_session_rejects_when_already_open(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('5.00'), idempotency_key='first-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('5.00'),
+            idempotency_key='first-open',
         )
         with pytest.raises(OpenCashSessionExists):
             open_cash_session(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-                opening_amount=Decimal('5.00'), idempotency_key='second-open',
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
+                opening_amount=Decimal('5.00'),
+                idempotency_key='second-open',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -193,8 +232,11 @@ def test_open_cash_session_creates_movement(full_sales_context):
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('100.00'), idempotency_key='cash-movement-test',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('100.00'),
+            idempotency_key='cash-movement-test',
         )
         assert session.status == 'open'
         assert session.opening_amount == Decimal('100.00')
@@ -219,11 +261,16 @@ def test_close_cash_session_requires_idempotency_key(full_sales_context):
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='close-nokey-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='close-nokey-open',
         )
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
-            close_cash_session(cash_session=session, closing_amount=Decimal('0'), idempotency_key='')
+            close_cash_session(
+                cash_session=session, closing_amount=Decimal('0'), idempotency_key=''
+            )
 
     _run_in_tenant(ctx['tenant'], _test)
 
@@ -236,15 +283,20 @@ def test_close_cash_session_already_closed_returns_same(full_sales_context):
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='close-already-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='close-already-open',
         )
         close_cash_session(
-            cash_session=session, closing_amount=Decimal('0'),
+            cash_session=session,
+            closing_amount=Decimal('0'),
             idempotency_key='close-already-key',
         )
         result = close_cash_session(
-            cash_session=session, closing_amount=Decimal('0'),
+            cash_session=session,
+            closing_amount=Decimal('0'),
             idempotency_key='close-already-key2',
         )
         assert result.status == 'closed'
@@ -260,11 +312,15 @@ def test_close_cash_session_with_no_difference(full_sales_context):
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('50.00'), idempotency_key='close-nodiff-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('50.00'),
+            idempotency_key='close-nodiff-open',
         )
         closed = close_cash_session(
-            cash_session=session, closing_amount=Decimal('50.00'),
+            cash_session=session,
+            closing_amount=Decimal('50.00'),
             idempotency_key='close-nodiff-key',
         )
         assert closed.status == 'closed'
@@ -283,11 +339,15 @@ def test_close_cash_session_with_difference_creates_adjustment(full_sales_contex
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('100.00'), idempotency_key='close-diff-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('100.00'),
+            idempotency_key='close-diff-open',
         )
         closed = close_cash_session(
-            cash_session=session, closing_amount=Decimal('95.00'),
+            cash_session=session,
+            closing_amount=Decimal('95.00'),
             idempotency_key='close-diff-key',
         )
         assert closed.status == 'closed'
@@ -306,19 +366,31 @@ def test_close_cash_session_includes_sales_and_movements_in_expected(full_sales_
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='close-sales-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='close-sales-open',
         )
         create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='close-sales-sale',
         )
         closed = close_cash_session(
-            cash_session=session, closing_amount=Decimal('30.00'),
+            cash_session=session,
+            closing_amount=Decimal('30.00'),
             idempotency_key='close-sales-key',
         )
         assert closed.status == 'closed'
@@ -340,13 +412,20 @@ def test_create_counter_sale_no_items_raises_empty_sale(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='empty-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='empty-open',
         )
         with pytest.raises(EmptySale):
             create_counter_sale(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-                stock_location=ctx['location'], items=[], payments=[],
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
+                stock_location=ctx['location'],
+                items=[],
+                payments=[],
                 idempotency_key='empty-sale',
             )
 
@@ -361,16 +440,28 @@ def test_create_counter_sale_no_payments_raises_payment_mismatch(full_sales_cont
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='no-pay-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='no-pay-open',
         )
         with pytest.raises(PaymentMismatch, match='at least one payment'):
             create_counter_sale(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
                 stock_location=ctx['location'],
-                items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                        'quantity': Decimal('1'), 'factor': Decimal('1')}],
-                payments=[], idempotency_key='no-pay-sale',
+                items=[
+                    {
+                        'product': ctx['product'],
+                        'unit': ctx['unit'],
+                        'quantity': Decimal('1'),
+                        'factor': Decimal('1'),
+                    }
+                ],
+                payments=[],
+                idempotency_key='no-pay-sale',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -385,8 +476,12 @@ def test_create_counter_sale_no_idempotency_key_raises(full_sales_context):
     def _test():
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
             create_counter_sale(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-                stock_location=ctx['location'], items=[], payments=[],
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
+                stock_location=ctx['location'],
+                items=[],
+                payments=[],
                 idempotency_key='',
             )
 
@@ -401,16 +496,27 @@ def test_create_counter_sale_negative_line_total_raises(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='neg-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='neg-open',
         )
         with pytest.raises(ValueError, match='Line total cannot be negative'):
             create_counter_sale(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
                 stock_location=ctx['location'],
-                items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                        'quantity': Decimal('1'), 'factor': Decimal('1'),
-                        'discount_amount': Decimal('999.00')}],
+                items=[
+                    {
+                        'product': ctx['product'],
+                        'unit': ctx['unit'],
+                        'quantity': Decimal('1'),
+                        'factor': Decimal('1'),
+                        'discount_amount': Decimal('999.00'),
+                    }
+                ],
                 payments=[{'method': 'cash', 'amount': Decimal('0')}],
                 idempotency_key='neg-sale',
             )
@@ -426,15 +532,26 @@ def test_create_counter_sale_payment_mismatch_raises(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='mismatch-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='mismatch-open',
         )
         with pytest.raises(PaymentMismatch, match='must match'):
             create_counter_sale(
-                tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+                tenant=ctx['tenant'],
+                branch=ctx['branch'],
+                operator=ctx['user'],
                 stock_location=ctx['location'],
-                items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                        'quantity': Decimal('1'), 'factor': Decimal('1')}],
+                items=[
+                    {
+                        'product': ctx['product'],
+                        'unit': ctx['unit'],
+                        'quantity': Decimal('1'),
+                        'factor': Decimal('1'),
+                    }
+                ],
                 payments=[{'method': 'cash', 'amount': Decimal('1.00')}],
                 idempotency_key='mismatch-sale',
             )
@@ -450,15 +567,26 @@ def test_create_counter_sale_with_discount(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='disc-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='disc-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1'),
-                    'discount_amount': Decimal('5.00')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                    'discount_amount': Decimal('5.00'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('25.00')}],
             idempotency_key='disc-sale',
         )
@@ -481,16 +609,28 @@ def test_create_counter_sale_with_customer(full_sales_context):
             tenant=ctx['tenant'], name='Cliente Teste', person_type='PF'
         )
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='cust-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='cust-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('15.00')}],
-            idempotency_key='cust-sale', customer=customer,
+            idempotency_key='cust-sale',
+            customer=customer,
         )
         assert sale.customer_id == customer.id
 
@@ -510,22 +650,35 @@ def test_create_sale_return_requires_idempotency_key(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-nokey-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-nokey-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='ret-nokey-sale',
         )
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale,
+                tenant=ctx['tenant'],
+                sale=sale,
                 items=[{'sale_item_id': str(sale.items.first().id), 'quantity': Decimal('1')}],
-                reason='Defeito', idempotency_key='',
+                reason='Defeito',
+                idempotency_key='',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -539,21 +692,35 @@ def test_create_sale_return_requires_items(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-noitems-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-noitems-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='ret-noitems-sale',
         )
         with pytest.raises(ValueError, match='at least one item'):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale, items=[],
-                reason='Teste', idempotency_key='ret-noitems-key',
+                tenant=ctx['tenant'],
+                sale=sale,
+                items=[],
+                reason='Teste',
+                idempotency_key='ret-noitems-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -567,22 +734,35 @@ def test_create_sale_return_requires_reason(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-noreason-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-noreason-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='ret-noreason-sale',
         )
         with pytest.raises(ValueError, match='Reason is required'):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale,
+                tenant=ctx['tenant'],
+                sale=sale,
                 items=[{'sale_item_id': str(sale.items.first().id), 'quantity': Decimal('1')}],
-                reason='', idempotency_key='ret-noreason-key',
+                reason='',
+                idempotency_key='ret-noreason-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -601,22 +781,35 @@ def test_create_sale_return_insufficient_quantity(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-insuf-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-insuf-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='ret-insuf-sale',
         )
         with pytest.raises(InsufficientReturnableQuantity):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale,
+                tenant=ctx['tenant'],
+                sale=sale,
                 items=[{'sale_item_id': str(sale.items.first().id), 'quantity': Decimal('5')}],
-                reason='Too many', idempotency_key='ret-insuf-key',
+                reason='Too many',
+                idempotency_key='ret-insuf-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -630,23 +823,36 @@ def test_create_sale_return_invalid_sale_item(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-baditem-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-baditem-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='ret-baditem-sale',
         )
         fake_id = str(uuid.uuid4())
         with pytest.raises(ValueError, match='not found in sale'):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale,
+                tenant=ctx['tenant'],
+                sale=sale,
                 items=[{'sale_item_id': fake_id, 'quantity': Decimal('1')}],
-                reason='Teste', idempotency_key='ret-baditem-key',
+                reason='Teste',
+                idempotency_key='ret-baditem-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -661,22 +867,36 @@ def test_create_sale_return_happy_path(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-ok-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-ok-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('3'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('3'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('45.00')}],
             idempotency_key='ret-ok-sale',
         )
         sale_item = sale.items.first()
         sale_return = create_sale_return(
-            tenant=ctx['tenant'], sale=sale,
+            tenant=ctx['tenant'],
+            sale=sale,
             items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
-            reason='Defeito', idempotency_key='ret-ok-key', actor=ctx['user'],
+            reason='Defeito',
+            idempotency_key='ret-ok-key',
+            actor=ctx['user'],
         )
         assert sale_return.status == 'completed'
         assert sale_return.reason == 'Defeito'
@@ -693,22 +913,35 @@ def test_create_sale_return_idempotent_replay(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-idem-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-idem-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='ret-idem-sale',
         )
         sale_item = sale.items.first()
         payload = {
-            'tenant': ctx['tenant'], 'sale': sale,
+            'tenant': ctx['tenant'],
+            'sale': sale,
             'items': [{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
-            'reason': 'Teste replay', 'idempotency_key': 'ret-idem-key',
+            'reason': 'Teste replay',
+            'idempotency_key': 'ret-idem-key',
         }
         first = create_sale_return(**payload)
         replay = create_sale_return(**payload)
@@ -730,28 +963,43 @@ def test_create_sale_return_duplicate_idempotency_different_payload(full_sales_c
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='ret-dup-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='ret-dup-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='ret-dup-sale',
         )
         sale_item = sale.items.first()
         create_sale_return(
-            tenant=ctx['tenant'], sale=sale,
+            tenant=ctx['tenant'],
+            sale=sale,
             items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
-            reason='Primeiro', idempotency_key='ret-dup-key',
+            reason='Primeiro',
+            idempotency_key='ret-dup-key',
         )
         with pytest.raises(DuplicateIdempotencyKey):
             create_sale_return(
-                tenant=ctx['tenant'], sale=sale,
+                tenant=ctx['tenant'],
+                sale=sale,
                 items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('2')}],
-                reason='Segundo', idempotency_key='ret-dup-key',
+                reason='Segundo',
+                idempotency_key='ret-dup-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -773,8 +1021,12 @@ def test_create_sale_refund_requires_idempotency_key(full_sales_context):
         sale = Sale.all_objects.filter(tenant=ctx['tenant']).first()
         with pytest.raises(ValueError, match='Idempotency-Key is required'):
             create_sale_refund(
-                tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('10.00'), idempotency_key='',
+                tenant=ctx['tenant'],
+                sale=sale,
+                method='pix',
+                amount=Decimal('10.00'),
+                reason='Teste sem chave',
+                idempotency_key='',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -791,8 +1043,12 @@ def test_create_sale_refund_negative_amount_raises(full_sales_context):
         sale = Sale.all_objects.filter(tenant=ctx['tenant']).first()
         with pytest.raises(ValueError, match='must be positive'):
             create_sale_refund(
-                tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('-5.00'), idempotency_key='refund-neg',
+                tenant=ctx['tenant'],
+                sale=sale,
+                method='pix',
+                amount=Decimal('-5.00'),
+                reason='Teste negativo',
+                idempotency_key='refund-neg',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -809,8 +1065,12 @@ def test_create_sale_refund_zero_amount_raises(full_sales_context):
         sale = Sale.all_objects.filter(tenant=ctx['tenant']).first()
         with pytest.raises(ValueError, match='must be positive'):
             create_sale_refund(
-                tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('0'), idempotency_key='refund-zero',
+                tenant=ctx['tenant'],
+                sale=sale,
+                method='pix',
+                amount=Decimal('0'),
+                reason='Teste zero',
+                idempotency_key='refund-zero',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -824,20 +1084,35 @@ def test_create_sale_refund_pix_happy_path(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='refund-pix-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='refund-pix-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('15.00')}],
             idempotency_key='refund-pix-sale',
         )
         refund = create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-pix-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='pix',
+            amount=Decimal('15.00'),
+            reason='Devolução ao cliente',
+            idempotency_key='refund-pix-key',
             actor=ctx['user'],
         )
         assert refund.status == 'completed'
@@ -856,26 +1131,42 @@ def test_create_sale_refund_cash_creates_cash_movement(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('50.00'), idempotency_key='refund-cash-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('50.00'),
+            idempotency_key='refund-cash-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='refund-cash-sale',
         )
         refund = create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='cash',
-            amount=Decimal('30.00'), idempotency_key='refund-cash-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='cash',
+            amount=Decimal('30.00'),
+            reason='Devolução ao cliente',
+            idempotency_key='refund-cash-key',
             actor=ctx['user'],
         )
         assert refund.status == 'completed'
         assert CashMovement.all_objects.filter(
             cash_session__tenant=ctx['tenant'],
-            movement_type='cash_out', amount=Decimal('30.00'),
+            movement_type='cash_out',
+            amount=Decimal('30.00'),
         ).exists()
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -894,26 +1185,43 @@ def test_create_sale_refund_cash_no_open_session_raises(full_sales_context):
 
     def _test():
         session = open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='refund-nosess-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='refund-nosess-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='refund-nosess-sale',
         )
         from sales.services import close_cash_session
+
         close_cash_session(
-            cash_session=session, closing_amount=Decimal('15.00'),
+            cash_session=session,
+            closing_amount=Decimal('15.00'),
             idempotency_key='refund-nosess-close',
         )
         with pytest.raises(CashSessionRequired):
             create_sale_refund(
-                tenant=ctx['tenant'], sale=sale, method='cash',
-                amount=Decimal('5.00'), idempotency_key='refund-nosess-key',
+                tenant=ctx['tenant'],
+                sale=sale,
+                method='cash',
+                amount=Decimal('5.00'),
+                reason='Devolução ao cliente',
+                idempotency_key='refund-nosess-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -932,26 +1240,43 @@ def test_create_sale_refund_with_return(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='refund-ret-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='refund-ret-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('30.00')}],
             idempotency_key='refund-ret-sale',
         )
         sale_item = sale.items.first()
         sale_return = create_sale_return(
-            tenant=ctx['tenant'], sale=sale,
+            tenant=ctx['tenant'],
+            sale=sale,
             items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
-            reason='Defeito', idempotency_key='refund-ret-return',
+            reason='Defeito',
+            idempotency_key='refund-ret-return',
         )
         refund = create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-ret-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='pix',
+            amount=Decimal('15.00'),
+            reason='Produto com defeito',
+            idempotency_key='refund-ret-key',
             sale_return=sale_return,
         )
         assert refund.sale_return_id == sale_return.id
@@ -967,24 +1292,43 @@ def test_create_sale_refund_idempotent_replay(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='refund-idem-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='refund-idem-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('15.00')}],
             idempotency_key='refund-idem-sale',
         )
         first = create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-idem-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='pix',
+            amount=Decimal('15.00'),
+            reason='Devolução ao cliente',
+            idempotency_key='refund-idem-key',
         )
         replay = create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('15.00'), idempotency_key='refund-idem-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='pix',
+            amount=Decimal('15.00'),
+            reason='Devolução ao cliente',
+            idempotency_key='refund-idem-key',
         )
         assert replay.id == first.id
 
@@ -1004,25 +1348,44 @@ def test_create_sale_refund_duplicate_idempotency_different_payload(full_sales_c
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='refund-dup-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='refund-dup-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('30.00')}],
             idempotency_key='refund-dup-sale',
         )
         create_sale_refund(
-            tenant=ctx['tenant'], sale=sale, method='pix',
-            amount=Decimal('10.00'), idempotency_key='refund-dup-key',
+            tenant=ctx['tenant'],
+            sale=sale,
+            method='pix',
+            amount=Decimal('10.00'),
+            reason='Devolução ao cliente',
+            idempotency_key='refund-dup-key',
         )
         with pytest.raises(DuplicateIdempotencyKey):
             create_sale_refund(
-                tenant=ctx['tenant'], sale=sale, method='pix',
-                amount=Decimal('20.00'), idempotency_key='refund-dup-key',
+                tenant=ctx['tenant'],
+                sale=sale,
+                method='pix',
+                amount=Decimal('20.00'),
+                reason='Devolução ao cliente',
+                idempotency_key='refund-dup-key',
             )
 
     _run_in_tenant(ctx['tenant'], _test)
@@ -1058,7 +1421,9 @@ def test_cancel_sale_requires_reason(full_sales_context):
     def _test():
         sale = Sale.all_objects.filter(tenant=ctx['tenant']).first()
         with pytest.raises(ValueError, match='Reason is required'):
-            cancel_sale(tenant=ctx['tenant'], sale=sale, reason='', idempotency_key='cancel-noreason')
+            cancel_sale(
+                tenant=ctx['tenant'], sale=sale, reason='', idempotency_key='cancel-noreason'
+            )
 
     _run_in_tenant(ctx['tenant'], _test)
 
@@ -1076,24 +1441,39 @@ def test_cancel_sale_already_cancelled_raises(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='cancel-already-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='cancel-already-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='cancel-already-sale',
         )
         cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Primeiro',
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Primeiro',
             idempotency_key='cancel-already-key1',
         )
         with pytest.raises(SaleAlreadyCancelled):
             cancel_sale(
-                tenant=ctx['tenant'], sale=sale, reason='Segundo',
+                tenant=ctx['tenant'],
+                sale=sale,
+                reason='Segundo',
                 idempotency_key='cancel-already-key2',
             )
 
@@ -1109,20 +1489,34 @@ def test_cancel_sale_happy_path_cash_payment(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('50.00'), idempotency_key='cancel-ok-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('50.00'),
+            idempotency_key='cancel-ok-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('2'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('2'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('30.00')}],
             idempotency_key='cancel-ok-sale',
         )
         cancellation = cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Cliente desistiu',
-            idempotency_key='cancel-ok-key', actor=ctx['user'],
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Cliente desistiu',
+            idempotency_key='cancel-ok-key',
+            actor=ctx['user'],
         )
         assert cancellation.status == 'completed'
         assert cancellation.reason == 'Cliente desistiu'
@@ -1142,19 +1536,32 @@ def test_cancel_sale_pix_payment_creates_refund(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='cancel-pix-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='cancel-pix-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'pix', 'amount': Decimal('15.00')}],
             idempotency_key='cancel-pix-sale',
         )
         cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Cancelamento',
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Cancelamento',
             idempotency_key='cancel-pix-key',
         )
         assert SaleRefund.all_objects.filter(
@@ -1172,23 +1579,38 @@ def test_cancel_sale_idempotent_replay(full_sales_context):
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='cancel-idem-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='cancel-idem-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='cancel-idem-sale',
         )
         first = cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Teste',
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Teste',
             idempotency_key='cancel-idem-key',
         )
         replay = cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Teste',
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Teste',
             idempotency_key='cancel-idem-key',
         )
         assert replay.id == first.id
@@ -1209,24 +1631,39 @@ def test_cancel_sale_duplicate_idempotency_different_payload(full_sales_context)
 
     def _test():
         open_cash_session(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
-            opening_amount=Decimal('0'), idempotency_key='cancel-dup-open',
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
+            opening_amount=Decimal('0'),
+            idempotency_key='cancel-dup-open',
         )
         sale = create_counter_sale(
-            tenant=ctx['tenant'], branch=ctx['branch'], operator=ctx['user'],
+            tenant=ctx['tenant'],
+            branch=ctx['branch'],
+            operator=ctx['user'],
             stock_location=ctx['location'],
-            items=[{'product': ctx['product'], 'unit': ctx['unit'],
-                    'quantity': Decimal('1'), 'factor': Decimal('1')}],
+            items=[
+                {
+                    'product': ctx['product'],
+                    'unit': ctx['unit'],
+                    'quantity': Decimal('1'),
+                    'factor': Decimal('1'),
+                }
+            ],
             payments=[{'method': 'cash', 'amount': Decimal('15.00')}],
             idempotency_key='cancel-dup-sale',
         )
         cancel_sale(
-            tenant=ctx['tenant'], sale=sale, reason='Primeiro motivo',
+            tenant=ctx['tenant'],
+            sale=sale,
+            reason='Primeiro motivo',
             idempotency_key='cancel-dup-key',
         )
         with pytest.raises(DuplicateIdempotencyKey):
             cancel_sale(
-                tenant=ctx['tenant'], sale=sale, reason='Segundo motivo',
+                tenant=ctx['tenant'],
+                sale=sale,
+                reason='Segundo motivo',
                 idempotency_key='cancel-dup-key',
             )
 
@@ -1240,6 +1677,7 @@ def test_cancel_sale_duplicate_idempotency_different_payload(full_sales_context)
 
 def test_money_rounds_correctly():
     from sales.services import _money
+
     assert _money('10.555') == Decimal('10.56')
     assert _money('10.554') == Decimal('10.55')
     assert _money('0') == Decimal('0.00')
@@ -1248,6 +1686,7 @@ def test_money_rounds_correctly():
 
 def test_json_default_with_id():
     from sales.services import _json_default
+
     obj = MagicMock()
     obj.id = 'test-id-123'
     assert _json_default(obj) == 'test-id-123'
@@ -1255,16 +1694,19 @@ def test_json_default_with_id():
 
 def test_json_default_with_decimal():
     from sales.services import _json_default
+
     assert _json_default(Decimal('10.50')) == '10.50'
 
 
 def test_json_default_with_string():
     from sales.services import _json_default
+
     assert _json_default('hello') == 'hello'
 
 
 def test_payload_hash_deterministic():
     from sales.services import _payload_hash
+
     p = {'a': 1, 'b': 'two'}
     h1 = _payload_hash(p)
     h2 = _payload_hash(p)
@@ -1274,18 +1716,24 @@ def test_payload_hash_deterministic():
 
 def test_payload_hash_different_for_different_payloads():
     from sales.services import _payload_hash
+
     assert _payload_hash({'a': 1}) != _payload_hash({'a': 2})
 
 
 def test_normalize_item():
     from sales.services import _normalize_item
+
     product = MagicMock()
     unit = MagicMock()
-    result = _normalize_item({
-        'product': product, 'unit': unit,
-        'quantity': 5, 'factor': 2,
-        'discount_amount': 1.50,
-    })
+    result = _normalize_item(
+        {
+            'product': product,
+            'unit': unit,
+            'quantity': 5,
+            'factor': 2,
+            'discount_amount': 1.50,
+        }
+    )
     assert result['product'] == product
     assert result['unit'] == unit
     assert result['quantity'] == Decimal('5')
@@ -1295,18 +1743,23 @@ def test_normalize_item():
 
 def test_normalize_item_default_factor_and_discount():
     from sales.services import _normalize_item
+
     product = MagicMock()
     unit = MagicMock()
-    result = _normalize_item({
-        'product': product, 'unit': unit,
-        'quantity': 3,
-    })
+    result = _normalize_item(
+        {
+            'product': product,
+            'unit': unit,
+            'quantity': 3,
+        }
+    )
     assert result['factor'] == Decimal('1')
     assert result['discount_amount'] == Decimal('0.00')
 
 
 def test_normalize_payment():
     from sales.services import _normalize_payment
+
     result = _normalize_payment({'method': 'pix', 'amount': 25.50, 'reference': 'ref-1'})
     assert result['method'] == 'pix'
     assert result['amount'] == Decimal('25.50')
@@ -1315,6 +1768,7 @@ def test_normalize_payment():
 
 def test_normalize_payment_default_reference():
     from sales.services import _normalize_payment
+
     result = _normalize_payment({'method': 'cash', 'amount': 10})
     assert result['reference'] == ''
 
@@ -1328,20 +1782,30 @@ def test_normalize_payment_default_reference():
 def test_sale_list_with_filters(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-list-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-list-open',
     )
     _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-list-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-list-sale',
     )
     response = ctx['client'].get(
         f'/api/v1/sales/?branch={ctx["branch"].id}&status=confirmed',
@@ -1357,20 +1821,30 @@ def test_sale_list_with_filters(sales_api_ctx):
 def test_sale_list_filter_by_operator(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-op-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-op-open',
     )
     _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-op-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-op-sale',
     )
     response = ctx['client'].get(
         f'/api/v1/sales/?operator={ctx["user"].id}',
@@ -1383,21 +1857,31 @@ def test_sale_list_filter_by_operator(sales_api_ctx):
 def test_sale_list_filter_by_cash_session(sales_api_ctx):
     ctx = sales_api_ctx
     open_resp = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-cs-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-cs-open',
     )
     session_id = open_resp.json()['id']
     _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-cs-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-cs-sale',
     )
     response = ctx['client'].get(
         f'/api/v1/sales/?cash_session={session_id}',
@@ -1411,20 +1895,30 @@ def test_sale_list_filter_by_cash_session(sales_api_ctx):
 def test_sale_retrieve(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-ret-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-ret-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-ret-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-ret-sale',
     )
     sale_id = create_resp.json()['id']
     response = ctx['client'].get(
@@ -1439,20 +1933,30 @@ def test_sale_retrieve(sales_api_ctx):
 def test_sale_counter_creates_sale(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-cnt-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-cnt-open',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '2.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '2.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '40.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-cnt-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-cnt-sale',
     )
     assert response.status_code == 201
     assert response.json()['status'] == 'confirmed'
@@ -1462,19 +1966,23 @@ def test_sale_counter_creates_sale(sales_api_ctx):
 def test_sale_counter_empty_sale_error(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-emp-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-emp-open',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
             'items': [],
             'payments': [{'method': 'cash', 'amount': '0.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-emp-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-emp-sale',
     )
     assert response.status_code == 400
 
@@ -1483,28 +1991,40 @@ def test_sale_counter_empty_sale_error(sales_api_ctx):
 def test_sale_returns_action(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-rt-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rt-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '3.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '3.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '60.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-rt-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rt-sale',
     )
     sale_id = create_resp.json()['id']
     sale_item_id = create_resp.json()['items'][0]['id']
 
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/returns/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/returns/',
         {'items': [{'sale_item_id': sale_item_id, 'quantity': '1.000000'}], 'reason': 'Defeito'},
-        tenant=ctx['tenant'], idempotency_key='view-rt-return',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rt-return',
     )
     assert response.status_code == 201
     assert response.json()['status'] == 'completed'
@@ -1514,20 +2034,30 @@ def test_sale_returns_action(sales_api_ctx):
 def test_sale_list_returns_action(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-lrt-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-lrt-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '2.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '2.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '40.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-lrt-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-lrt-sale',
     )
     sale_id = create_resp.json()['id']
     response = ctx['client'].get(
@@ -1541,28 +2071,40 @@ def test_sale_list_returns_action(sales_api_ctx):
 def test_sale_cancel_action(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-can-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-can-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can-sale',
     )
     sale_id = create_resp.json()['id']
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/cancel/',
         {'reason': 'Cliente desistiu'},
-        tenant=ctx['tenant'], idempotency_key='view-can-key',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can-key',
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()['status'] == 'completed'
 
 
@@ -1570,31 +2112,45 @@ def test_sale_cancel_action(sales_api_ctx):
 def test_sale_cancel_already_cancelled_returns_409(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-can2-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can2-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-can2-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can2-sale',
     )
     sale_id = create_resp.json()['id']
     _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/cancel/',
         {'reason': 'Primeiro'},
-        tenant=ctx['tenant'], idempotency_key='view-can2-key1',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can2-key1',
     )
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/cancel/',
         {'reason': 'Segundo'},
-        tenant=ctx['tenant'], idempotency_key='view-can2-key2',
+        tenant=ctx['tenant'],
+        idempotency_key='view-can2-key2',
     )
     assert response.status_code == 409
 
@@ -1603,28 +2159,40 @@ def test_sale_cancel_already_cancelled_returns_409(sales_api_ctx):
 def test_sale_returns_insufficient_quantity_error(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-rti-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rti-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-rti-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rti-sale',
     )
     sale_id = create_resp.json()['id']
     sale_item_id = create_resp.json()['items'][0]['id']
 
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/returns/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/returns/',
         {'items': [{'sale_item_id': sale_item_id, 'quantity': '5.000000'}], 'reason': 'Excesso'},
-        tenant=ctx['tenant'], idempotency_key='view-rti-return',
+        tenant=ctx['tenant'],
+        idempotency_key='view-rti-return',
     )
     assert response.status_code == 409
 
@@ -1633,20 +2201,30 @@ def test_sale_returns_insufficient_quantity_error(sales_api_ctx):
 def test_sale_export_csv(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='view-exp-open',
+        tenant=ctx['tenant'],
+        idempotency_key='view-exp-open',
     )
     _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='view-exp-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='view-exp-sale',
     )
     response = ctx['client'].get(
         '/api/v1/sales/export/',
@@ -1678,9 +2256,11 @@ def test_sale_export_with_date_filters(sales_api_ctx):
 def test_cash_session_list(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-list-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-list-open',
     )
     response = ctx['client'].get(
         '/api/v1/cash-sessions/',
@@ -1693,9 +2273,11 @@ def test_cash_session_list(sales_api_ctx):
 def test_cash_session_list_with_branch_filter(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-br-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-br-open',
     )
     response = ctx['client'].get(
         f'/api/v1/cash-sessions/?branch={ctx["branch"].id}',
@@ -1708,9 +2290,11 @@ def test_cash_session_list_with_branch_filter(sales_api_ctx):
 def test_cash_session_list_with_operator_filter(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-op-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-op-open',
     )
     response = ctx['client'].get(
         f'/api/v1/cash-sessions/?operator={ctx["user"].id}',
@@ -1723,9 +2307,11 @@ def test_cash_session_list_with_operator_filter(sales_api_ctx):
 def test_cash_session_list_with_date_filters(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-date-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-date-open',
     )
     response = ctx['client'].get(
         '/api/v1/cash-sessions/?date_from=2020-01-01&date_to=2030-12-31',
@@ -1738,9 +2324,11 @@ def test_cash_session_list_with_date_filters(sales_api_ctx):
 def test_cash_session_retrieve(sales_api_ctx):
     ctx = sales_api_ctx
     open_resp = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-ret-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-ret-open',
     )
     session_id = open_resp.json()['id']
     response = ctx['client'].get(
@@ -1787,14 +2375,18 @@ def test_cash_session_open_error_missing_idempotency(sales_api_ctx):
 def test_cash_session_open_duplicate_idempotency(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-dup-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-dup-open',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '20.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-dup-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-dup-open',
     )
     assert response.status_code == 409
 
@@ -1803,14 +2395,18 @@ def test_cash_session_open_duplicate_idempotency(sales_api_ctx):
 def test_cash_session_open_already_exists(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-ae-open1',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-ae-open1',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-ae-open2',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-ae-open2',
     )
     assert response.status_code == 409
 
@@ -1819,20 +2415,26 @@ def test_cash_session_open_already_exists(sales_api_ctx):
 def test_cash_session_close_idempotency_replay(sales_api_ctx):
     ctx = sales_api_ctx
     open_resp = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-close-idem-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-close-idem-open',
     )
     session_id = open_resp.json()['id']
     _post_json(
-        ctx['client'], f'/api/v1/cash-sessions/{session_id}/close/',
+        ctx['client'],
+        f'/api/v1/cash-sessions/{session_id}/close/',
         {'closing_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-close-idem-key',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-close-idem-key',
     )
     response = _post_json(
-        ctx['client'], f'/api/v1/cash-sessions/{session_id}/close/',
+        ctx['client'],
+        f'/api/v1/cash-sessions/{session_id}/close/',
         {'closing_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-close-idem-key',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-close-idem-key',
     )
     assert response.status_code == 200
     assert response.json()['status'] == 'closed'
@@ -1846,9 +2448,11 @@ def test_cash_session_get_permissions_mfa_required_for_open(sales_api_ctx):
     del session['mfa_method']
     session.save()
     response = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '5.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-mfa-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-mfa-open',
     )
     assert response.status_code in (400, 403)
 
@@ -1862,12 +2466,15 @@ def test_cash_session_get_permissions_mfa_required_for_open(sales_api_ctx):
 def test_sync_batch_sale_create(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='batch-open',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-open',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1875,16 +2482,22 @@ def test_sync_batch_sale_create(sales_api_ctx):
                     'payload': {
                         'branch': str(ctx['branch'].id),
                         'stock_location': str(ctx['location'].id),
-                        'items': [{'product': str(ctx['product'].id),
-                                   'unit': str(ctx['unit'].id),
-                                   'quantity': '1.000000', 'factor': '1.000000'}],
+                        'items': [
+                            {
+                                'product': str(ctx['product'].id),
+                                'unit': str(ctx['unit'].id),
+                                'quantity': '1.000000',
+                                'factor': '1.000000',
+                            }
+                        ],
                         'payments': [{'method': 'cash', 'amount': '20.00'}],
                     },
                     'idempotency_key': 'batch-sale-key',
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-main-key',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-main-key',
     )
     assert response.status_code == 200
     results = response.json()['results']
@@ -1895,7 +2508,8 @@ def test_sync_batch_sale_create(sales_api_ctx):
 def test_sync_batch_cash_session_open(sales_api_ctx):
     ctx = sales_api_ctx
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1905,7 +2519,8 @@ def test_sync_batch_cash_session_open(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-cs-main',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-cs-main',
     )
     assert response.status_code == 200
     assert response.json()['results'][0]['status'] == 'synced'
@@ -1915,13 +2530,16 @@ def test_sync_batch_cash_session_open(sales_api_ctx):
 def test_sync_batch_cash_session_close(sales_api_ctx):
     ctx = sales_api_ctx
     open_resp = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='batch-close-open',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-close-open',
     )
     session_id = open_resp.json()['id']
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1931,7 +2549,8 @@ def test_sync_batch_cash_session_close(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-close-main',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-close-main',
     )
     assert response.status_code == 200
     assert response.json()['results'][0]['status'] == 'synced'
@@ -1941,7 +2560,8 @@ def test_sync_batch_cash_session_close(sales_api_ctx):
 def test_sync_batch_unknown_type_rejected_by_serializer(sales_api_ctx):
     ctx = sales_api_ctx
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1951,7 +2571,8 @@ def test_sync_batch_unknown_type_rejected_by_serializer(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-unk-main',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-unk-main',
     )
     assert response.status_code == 400
 
@@ -1960,7 +2581,8 @@ def test_sync_batch_unknown_type_rejected_by_serializer(sales_api_ctx):
 def test_sync_batch_cash_session_close_missing_session_id(sales_api_ctx):
     ctx = sales_api_ctx
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1970,7 +2592,8 @@ def test_sync_batch_cash_session_close_missing_session_id(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-ve-main',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-ve-main',
     )
     assert response.status_code == 200
     results = response.json()['results']
@@ -1981,12 +2604,15 @@ def test_sync_batch_cash_session_close_missing_session_id(sales_api_ctx):
 def test_sync_batch_conflict_catch(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='batch-conflict-open',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-conflict-open',
     )
     _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -1996,10 +2622,12 @@ def test_sync_batch_conflict_catch(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-conflict-main1',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-conflict-main1',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/sync/batch/',
+        ctx['client'],
+        '/api/v1/sync/batch/',
         {
             'operations': [
                 {
@@ -2009,7 +2637,8 @@ def test_sync_batch_conflict_catch(sales_api_ctx):
                 }
             ]
         },
-        tenant=ctx['tenant'], idempotency_key='batch-conflict-main2',
+        tenant=ctx['tenant'],
+        idempotency_key='batch-conflict-main2',
     )
     assert response.status_code == 200
     assert response.json()['results'][0]['status'] == 'conflict'
@@ -2023,6 +2652,7 @@ def test_sync_batch_conflict_catch(sales_api_ctx):
 @pytest.mark.django_db
 def test_has_active_tenant_no_tenant_denied():
     from tenancy.permissions import HasActiveTenant
+
     perm = HasActiveTenant()
     request = MagicMock()
     request.tenant = None
@@ -2032,6 +2662,7 @@ def test_has_active_tenant_no_tenant_denied():
 @pytest.mark.django_db
 def test_has_active_tenant_with_tenant_allowed():
     from tenancy.permissions import HasActiveTenant
+
     perm = HasActiveTenant()
     request = MagicMock()
     request.tenant = MagicMock()
@@ -2046,6 +2677,7 @@ def test_has_active_tenant_with_tenant_allowed():
 @pytest.mark.django_db
 def test_has_verified_mfa_no_auth_token_no_tenant():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     request = MagicMock()
     request.auth = None
@@ -2056,6 +2688,7 @@ def test_has_verified_mfa_no_auth_token_no_tenant():
 @pytest.mark.django_db
 def test_has_verified_mfa_auth_with_device_id():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     request = MagicMock()
     request.auth = {'device_id': 'some-device'}
@@ -2066,6 +2699,7 @@ def test_has_verified_mfa_auth_with_device_id():
 @pytest.mark.django_db
 def test_has_verified_mfa_no_membership():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA Tenant', slug='mfa-tenant')
     user = User.objects.create_user(email='mfa-no-member@test.local', password='pass123')
@@ -2079,6 +2713,7 @@ def test_has_verified_mfa_no_membership():
 @pytest.mark.django_db
 def test_has_verified_mfa_non_admin_role():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA NonAdmin', slug='mfa-nonadmin')
     user = User.objects.create_user(email='mfa-nonadmin@test.local', password='pass123')
@@ -2093,6 +2728,7 @@ def test_has_verified_mfa_non_admin_role():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_without_mfa_denied():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA Admin', slug='mfa-admin')
     user = User.objects.create_user(email='mfa-admin@test.local', password='pass123')
@@ -2108,6 +2744,7 @@ def test_has_verified_mfa_admin_without_mfa_denied():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_with_correct_mfa():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA Admin OK', slug='mfa-admin-ok')
     user = User.objects.create_user(email='mfa-admin-ok@test.local', password='pass123')
@@ -2123,6 +2760,7 @@ def test_has_verified_mfa_admin_with_correct_mfa():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_wrong_tenant():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA WrongT', slug='mfa-wrongt')
     user = User.objects.create_user(email='mfa-wrongt@test.local', password='pass123')
@@ -2138,6 +2776,7 @@ def test_has_verified_mfa_admin_wrong_tenant():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_wrong_method():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA WrongM', slug='mfa-wrongm')
     user = User.objects.create_user(email='mfa-wrongm@test.local', password='pass123')
@@ -2153,6 +2792,7 @@ def test_has_verified_mfa_admin_wrong_method():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_recovery_method():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA Recovery', slug='mfa-recovery')
     user = User.objects.create_user(email='mfa-recovery@test.local', password='pass123')
@@ -2168,6 +2808,7 @@ def test_has_verified_mfa_admin_recovery_method():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_email_method():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA Email', slug='mfa-email')
     user = User.objects.create_user(email='mfa-email@test.local', password='pass123')
@@ -2183,6 +2824,7 @@ def test_has_verified_mfa_admin_email_method():
 @pytest.mark.django_db
 def test_has_verified_mfa_admin_no_session_keys():
     from tenancy.permissions import HasVerifiedMFA
+
     perm = HasVerifiedMFA()
     tenant = Tenant.objects.create(name='MFA NoSess', slug='mfa-nosess')
     user = User.objects.create_user(email='mfa-nosess@test.local', password='pass123')
@@ -2203,6 +2845,7 @@ def test_has_verified_mfa_admin_no_session_keys():
 @pytest.mark.django_db
 def test_has_capability_no_tenant_denied():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     view = MagicMock()
     view.required_capability = 'sales.view'
@@ -2215,6 +2858,7 @@ def test_has_capability_no_tenant_denied():
 @pytest.mark.django_db
 def test_has_capability_no_user():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     view = MagicMock()
     view.required_capability = 'sales.view'
@@ -2227,6 +2871,7 @@ def test_has_capability_no_user():
 @pytest.mark.django_db
 def test_has_capability_no_required_capability():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     view = MagicMock()
     view.required_capability = None
@@ -2239,6 +2884,7 @@ def test_has_capability_no_required_capability():
 @pytest.mark.django_db
 def test_has_capability_no_membership_denied():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap Tenant', slug='cap-tenant')
     user = User.objects.create_user(email='cap-nomem@test.local', password='pass123')
@@ -2253,6 +2899,7 @@ def test_has_capability_no_membership_denied():
 @pytest.mark.django_db
 def test_has_capability_admin_has_sales_view():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap Admin', slug='cap-admin')
     user = User.objects.create_user(email='cap-admin@test.local', password='pass123')
@@ -2268,6 +2915,7 @@ def test_has_capability_admin_has_sales_view():
 @pytest.mark.django_db
 def test_has_capability_operator_no_fiscal_manage():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap Op', slug='cap-op')
     user = User.objects.create_user(email='cap-op@test.local', password='pass123')
@@ -2283,6 +2931,7 @@ def test_has_capability_operator_no_fiscal_manage():
 @pytest.mark.django_db
 def test_has_capability_operator_has_sales_sell():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap OpSell', slug='cap-opsell')
     user = User.objects.create_user(email='cap-opsell@test.local', password='pass123')
@@ -2298,6 +2947,7 @@ def test_has_capability_operator_has_sales_sell():
 @pytest.mark.django_db
 def test_has_capability_unknown_role_denied():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap Unknown', slug='cap-unknown')
     user = User.objects.create_user(email='cap-unknown@test.local', password='pass123')
@@ -2313,6 +2963,7 @@ def test_has_capability_unknown_role_denied():
 @pytest.mark.django_db
 def test_has_capability_manager_has_catalog_manage():
     from tenancy.permissions import HasCapability
+
     perm = HasCapability()
     tenant = Tenant.objects.create(name='Cap Mgr', slug='cap-mgr')
     user = User.objects.create_user(email='cap-mgr@test.local', password='pass123')
@@ -2356,31 +3007,49 @@ def test_cash_session_viewset_handle_object_not_found(sales_api_ctx):
 def test_sale_counter_idempotency_conflict_via_api(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='err-idem-open',
+        tenant=ctx['tenant'],
+        idempotency_key='err-idem-open',
     )
     _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='err-idem-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='err-idem-sale',
     )
     response = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '25.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='err-idem-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='err-idem-sale',
     )
     assert response.status_code == 409
 
@@ -2389,15 +3058,23 @@ def test_sale_counter_idempotency_conflict_via_api(sales_api_ctx):
 def test_sale_counter_no_cash_session_error(sales_api_ctx):
     ctx = sales_api_ctx
     response = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='err-nocs-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='err-nocs-sale',
     )
     assert response.status_code == 409
     assert response.json()['type'].endswith('/cash_session_required')
@@ -2407,31 +3084,45 @@ def test_sale_counter_no_cash_session_error(sales_api_ctx):
 def test_sale_returns_sale_already_cancelled_error(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='err-alrc-open',
+        tenant=ctx['tenant'],
+        idempotency_key='err-alrc-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='err-alrc-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='err-alrc-sale',
     )
     sale_id = create_resp.json()['id']
     _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/cancel/',
         {'reason': 'Cancelado'},
-        tenant=ctx['tenant'], idempotency_key='err-alrc-cancel',
+        tenant=ctx['tenant'],
+        idempotency_key='err-alrc-cancel',
     )
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/cancel/',
         {'reason': 'Outro'},
-        tenant=ctx['tenant'], idempotency_key='err-alrc-cancel2',
+        tenant=ctx['tenant'],
+        idempotency_key='err-alrc-cancel2',
     )
     assert response.status_code == 409
     assert response.json()['type'].endswith('/sale_already_cancelled')
@@ -2441,6 +3132,7 @@ def test_sale_returns_sale_already_cancelled_error(sales_api_ctx):
 def test_sale_viewset_get_permissions_counter_action(sales_api_ctx):
     ctx = sales_api_ctx
     from sales.views import SaleViewSet
+
     view = SaleViewSet()
     view.action = 'counter'
     request = MagicMock()
@@ -2455,6 +3147,7 @@ def test_sale_viewset_get_permissions_counter_action(sales_api_ctx):
 def test_cash_session_viewset_get_permissions(sales_api_ctx):
     ctx = sales_api_ctx
     from sales.views import CashSessionViewSet
+
     view = CashSessionViewSet()
     view.action = 'open'
     request = MagicMock()
@@ -2481,9 +3174,11 @@ def test_sale_cancel_invalid_sale(sales_api_ctx):
     ctx = sales_api_ctx
     fake_sale_id = str(uuid.uuid4())
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{fake_sale_id}/cancel/',
+        ctx['client'],
+        f'/api/v1/sales/{fake_sale_id}/cancel/',
         {'reason': 'Teste'},
-        tenant=ctx['tenant'], idempotency_key='cancel-invalid',
+        tenant=ctx['tenant'],
+        idempotency_key='cancel-invalid',
     )
     assert response.status_code == 404
 
@@ -2492,15 +3187,19 @@ def test_sale_cancel_invalid_sale(sales_api_ctx):
 def test_cash_session_close_via_api(sales_api_ctx):
     ctx = sales_api_ctx
     open_resp = _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-closeapi-open',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-closeapi-open',
     )
     session_id = open_resp.json()['id']
     close_resp = _post_json(
-        ctx['client'], f'/api/v1/cash-sessions/{session_id}/close/',
+        ctx['client'],
+        f'/api/v1/cash-sessions/{session_id}/close/',
         {'closing_amount': '10.00'},
-        tenant=ctx['tenant'], idempotency_key='cs-closeapi-close',
+        tenant=ctx['tenant'],
+        idempotency_key='cs-closeapi-close',
     )
     assert close_resp.status_code == 200
     assert close_resp.json()['status'] == 'closed'
@@ -2522,31 +3221,40 @@ def test_sale_counter_missing_header(sales_api_ctx):
 def test_sale_returns_insufficient_returnable_quantity_via_api(sales_api_ctx):
     ctx = sales_api_ctx
     _post_json(
-        ctx['client'], '/api/v1/cash-sessions/open/',
+        ctx['client'],
+        '/api/v1/cash-sessions/open/',
         {'branch': str(ctx['branch'].id), 'opening_amount': '0.00'},
-        tenant=ctx['tenant'], idempotency_key='ret-insufapi-open',
+        tenant=ctx['tenant'],
+        idempotency_key='ret-insufapi-open',
     )
     create_resp = _post_json(
-        ctx['client'], '/api/v1/sales/counter/',
+        ctx['client'],
+        '/api/v1/sales/counter/',
         {
             'branch': str(ctx['branch'].id),
             'stock_location': str(ctx['location'].id),
-            'items': [{'product': str(ctx['product'].id), 'unit': str(ctx['unit'].id),
-                       'quantity': '1.000000', 'factor': '1.000000'}],
+            'items': [
+                {
+                    'product': str(ctx['product'].id),
+                    'unit': str(ctx['unit'].id),
+                    'quantity': '1.000000',
+                    'factor': '1.000000',
+                }
+            ],
             'payments': [{'method': 'cash', 'amount': '20.00'}],
         },
-        tenant=ctx['tenant'], idempotency_key='ret-insufapi-sale',
+        tenant=ctx['tenant'],
+        idempotency_key='ret-insufapi-sale',
     )
     sale_id = create_resp.json()['id']
     sale_item_id = create_resp.json()['items'][0]['id']
 
     response = _post_json(
-        ctx['client'], f'/api/v1/sales/{sale_id}/returns/',
+        ctx['client'],
+        f'/api/v1/sales/{sale_id}/returns/',
         {'items': [{'sale_item_id': sale_item_id, 'quantity': '99.000000'}], 'reason': 'Excesso'},
-        tenant=ctx['tenant'], idempotency_key='ret-insufapi-ret',
+        tenant=ctx['tenant'],
+        idempotency_key='ret-insufapi-ret',
     )
     assert response.status_code == 409
     assert response.json()['type'].endswith('/insufficient_returnable')
-
-
-

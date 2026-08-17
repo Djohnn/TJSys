@@ -28,7 +28,8 @@ urlpatterns = [
     path('auth/mfa/email/send/', EmailMFASendView.as_view(), name='email-mfa-send'),
     path('auth/mfa/challenge/', MFAChallengeView.as_view(), name='mfa-challenge'),
     path(
-        'auth/mfa/recovery/regenerate/', RecoveryRegenerateView.as_view(),
+        'auth/mfa/recovery/regenerate/',
+        RecoveryRegenerateView.as_view(),
         name='recovery-regenerate',
     ),
     path('auth/mfa/recovery/verify/', RecoveryVerifyView.as_view(), name='recovery-verify'),

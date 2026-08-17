@@ -234,20 +234,21 @@ class TestSaleReturnService:
                     create_sale_return(
                         tenant=ctx['tenant'],
                         sale=sale,
-                        items=[
-                            {'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}
-                        ],
+                        items=[{'sale_item_id': str(sale_item.id), 'quantity': Decimal('1')}],
                         reason='Falha de Outbox',
                         idempotency_key=key,
                     )
 
             assert _effect_counts() == effects_before
-            assert StockBalance.all_objects.get(
-                tenant=ctx['tenant'],
-                product=sale_item.product,
-                location=ctx['location'],
-                lot=None,
-            ).quantity == balance_before
+            assert (
+                StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=sale_item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                == balance_before
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -290,12 +291,15 @@ class TestSaleReturnService:
                 sale_return__tenant=ctx['tenant'],
                 sale_return__idempotency_key=idempotency_key,
             ).exists()
-            assert StockBalance.all_objects.get(
-                tenant=ctx['tenant'],
-                product=sale_item.product,
-                location=ctx['location'],
-                lot=None,
-            ).quantity == balance_before
+            assert (
+                StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=sale_item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                == balance_before
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -346,16 +350,22 @@ class TestSaleReturnService:
                 location=ctx['location'],
                 lot=None,
             ).quantity == Decimal('5.000000')
-            assert AuditRecord.objects.filter(
-                tenant_id=str(ctx['tenant'].id),
-                action='sales.return.created',
-                correlation_id=idempotency_key,
-            ).count() == 1
-            assert OutboxMessage.objects.filter(
-                tenant_id=str(ctx['tenant'].id),
-                event_type='sales.return.created',
-                correlation_id=idempotency_key,
-            ).count() == 1
+            assert (
+                AuditRecord.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    action='sales.return.created',
+                    correlation_id=idempotency_key,
+                ).count()
+                == 1
+            )
+            assert (
+                OutboxMessage.objects.filter(
+                    tenant_id=str(ctx['tenant'].id),
+                    event_type='sales.return.created',
+                    correlation_id=idempotency_key,
+                ).count()
+                == 1
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -430,10 +440,13 @@ class TestSaleReturnService:
             assert replay.id == sale_return.id
             assert receipt_product_order == [str(item.product_id) for item in stable_items]
             assert sale_return.items.count() == 2
-            assert StockOperation.all_objects.filter(
-                tenant=ctx['tenant'],
-                idempotency_key__startswith='return-stable-effect-order:stock:',
-            ).count() == 2
+            assert (
+                StockOperation.all_objects.filter(
+                    tenant=ctx['tenant'],
+                    idempotency_key__startswith='return-stable-effect-order:stock:',
+                ).count()
+                == 2
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -584,17 +597,23 @@ class TestSaleReturnService:
                     idempotency_key=idempotency_key,
                 )
 
-            assert SaleReturn.all_objects.get(
-                tenant=ctx['tenant'],
-                idempotency_key=idempotency_key,
-            ).id == existing.id
+            assert (
+                SaleReturn.all_objects.get(
+                    tenant=ctx['tenant'],
+                    idempotency_key=idempotency_key,
+                ).id
+                == existing.id
+            )
             assert _effect_counts() == effects_before
-            assert StockBalance.all_objects.get(
-                tenant=ctx['tenant'],
-                product=sale_item.product,
-                location=ctx['location'],
-                lot=None,
-            ).quantity == balance_before
+            assert (
+                StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=sale_item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                == balance_before
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 
@@ -669,8 +688,7 @@ class TestSaleReturnService:
                 {
                     'sale_id': str(sale.id),
                     'items': [
-                        {'sale_item_id': str(item.id), 'quantity': '1'}
-                        for item in legacy_order
+                        {'sale_item_id': str(item.id), 'quantity': '1'} for item in legacy_order
                     ],
                     'reason': reason,
                 }
@@ -848,12 +866,15 @@ class TestSaleReturnService:
 
             assert replay.id == first.id
             assert _effect_counts() == effects_before
-            assert StockBalance.all_objects.get(
-                tenant=ctx['tenant'],
-                product=sale_item.product,
-                location=ctx['location'],
-                lot=None,
-            ).quantity == balance_before
+            assert (
+                StockBalance.all_objects.get(
+                    tenant=ctx['tenant'],
+                    product=sale_item.product,
+                    location=ctx['location'],
+                    lot=None,
+                ).quantity
+                == balance_before
+            )
 
         _run_in_tenant(ctx['tenant'], _test)
 

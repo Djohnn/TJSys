@@ -52,7 +52,10 @@ def _create_seed(tenant, user, *, sku='INV-001', requires_lot=False):
 
     def _inner():
         unit = Unit.all_objects.create(
-            tenant=tenant, symbol='kg', name='Quilograma', precision=3,
+            tenant=tenant,
+            symbol='kg',
+            name='Quilograma',
+            precision=3,
         )
         product = Product.all_objects.create(
             tenant=tenant,
@@ -64,7 +67,9 @@ def _create_seed(tenant, user, *, sku='INV-001', requires_lot=False):
         )
         company = Company.all_objects.create(tenant=tenant, name='Empresa Teste')
         branch = Branch.all_objects.create(
-            tenant=tenant, company=company, name='Filial Teste',
+            tenant=tenant,
+            company=company,
+            name='Filial Teste',
         )
         location = StockLocation.all_objects.create(
             tenant=tenant,
@@ -93,8 +98,19 @@ def _create_seed(tenant, user, *, sku='INV-001', requires_lot=False):
     return _run_in_tenant(tenant, _inner)
 
 
-def _do_receipt(tenant, branch, product, location, quantity, unit, *,
-               factor=Decimal('1'), lot=None, idempotency_key, actor):
+def _do_receipt(
+    tenant,
+    branch,
+    product,
+    location,
+    quantity,
+    unit,
+    *,
+    factor=Decimal('1'),
+    lot=None,
+    idempotency_key,
+    actor,
+):
     from inventory.services import create_receipt
 
     return create_receipt(
@@ -114,6 +130,7 @@ def _do_receipt(tenant, branch, product, location, quantity, unit, *,
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def ctx(client):
@@ -149,6 +166,7 @@ def ctx_lot(client):
 # StockLocationViewSet
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_location_list(ctx):
     r = ctx['client'].get(
@@ -182,11 +200,13 @@ def test_location_update(ctx):
     loc = ctx['location']
     r = ctx['client'].put(
         f'{BASE}/stock-locations/{loc.id}/',
-        data=json.dumps({
-            'branch': str(ctx['branch'].id),
-            'code': 'LOC-01',
-            'name': 'Local Atualizado',
-        }),
+        data=json.dumps(
+            {
+                'branch': str(ctx['branch'].id),
+                'code': 'LOC-01',
+                'name': 'Local Atualizado',
+            }
+        ),
         content_type='application/json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
@@ -214,8 +234,10 @@ def test_location_delete(ctx):
     from inventory.models import StockLocation as SL
 
     loc = SL.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        code='DEL', name='Deletar',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        code='DEL',
+        name='Deletar',
     )
     r = ctx['client'].delete(
         f'{BASE}/stock-locations/{loc.id}/',
@@ -229,8 +251,10 @@ def test_location_set_primary(ctx):
     from inventory.models import StockLocation as SL
 
     loc2 = SL.all_objects.create(
-        tenant=ctx['tenant'], branch=ctx['branch'],
-        code='LOC-02', name='Segundo',
+        tenant=ctx['tenant'],
+        branch=ctx['branch'],
+        code='LOC-02',
+        name='Segundo',
     )
     r = ctx['client'].post(
         f'{BASE}/stock-locations/{loc2.id}/set_primary/',
@@ -245,6 +269,7 @@ def test_location_set_primary(ctx):
 # ---------------------------------------------------------------------------
 # StockLotViewSet
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_lot_list(ctx_lot):
@@ -302,12 +327,13 @@ def test_lot_expired_action(ctx_lot):
     )
     assert r.status_code == 200
     data = r.json()
-    assert any(l['lot_number'] == 'EXP-LOT' for l in data)
+    assert any(lot['lot_number'] == 'EXP-LOT' for lot in data)
 
 
 # ---------------------------------------------------------------------------
 # StockOperationViewSet — confirm
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_operation_confirm(ctx_lot):
@@ -336,8 +362,12 @@ def test_operation_confirm(ctx_lot):
 def test_operation_confirm_rejects_non_draft(ctx_lot):
     def _create_op():
         return _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'confirm-reject-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -356,6 +386,7 @@ def test_operation_confirm_rejects_non_draft(ctx_lot):
 # ---------------------------------------------------------------------------
 # StockOperationViewSet — receipt / issue / adjustment / transfer / reverse
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_receipt_action(ctx_lot):
@@ -382,8 +413,12 @@ def test_receipt_action(ctx_lot):
 def test_issue_action(ctx_lot):
     def _receive():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('20'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('20'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'issue-seed-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -446,8 +481,12 @@ def test_transfer_action(ctx_lot):
     # Seed stock before transfer
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('20'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('20'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'transfer-seed-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -480,8 +519,12 @@ def test_transfer_action(ctx_lot):
 def test_reverse_action(ctx_lot):
     def _create_op():
         return _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'reverse-seed-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -506,6 +549,7 @@ def test_reverse_action(ctx_lot):
 # ---------------------------------------------------------------------------
 # StockOperationViewSet — error handling paths
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_receipt_missing_idempotency_key(ctx_lot):
@@ -590,12 +634,17 @@ def test_receipt_invalid_resource(ctx_lot):
 # StockMovementViewSet
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_movement_list(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('10'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('10'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'mov-seed-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -615,8 +664,12 @@ def test_movement_list(ctx_lot):
 def test_movement_list_date_filters(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('10'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('10'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'mov-date-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -636,8 +689,12 @@ def test_movement_list_date_filters(ctx_lot):
 def test_movement_list_type_filter(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('10'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('10'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'mov-type-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -658,12 +715,17 @@ def test_movement_list_type_filter(ctx_lot):
 # StockBalanceViewSet
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_balance_list(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('15'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('15'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-seed-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -683,8 +745,12 @@ def test_balance_list(ctx_lot):
 def test_balance_list_filter_product(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-prod-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -704,8 +770,12 @@ def test_balance_list_filter_product(ctx_lot):
 def test_balance_list_filter_branch(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-branch-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -724,8 +794,12 @@ def test_balance_list_filter_branch(ctx_lot):
 def test_balance_list_filter_location(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-loc-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -744,8 +818,12 @@ def test_balance_list_filter_location(ctx_lot):
 def test_balance_list_filter_lot(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('5'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('5'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-lot-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -764,8 +842,12 @@ def test_balance_list_filter_lot(ctx_lot):
 def test_balance_summary(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('20'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('20'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-sum-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -787,8 +869,12 @@ def test_balance_summary(ctx_lot):
 def test_balance_reconcile(ctx_lot):
     def _seed():
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('10'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('10'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'bal-rec-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -806,6 +892,7 @@ def test_balance_reconcile(ctx_lot):
 # ---------------------------------------------------------------------------
 # ProductStockPolicyViewSet
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_policy_list(ctx_lot):
@@ -938,6 +1025,7 @@ def test_policy_patch_etag_mismatch(ctx_lot):
 # ProductStockSummaryView
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_product_summary_no_filters(ctx_lot):
     def _create_policy():
@@ -994,6 +1082,7 @@ def test_product_summary_no_policy_returns_null(ctx_lot):
 # ---------------------------------------------------------------------------
 # ProductStockControlDeactivateView
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_deactivate_stock_control(ctx_lot):
@@ -1058,8 +1147,12 @@ def test_deactivate_stock_control_has_balance_error(ctx_lot):
             location=ctx_lot['location'],
         )
         _do_receipt(
-            ctx_lot['tenant'], ctx_lot['branch'], ctx_lot['product'],
-            ctx_lot['location'], Decimal('10'), ctx_lot['unit'],
+            ctx_lot['tenant'],
+            ctx_lot['branch'],
+            ctx_lot['product'],
+            ctx_lot['location'],
+            Decimal('10'),
+            ctx_lot['unit'],
             lot=ctx_lot['lot'],
             idempotency_key=f'deact-balance-{uuid.uuid4().hex[:8]}',
             actor=ctx_lot['user'],
@@ -1103,6 +1196,7 @@ def test_deactivate_stock_control_correlation_id(ctx_lot):
 # ---------------------------------------------------------------------------
 # ProductStockControlReactivateView
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_reactivate_stock_control(ctx_lot):
@@ -1189,15 +1283,17 @@ def test_reactivate_with_initial_stocks(ctx):
     cmd_id = str(uuid.uuid4())
     r = ctx['client'].post(
         f'{BASE}/products/{ctx["product"].id}/stock-control/reactivate/',
-        data=_json.dumps({
-            'command_id': cmd_id,
-            'initial_stocks': [
-                {
-                    'location_id': str(ctx['location'].id),
-                    'quantity': '10.000000',
-                },
-            ],
-        }),
+        data=_json.dumps(
+            {
+                'command_id': cmd_id,
+                'initial_stocks': [
+                    {
+                        'location_id': str(ctx['location'].id),
+                        'quantity': '10.000000',
+                    },
+                ],
+            }
+        ),
         content_type='application/json',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )

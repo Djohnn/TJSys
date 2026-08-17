@@ -63,7 +63,9 @@ class OneTimeToken(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name='one_time_tokens',
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='one_time_tokens',
     )
     purpose = models.CharField(max_length=32, choices=PURPOSES)
     digest = models.CharField(max_length=64)
@@ -98,7 +100,8 @@ class MFADevice(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'tenant', 'method'], name='uniq_user_tenant_mfa_method',
+                fields=['user', 'tenant', 'method'],
+                name='uniq_user_tenant_mfa_method',
             ),
         ]
 

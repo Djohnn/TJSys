@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -39,7 +40,6 @@ from inventory.services import (
     InsufficientStock,
     InvalidLotError,
     ProductStockControlError,
-    ProductStockControlResult,
     create_adjustment,
     create_issue,
     create_receipt,
@@ -198,10 +198,14 @@ class StockLotViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def expired(self, request):
         from django.utils import timezone
 
-        lots = self.get_queryset().filter(
-            expiry_date__lt=timezone.now().date(),
-            is_active=True,
-        ).order_by('expiry_date')
+        lots = (
+            self.get_queryset()
+            .filter(
+                expiry_date__lt=timezone.now().date(),
+                is_active=True,
+            )
+            .order_by('expiry_date')
+        )
         serializer = self.get_serializer(lots, many=True)
         return Response(serializer.data)
 
@@ -215,9 +219,13 @@ class StockOperationViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        return StockOperation.objects.select_related('branch', 'actor').filter(
-            tenant=self.request.tenant,
-        ).prefetch_related('movements')
+        return (
+            StockOperation.objects.select_related('branch', 'actor')
+            .filter(
+                tenant=self.request.tenant,
+            )
+            .prefetch_related('movements')
+        )
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
@@ -498,14 +506,18 @@ class ProductStockPolicyViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet)
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def get_queryset(self):
-        qs = ProductStockPolicy.objects.select_related(
-            'product',
-            'branch',
-            'location',
-        ).filter(tenant=self.request.tenant).order_by(
-            'branch__name',
-            'location__name',
-            'id',
+        qs = (
+            ProductStockPolicy.objects.select_related(
+                'product',
+                'branch',
+                'location',
+            )
+            .filter(tenant=self.request.tenant)
+            .order_by(
+                'branch__name',
+                'location__name',
+                'id',
+            )
         )
         product_id = self.request.query_params.get('product')
         branch_id = self.request.query_params.get('branch')
@@ -629,7 +641,11 @@ class ProductStockControlDeactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
 
@@ -684,7 +700,11 @@ class ProductStockControlReactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
         initial_stocks = data.get('initial_stocks', [])

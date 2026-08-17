@@ -22,7 +22,9 @@ class RegistrationView(APIView):
         user = register_organization(**serializer.validated_data)
         if user:
             create_audit_record(
-                actor=user, action='auth.registered', resource_type='User',
+                actor=user,
+                action='auth.registered',
+                resource_type='User',
                 resource_id=user.id,
                 correlation_id=getattr(request, 'correlation_id', ''),
             )
@@ -40,14 +42,17 @@ class EmailConfirmationView(APIView):
         serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         record = consume_token(
-            serializer.validated_data['token'], purpose='email_confirmation',
+            serializer.validated_data['token'],
+            purpose='email_confirmation',
         )
         if record is None:
             return Response({'detail': 'Invalid or expired token.'}, status=400)
         record.user.email_verified_at = timezone.now()
         record.user.save(update_fields=['email_verified_at'])
         create_audit_record(
-            actor=record.user, action='auth.email_confirmed', resource_type='User',
+            actor=record.user,
+            action='auth.email_confirmed',
+            resource_type='User',
             resource_id=record.user_id,
             correlation_id=getattr(request, 'correlation_id', ''),
         )

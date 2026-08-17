@@ -10,7 +10,7 @@ from pdv.models import PDVSyncConflict
 def _client(context):
     client = APIClient()
     client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {context['token']}",
+        HTTP_AUTHORIZATION=f'Bearer {context["token"]}',
         HTTP_X_TENANT_ID=str(context['tenant'].id),
     )
     return client

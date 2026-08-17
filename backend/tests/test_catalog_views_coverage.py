@@ -98,7 +98,10 @@ def ct_unit(ct):
     return _run_in_tenant(
         ct,
         lambda: Unit.all_objects.create(
-            tenant=ct, symbol='UN', name='Unidade', precision=0,
+            tenant=ct,
+            symbol='UN',
+            name='Unidade',
+            precision=0,
         ),
     )
 
@@ -108,7 +111,10 @@ def ct_product(ct, ct_unit):
     return _run_in_tenant(
         ct,
         lambda: Product.all_objects.create(
-            tenant=ct, sku='COV-001', name='Produto Coverage', base_unit=ct_unit,
+            tenant=ct,
+            sku='COV-001',
+            name='Produto Coverage',
+            base_unit=ct_unit,
         ),
     )
 
@@ -129,6 +135,7 @@ def ct_branch(ct, ct_company):
 # ---------------------------------------------------------------------------
 # 1. ProductViewSet._apply_q_filter (search by name and sku)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_product_q_filter_by_name(ct_client, ct, ct_product):
@@ -190,6 +197,7 @@ def test_product_category_filter(ct_client, ct, ct_product):
 # ---------------------------------------------------------------------------
 # 2. ProductPriceViewSet — CRUD + version bump
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_product_price_crud(ct_client, ct, ct_product):
@@ -279,6 +287,7 @@ def test_product_price_if_match_version_mismatch(ct_client, ct, ct_product):
 # 3. BranchPriceViewSet — CRUD + version bump
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_branch_price_crud(ct_client, ct, ct_product, ct_branch):
     now = timezone.now()
@@ -330,6 +339,7 @@ def test_branch_price_crud(ct_client, ct, ct_product, ct_branch):
 # 4. ProductFiscalDataView — GET 404, POST create, POST upsert
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_fiscal_data_get_not_found(ct_client, ct, ct_product):
     resp = ct_client.get(
@@ -363,7 +373,9 @@ def test_fiscal_data_post_upsert(ct_client, ct, ct_product):
     _run_in_tenant(
         ct,
         lambda: ProductFiscalData.all_objects.create(
-            tenant=ct, product=ct_product, ncm='00000000',
+            tenant=ct,
+            product=ct_product,
+            ncm='00000000',
         ),
     )
     resp = _json_post(
@@ -389,12 +401,15 @@ def test_fiscal_data_get_not_found_wrong_product(ct_client, ct):
 # 5. ProductPriceTierViewSet — CRUD + soft-delete
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_price_tier_crud_and_soft_delete(ct_client, ct, ct_product):
     price = _run_in_tenant(
         ct,
         lambda: ProductPrice.all_objects.create(
-            tenant=ct, product=ct_product, amount=Decimal('100'),
+            tenant=ct,
+            product=ct_product,
+            amount=Decimal('100'),
             valid_from=timezone.now(),
         ),
     )
@@ -437,12 +452,15 @@ def test_price_tier_crud_and_soft_delete(ct_client, ct, ct_product):
 # 6. EffectivePriceView — GET with branch, missing branch_id, bad at, no price
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_effective_price_with_branch(ct_client, ct, ct_product, ct_branch):
     _run_in_tenant(
         ct,
         lambda: ProductPrice.all_objects.create(
-            tenant=ct, product=ct_product, amount=Decimal('42.50'),
+            tenant=ct,
+            product=ct_product,
+            amount=Decimal('42.50'),
             valid_from=timezone.now(),
         ),
     )
@@ -513,6 +531,7 @@ def test_effective_price_branch_not_found(ct_client, ct, ct_product):
 # 7. BrandViewSet — list with ordering
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_brand_list_ordered(ct_client, ct):
     _run_in_tenant(ct, lambda: Brand.all_objects.create(tenant=ct, name='Zebra Brand'))
@@ -556,6 +575,7 @@ def test_brand_create_retrieve_delete(ct_client, ct):
 # 8. ProductImageViewSet — CRUD
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_product_image_crud(ct_client, ct, ct_product):
     create_resp = _json_post(
@@ -592,19 +612,26 @@ def test_product_image_crud(ct_client, ct, ct_product):
 # 9. ProductCompositionViewSet — CRUD for kit composition
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_product_composition_crud(ct_client, ct, ct_unit):
     kit = _run_in_tenant(
         ct,
         lambda: Product.all_objects.create(
-            tenant=ct, sku='KIT-001', name='Kit Test', base_unit=ct_unit,
+            tenant=ct,
+            sku='KIT-001',
+            name='Kit Test',
+            base_unit=ct_unit,
             product_kind='kit',
         ),
     )
     component = _run_in_tenant(
         ct,
         lambda: Product.all_objects.create(
-            tenant=ct, sku='COMP-001', name='Component', base_unit=ct_unit,
+            tenant=ct,
+            sku='COMP-001',
+            name='Component',
+            base_unit=ct_unit,
         ),
     )
 
@@ -641,6 +668,7 @@ def test_product_composition_crud(ct_client, ct, ct_unit):
 # ---------------------------------------------------------------------------
 # 10. ProductChannelProfileViewSet — CRUD with channel_slug lookup
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 @pytest.mark.django_db
@@ -686,18 +714,23 @@ def test_channel_profile_crud(ct_client, ct, ct_product):
         f'{BASE}/products/{ct_product.id}/channel-profiles/marketplace/',
         HTTP_X_TENANT_ID=str(ct.id),
     )
+    assert del_resp.status_code == 204
 
 
 # ---------------------------------------------------------------------------
 # 11. ChannelProfilePublishView — POST with idempotency
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_channel_profile_publish(ct_client, ct, ct_product):
     _run_in_tenant(
         ct,
         lambda: ProductChannelProfile.all_objects.create(
-            tenant=ct, product=ct_product, channel_slug='webstore', title='W',
+            tenant=ct,
+            product=ct_product,
+            channel_slug='webstore',
+            title='W',
         ),
     )
     resp = ct_client.post(
@@ -713,7 +746,10 @@ def test_channel_profile_publish_idempotency(ct_client, ct, ct_product):
     _run_in_tenant(
         ct,
         lambda: ProductChannelProfile.all_objects.create(
-            tenant=ct, product=ct_product, channel_slug='webstore2', title='W2',
+            tenant=ct,
+            product=ct_product,
+            channel_slug='webstore2',
+            title='W2',
         ),
     )
     key = str(uuid.uuid4())
@@ -744,6 +780,7 @@ def test_channel_profile_publish_not_found(ct_client, ct, ct_product):
 # ---------------------------------------------------------------------------
 # 12. CommercialComboViewSet — add_item, remove_item
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_combo_crud(ct_client, ct, ct_product):
@@ -780,8 +817,11 @@ def test_combo_add_item_and_remove_item(ct_client, ct, ct_product):
     combo = _run_in_tenant(
         ct,
         lambda: CommercialCombo.all_objects.create(
-            tenant=ct, sku='CI-001', name='Combo',
-            price=Decimal('50'), valid_from=timezone.now(),
+            tenant=ct,
+            sku='CI-001',
+            name='Combo',
+            price=Decimal('50'),
+            valid_from=timezone.now(),
         ),
     )
 
@@ -807,8 +847,11 @@ def test_combo_q_filter(ct_client, ct):
     _run_in_tenant(
         ct,
         lambda: CommercialCombo.all_objects.create(
-            tenant=ct, sku='QF-001', name='QFilter Combo',
-            price=Decimal('10'), valid_from=timezone.now(),
+            tenant=ct,
+            sku='QF-001',
+            name='QFilter Combo',
+            price=Decimal('10'),
+            valid_from=timezone.now(),
         ),
     )
     resp = ct_client.get(
@@ -824,13 +867,16 @@ def test_combo_q_filter(ct_client, ct):
 # 13. LabelGenerateView — POST generating PDF
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_label_generate(ct_client, ct, ct_product):
     template = _run_in_tenant(
         ct,
         lambda: LabelTemplate.all_objects.create(
-            tenant=ct, name='Etiqueta P',
-            width_mm=Decimal('50'), height_mm=Decimal('30'),
+            tenant=ct,
+            name='Etiqueta P',
+            width_mm=Decimal('50'),
+            height_mm=Decimal('30'),
         ),
     )
     resp = _json_post(
@@ -842,6 +888,8 @@ def test_label_generate(ct_client, ct, ct_product):
         },
         HTTP_X_TENANT_ID=str(ct.id),
     )
+    assert resp.status_code == 200
+    assert resp['Content-Type'] == 'application/pdf'
 
 
 @pytest.mark.django_db
@@ -849,8 +897,10 @@ def test_label_generate_product_not_in_tenant(ct_client, ct):
     template = _run_in_tenant(
         ct,
         lambda: LabelTemplate.all_objects.create(
-            tenant=ct, name='Etiqueta X',
-            width_mm=Decimal('50'), height_mm=Decimal('30'),
+            tenant=ct,
+            name='Etiqueta X',
+            width_mm=Decimal('50'),
+            height_mm=Decimal('30'),
         ),
     )
     resp = _json_post(
@@ -862,6 +912,8 @@ def test_label_generate_product_not_in_tenant(ct_client, ct):
         },
         HTTP_X_TENANT_ID=str(ct.id),
     )
+    assert resp.status_code == 200
+    assert resp['Content-Type'] == 'application/pdf'
 
 
 @pytest.mark.django_db
@@ -881,6 +933,7 @@ def test_label_generate_template_not_found(ct_client, ct):
 # ---------------------------------------------------------------------------
 # 14. ProductApplyView — POST with command pattern
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_product_apply_creates_product(ct_client, ct, ct_unit):

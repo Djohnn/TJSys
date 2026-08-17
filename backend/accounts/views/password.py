@@ -29,7 +29,8 @@ class PasswordForgotView(APIView):
             token, _ = issue_token(purpose='password_reset', user=user)
             transaction.on_commit(lambda: send_password_reset_email(email, token))
         return Response(
-            {'detail': 'If eligible, password reset instructions will be sent.'}, status=202,
+            {'detail': 'If eligible, password reset instructions will be sent.'},
+            status=202,
         )
 
 
@@ -48,7 +49,9 @@ class PasswordResetView(APIView):
         record.user.save(update_fields=['password'])
         revoke_user_sessions(record.user_id)
         create_audit_record(
-            actor=record.user, action='auth.password_reset', resource_type='User',
+            actor=record.user,
+            action='auth.password_reset',
+            resource_type='User',
             resource_id=record.user_id,
             correlation_id=getattr(request, 'correlation_id', ''),
         )

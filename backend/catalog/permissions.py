@@ -32,9 +32,7 @@ class CatalogCapabilityPermission(BasePermission):
             required_capability = (
                 self.view_capability if action in _READ_ACTIONS else self.manage_capability
             )
-            self.message = (
-                f'Role {membership.role} lacks {required_capability} (action={action}).'
-            )
+            self.message = f'Role {membership.role} lacks {required_capability} (action={action}).'
         return allowed
 
 

@@ -33,9 +33,7 @@ def test_person_list_filter_active_true(client, tenant_alpha, user_alpha):
     """Given active=true, when listing people, then only active returned."""
     from people.models import Person
 
-    Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='Ativo', is_active=True
-    )
+    Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='Ativo', is_active=True)
     Person.all_objects.create(
         tenant=tenant_alpha, person_type='PF', name='Inativo', is_active=False
     )
@@ -52,9 +50,7 @@ def test_person_list_filter_active_false(client, tenant_alpha, user_alpha):
     """Given active=false, when listing people, then only inactive returned."""
     from people.models import Person
 
-    Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='Ativo', is_active=True
-    )
+    Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='Ativo', is_active=True)
     Person.all_objects.create(
         tenant=tenant_alpha, person_type='PF', name='Inativo', is_active=False
     )
@@ -99,14 +95,10 @@ def test_person_list_filter_document(client, tenant_alpha, user_alpha):
     PersonDocument.all_objects.create(
         tenant=tenant_alpha, person=p1, document_type='CPF', value='12345678901'
     )
-    Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='No Doc', is_active=True
-    )
+    Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='No Doc', is_active=True)
 
     client.force_login(user_alpha)
-    resp = client.get(
-        '/api/v1/people/?document=123.456.789-01', **_headers(tenant_alpha)
-    )
+    resp = client.get('/api/v1/people/?document=123.456.789-01', **_headers(tenant_alpha))
     assert resp.status_code == 200
     names = [p['name'] for p in resp.json()['results']]
     assert 'Doc Person' in names
@@ -142,12 +134,8 @@ def test_person_list_invalid_active_param_ignored(client, tenant_alpha, user_alp
     """Given invalid active param, when listing, then filter ignored (all returned)."""
     from people.models import Person
 
-    Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='A', is_active=True
-    )
-    Person.all_objects.create(
-        tenant=tenant_alpha, person_type='PF', name='B', is_active=False
-    )
+    Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='A', is_active=True)
+    Person.all_objects.create(tenant=tenant_alpha, person_type='PF', name='B', is_active=False)
 
     client.force_login(user_alpha)
     resp = client.get('/api/v1/people/?active=invalid', **_headers(tenant_alpha))
@@ -226,9 +214,7 @@ def test_person_addresses_get_empty(client, tenant_alpha, user_alpha):
         tenant=tenant_alpha, person_type='PF', name='No Addr', is_active=True
     )
     client.force_login(user_alpha)
-    resp = client.get(
-        f'/api/v1/people/{person.id}/addresses/', **_headers(tenant_alpha)
-    )
+    resp = client.get(f'/api/v1/people/{person.id}/addresses/', **_headers(tenant_alpha))
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -242,9 +228,7 @@ def test_person_contacts_get_empty(client, tenant_alpha, user_alpha):
         tenant=tenant_alpha, person_type='PF', name='No Contact', is_active=True
     )
     client.force_login(user_alpha)
-    resp = client.get(
-        f'/api/v1/people/{person.id}/contacts/', **_headers(tenant_alpha)
-    )
+    resp = client.get(f'/api/v1/people/{person.id}/contacts/', **_headers(tenant_alpha))
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -258,9 +242,7 @@ def test_person_consents_get_empty(client, tenant_alpha, user_alpha):
         tenant=tenant_alpha, person_type='PF', name='No Consent', is_active=True
     )
     client.force_login(user_alpha)
-    resp = client.get(
-        f'/api/v1/people/{person.id}/consents/', **_headers(tenant_alpha)
-    )
+    resp = client.get(f'/api/v1/people/{person.id}/consents/', **_headers(tenant_alpha))
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -274,6 +256,14 @@ def _row_exists(table, where_clause, params):
     with connection.cursor() as cursor:
         cursor.execute(f'SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1', params)
         return cursor.fetchone() is not None
+
+
+@pytest.fixture(autouse=True)
+def _allow_seed_e2e_only_in_seed_coverage_tests(request, monkeypatch):
+    if request.node.name.startswith('test_seed_e2e_'):
+        from tenancy.management.commands.seed_e2e import Command
+
+        monkeypatch.setattr(Command, '_ensure_e2e_environment', lambda self: None)
 
 
 @pytest.mark.django_db
@@ -319,7 +309,11 @@ def test_seed_e2e_creates_device():
 
     call_command('seed_e2e')
     tenant = Tenant.objects.get(slug='e2e')
-    assert _row_exists('tenancy_device', 'tenant_id = %s AND device_id = %s', [str(tenant.id), 'e2e-device-001'])
+    assert _row_exists(
+        'tenancy_device',
+        'tenant_id = %s AND device_id = %s',
+        [str(tenant.id), 'e2e-device-001'],
+    )
 
 
 @pytest.mark.django_db
@@ -396,14 +390,24 @@ def test_seed_e2e_creates_fiscal_emitter():
 @pytest.mark.django_db
 def test_seed_e2e_creates_sale_data():
     """When seed_e2e runs, then sale, fiscal document, and payment records exist."""
+    from tenancy.context import reset_current_tenant_id, set_current_tenant_id
     from tenancy.models import Tenant
 
     call_command('seed_e2e')
     tenant = Tenant.objects.get(slug='e2e')
-    assert _row_exists('sales_sale', 'tenant_id = %s', [str(tenant.id)])
-    assert _row_exists('fiscal_fiscaldocument', 'tenant_id = %s', [str(tenant.id)])
-    assert _row_exists('payments_paymentintent', 'tenant_id = %s', [str(tenant.id)])
-    assert _row_exists('payments_paymenttransaction', 'tenant_id = %s', [str(tenant.id)])
+    token = set_current_tenant_id(tenant.id)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT set_config(%s, %s, true)',
+                ['app.current_tenant_id', str(tenant.id)],
+            )
+        assert _row_exists('sales_sale', 'tenant_id = %s', [str(tenant.id)])
+        assert _row_exists('fiscal_fiscaldocument', 'tenant_id = %s', [str(tenant.id)])
+        assert _row_exists('payments_paymentintent', 'tenant_id = %s', [str(tenant.id)])
+        assert _row_exists('payments_paymenttransaction', 'tenant_id = %s', [str(tenant.id)])
+    finally:
+        reset_current_tenant_id(token)
 
 
 @pytest.mark.django_db
@@ -413,8 +417,16 @@ def test_seed_e2e_creates_person_and_supplier():
 
     call_command('seed_e2e')
     tenant = Tenant.objects.get(slug='e2e')
-    assert _row_exists('people_person', 'tenant_id = %s AND name = %s', [str(tenant.id), 'João Cliente E2E'])
-    assert _row_exists('purchasing_supplier', 'tenant_id = %s AND name = %s', [str(tenant.id), 'Fornecedor E2E'])
+    assert _row_exists(
+        'people_person',
+        'tenant_id = %s AND name = %s',
+        [str(tenant.id), 'João Cliente E2E'],
+    )
+    assert _row_exists(
+        'purchasing_supplier',
+        'tenant_id = %s AND name = %s',
+        [str(tenant.id), 'Fornecedor E2E'],
+    )
 
 
 @pytest.mark.django_db
@@ -493,7 +505,7 @@ def test_seed_tenants_creates_admin_user(monkeypatch):
 
     from tenancy.models import Tenant, TenantMembership
 
-    admin = User.objects.get(email='admin@tjsys.local')
+    admin = User.objects.get(email='admin@zyrp.local')
     assert admin.is_staff is True
     assert admin.is_superuser is True
 
@@ -529,7 +541,7 @@ def test_seed_tenants_sets_admin_password(monkeypatch):
     """When seed_tenants runs, then admin password is set correctly."""
     monkeypatch.setenv('SEED_ADMIN_PASSWORD', 'seed-pass-42')
     call_command('seed_tenants')
-    admin = User.objects.get(email='admin@tjsys.local')
+    admin = User.objects.get(email='admin@zyrp.local')
     assert admin.check_password('seed-pass-42')
 
 
@@ -541,7 +553,7 @@ def test_seed_tenants_sets_admin_password(monkeypatch):
 def _table_exists(table_name):
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = %s",
+            'SELECT 1 FROM information_schema.tables WHERE table_name = %s',
             [table_name],
         )
         return cursor.fetchone() is not None
@@ -567,22 +579,34 @@ def test_audit_catalog_finds_multiple_primary_images(tenant_alpha):
     token = set_current_tenant_id(tenant_alpha.id)
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant_alpha.id)])
+            cursor.execute(
+                "SELECT set_config('app.current_tenant_id', %s, false)",
+                [str(tenant_alpha.id)],
+            )
 
         unit = Unit.all_objects.create(tenant=tenant_alpha, symbol='IMG', name='Img Unit')
 
         from catalog.models import Product
 
         product = Product.all_objects.create(
-            tenant=tenant_alpha, sku='IMG-TEST', name='Img Test', base_unit=unit,
+            tenant=tenant_alpha,
+            sku='IMG-TEST',
+            name='Img Test',
+            base_unit=unit,
         )
         from catalog.models import ProductImage
 
         ProductImage.all_objects.create(
-            tenant=tenant_alpha, product=product, object_key='a.jpg', is_primary=True,
+            tenant=tenant_alpha,
+            product=product,
+            object_key='a.jpg',
+            is_primary=True,
         )
         ProductImage.all_objects.create(
-            tenant=tenant_alpha, product=product, object_key='b.jpg', is_primary=True,
+            tenant=tenant_alpha,
+            product=product,
+            object_key='b.jpg',
+            is_primary=True,
         )
 
         with pytest.raises(CommandError, match='multiple_primary_images'):
@@ -603,12 +627,19 @@ def test_audit_catalog_finds_service_tracks_inventory(tenant_alpha):
     token = set_current_tenant_id(tenant_alpha.id)
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant_alpha.id)])
+            cursor.execute(
+                "SELECT set_config('app.current_tenant_id', %s, false)",
+                [str(tenant_alpha.id)],
+            )
 
         unit = Unit.all_objects.create(tenant=tenant_alpha, symbol='SVC', name='Svc Unit')
         Product.all_objects.create(
-            tenant=tenant_alpha, sku='SVC-001', name='Servico', base_unit=unit,
-            product_kind='servico', tracks_inventory=True,
+            tenant=tenant_alpha,
+            sku='SVC-001',
+            name='Servico',
+            base_unit=unit,
+            product_kind='servico',
+            tracks_inventory=True,
         )
 
         with pytest.raises(CommandError, match='service_tracks_inventory'):
@@ -622,7 +653,7 @@ def test_audit_catalog_resets_tenant_config(tenant_alpha):
     """Given audit runs, when done, then app.current_tenant_id is reset to empty."""
     call_command('audit_catalog_sprints_23_29')
     with connection.cursor() as cursor:
-        cursor.execute("SHOW app.current_tenant_id")
+        cursor.execute('SHOW app.current_tenant_id')
         row = cursor.fetchone()
     assert row[0] == ''
 
@@ -649,17 +680,29 @@ def _create_product_with_unit(tenant, sku='INV-001', product_kind='produto', tra
     token = set_current_tenant_id(tenant.id)
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", [str(tenant.id)])
+            cursor.execute(
+                "SELECT set_config('app.current_tenant_id', %s, false)",
+                [str(tenant.id)],
+            )
 
             from catalog.models import Unit
 
-            unit = Unit.all_objects.create(tenant=tenant, symbol='kg', name='Quilograma', precision=3)
+            unit = Unit.all_objects.create(
+                tenant=tenant,
+                symbol='kg',
+                name='Quilograma',
+                precision=3,
+            )
 
             from catalog.models import Product
 
             product = Product.all_objects.create(
-                tenant=tenant, sku=sku, name=f'Product {sku}', base_unit=unit,
-                product_kind=product_kind, tracks_inventory=tracks_inventory,
+                tenant=tenant,
+                sku=sku,
+                name=f'Product {sku}',
+                base_unit=unit,
+                product_kind=product_kind,
+                tracks_inventory=tracks_inventory,
             )
             return unit, product
     finally:
@@ -689,13 +732,19 @@ def test_audit_stock_policies_finds_missing_policy(tenant_alpha, branch_alpha):
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='MISS-POL',
-            name='Missing Policy Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='MISS-POL',
+            name='Missing Policy Location',
+            is_primary=False,
         )
         from inventory.models import StockBalance
 
         StockBalance.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, quantity=Decimal('10'),
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            quantity=Decimal('10'),
         )
 
         with pytest.raises(CommandError, match='missing_policy'):
@@ -719,19 +768,31 @@ def test_audit_stock_policies_finds_negative_without_permission(tenant_alpha, br
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='NEG-BAL',
-            name='Negative Balance Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='NEG-BAL',
+            name='Negative Balance Location',
+            is_primary=False,
         )
         from inventory.models import ProductStockPolicy
 
         ProductStockPolicy.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, branch=branch_alpha,
-            minimum_quantity=0, maximum_quantity=None, allow_negative=False, is_active=True,
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            branch=branch_alpha,
+            minimum_quantity=0,
+            maximum_quantity=None,
+            allow_negative=False,
+            is_active=True,
         )
         from inventory.models import StockBalance
 
         StockBalance.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, quantity=Decimal('-5'),
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            quantity=Decimal('-5'),
         )
 
         with pytest.raises(CommandError, match='negative_without_permission'):
@@ -755,19 +816,31 @@ def test_audit_stock_policies_allows_negative_with_policy(tenant_alpha, branch_a
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='NEG-OK',
-            name='Negative Allowed Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='NEG-OK',
+            name='Negative Allowed Location',
+            is_primary=False,
         )
         from inventory.models import ProductStockPolicy
 
         ProductStockPolicy.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, branch=branch_alpha,
-            minimum_quantity=0, maximum_quantity=None, allow_negative=True, is_active=True,
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            branch=branch_alpha,
+            minimum_quantity=0,
+            maximum_quantity=None,
+            allow_negative=True,
+            is_active=True,
         )
         from inventory.models import StockBalance
 
         StockBalance.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, quantity=Decimal('-3'),
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            quantity=Decimal('-3'),
         )
 
         call_command('audit_product_stock_policies')
@@ -790,14 +863,23 @@ def test_audit_stock_policies_finds_max_lt_min(tenant_alpha, branch_alpha):
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='MIN-MAX',
-            name='Min Max Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='MIN-MAX',
+            name='Min Max Location',
+            is_primary=False,
         )
         from inventory.models import ProductStockPolicy
 
         ProductStockPolicy.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, branch=branch_alpha,
-            minimum_quantity=100, maximum_quantity=10, allow_negative=False, is_active=True,
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            branch=branch_alpha,
+            minimum_quantity=100,
+            maximum_quantity=10,
+            allow_negative=False,
+            is_active=True,
         )
 
         with pytest.raises(CommandError, match='max_lt_min'):
@@ -817,20 +899,32 @@ def test_audit_stock_policies_finds_service_policy(tenant_alpha, branch_alpha):
     token = _setup_inv_context(tenant_alpha)
     try:
         unit, svc = _create_product_with_unit(
-            tenant_alpha, sku='SVC-POL', product_kind='servico', tracks_inventory=False,
+            tenant_alpha,
+            sku='SVC-POL',
+            product_kind='servico',
+            tracks_inventory=False,
         )
 
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='SVC-LOC',
-            name='Service Policy Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='SVC-LOC',
+            name='Service Policy Location',
+            is_primary=False,
         )
         from inventory.models import ProductStockPolicy
 
         ProductStockPolicy.all_objects.create(
-            tenant=tenant_alpha, product=svc, location=location, branch=branch_alpha,
-            minimum_quantity=0, maximum_quantity=None, allow_negative=False, is_active=True,
+            tenant=tenant_alpha,
+            product=svc,
+            location=location,
+            branch=branch_alpha,
+            minimum_quantity=0,
+            maximum_quantity=None,
+            allow_negative=False,
+            is_active=True,
         )
 
         with pytest.raises(CommandError, match='service_policy'):
@@ -844,7 +938,7 @@ def test_audit_stock_policies_resets_tenant_config(tenant_alpha):
     """Given audit runs, when done, then app.current_tenant_id is reset to empty."""
     call_command('audit_product_stock_policies')
     with connection.cursor() as cursor:
-        cursor.execute("SHOW app.current_tenant_id")
+        cursor.execute('SHOW app.current_tenant_id')
         row = cursor.fetchone()
     assert row[0] == ''
 
@@ -864,14 +958,23 @@ def test_audit_stock_policies_counts_tenants_and_policies(tenant_alpha, branch_a
         from inventory.models import StockLocation
 
         location = StockLocation.all_objects.create(
-            tenant=tenant_alpha, branch=branch_alpha, code='COUNT',
-            name='Count Location', is_primary=False,
+            tenant=tenant_alpha,
+            branch=branch_alpha,
+            code='COUNT',
+            name='Count Location',
+            is_primary=False,
         )
         from inventory.models import ProductStockPolicy
 
         ProductStockPolicy.all_objects.create(
-            tenant=tenant_alpha, product=product, location=location, branch=branch_alpha,
-            minimum_quantity=0, maximum_quantity=None, allow_negative=False, is_active=True,
+            tenant=tenant_alpha,
+            product=product,
+            location=location,
+            branch=branch_alpha,
+            minimum_quantity=0,
+            maximum_quantity=None,
+            allow_negative=False,
+            is_active=True,
         )
 
         call_command('audit_product_stock_policies')

@@ -21,7 +21,8 @@ def decompose_kit_sale(*, tenant, sale, kit_product, kit_quantity, sale_event_id
     idempotency_key = f'kit-decomp:{sale_event_id}'
 
     if StockOperation.all_objects.filter(
-        tenant=tenant, idempotency_key=idempotency_key,
+        tenant=tenant,
+        idempotency_key=idempotency_key,
     ).exists():
         return []
 
@@ -31,21 +32,23 @@ def decompose_kit_sale(*, tenant, sale, kit_product, kit_quantity, sale_event_id
 
     if location is None:
         location = StockLocation.all_objects.filter(
-            tenant=tenant, branch=sale.branch, is_primary=True,
+            tenant=tenant,
+            branch=sale.branch,
+            is_primary=True,
         ).first()
         if location is None:
             raise ValidationError('No primary stock location found for branch.')
 
     comp_ids = [comp_id for comp_id, _, _ in components]
-    comp_products = {
-        p.id: p for p in Product.all_objects.filter(tenant=tenant, id__in=comp_ids)
-    }
+    comp_products = {p.id: p for p in Product.all_objects.filter(tenant=tenant, id__in=comp_ids)}
 
     shortages = []
     for comp_id, comp_sku, comp_qty in components:
         needed = Decimal(str(comp_qty)) * Decimal(str(kit_quantity))
         balance = StockBalance.all_objects.filter(
-            tenant=tenant, product_id=comp_id, location=location,
+            tenant=tenant,
+            product_id=comp_id,
+            location=location,
         ).first()
         available = balance.quantity if balance else Decimal('0')
         if available < needed:
@@ -81,7 +84,9 @@ def decompose_kit_sale(*, tenant, sale, kit_product, kit_quantity, sale_event_id
         )
 
         balance = StockBalance.all_objects.filter(
-            tenant=tenant, product_id=comp_id, location=location,
+            tenant=tenant,
+            product_id=comp_id,
+            location=location,
         ).first()
         if balance is not None:
             StockBalance.all_objects.filter(pk=balance.pk).update(

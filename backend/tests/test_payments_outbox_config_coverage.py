@@ -192,9 +192,7 @@ def test_intent_viewset_retrieve(client, sale_context):
         idempotency_key='retrieve-intent',
         actor=ctx['user'],
     )
-    response = client.get(
-        f'/api/v1/payments/intents/{intent.id}/', **_h(ctx['tenant'])
-    )
+    response = client.get(f'/api/v1/payments/intents/{intent.id}/', **_h(ctx['tenant']))
     assert response.status_code == 200
     assert response.json()['id'] == str(intent.id)
 
@@ -287,9 +285,7 @@ def test_reconciliation_batchViewSet_list(client, sale_context):
             }
         ],
     )
-    response = client.get(
-        '/api/v1/payments/reconciliation-batches/', **_h(ctx['tenant'])
-    )
+    response = client.get('/api/v1/payments/reconciliation-batches/', **_h(ctx['tenant']))
     assert response.status_code == 200
     assert len(response.json()['results']) >= 1
 
@@ -422,12 +418,8 @@ def test_provider_configViewSet_list(client, tenant_alpha, user_alpha):
     session['mfa_tenant_id'] = str(tenant_alpha.id)
     session['mfa_method'] = 'totp'
     session.save()
-    PaymentProviderConfig.all_objects.create(
-        tenant=tenant_alpha, provider='fake', secret='list-me'
-    )
-    response = client.get(
-        '/api/v1/payments/provider-configs/', **_h(tenant_alpha)
-    )
+    PaymentProviderConfig.all_objects.create(tenant=tenant_alpha, provider='fake', secret='list-me')
+    response = client.get('/api/v1/payments/provider-configs/', **_h(tenant_alpha))
     assert response.status_code == 200
     assert len(response.json()['results']) >= 1
 
@@ -462,9 +454,12 @@ def test_create_payment_intent_idempotent_returns_existing(sale_context):
         actor=ctx['user'],
     )
     assert first.id == second.id
-    assert PaymentIntent.all_objects.filter(
-        tenant=ctx['tenant'], idempotency_key='idem-svc-key'
-    ).count() == 1
+    assert (
+        PaymentIntent.all_objects.filter(
+            tenant=ctx['tenant'], idempotency_key='idem-svc-key'
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db
@@ -477,9 +472,7 @@ def test_create_payment_intent_cross_tenant_raises(sale_context, tenant_beta):
     config = PaymentProviderConfig.all_objects.create(
         tenant=ctx['tenant'], provider='fake', secret='cross'
     )
-    other_config = PaymentProviderConfig.all_objects.create(
-        tenant=tenant_beta, provider='fake', secret='other'
-    )
+    PaymentProviderConfig.all_objects.create(tenant=tenant_beta, provider='fake', secret='other')
     with pytest.raises(ValueError, match='must belong to the tenant'):
         create_payment_intent(
             tenant=tenant_beta,

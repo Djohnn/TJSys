@@ -180,7 +180,8 @@ class TestIsTenantRestrictedCoverage:
 class TestSuspendTenantCoverage:
     def test_suspend_creates_audit(self, active_sub, django_user_model):
         user = django_user_model.objects.create_user(
-            email='auditor@test.local', password='pass123',
+            email='auditor@test.local',
+            password='pass123',
         )
         suspend_tenant(active_sub.tenant, reason='Non-payment', actor=user)
         assert PlatformAdminAudit.objects.filter(
@@ -204,7 +205,8 @@ class TestSuspendTenantCoverage:
 class TestReactivateTenantCoverage:
     def test_reactivate_creates_audit(self, active_sub, django_user_model):
         user = django_user_model.objects.create_user(
-            email='auditor@test.local', password='pass123',
+            email='auditor@test.local',
+            password='pass123',
         )
         suspend_tenant(active_sub.tenant)
         reactivate_tenant(active_sub.tenant, actor=user)
@@ -249,7 +251,7 @@ class TestFeatureFlagEnabledCoverage:
         assert feature_flag_enabled('disabled', 'any-tenant') is False
 
     def test_tenant_override_true(self, tenant_alpha):
-        flag = FeatureFlag.objects.create(
+        FeatureFlag.objects.create(
             code='override',
             is_globally_enabled=False,
             tenant_overrides={str(tenant_alpha.id): True},
@@ -257,7 +259,7 @@ class TestFeatureFlagEnabledCoverage:
         assert feature_flag_enabled('override', tenant_alpha.id) is True
 
     def test_tenant_override_false(self, tenant_alpha):
-        flag = FeatureFlag.objects.create(
+        FeatureFlag.objects.create(
             code='override-false',
             is_globally_enabled=True,
             tenant_overrides={str(tenant_alpha.id): False},
@@ -298,7 +300,8 @@ class TestSetFeatureFlagCoverage:
 
     def test_set_feature_flag_with_actor(self, django_user_model):
         user = django_user_model.objects.create_user(
-            email='flag-admin@test.local', password='pass123',
+            email='flag-admin@test.local',
+            password='pass123',
         )
         set_feature_flag('audited', globally_enabled=True, actor=user)
         audit = PlatformAdminAudit.objects.filter(
@@ -328,7 +331,8 @@ class TestSetFeatureFlagCoverage:
 class TestRequestSupportAccessCoverage:
     def test_request_with_custom_expiry(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         expires = timezone.now() + timezone.timedelta(hours=2)
         req = request_support_access(
@@ -342,7 +346,8 @@ class TestRequestSupportAccessCoverage:
 
     def test_request_default_expiry(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support2@test.local', password='pass123',
+            email='support2@test.local',
+            password='pass123',
         )
         req = request_support_access(
             requester=user,
@@ -357,17 +362,22 @@ class TestRequestSupportAccessCoverage:
 class TestApproveSupportAccessCoverage:
     def test_approve_not_found_raises(self, django_user_model):
         user = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         with pytest.raises(ValueError, match='not found'):
             approve_support_access(request_id=999999, approver=user)
 
     def test_approve_already_approved_raises(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -380,10 +390,13 @@ class TestApproveSupportAccessCoverage:
 
     def test_approve_creates_audit(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -400,10 +413,13 @@ class TestApproveSupportAccessCoverage:
 
     def test_approve_expired_request_raises(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -419,17 +435,22 @@ class TestApproveSupportAccessCoverage:
 class TestRevokeSupportAccessCoverage:
     def test_revoke_not_found_raises(self, django_user_model):
         user = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         with pytest.raises(ValueError, match='not found'):
             revoke_support_access(request_id=999999, revoker=user)
 
     def test_revoke_already_revoked_raises(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -442,10 +463,13 @@ class TestRevokeSupportAccessCoverage:
 
     def test_revoke_expired_request_raises(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -460,10 +484,13 @@ class TestRevokeSupportAccessCoverage:
 
     def test_revoke_creates_audit(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,
@@ -479,10 +506,13 @@ class TestRevokeSupportAccessCoverage:
 
     def test_revoke_approved_request_succeeds(self, django_user_model, tenant_alpha):
         user = django_user_model.objects.create_user(
-            email='support@test.local', password='pass123',
+            email='support@test.local',
+            password='pass123',
         )
         admin = django_user_model.objects.create_user(
-            email='admin@test.local', password='pass123', is_staff=True,
+            email='admin@test.local',
+            password='pass123',
+            is_staff=True,
         )
         req = request_support_access(
             requester=user,

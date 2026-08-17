@@ -9,8 +9,15 @@ class AuditRecordAdmin(admin.ModelAdmin):
     list_filter = ['action', 'resource_type']
     search_fields = ['resource_id', 'actor__email']
     readonly_fields = [
-        'id', 'actor', 'action', 'resource_type', 'resource_id', 'detail',
-        'correlation_id', 'tenant_id', 'created_at',
+        'id',
+        'actor',
+        'action',
+        'resource_type',
+        'resource_id',
+        'detail',
+        'correlation_id',
+        'tenant_id',
+        'created_at',
     ]
 
     def has_add_permission(self, request):

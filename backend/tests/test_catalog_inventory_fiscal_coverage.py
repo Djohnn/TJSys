@@ -1,5 +1,6 @@
 """Tests for catalog models, inventory/kit_decomposition, fiscal views/ocr,
 and catalog/services/product_extensions — covering remaining coverage gaps."""
+
 import contextlib
 import uuid
 from decimal import Decimal
@@ -61,12 +62,11 @@ def _make_tenant(name, slug):
 
 def _make_branch(tenant):
     def _create():
-        company = Company.all_objects.get_or_create(
-            tenant=tenant, name=f'{tenant.name} Co'
-        )[0]
+        company = Company.all_objects.get_or_create(tenant=tenant, name=f'{tenant.name} Co')[0]
         return Branch.all_objects.get_or_create(
             company=company, tenant=tenant, name=f'{tenant.name} Branch'
         )[0]
+
     return _run_in_tenant(tenant, _create)
 
 
@@ -80,6 +80,7 @@ class TestUnitModel:
     def test_str(self):
         t = _make_tenant('UT', 'ut-unit')
         from catalog.models import Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='kg', name='Quilo', precision=2)
             s = str(u)
@@ -89,6 +90,7 @@ class TestUnitModel:
     def test_save_strips_and_uppercases(self):
         t = _make_tenant('UT2', 'ut2-unit')
         from catalog.models import Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='  lb  ', name='Libra')
             assert u.symbol == 'LB'
@@ -96,6 +98,7 @@ class TestUnitModel:
     def test_clean_precision_above_6_raises(self):
         t = _make_tenant('UT3', 'ut3-unit')
         from catalog.models import Unit
+
         with pg_tenant_context(t):
             u = Unit(tenant=t, symbol='X', name='X', precision=7)
             with pytest.raises(ValidationError):
@@ -107,6 +110,7 @@ class TestCategoryModel:
     def test_str(self):
         t = _make_tenant('CAT', 'cat-str')
         from catalog.models import Category
+
         with pg_tenant_context(t):
             c = Category.all_objects.create(tenant=t, name='Eletronicos')
             assert 'Eletronicos' in str(c)
@@ -114,6 +118,7 @@ class TestCategoryModel:
     def test_self_parent_raises(self):
         t = _make_tenant('CAT2', 'cat-self-parent')
         from catalog.models import Category
+
         with pg_tenant_context(t):
             c = Category.all_objects.create(tenant=t, name='Root')
             c.parent = c
@@ -123,6 +128,7 @@ class TestCategoryModel:
     def test_cycle_detection(self):
         t = _make_tenant('CAT3', 'cat-cycle')
         from catalog.models import Category
+
         with pg_tenant_context(t):
             a = Category.all_objects.create(tenant=t, name='A')
             b = Category.all_objects.create(tenant=t, name='B', parent=a)
@@ -135,6 +141,7 @@ class TestCategoryModel:
         t1 = _make_tenant('CAT4', 'cat-x-tenant1')
         t2 = _make_tenant('CAT5', 'cat-x-tenant2')
         from catalog.models import Category
+
         with pg_tenant_context(t2):
             parent_other = Category.all_objects.create(tenant=t2, name='Other')
         with pg_tenant_context(t1):
@@ -145,6 +152,7 @@ class TestCategoryModel:
     def test_unique_code_per_tenant(self):
         t = _make_tenant('CAT6', 'cat-uniq-code')
         from catalog.models import Category
+
         with pg_tenant_context(t):
             Category.all_objects.create(tenant=t, name='A', code='ELEC')
             with pytest.raises(Exception):
@@ -156,6 +164,7 @@ class TestProductModel:
     def test_str(self):
         t = _make_tenant('PROD', 'prod-str')
         from catalog.models import Product, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='P001', name='Teste', base_unit=u)
@@ -164,6 +173,7 @@ class TestProductModel:
     def test_save_uppercases_sku(self):
         t = _make_tenant('PROD2', 'prod-upper')
         from catalog.models import Product, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='  abc-01  ', name='X', base_unit=u)
@@ -173,6 +183,7 @@ class TestProductModel:
         t1 = _make_tenant('PROD3', 'prod-xunit1')
         t2 = _make_tenant('PROD4', 'prod-xunit2')
         from catalog.models import Product, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='kg', name='Kg')
         with pg_tenant_context(t1):
@@ -184,6 +195,7 @@ class TestProductModel:
         t1 = _make_tenant('PROD5', 'prod-xcat1')
         t2 = _make_tenant('PROD6', 'prod-xcat2')
         from catalog.models import Category, Product, Unit
+
         with pg_tenant_context(t2):
             cat2 = Category.all_objects.create(tenant=t2, name='Other')
         with pg_tenant_context(t1):
@@ -197,11 +209,18 @@ class TestProductModel:
     def test_servico_sets_inventory_flags(self):
         t = _make_tenant('PROD7', 'prod-svc')
         from catalog.models import Product, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='h', name='Hora')
             p = Product(
-                tenant=t, sku='SVC', name='Servico', base_unit=u, product_kind='servico',
-                tracks_inventory=True, requires_lot=True, requires_expiry=True,
+                tenant=t,
+                sku='SVC',
+                name='Servico',
+                base_unit=u,
+                product_kind='servico',
+                tracks_inventory=True,
+                requires_lot=True,
+                requires_expiry=True,
             )
             p.full_clean()
             assert p.tracks_inventory is False
@@ -214,12 +233,11 @@ class TestProductUnitModel:
     def test_str(self):
         t = _make_tenant('PU', 'pu-str')
         from catalog.models import Product, ProductUnit, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='kg', name='Kg')
             p = Product.all_objects.create(tenant=t, sku='PU-1', name='P', base_unit=u)
-            pu = ProductUnit.all_objects.create(
-                tenant=t, product=p, unit=u, factor=Decimal('2.5')
-            )
+            pu = ProductUnit.all_objects.create(tenant=t, product=p, unit=u, factor=Decimal('2.5'))
             s = str(pu)
             assert 'PU-1' in s
             assert '2.5' in s
@@ -227,6 +245,7 @@ class TestProductUnitModel:
     def test_clean_zero_factor_raises(self):
         t = _make_tenant('PU2', 'pu-zero')
         from catalog.models import Product, ProductUnit, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PU-Z', name='P', base_unit=u)
@@ -238,6 +257,7 @@ class TestProductUnitModel:
         t1 = _make_tenant('PU3', 'pu-xp1')
         t2 = _make_tenant('PU4', 'pu-xp2')
         from catalog.models import Product, ProductUnit, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='PU-XP2', name='P2', base_unit=u2)
@@ -251,6 +271,7 @@ class TestProductUnitModel:
         t1 = _make_tenant('PU5', 'pu-xu1')
         t2 = _make_tenant('PU6', 'pu-xu2')
         from catalog.models import Product, ProductUnit, Unit
+
         with pg_tenant_context(t1):
             u1 = Unit.all_objects.create(tenant=t1, symbol='un', name='Un')
             p1 = Product.all_objects.create(tenant=t1, sku='PU-XU', name='P', base_unit=u1)
@@ -267,6 +288,7 @@ class TestProductCodeModel:
     def test_str(self):
         t = _make_tenant('PC', 'pc-str')
         from catalog.models import Product, ProductCode, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PC-1', name='P', base_unit=u)
@@ -278,6 +300,7 @@ class TestProductCodeModel:
     def test_save_uppercases_value(self):
         t = _make_tenant('PC2', 'pc-upper')
         from catalog.models import Product, ProductCode, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PC-U', name='P', base_unit=u)
@@ -290,6 +313,7 @@ class TestProductCodeModel:
         t1 = _make_tenant('PC3', 'pc-xp1')
         t2 = _make_tenant('PC4', 'pc-xp2')
         from catalog.models import Product, ProductCode, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='PC-XP', name='P2', base_unit=u2)
@@ -304,6 +328,7 @@ class TestProductPriceModel:
     def test_str(self):
         t = _make_tenant('PP', 'pp-str')
         from catalog.models import Product, ProductPrice, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PP-1', name='P', base_unit=u)
@@ -315,6 +340,7 @@ class TestProductPriceModel:
     def test_clean_negative_amount_raises(self):
         t = _make_tenant('PP2', 'pp-neg')
         from catalog.models import Product, ProductPrice, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PP-N', name='P', base_unit=u)
@@ -325,13 +351,17 @@ class TestProductPriceModel:
     def test_clean_valid_to_before_from_raises(self):
         t = _make_tenant('PP3', 'pp-to')
         from catalog.models import Product, ProductPrice, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PP-T', name='P', base_unit=u)
             now = timezone.now()
             pp = ProductPrice(
-                tenant=t, product=p, amount=Decimal('5'),
-                valid_from=now, valid_to=now - timezone.timedelta(days=1),
+                tenant=t,
+                product=p,
+                amount=Decimal('5'),
+                valid_from=now,
+                valid_to=now - timezone.timedelta(days=1),
             )
             with pytest.raises(ValidationError):
                 pp.full_clean()
@@ -340,6 +370,7 @@ class TestProductPriceModel:
         t1 = _make_tenant('PP4', 'pp-xp1')
         t2 = _make_tenant('PP5', 'pp-xp2')
         from catalog.models import Product, ProductPrice, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='PP-XP', name='P', base_unit=u2)
@@ -351,15 +382,21 @@ class TestProductPriceModel:
     def test_clean_overlapping_price_raises(self):
         t = _make_tenant('PP6', 'pp-overlap')
         from catalog.models import Product, ProductPrice, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PP-O', name='P', base_unit=u)
             now = timezone.now()
             ProductPrice.all_objects.create(
-                tenant=t, product=p, amount=Decimal('10'), valid_from=now,
+                tenant=t,
+                product=p,
+                amount=Decimal('10'),
+                valid_from=now,
             )
             pp2 = ProductPrice(
-                tenant=t, product=p, amount=Decimal('12'),
+                tenant=t,
+                product=p,
+                amount=Decimal('12'),
                 valid_from=now + timezone.timedelta(days=5),
             )
             with pytest.raises(ValidationError):
@@ -371,6 +408,7 @@ class TestBranchPriceModel:
     def test_str(self):
         t = _make_tenant('BP', 'bp-str')
         from catalog.models import BranchPrice, Product, Unit
+
         br = _make_branch(t)
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
@@ -384,6 +422,7 @@ class TestBranchPriceModel:
     def test_clean_negative_amount_raises(self):
         t = _make_tenant('BP2', 'bp-neg')
         from catalog.models import BranchPrice, Product, Unit
+
         br = _make_branch(t)
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
@@ -397,14 +436,19 @@ class TestBranchPriceModel:
     def test_clean_valid_to_before_from_raises(self):
         t = _make_tenant('BP3', 'bp-to')
         from catalog.models import BranchPrice, Product, Unit
+
         br = _make_branch(t)
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='BP-T', name='P', base_unit=u)
             now = timezone.now()
             bp = BranchPrice(
-                tenant=t, product=p, branch=br, amount=Decimal('5'),
-                valid_from=now, valid_to=now - timezone.timedelta(days=1),
+                tenant=t,
+                product=p,
+                branch=br,
+                amount=Decimal('5'),
+                valid_from=now,
+                valid_to=now - timezone.timedelta(days=1),
             )
             with pytest.raises(ValidationError):
                 bp.full_clean()
@@ -413,12 +457,16 @@ class TestBranchPriceModel:
         t1 = _make_tenant('BP4', 'bp-xb1')
         t2 = _make_tenant('BP5', 'bp-xb2')
         from catalog.models import BranchPrice, Product, Unit
+
         br2 = _make_branch(t2)
         with pg_tenant_context(t1):
             u = Unit.all_objects.create(tenant=t1, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t1, sku='BP-XB', name='P', base_unit=u)
             bp = BranchPrice(
-                tenant=t1, product=p, branch=br2, amount=Decimal('5'),
+                tenant=t1,
+                product=p,
+                branch=br2,
+                amount=Decimal('5'),
                 valid_from=timezone.now(),
             )
             with pytest.raises(ValidationError):
@@ -427,16 +475,24 @@ class TestBranchPriceModel:
     def test_clean_overlapping_branch_price_raises(self):
         t = _make_tenant('BP6', 'bp-overlap')
         from catalog.models import BranchPrice, Product, Unit
+
         br = _make_branch(t)
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='BP-O', name='P', base_unit=u)
             now = timezone.now()
             BranchPrice.all_objects.create(
-                tenant=t, product=p, branch=br, amount=Decimal('10'), valid_from=now,
+                tenant=t,
+                product=p,
+                branch=br,
+                amount=Decimal('10'),
+                valid_from=now,
             )
             bp2 = BranchPrice(
-                tenant=t, product=p, branch=br, amount=Decimal('12'),
+                tenant=t,
+                product=p,
+                branch=br,
+                amount=Decimal('12'),
                 valid_from=now + timezone.timedelta(days=5),
             )
             with pytest.raises(ValidationError):
@@ -448,6 +504,7 @@ class TestProductFiscalDataModel:
     def test_str(self):
         t = _make_tenant('PFD', 'pfd-str')
         from catalog.models import Product, ProductFiscalData, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(
@@ -463,6 +520,7 @@ class TestProductFiscalDataModel:
         t1 = _make_tenant('PFD2', 'pfd-xp1')
         t2 = _make_tenant('PFD3', 'pfd-xp2')
         from catalog.models import Product, ProductFiscalData, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='PFD-XP', name='P', base_unit=u2)
@@ -474,6 +532,7 @@ class TestProductFiscalDataModel:
     def test_clean_invalid_origin_code_raises(self):
         t = _make_tenant('PFD4', 'pfd-origin')
         from catalog.models import Product, ProductFiscalData, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PFD-O', name='P', base_unit=u)
@@ -484,6 +543,7 @@ class TestProductFiscalDataModel:
     def test_clean_valid_origin_codes(self):
         t = _make_tenant('PFD5', 'pfd-valid-origin')
         from catalog.models import Product, ProductFiscalData, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PFD-V', name='P', base_unit=u)
@@ -497,6 +557,7 @@ class TestProductPriceTierModel:
     def test_str(self):
         t = _make_tenant('PPT', 'ppt-str')
         from catalog.models import Product, ProductPriceTier, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PPT-1', name='P', base_unit=u)
@@ -508,6 +569,7 @@ class TestProductPriceTierModel:
     def test_clean_zero_min_quantity_raises(self):
         t = _make_tenant('PPT2', 'ppt-zero')
         from catalog.models import Product, ProductPriceTier, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PPT-Z', name='P', base_unit=u)
@@ -520,6 +582,7 @@ class TestProductPriceTierModel:
     def test_clean_negative_amount_raises(self):
         t = _make_tenant('PPT3', 'ppt-neg')
         from catalog.models import Product, ProductPriceTier, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PPT-N', name='P', base_unit=u)
@@ -532,6 +595,7 @@ class TestProductPriceTierModel:
     def test_clean_inactive_product_raises(self):
         t = _make_tenant('PPT4', 'ppt-inact')
         from catalog.models import Product, ProductPriceTier, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(
@@ -546,6 +610,7 @@ class TestProductPriceTierModel:
     def test_clean_duplicate_tier_raises(self):
         t = _make_tenant('PPT5', 'ppt-dup')
         from catalog.models import Product, ProductPriceTier, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PPT-D', name='P', base_unit=u)
@@ -564,6 +629,7 @@ class TestBrandModel:
     def test_str(self):
         t = _make_tenant('BR', 'br-str')
         from catalog.models import Brand
+
         with pg_tenant_context(t):
             b = Brand.all_objects.create(tenant=t, name='Marca Legal')
             assert str(b) == 'Marca Legal'
@@ -571,6 +637,7 @@ class TestBrandModel:
     def test_save_normalizes_whitespace(self):
         t = _make_tenant('BR2', 'br-ws')
         from catalog.models import Brand
+
         with pg_tenant_context(t):
             b = Brand.all_objects.create(tenant=t, name='  Marca   Legal  ')
             assert b.name == 'Marca Legal'
@@ -578,6 +645,7 @@ class TestBrandModel:
     def test_clean_duplicate_name_raises(self):
         t = _make_tenant('BR3', 'br-dup')
         from catalog.models import Brand
+
         with pg_tenant_context(t):
             Brand.all_objects.create(tenant=t, name='Dup')
             b2 = Brand(tenant=t, name='Dup')
@@ -591,6 +659,7 @@ class TestProductImageModel:
         t1 = _make_tenant('PI', 'pi-xp1')
         t2 = _make_tenant('PI2', 'pi-xp2')
         from catalog.models import Product, ProductImage, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='PI-X', name='P', base_unit=u2)
@@ -605,9 +674,13 @@ class TestCommercialComboModel:
     def test_str(self):
         t = _make_tenant('CC', 'cc-str')
         from catalog.models import CommercialCombo
+
         with pg_tenant_context(t):
             c = CommercialCombo.all_objects.create(
-                tenant=t, sku='combo-01', name='Combo', price=Decimal('50'),
+                tenant=t,
+                sku='combo-01',
+                name='Combo',
+                price=Decimal('50'),
                 valid_from=timezone.now(),
             )
             assert 'COMBO-01' in str(c)
@@ -615,9 +688,13 @@ class TestCommercialComboModel:
     def test_save_uppercases_sku(self):
         t = _make_tenant('CC2', 'cc-upper')
         from catalog.models import CommercialCombo
+
         with pg_tenant_context(t):
             c = CommercialCombo.all_objects.create(
-                tenant=t, sku='  combo-xyz  ', name='C', price=Decimal('10'),
+                tenant=t,
+                sku='  combo-xyz  ',
+                name='C',
+                price=Decimal('10'),
                 valid_from=timezone.now(),
             )
             assert c.sku == 'COMBO-XYZ'
@@ -628,27 +705,33 @@ class TestComboItemModel:
     def test_str(self):
         t = _make_tenant('CI', 'ci-str')
         from catalog.models import ComboItem, CommercialCombo, Product, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='CI-P', name='P', base_unit=u)
             combo = CommercialCombo.all_objects.create(
-                tenant=t, sku='CI-C', name='C', price=Decimal('10'),
+                tenant=t,
+                sku='CI-C',
+                name='C',
+                price=Decimal('10'),
                 valid_from=timezone.now(),
             )
-            ci = ComboItem.all_objects.create(
-                tenant=t, combo=combo, item=p, quantity=Decimal('2')
-            )
+            ci = ComboItem.all_objects.create(tenant=t, combo=combo, item=p, quantity=Decimal('2'))
             assert 'CI-C' in str(ci)
             assert 'CI-P' in str(ci)
 
     def test_clean_zero_quantity_raises(self):
         t = _make_tenant('CI2', 'ci-zero')
         from catalog.models import ComboItem, CommercialCombo, Product, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='CI-Z', name='P', base_unit=u)
             combo = CommercialCombo.all_objects.create(
-                tenant=t, sku='CI-CZ', name='C', price=Decimal('10'),
+                tenant=t,
+                sku='CI-CZ',
+                name='C',
+                price=Decimal('10'),
                 valid_from=timezone.now(),
             )
             ci = ComboItem(tenant=t, combo=combo, item=p, quantity=Decimal('0'))
@@ -659,11 +742,15 @@ class TestComboItemModel:
         t1 = _make_tenant('CI3', 'ci-xc1')
         t2 = _make_tenant('CI4', 'ci-xc2')
         from catalog.models import ComboItem, CommercialCombo, Product, Unit
+
         with pg_tenant_context(t2):
             u2 = Unit.all_objects.create(tenant=t2, symbol='un', name='Un')
             p2 = Product.all_objects.create(tenant=t2, sku='CI-XC', name='P', base_unit=u2)
             combo2 = CommercialCombo.all_objects.create(
-                tenant=t2, sku='CI-CXC', name='C', price=Decimal('10'),
+                tenant=t2,
+                sku='CI-CXC',
+                name='C',
+                price=Decimal('10'),
                 valid_from=timezone.now(),
             )
         with pg_tenant_context(t1):
@@ -675,10 +762,14 @@ class TestComboItemModel:
         t1 = _make_tenant('CI5', 'ci-xi1')
         t2 = _make_tenant('CI6', 'ci-xi2')
         from catalog.models import ComboItem, CommercialCombo, Product, Unit
+
         with pg_tenant_context(t1):
-            u1 = Unit.all_objects.create(tenant=t1, symbol='un', name='Un')
+            Unit.all_objects.create(tenant=t1, symbol='un', name='Un')
             combo1 = CommercialCombo.all_objects.create(
-                tenant=t1, sku='CI-CXI', name='C', price=Decimal('10'),
+                tenant=t1,
+                sku='CI-CXI',
+                name='C',
+                price=Decimal('10'),
                 valid_from=timezone.now(),
             )
         with pg_tenant_context(t2):
@@ -695,6 +786,7 @@ class TestProductCompositionModel:
     def test_str(self):
         t = _make_tenant('PCMP', 'pcmp-str')
         from catalog.models import Product, ProductComposition, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
@@ -710,6 +802,7 @@ class TestProductCompositionModel:
     def test_clean_self_composition_raises(self):
         t = _make_tenant('PCMP2', 'pcmp-self')
         from catalog.models import Product, ProductComposition, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
@@ -722,6 +815,7 @@ class TestProductCompositionModel:
     def test_clean_kit_component_is_also_kit_raises(self):
         t = _make_tenant('PCMP3', 'pcmp-kit-kit')
         from catalog.models import Product, ProductComposition, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit1 = Product.all_objects.create(
@@ -737,6 +831,7 @@ class TestProductCompositionModel:
     def test_clean_cycle_detection(self):
         t = _make_tenant('PCMP4', 'pcmp-cycle')
         from catalog.models import Product, ProductComposition, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p1 = Product.all_objects.create(tenant=t, sku='CYC-1', name='P1', base_unit=u)
@@ -755,6 +850,7 @@ class TestProductCompositionModel:
     def test_clean_zero_quantity_raises(self):
         t = _make_tenant('PCMP5', 'pcmp-zero')
         from catalog.models import Product, ProductComposition, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
@@ -771,10 +867,13 @@ class TestLabelTemplateModel:
     def test_str(self):
         t = _make_tenant('LT', 'lt-str')
         from catalog.models import LabelTemplate
+
         with pg_tenant_context(t):
             lt = LabelTemplate.all_objects.create(
-                tenant=t, name='Etiqueta 10x5',
-                width_mm=Decimal('100'), height_mm=Decimal('50'),
+                tenant=t,
+                name='Etiqueta 10x5',
+                width_mm=Decimal('100'),
+                height_mm=Decimal('50'),
             )
             assert 'Etiqueta 10x5' in str(lt)
             assert t.name in str(lt)
@@ -785,11 +884,15 @@ class TestProductChannelProfileModel:
     def test_str(self):
         t = _make_tenant('PCP', 'pcp-str')
         from catalog.models import Product, ProductChannelProfile, Unit
+
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='PCP-1', name='P', base_unit=u)
             cp = ProductChannelProfile.all_objects.create(
-                tenant=t, product=p, channel_slug='web', status='draft',
+                tenant=t,
+                product=p,
+                channel_slug='web',
+                status='draft',
             )
             assert 'PCP-1' in str(cp)
             assert 'web' in str(cp)
@@ -801,10 +904,14 @@ class TestProductApplyCommandModel:
     def test_create(self):
         t = _make_tenant('PAC', 'pac-create')
         from catalog.models import ProductApplyCommand
+
         with pg_tenant_context(t):
             pac = ProductApplyCommand.all_objects.create(
-                tenant=t, command_id='cmd-1', payload_hash='abc',
-                response_json={}, correlation_id=uuid.uuid4(),
+                tenant=t,
+                command_id='cmd-1',
+                payload_hash='abc',
+                response_json={},
+                correlation_id=uuid.uuid4(),
             )
             assert pac.command_id == 'cmd-1'
 
@@ -827,83 +934,137 @@ class TestKitDecomposition:
         def _create():
             unit = Unit.all_objects.create(tenant=t, symbol='UN', name='Un')
             comp1 = Product.all_objects.create(
-                tenant=t, sku='KD-C1', name='Comp1', base_unit=unit,
+                tenant=t,
+                sku='KD-C1',
+                name='Comp1',
+                base_unit=unit,
             )
             comp2 = Product.all_objects.create(
-                tenant=t, sku='KD-C2', name='Comp2', base_unit=unit,
+                tenant=t,
+                sku='KD-C2',
+                name='Comp2',
+                base_unit=unit,
             )
             kit = Product.all_objects.create(
-                tenant=t, sku='KD-KIT', name='Kit', base_unit=unit, product_kind='kit',
+                tenant=t,
+                sku='KD-KIT',
+                name='Kit',
+                base_unit=unit,
+                product_kind='kit',
             )
             company = Company.all_objects.create(tenant=t, name='KDCo')
             branch = Branch.all_objects.create(tenant=t, company=company, name='KDBranch')
             location = StockLocation.all_objects.create(
-                tenant=t, branch=branch, code='KD-LOC', name='Loc', is_primary=True,
+                tenant=t,
+                branch=branch,
+                code='KD-LOC',
+                name='Loc',
+                is_primary=True,
             )
             StockBalance.all_objects.create(
-                tenant=t, product=comp1, location=location, quantity=Decimal('50'),
+                tenant=t,
+                product=comp1,
+                location=location,
+                quantity=Decimal('50'),
             )
             StockBalance.all_objects.create(
-                tenant=t, product=comp2, location=location, quantity=Decimal('50'),
+                tenant=t,
+                product=comp2,
+                location=location,
+                quantity=Decimal('50'),
             )
             ProductComposition.all_objects.create(
-                tenant=t, kit=kit, component=comp1, quantity=Decimal('1'),
+                tenant=t,
+                kit=kit,
+                component=comp1,
+                quantity=Decimal('1'),
             )
             ProductComposition.all_objects.create(
-                tenant=t, kit=kit, component=comp2, quantity=Decimal('2'),
+                tenant=t,
+                kit=kit,
+                component=comp2,
+                quantity=Decimal('2'),
             )
             cash_session = CashSession.all_objects.create(
-                tenant=t, branch=branch, operator=user,
-                opening_amount=Decimal('0'), expected_amount=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                operator=user,
+                opening_amount=Decimal('0'),
+                expected_amount=Decimal('0'),
             )
             sale = Sale.all_objects.create(
-                tenant=t, branch=branch, cash_session=cash_session,
-                operator=user, status='confirmed',
-                gross_total=Decimal('100'), discount_total=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                cash_session=cash_session,
+                operator=user,
+                status='confirmed',
+                gross_total=Decimal('100'),
+                discount_total=Decimal('0'),
                 net_total=Decimal('100'),
             )
             return {
-                'tenant': t, 'unit': unit, 'kit': kit, 'comp1': comp1,
-                'comp2': comp2, 'branch': branch, 'location': location,
-                'sale': sale, 'user': user,
+                'tenant': t,
+                'unit': unit,
+                'kit': kit,
+                'comp1': comp1,
+                'comp2': comp2,
+                'branch': branch,
+                'location': location,
+                'sale': sale,
+                'user': user,
             }
 
         return _run_in_tenant(t, _create)
 
     def test_decompose_creates_movements(self):
         from inventory.kit_decomposition import decompose_kit_sale
+
         ctx = self._build_context()
         event_id = uuid.uuid4()
         movements = decompose_kit_sale(
-            tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-            kit_quantity=Decimal('5'), sale_event_id=str(event_id),
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            kit_product=ctx['kit'],
+            kit_quantity=Decimal('5'),
+            sale_event_id=str(event_id),
             location=ctx['location'],
         )
         assert len(movements) == 2
 
     def test_decompose_idempotent(self):
         from inventory.kit_decomposition import decompose_kit_sale
+
         ctx = self._build_context()
         event_id = uuid.uuid4()
         decompose_kit_sale(
-            tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-            kit_quantity=Decimal('1'), sale_event_id=str(event_id),
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            kit_product=ctx['kit'],
+            kit_quantity=Decimal('1'),
+            sale_event_id=str(event_id),
             location=ctx['location'],
         )
         result = decompose_kit_sale(
-            tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-            kit_quantity=Decimal('1'), sale_event_id=str(event_id),
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            kit_product=ctx['kit'],
+            kit_quantity=Decimal('1'),
+            sale_event_id=str(event_id),
             location=ctx['location'],
         )
         assert result == []
 
     def test_insufficient_stock_raises(self):
         from inventory.kit_decomposition import InsufficientComponentStock, decompose_kit_sale
+
         ctx = self._build_context()
         with pytest.raises(InsufficientComponentStock):
             decompose_kit_sale(
-                tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-                kit_quantity=Decimal('100'), sale_event_id=str(uuid.uuid4()),
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                kit_product=ctx['kit'],
+                kit_quantity=Decimal('100'),
+                sale_event_id=str(uuid.uuid4()),
                 location=ctx['location'],
             )
 
@@ -911,15 +1072,20 @@ class TestKitDecomposition:
         from django.core.exceptions import ValidationError as VE
 
         from inventory.kit_decomposition import decompose_kit_sale
+
         ctx = self._build_context()
         from catalog.models import ProductComposition
-        ProductComposition.all_objects.filter(
-            tenant=ctx['tenant'], kit=ctx['kit']
-        ).update(is_active=False)
+
+        ProductComposition.all_objects.filter(tenant=ctx['tenant'], kit=ctx['kit']).update(
+            is_active=False
+        )
         with pytest.raises(VE, match='no active composition'):
             decompose_kit_sale(
-                tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-                kit_quantity=Decimal('1'), sale_event_id=str(uuid.uuid4()),
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                kit_product=ctx['kit'],
+                kit_quantity=Decimal('1'),
+                sale_event_id=str(uuid.uuid4()),
                 location=ctx['location'],
             )
 
@@ -928,18 +1094,23 @@ class TestKitDecomposition:
 
         from inventory.kit_decomposition import decompose_kit_sale
         from inventory.models import StockLocation
+
         ctx = self._build_context()
-        StockLocation.all_objects.filter(
-            tenant=ctx['tenant'], branch=ctx['branch']
-        ).update(is_primary=False)
+        StockLocation.all_objects.filter(tenant=ctx['tenant'], branch=ctx['branch']).update(
+            is_primary=False
+        )
         with pytest.raises(VE, match='No primary stock location'):
             decompose_kit_sale(
-                tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-                kit_quantity=Decimal('1'), sale_event_id=str(uuid.uuid4()),
+                tenant=ctx['tenant'],
+                sale=ctx['sale'],
+                kit_product=ctx['kit'],
+                kit_quantity=Decimal('1'),
+                sale_event_id=str(uuid.uuid4()),
             )
 
     def test_insufficient_stock_exception_message(self):
         from inventory.kit_decomposition import InsufficientComponentStock
+
         exc = InsufficientComponentStock([('SKU', '0', '5')])
         assert 'Insufficient stock' in str(exc)
         assert exc.shortages == [('SKU', '0', '5')]
@@ -947,17 +1118,25 @@ class TestKitDecomposition:
     def test_decompose_updates_balances(self):
         from inventory.kit_decomposition import decompose_kit_sale
         from inventory.models import StockBalance
+
         ctx = self._build_context()
         decompose_kit_sale(
-            tenant=ctx['tenant'], sale=ctx['sale'], kit_product=ctx['kit'],
-            kit_quantity=Decimal('5'), sale_event_id=str(uuid.uuid4()),
+            tenant=ctx['tenant'],
+            sale=ctx['sale'],
+            kit_product=ctx['kit'],
+            kit_quantity=Decimal('5'),
+            sale_event_id=str(uuid.uuid4()),
             location=ctx['location'],
         )
         b1 = StockBalance.all_objects.get(
-            tenant=ctx['tenant'], product=ctx['comp1'], location=ctx['location'],
+            tenant=ctx['tenant'],
+            product=ctx['comp1'],
+            location=ctx['location'],
         )
         b2 = StockBalance.all_objects.get(
-            tenant=ctx['tenant'], product=ctx['comp2'], location=ctx['location'],
+            tenant=ctx['tenant'],
+            product=ctx['comp2'],
+            location=ctx['location'],
         )
         assert b1.quantity == Decimal('45')
         assert b2.quantity == Decimal('40')
@@ -970,21 +1149,40 @@ class TestKitDecomposition:
 
 @pytest.mark.django_db
 class TestOCRParseNfeXml:
-    def _minimal_xml(self, *, items=None, emit_cnpj=None, dest_cnpj=None,
-                      doc_number='123', series='1', emission_date='2024-01-15'):
+    def _minimal_xml(
+        self,
+        *,
+        items=None,
+        emit_cnpj=None,
+        dest_cnpj=None,
+        doc_number='123',
+        series='1',
+        emission_date='2024-01-15',
+    ):
         item_xml = ''
-        for i, item in enumerate(items or [{'code': 'P1', 'desc': 'Prod1', 'ncm': '12345678',
-                                             'cfop': '5102', 'qty': '10', 'price': '5.00'}]):
+        for i, item in enumerate(
+            items
+            or [
+                {
+                    'code': 'P1',
+                    'desc': 'Prod1',
+                    'ncm': '12345678',
+                    'cfop': '5102',
+                    'qty': '10',
+                    'price': '5.00',
+                }
+            ]
+        ):
             item_xml += f'''
-            <det nItem="{i+1}">
+            <det nItem="{i + 1}">
               <prod>
-                <cProd>{item["code"]}</cProd>
-                <xProd>{item["desc"]}</xProd>
-                <NCM>{item["ncm"]}</NCM>
-                <CFOP>{item["cfop"]}</CFOP>
+                <cProd>{item['code']}</cProd>
+                <xProd>{item['desc']}</xProd>
+                <NCM>{item['ncm']}</NCM>
+                <CFOP>{item['cfop']}</CFOP>
                 <uCom>UN</uCom>
-                <qCom>{item["qty"]}</qCom>
-                <vUnCom>{item["price"]}</vUnCom>
+                <qCom>{item['qty']}</qCom>
+                <vUnCom>{item['price']}</vUnCom>
               </prod>
             </det>'''
 
@@ -995,7 +1193,7 @@ class TestOCRParseNfeXml:
         if dest_cnpj:
             dest_section = f'<dest><CNPJ>{dest_cnpj}</CNPJ></dest>'
 
-        return f'''<?xml version="1.0" encoding="UTF-8"?>
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
         <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">
           <NFe>
             <infNFe>
@@ -1009,10 +1207,11 @@ class TestOCRParseNfeXml:
               {item_xml}
             </infNFe>
           </NFe>
-        </nfeProc>'''
+        </nfeProc>"""
 
     def test_parse_basic(self):
         from fiscal.ocr import parse_nfe_xml
+
         xml = self._minimal_xml(emit_cnpj='12345678000199')
         result = parse_nfe_xml(xml)
         assert result['supplier']['cnpj'] == '12345678000199'
@@ -1024,9 +1223,24 @@ class TestOCRParseNfeXml:
 
     def test_parse_multiple_items(self):
         from fiscal.ocr import parse_nfe_xml
+
         items = [
-            {'code': 'P1', 'desc': 'A', 'ncm': '12345678', 'cfop': '5102', 'qty': '10', 'price': '5.00'},
-            {'code': 'P2', 'desc': 'B', 'ncm': '87654321', 'cfop': '5102', 'qty': '20', 'price': '3.00'},
+            {
+                'code': 'P1',
+                'desc': 'A',
+                'ncm': '12345678',
+                'cfop': '5102',
+                'qty': '10',
+                'price': '5.00',
+            },
+            {
+                'code': 'P2',
+                'desc': 'B',
+                'ncm': '87654321',
+                'cfop': '5102',
+                'qty': '20',
+                'price': '3.00',
+            },
         ]
         xml = self._minimal_xml(items=items, emit_cnpj='11111111000111')
         result = parse_nfe_xml(xml)
@@ -1036,16 +1250,18 @@ class TestOCRParseNfeXml:
 
     def test_parse_no_emit_cnpj_uses_dest(self):
         from fiscal.ocr import parse_nfe_xml
+
         xml = self._minimal_xml(dest_cnpj='99999999000199')
         result = parse_nfe_xml(xml)
         assert result['supplier']['cnpj'] == '99999999000199'
 
     def test_parse_empty_xml(self):
         from fiscal.ocr import parse_nfe_xml
-        xml = '''<?xml version="1.0" encoding="UTF-8"?>
+
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
         <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">
           <NFe><infNFe></infNFe></NFe>
-        </nfeProc>'''
+        </nfeProc>"""
         result = parse_nfe_xml(xml)
         assert result['items'] == []
         assert result['supplier'] == {}
@@ -1055,9 +1271,18 @@ class TestOCRParseNfeXml:
         from decimal import Decimal
 
         from fiscal.ocr import parse_nfe_xml
+
         xml = self._minimal_xml(
-            items=[{'code': 'P1', 'desc': 'X', 'ncm': '12345678',
-                    'cfop': '5102', 'qty': '2.5', 'price': '10.75'}],
+            items=[
+                {
+                    'code': 'P1',
+                    'desc': 'X',
+                    'ncm': '12345678',
+                    'cfop': '5102',
+                    'qty': '2.5',
+                    'price': '10.75',
+                }
+            ],
             emit_cnpj='11111111000111',
         )
         result = parse_nfe_xml(xml)
@@ -1068,14 +1293,15 @@ class TestOCRParseNfeXml:
         from decimal import Decimal
 
         from fiscal.ocr import parse_nfe_xml
-        xml = '''<?xml version="1.0" encoding="UTF-8"?>
+
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
         <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">
           <NFe><infNFe>
             <det nItem="1"><prod>
               <cProd>P1</cProd>
             </prod></det>
           </infNFe></NFe>
-        </nfeProc>'''
+        </nfeProc>"""
         result = parse_nfe_xml(xml)
         assert len(result['items']) == 1
         assert result['items'][0]['quantity'] == Decimal('0')
@@ -1099,18 +1325,26 @@ class TestFiscalViews:
 
         def _create():
             from catalog.models import Product, Unit
+
             unit = Unit.all_objects.create(tenant=t, symbol='UN', name='Un')
             Product.all_objects.create(tenant=t, sku='FV1-P', name='P', base_unit=unit)
             company = Company.all_objects.create(tenant=t, name='FV1Co')
             branch = Branch.all_objects.create(tenant=t, company=company, name='FV1Br')
             cash = CashSession.all_objects.create(
-                tenant=t, branch=branch, operator=user,
-                opening_amount=Decimal('0'), expected_amount=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                operator=user,
+                opening_amount=Decimal('0'),
+                expected_amount=Decimal('0'),
             )
             sale = Sale.all_objects.create(
-                tenant=t, branch=branch, cash_session=cash,
-                operator=user, status='confirmed',
-                gross_total=Decimal('10'), discount_total=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                cash_session=cash,
+                operator=user,
+                status='confirmed',
+                gross_total=Decimal('10'),
+                discount_total=Decimal('0'),
                 net_total=Decimal('10'),
             )
             doc, created = _get_or_create_active_fiscal_document(sale, t)
@@ -1138,6 +1372,7 @@ class TestFiscalViews:
 
     def test_problem_helper(self):
         from fiscal.views import _problem
+
         resp = _problem('test detail', 'test_code', 400)
         assert resp.status_code == 400
         data = resp.data
@@ -1148,6 +1383,7 @@ class TestFiscalViews:
 class TestFiscalConfigView:
     def test_missing_branch_param(self):
         from fiscal.views import FiscalConfigView
+
         factory = APIRequestFactory()
         t = _make_tenant('FC1', 'fc1')
         request = _wrap_drf(factory.get('/api/fiscal/config/'), tenant=t)
@@ -1159,6 +1395,7 @@ class TestFiscalConfigView:
 
     def test_branch_not_found(self):
         from fiscal.views import FiscalConfigView
+
         t = _make_tenant('FC2', 'fc2')
         factory = APIRequestFactory()
         request = _wrap_drf(factory.get(f'/api/fiscal/config/?branch={uuid.uuid4()}'), tenant=t)
@@ -1173,6 +1410,7 @@ class TestFiscalConfigView:
 class TestOCRNFeView:
     def test_missing_xml_content(self):
         from fiscal.views import OCRNFeView
+
         factory = APIRequestFactory()
         t = _make_tenant('OCR1', 'ocr1')
         request = _wrap_drf(factory.post('/api/fiscal/ocr/', {}, format='json'), tenant=t, data={})
@@ -1183,12 +1421,14 @@ class TestOCRNFeView:
 
     def test_invalid_xml_returns_empty_data(self):
         from fiscal.views import OCRNFeView
+
         factory = APIRequestFactory()
         t = _make_tenant('OCR2', 'ocr2')
         payload = {'xml_content': '<invalid>broken</invalid>'}
         request = _wrap_drf(
             factory.post('/api/fiscal/ocr/', payload, format='json'),
-            tenant=t, data=payload,
+            tenant=t,
+            data=payload,
         )
         request.user = MagicMock(is_authenticated=True)
         view = OCRNFeView()
@@ -1209,22 +1449,32 @@ class TestFiscalDocumentViewSetActions:
 
         def _create():
             from catalog.models import Product, Unit
+
             unit = Unit.all_objects.create(tenant=t, symbol='UN', name='Un')
             Product.all_objects.create(tenant=t, sku='FDV-P', name='P', base_unit=unit)
             company = Company.all_objects.create(tenant=t, name='FDVCo')
             branch = Branch.all_objects.create(tenant=t, company=company, name='FDVBr')
             cash = CashSession.all_objects.create(
-                tenant=t, branch=branch, operator=user,
-                opening_amount=Decimal('0'), expected_amount=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                operator=user,
+                opening_amount=Decimal('0'),
+                expected_amount=Decimal('0'),
             )
             sale = Sale.all_objects.create(
-                tenant=t, branch=branch, cash_session=cash,
-                operator=user, status='confirmed',
-                gross_total=Decimal('10'), discount_total=Decimal('0'),
+                tenant=t,
+                branch=branch,
+                cash_session=cash,
+                operator=user,
+                status='confirmed',
+                gross_total=Decimal('10'),
+                discount_total=Decimal('0'),
                 net_total=Decimal('10'),
             )
             doc = FiscalDocument.all_objects.create(
-                tenant=t, sale=sale, status=FiscalDocument.STATUS_QUEUED,
+                tenant=t,
+                sale=sale,
+                status=FiscalDocument.STATUS_QUEUED,
             )
             return {'tenant': t, 'user': user, 'doc': doc, 'sale': sale}
 
@@ -1232,16 +1482,19 @@ class TestFiscalDocumentViewSetActions:
 
     def _get_view(self, ctx, action):
         from fiscal.views import FiscalDocumentViewSet
+
         factory = APIRequestFactory()
         if action == 'cancel':
             request = factory.post(
                 f'/api/fiscal/documents/{ctx["doc"].id}/cancel/',
-                {'reason': 'test'}, format='json',
+                {'reason': 'test'},
+                format='json',
             )
         elif action == 'retry':
             request = factory.post(
                 f'/api/fiscal/documents/{ctx["doc"].id}/retry/',
-                {'reason': 'test'}, format='json',
+                {'reason': 'test'},
+                format='json',
             )
         elif action == 'xml':
             request = factory.get(f'/api/fiscal/documents/{ctx["doc"].id}/xml/')
@@ -1258,6 +1511,7 @@ class TestFiscalDocumentViewSetActions:
 
     def test_cancel_already_cancelled(self):
         from fiscal.models import FiscalDocument
+
         ctx = self._make_doc()
         FiscalDocument.all_objects.filter(pk=ctx['doc'].pk).update(
             status=FiscalDocument.STATUS_CANCELLED
@@ -1269,11 +1523,14 @@ class TestFiscalDocumentViewSetActions:
 
     def test_cancel_missing_reason(self):
         from fiscal.views import FiscalDocumentViewSet
+
         ctx = self._make_doc()
         factory = APIRequestFactory()
         request = _wrap_drf(
             factory.post(f'/api/fiscal/documents/{ctx["doc"].id}/cancel/', {}, format='json'),
-            tenant=ctx['tenant'], user=ctx['user'], data={},
+            tenant=ctx['tenant'],
+            user=ctx['user'],
+            data={},
         )
         view = FiscalDocumentViewSet()
         view.kwargs = {'pk': str(ctx['doc'].id)}
@@ -1284,6 +1541,7 @@ class TestFiscalDocumentViewSetActions:
 
     def test_retry_concluded_conflict(self):
         from fiscal.models import FiscalDocument
+
         ctx = self._make_doc()
         FiscalDocument.all_objects.filter(pk=ctx['doc'].pk).update(
             status=FiscalDocument.STATUS_CONCLUDED
@@ -1295,11 +1553,14 @@ class TestFiscalDocumentViewSetActions:
 
     def test_retry_missing_reason(self):
         from fiscal.views import FiscalDocumentViewSet
+
         ctx = self._make_doc()
         factory = APIRequestFactory()
         request = _wrap_drf(
             factory.post(f'/api/fiscal/documents/{ctx["doc"].id}/retry/', {}, format='json'),
-            tenant=ctx['tenant'], user=ctx['user'], data={},
+            tenant=ctx['tenant'],
+            user=ctx['user'],
+            data={},
         )
         view = FiscalDocumentViewSet()
         view.kwargs = {'pk': str(ctx['doc'].id)}
@@ -1316,6 +1577,7 @@ class TestFiscalDocumentViewSetActions:
 
     def test_xml_download_concluded(self):
         from fiscal.models import FiscalDocument
+
         ctx = self._make_doc()
         FiscalDocument.all_objects.filter(pk=ctx['doc'].pk).update(
             status=FiscalDocument.STATUS_CONCLUDED
@@ -1334,6 +1596,7 @@ class TestFiscalDocumentViewSetActions:
 
     def test_pdf_download_concluded(self):
         from fiscal.models import FiscalDocument
+
         ctx = self._make_doc()
         FiscalDocument.all_objects.filter(pk=ctx['doc'].pk).update(
             status=FiscalDocument.STATUS_CONCLUDED
@@ -1346,6 +1609,7 @@ class TestFiscalDocumentViewSetActions:
 
     def test_get_serializer_class_detail_vs_list(self):
         from fiscal.views import FiscalDocumentViewSet
+
         view = FiscalDocumentViewSet()
         view.action = 'retrieve'
         assert view.get_serializer_class().__name__ == 'FiscalDocumentDetailSerializer'
@@ -1357,6 +1621,7 @@ class TestFiscalDocumentViewSetActions:
 class TestFiscalEmitterViewSetActions:
     def test_get_serializer_class_write_vs_read(self):
         from fiscal.views import FiscalEmitterViewSet
+
         view = FiscalEmitterViewSet()
         view.action = 'create'
         assert view.get_serializer_class().__name__ == 'FiscalEmitterWriteSerializer'
@@ -1369,17 +1634,24 @@ class TestFiscalProductConfigViewSetActions:
     def test_upsert_existing_config(self):
         from fiscal.models import FiscalProductConfig
         from fiscal.views import FiscalProductConfigViewSet
+
         t = _make_tenant('FPC', 'fpc-ctx')
         user = User.objects.create_user(email='fpc@test.local', password='pass123')
 
         def _create():
             from catalog.models import Product, Unit
+
             unit = Unit.all_objects.create(tenant=t, symbol='UN', name='Un')
             product = Product.all_objects.create(
-                tenant=t, sku='FPC-P', name='P', base_unit=unit,
+                tenant=t,
+                sku='FPC-P',
+                name='P',
+                base_unit=unit,
             )
             existing = FiscalProductConfig.all_objects.create(
-                tenant=t, product=product, cst_icms='00',
+                tenant=t,
+                product=product,
+                cst_icms='00',
             )
             factory = APIRequestFactory()
             payload = {
@@ -1389,7 +1661,9 @@ class TestFiscalProductConfigViewSetActions:
             }
             request = _wrap_drf(
                 factory.post('/api/fiscal/product-configs/', payload, format='json'),
-                tenant=t, user=user, data=payload,
+                tenant=t,
+                user=user,
+                data=payload,
             )
             view = FiscalProductConfigViewSet()
             view.kwargs = {}
@@ -1413,12 +1687,16 @@ class TestUpsertProductFiscalData:
     def test_create_new(self):
         from catalog.models import Product, Unit
         from catalog.services.product_extensions import upsert_product_fiscal_data
+
         t = _make_tenant('UFD1', 'ufd1')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='UFD-P', name='P', base_unit=u)
             fd = upsert_product_fiscal_data(
-                tenant=t, product=p, ncm='12345678', fiscal_type='revenda',
+                tenant=t,
+                product=p,
+                ncm='12345678',
+                fiscal_type='revenda',
             )
             assert fd.pk is not None
             assert fd.ncm == '12345678'
@@ -1427,15 +1705,22 @@ class TestUpsertProductFiscalData:
     def test_update_existing(self):
         from catalog.models import Product, ProductFiscalData, Unit
         from catalog.services.product_extensions import upsert_product_fiscal_data
+
         t = _make_tenant('UFD2', 'ufd2')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='UFD-U', name='P', base_unit=u)
             ProductFiscalData.all_objects.create(
-                tenant=t, product=p, ncm='00000000', fiscal_type='',
+                tenant=t,
+                product=p,
+                ncm='00000000',
+                fiscal_type='',
             )
             fd = upsert_product_fiscal_data(
-                tenant=t, product=p, ncm='99999999', fiscal_type='servico',
+                tenant=t,
+                product=p,
+                ncm='99999999',
+                fiscal_type='servico',
             )
             assert fd.ncm == '99999999'
             assert fd.fiscal_type == 'servico'
@@ -1446,12 +1731,16 @@ class TestAddProductPriceTier:
     def test_create_tier(self):
         from catalog.models import Product, Unit
         from catalog.services.product_extensions import add_product_price_tier
+
         t = _make_tenant('APT1', 'apt1')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(tenant=t, sku='APT-P', name='P', base_unit=u)
             tier = add_product_price_tier(
-                tenant=t, product=p, min_quantity=Decimal('10'), amount=Decimal('8.5'),
+                tenant=t,
+                product=p,
+                min_quantity=Decimal('10'),
+                amount=Decimal('8.5'),
             )
             assert tier.pk is not None
             assert tier.min_quantity == Decimal('10')
@@ -1459,15 +1748,22 @@ class TestAddProductPriceTier:
     def test_inactive_product_raises(self):
         from catalog.models import Product, Unit
         from catalog.services.product_extensions import add_product_price_tier
+
         t = _make_tenant('APT2', 'apt2')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             p = Product.all_objects.create(
-                tenant=t, sku='APT-I', name='P', base_unit=u, is_active=False,
+                tenant=t,
+                sku='APT-I',
+                name='P',
+                base_unit=u,
+                is_active=False,
             )
             with pytest.raises(ValidationError):
                 add_product_price_tier(
-                    tenant=t, product=p, min_quantity=Decimal('1'),
+                    tenant=t,
+                    product=p,
+                    min_quantity=Decimal('1'),
                     amount=Decimal('5'),
                 )
 
@@ -1477,19 +1773,30 @@ class TestResolveComposition:
     def test_returns_component_data(self):
         from catalog.models import Product, ProductComposition, Unit
         from catalog.services.product_extensions import resolve_composition
+
         t = _make_tenant('RC1', 'rc1')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
-                tenant=t, sku='RC-KIT', name='Kit', base_unit=u, product_kind='kit',
+                tenant=t,
+                sku='RC-KIT',
+                name='Kit',
+                base_unit=u,
+                product_kind='kit',
             )
             c1 = Product.all_objects.create(tenant=t, sku='RC-C1', name='C1', base_unit=u)
             c2 = Product.all_objects.create(tenant=t, sku='RC-C2', name='C2', base_unit=u)
             ProductComposition.all_objects.create(
-                tenant=t, kit=kit, component=c1, quantity=Decimal('3'),
+                tenant=t,
+                kit=kit,
+                component=c1,
+                quantity=Decimal('3'),
             )
             ProductComposition.all_objects.create(
-                tenant=t, kit=kit, component=c2, quantity=Decimal('1'),
+                tenant=t,
+                kit=kit,
+                component=c2,
+                quantity=Decimal('1'),
             )
             result = resolve_composition(tenant=t, kit_product_id=kit.id)
             assert len(result) == 2
@@ -1500,11 +1807,16 @@ class TestResolveComposition:
     def test_empty_for_kit_without_composition(self):
         from catalog.models import Product, Unit
         from catalog.services.product_extensions import resolve_composition
+
         t = _make_tenant('RC2', 'rc2')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
-                tenant=t, sku='RC-EMPTY', name='Kit', base_unit=u, product_kind='kit',
+                tenant=t,
+                sku='RC-EMPTY',
+                name='Kit',
+                base_unit=u,
+                product_kind='kit',
             )
             result = resolve_composition(tenant=t, kit_product_id=kit.id)
             assert result == []
@@ -1512,15 +1824,24 @@ class TestResolveComposition:
     def test_excludes_inactive_compositions(self):
         from catalog.models import Product, ProductComposition, Unit
         from catalog.services.product_extensions import resolve_composition
+
         t = _make_tenant('RC3', 'rc3')
         with pg_tenant_context(t):
             u = Unit.all_objects.create(tenant=t, symbol='un', name='Un')
             kit = Product.all_objects.create(
-                tenant=t, sku='RC-INACT', name='Kit', base_unit=u, product_kind='kit',
+                tenant=t,
+                sku='RC-INACT',
+                name='Kit',
+                base_unit=u,
+                product_kind='kit',
             )
             c1 = Product.all_objects.create(tenant=t, sku='RC-IC1', name='C', base_unit=u)
             ProductComposition.all_objects.create(
-                tenant=t, kit=kit, component=c1, quantity=Decimal('1'), is_active=False,
+                tenant=t,
+                kit=kit,
+                component=c1,
+                quantity=Decimal('1'),
+                is_active=False,
             )
             result = resolve_composition(tenant=t, kit_product_id=kit.id)
             assert result == []

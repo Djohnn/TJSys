@@ -58,8 +58,7 @@ def add_product_price_tier(*, tenant, product, min_quantity, amount, price=None)
 def resolve_composition(*, tenant, kit_product_id):
     """Public contract: return list of {component_id, component_sku, quantity} for active kit."""
     return list(
-        ProductComposition.all_objects
-        .filter(tenant=tenant, kit_id=kit_product_id, is_active=True)
+        ProductComposition.all_objects.filter(tenant=tenant, kit_id=kit_product_id, is_active=True)
         .select_related('component')
         .values_list('component_id', 'component__sku', 'quantity')
     )

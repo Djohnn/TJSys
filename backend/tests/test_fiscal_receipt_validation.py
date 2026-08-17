@@ -114,6 +114,7 @@ def test_validate_missing_supplier_cnpj(receipt_context):
     ctx = receipt_context
     ctx['supplier'].cnpj = ''
     ctx['supplier'].save()
+    ctx['receipt'].refresh_from_db()
 
     FiscalEmitter.all_objects.create(
         tenant=ctx['tenant'],

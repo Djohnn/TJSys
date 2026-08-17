@@ -726,17 +726,19 @@ def _create_sale_refund_locked(
             raise ValueError('Sale return must be completed.')
 
     if method == 'cash' and cash_session is None:
-        cash_session = CashSession.all_objects.select_for_update().filter(
-            tenant=tenant,
-            pk=locked_sale.cash_session_id,
-            branch=locked_sale.branch,
-            operator=locked_sale.operator,
-            status='open',
-        ).first()
-    if method == 'cash' and cash_session is None:
-        raise CashSessionRequired(
-            'The sale original cash session must be open for cash refunds.'
+        cash_session = (
+            CashSession.all_objects.select_for_update()
+            .filter(
+                tenant=tenant,
+                pk=locked_sale.cash_session_id,
+                branch=locked_sale.branch,
+                operator=locked_sale.operator,
+                status='open',
+            )
+            .first()
         )
+    if method == 'cash' and cash_session is None:
+        raise CashSessionRequired('The sale original cash session must be open for cash refunds.')
 
     refunded_total = SaleRefund.all_objects.filter(
         tenant=tenant,
@@ -958,17 +960,17 @@ def cancel_sale(
             or stock_operation.status != 'confirmed'
         ):
             raise SaleNotCompensable('Sale stock effects are inconsistent.')
-        stock_movements = list(StockMovement.all_objects.filter(
-            tenant=tenant,
-            operation=stock_operation,
-            product=sale_item.product,
-            direction='out',
-        ).order_by('id'))
+        stock_movements = list(
+            StockMovement.all_objects.filter(
+                tenant=tenant,
+                operation=stock_operation,
+                product=sale_item.product,
+                direction='out',
+            ).order_by('id')
+        )
         if len(stock_movements) != 1:
             raise SaleNotCompensable('Sale stock effects are inconsistent.')
-        expected_quantity = (sale_item.quantity * sale_item.factor).quantize(
-            Decimal('0.000001')
-        )
+        expected_quantity = (sale_item.quantity * sale_item.factor).quantize(Decimal('0.000001'))
         if sum(movement.quantity for movement in stock_movements) != expected_quantity:
             raise SaleNotCompensable('Sale stock effects are inconsistent.')
         location = stock_movements[0].location
@@ -977,11 +979,13 @@ def cancel_sale(
         stock_reversals.append((sale_item, location))
 
     completed_refunds = list(
-        SaleRefund.all_objects.select_for_update().filter(
+        SaleRefund.all_objects.select_for_update()
+        .filter(
             tenant=tenant,
             sale=locked_sale,
             status='completed',
-        ).order_by('created_at', 'id')
+        )
+        .order_by('created_at', 'id')
     )
     refunded_by_method = {}
     refunded_total = Decimal('0')
@@ -1004,13 +1008,17 @@ def cancel_sale(
 
     cash_session = None
     if any(payment.method == 'cash' for payment in payments):
-        cash_session = CashSession.all_objects.select_for_update().filter(
-            tenant=tenant,
-            pk=locked_sale.cash_session_id,
-            branch=locked_sale.branch,
-            operator=locked_sale.operator,
-            status='open',
-        ).first()
+        cash_session = (
+            CashSession.all_objects.select_for_update()
+            .filter(
+                tenant=tenant,
+                pk=locked_sale.cash_session_id,
+                branch=locked_sale.branch,
+                operator=locked_sale.operator,
+                status='open',
+            )
+            .first()
+        )
         if cash_session is None:
             raise CashSessionRequired(
                 'The sale original cash session must be open for cancellation refunds.'
@@ -1061,9 +1069,7 @@ def cancel_sale(
             actor=actor,
             cash_session=cash_session,
         )
-        remaining_by_method[payment.method] = _money(
-            remaining_by_method[payment.method] - amount
-        )
+        remaining_by_method[payment.method] = _money(remaining_by_method[payment.method] - amount)
 
     locked_sale.status = 'cancelled'
     locked_sale.version += 1

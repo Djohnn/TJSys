@@ -137,9 +137,7 @@ def reserve_stock(tenant, product, location, quantity, lot=None):
         raise ValueError('Reservation quantity must be positive.')
     balance = _get_balance(tenant, product, location, lot, for_update=True)
     if balance.reserved + quantity > balance.quantity:
-        raise InsufficientStock(
-            f'Cannot reserve {quantity}. Available: {balance.available}'
-        )
+        raise InsufficientStock(f'Cannot reserve {quantity}. Available: {balance.available}')
     balance.reserved += quantity
     balance.version += 1
     balance.full_clean()
@@ -253,9 +251,7 @@ def create_operation(
     existing = _find_idempotent_operation(tenant, idempotency_key)
     if existing:
         if existing.payload_hash != fingerprint:
-            raise DuplicateIdempotencyKey(
-                'Idempotency key already used with a different payload.'
-            )
+            raise DuplicateIdempotencyKey('Idempotency key already used with a different payload.')
         return existing
     operation = StockOperation.all_objects.create(
         tenant=tenant,
@@ -469,12 +465,16 @@ def create_transfer(
         # Deterministically lock both balances before mutating them. The actual
         # delta is still applied by create_stock_movement after locks are held.
         balance_keys = sorted([str(source_location.id), str(target_location.id)])
-        list(StockBalance.all_objects.select_for_update().filter(
-            tenant=tenant,
-            product=product,
-            location_id__in=balance_keys,
-            lot=lot,
-        ).order_by('location_id'))
+        list(
+            StockBalance.all_objects.select_for_update()
+            .filter(
+                tenant=tenant,
+                product=product,
+                location_id__in=balance_keys,
+                lot=lot,
+            )
+            .order_by('location_id')
+        )
         create_stock_movement(
             operation=operation,
             product=product,
@@ -578,15 +578,12 @@ def reconcile_stock_balances(tenant):
         )
     )
     movement_totals = {
-        (row['product_id'], row['location_id'], row['lot_id']):
-        row['inbound'] - row['outbound']
+        (row['product_id'], row['location_id'], row['lot_id']): row['inbound'] - row['outbound']
         for row in movement_rows
     }
     balance_rows = StockBalance.all_objects.filter(tenant=tenant)
     keys = set(movement_totals)
-    keys.update(
-        balance_rows.values_list('product_id', 'location_id', 'lot_id')
-    )
+    keys.update(balance_rows.values_list('product_id', 'location_id', 'lot_id'))
     balances = {
         (balance.product_id, balance.location_id, balance.lot_id): balance
         for balance in balance_rows

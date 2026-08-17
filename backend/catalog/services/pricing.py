@@ -34,7 +34,8 @@ def resolve_effective_price(*, product, branch, at=None):
     from catalog.models import BranchPrice, ProductPrice
 
     branch_candidates = _effective_candidates(
-        BranchPrice.objects.filter(product=product, branch=branch), at=at,
+        BranchPrice.objects.filter(product=product, branch=branch),
+        at=at,
     )
     if len(branch_candidates) > 1:
         raise PriceNotAvailable(product.id, branch.id)
@@ -64,8 +65,7 @@ def latest_confirmed_cost(*, product):
     from purchasing.models import PurchaseReceiptItem
 
     item = (
-        PurchaseReceiptItem.all_objects
-        .filter(
+        PurchaseReceiptItem.all_objects.filter(
             tenant_id=product.tenant_id,
             purchase_order_item__tenant_id=product.tenant_id,
             purchase_order_item__product_id=product.id,
@@ -83,7 +83,8 @@ def _margin_percent(*, amount, cost):
     if amount is None or cost is None or amount <= 0:
         return None
     return ((amount - cost) / amount * Decimal('100')).quantize(
-        Decimal('0.01'), rounding=ROUND_HALF_UP,
+        Decimal('0.01'),
+        rounding=ROUND_HALF_UP,
     )
 
 
@@ -117,8 +118,7 @@ def pricing_snapshot(*, product, at=None):
         'cost': f'{cost:.2f}' if cost is not None else None,
         'currency': 'BRL',
         'retail_margin': (
-            f'{_margin_percent(amount=price.amount, cost=cost):.2f}'
-            if cost is not None else None
+            f'{_margin_percent(amount=price.amount, cost=cost):.2f}' if cost is not None else None
         ),
         'tiers': [
             {
@@ -127,7 +127,8 @@ def pricing_snapshot(*, product, at=None):
                 'amount': f'{tier.amount:.2f}',
                 'margin': (
                     f'{_margin_percent(amount=tier.amount, cost=cost):.2f}'
-                    if cost is not None else None
+                    if cost is not None
+                    else None
                 ),
             }
             for tier in tiers
@@ -167,10 +168,14 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
 
     tenant = Tenant.objects.get(id=command.tenant_id)
     payload_hash = _command_hash(command.payload)
-    receipt = ProductApplyCommand.all_objects.select_for_update().filter(
-        tenant_id=tenant.id,
-        command_id=str(command.command_id),
-    ).first()
+    receipt = (
+        ProductApplyCommand.all_objects.select_for_update()
+        .filter(
+            tenant_id=tenant.id,
+            command_id=str(command.command_id),
+        )
+        .first()
+    )
     if receipt is not None:
         if receipt.payload_hash != payload_hash:
             raise R4CommandConflict('The command id was already used with a different payload.')
@@ -198,7 +203,8 @@ def execute_r4_command(command: SprintR4Command) -> dict[str, object]:
 
     try:
         product = Product.all_objects.select_for_update().get(
-            id=command.payload['product_id'], tenant_id=tenant.id,
+            id=command.payload['product_id'],
+            tenant_id=tenant.id,
         )
     except Product.DoesNotExist as exc:
         raise ValueError('product_id does not belong to the active tenant') from exc

@@ -35,14 +35,17 @@ class SeedE2ECommandTest(TestCase):
     def test_given_incompatible_environment_when_handle_then_fails_before_mutation(self):
         """Given ambiente comum, When executa seed, Then falha antes de mutar."""
         before_users = User.objects.count()
-        with patch.dict(
-            os.environ,
-            {
-                'E2E_SEED': '0',
-                'DJANGO_SETTINGS_MODULE': 'config.settings.test',
-            },
-            clear=False,
-        ), patch.object(Command, '_seed', autospec=True) as seed:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    'E2E_SEED': '0',
+                    'DJANGO_SETTINGS_MODULE': 'config.settings.test',
+                },
+                clear=False,
+            ),
+            patch.object(Command, '_seed', autospec=True) as seed,
+        ):
             with pytest.raises(CommandError, match='E2E_SEED=1'):
                 self.command.handle()
 
@@ -74,9 +77,10 @@ class SeedE2ECommandTest(TestCase):
                 self.command._replace_fixed_recovery_codes(self.device, 'new-digest')
                 raise RuntimeError('rollback sentinel')
 
-        assert set(
-            RecoveryCode.objects.filter(device=self.device).values_list('digest', flat=True)
-        ) == old_digests
+        assert (
+            set(RecoveryCode.objects.filter(device=self.device).values_list('digest', flat=True))
+            == old_digests
+        )
 
     def test_given_sixteen_generations_when_next_key_requested_then_no_seventeenth_exists(self):
         """Given limite R9, When pede próxima geração, Then falha sem chave 17."""

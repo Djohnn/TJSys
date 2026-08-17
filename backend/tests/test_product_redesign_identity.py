@@ -9,6 +9,7 @@ Hoje eles DEVEM falhar (RED) porque:
 
 Após a implementação da R3 (Task 2+3), todos devem ficar verdes.
 """
+
 import uuid
 
 import pytest
@@ -60,6 +61,7 @@ def _reset_pg_tenant_ctx():
 def _make_tenant(slug, name):
     """Cria um Tenant com slug único para evitar colisão sob paralelismo."""
     from tenancy.models import Tenant
+
     unique_slug = f'{slug}-{uuid.uuid4().hex[:8]}'
     return Tenant.objects.create(name=name, slug=unique_slug)
 
@@ -87,9 +89,16 @@ def authed_client(client, user, tenant):
 def base_unit(tenant):
     """Unit é TenantScopedModel com RLS. Criar dentro do contexto do tenant."""
     from catalog.models import Unit
-    return _run_in_tenant(tenant, lambda: Unit.all_objects.create(
-        tenant=tenant, symbol='UN', name='Unidade', precision=0,
-    ))
+
+    return _run_in_tenant(
+        tenant,
+        lambda: Unit.all_objects.create(
+            tenant=tenant,
+            symbol='UN',
+            name='Unidade',
+            precision=0,
+        ),
+    )
 
 
 def _apply_payload(
@@ -234,9 +243,16 @@ def test_r3_ean_is_tenant_isolated(client, user):
 
     def _make_char_unit(tenant):
         from catalog.models import Unit
-        return _run_in_tenant(tenant, lambda: Unit.all_objects.create(
-            tenant=tenant, symbol='UN', name='Unidade', precision=0,
-        ))
+
+        return _run_in_tenant(
+            tenant,
+            lambda: Unit.all_objects.create(
+                tenant=tenant,
+                symbol='UN',
+                name='Unidade',
+                precision=0,
+            ),
+        )
 
     unit_a = _make_char_unit(tenant_a)
     unit_b = _make_char_unit(tenant_b)

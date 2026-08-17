@@ -36,13 +36,13 @@ def _load_workflow(path: Path) -> dict[str, str]:
     assert re.search(r'(?m)^on:\s*$', text), f'{path} perdeu a chave literal on'
     jobs_match = re.search(r'(?m)^jobs:\s*\r?\n', text)
     assert jobs_match, f'{path} perdeu a seção jobs'
-    jobs_text = text[jobs_match.end():]
+    jobs_text = text[jobs_match.end() :]
     headers = list(re.finditer(r'(?m)^  ([A-Za-z0-9_-]+):\s*\r?$', jobs_text))
     assert headers, f'{path} não possui jobs indentados'
     jobs = {}
     for index, header in enumerate(headers):
         end = headers[index + 1].start() if index + 1 < len(headers) else len(jobs_text)
-        jobs[header.group(1)] = jobs_text[header.end():end]
+        jobs[header.group(1)] = jobs_text[header.end() : end]
     return jobs
 
 
@@ -84,9 +84,7 @@ def _top_level_env_keys(workflow_text: str) -> set[str]:
     if not match:
         return set()
     return {
-        line.strip().split(':', 1)[0]
-        for line in match.group('body').splitlines()
-        if ':' in line
+        line.strip().split(':', 1)[0] for line in match.group('body').splitlines() if ':' in line
     }
 
 
@@ -113,9 +111,7 @@ def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_pat
         assert all(_has_backend_directory(step) for step in manage_steps)
 
         start_indexes = [
-            index
-            for index, step in enumerate(steps)
-            if 'runserver' in step or 'gunicorn' in step
+            index for index, step in enumerate(steps) if 'runserver' in step or 'gunicorn' in step
         ]
         assert start_indexes, f'{workflow_path}:{job_name} não inicia Django'
         start_index = min(start_indexes)
@@ -159,15 +155,9 @@ def test_playwright_install_covers_configured_projects(workflow_path: Path):
         steps = _steps(job_text)
         install_steps = [step for step in steps if 'playwright install' in step]
         assert install_steps, f'{workflow_path} sem instalação explícita do Playwright'
-        installed = set(
-            re.findall(r'\b(chromium|firefox|webkit)\b', '\n'.join(install_steps))
-        )
+        installed = set(re.findall(r'\b(chromium|firefox|webkit)\b', '\n'.join(install_steps)))
 
-        run_steps = [
-            step
-            for step in steps
-            if 'playwright test' in step or 'test:e2e' in step
-        ]
+        run_steps = [step for step in steps if 'playwright test' in step or 'test:e2e' in step]
         assert run_steps, f'{workflow_path} sem execução E2E'
         run_text = '\n'.join(run_steps)
         explicit_projects = set(
@@ -175,8 +165,7 @@ def test_playwright_install_covers_configured_projects(workflow_path: Path):
         )
         expected = explicit_projects or browser_projects
         assert expected <= installed, (
-            f'{workflow_path} instala {sorted(installed)}, '
-            f'mas executa/exige {sorted(expected)}'
+            f'{workflow_path} instala {sorted(installed)}, mas executa/exige {sorted(expected)}'
         )
 
 
@@ -224,20 +213,16 @@ def test_e2e_workflow_delegates_frontend_readiness_to_playwright_web_server():
     assert any('playwright test' in step for step in steps)
     assert _env(job_text)['VITE_API_BASE_URL'] == '/api/v1'
 
-    config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(
-        encoding='utf-8'
-    )
+    config = (PROJECT_ROOT / 'frontend' / 'playwright.config.ts').read_text(encoding='utf-8')
     assert re.search(r'(?m)^\s*webServer:\s*\{', config)
-    assert re.search(r"url:\s*baseURL", config)
+    assert re.search(r'url:\s*baseURL', config)
     assert '--host 127.0.0.1' in config
 
 
 def test_docker_e2e_frontend_proxies_api_to_backend_service():
     """Given containerized Vite, When it proxies /api, Then it targets backend DNS."""
     compose = (PROJECT_ROOT / 'docker-compose.e2e.yml').read_text(encoding='utf-8')
-    vite_config = (PROJECT_ROOT / 'frontend' / 'vite.config.ts').read_text(
-        encoding='utf-8'
-    )
+    vite_config = (PROJECT_ROOT / 'frontend' / 'vite.config.ts').read_text(encoding='utf-8')
 
     assert 'VITE_API_PROXY_TARGET: http://backend:8000' in compose
     assert 'ALLOWED_HOSTS: localhost,127.0.0.1,backend' in compose
@@ -269,7 +254,7 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
     assert "globalSetup: './e2e/global-setup'" in config
     assert "globalTeardown: './e2e/global-teardown'" in config
     assert 'storageState: authStorageState' in config
-    assert "await authenticatePage(page)" in setup_source
+    assert 'await authenticatePage(page)' in setup_source
     assert 'await rm(authStorageDirectory, { recursive: true, force: true })' in teardown_source
     assert 'test-results/.auth/' in gitignore.splitlines()
     assert 'await authenticatePage(page)' not in fixtures
@@ -277,7 +262,7 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
     assert 'anonymousPage' in fixtures
     assert 'storageState: { cookies: [], origins: [] }' in fixtures
     auth_spec = (frontend_root / 'e2e' / 'auth-tenant.spec.ts').read_text(encoding='utf-8')
-    assert "async function mockLogout(page: Page): Promise<() => void>" in auth_spec
+    assert 'async function mockLogout(page: Page): Promise<() => void>' in auth_spec
     assert auth_spec.count('await mockLogout(page)') == 2
     assert 'await mockUnauthenticatedSession(page)' in auth_spec
     assert 'page.waitForRequest' in auth_spec
@@ -331,7 +316,13 @@ def test_compose_e2e_backend_image_contract_is_buildable_for_seeded_django_runti
     dockerignore = (PROJECT_ROOT / 'backend' / '.dockerignore').read_text(encoding='utf-8')
     ignored = set(dockerignore.splitlines())
     required_ignores = {
-        '.env*', '.venv/', '__pycache__/', '.test-cache/', '.coverage*', 'tests/', '.git/'
+        '.env*',
+        '.venv/',
+        '__pycache__/',
+        '.test-cache/',
+        '.coverage*',
+        'tests/',
+        '.git/',
     }
     assert required_ignores <= ignored
     assert {'*.py', 'migrations/', 'pyproject.toml'}.isdisjoint(ignored)
@@ -383,9 +374,9 @@ def test_ci_preprovisions_test_database_for_the_unprivileged_test_runtime():
     test_settings = ast.parse(
         (PROJECT_ROOT / 'backend' / 'config' / 'settings' / 'test.py').read_text(encoding='utf-8')
     )
-    roles_script = (
-        PROJECT_ROOT / 'infra' / 'postgres' / 'init' / '001_roles.sh'
-    ).read_text(encoding='utf-8')
+    roles_script = (PROJECT_ROOT / 'infra' / 'postgres' / 'init' / '001_roles.sh').read_text(
+        encoding='utf-8'
+    )
 
     assert 'POSTGRES_TEST_DB: test_zyrp' in workflow_text
     databases_assignment = next(
@@ -417,9 +408,7 @@ def test_ci_preprovisions_test_database_for_the_unprivileged_test_runtime():
     assert len(test_name.args) == 1
     assert isinstance(test_name.args[0], ast.Constant)
     assert test_name.args[0].value == 'POSTGRES_TEST_DB'
-    bootstrap_index = next(
-        index for index, step in enumerate(steps) if '001_roles.sh' in step
-    )
+    bootstrap_index = next(index for index, step in enumerate(steps) if '001_roles.sh' in step)
     makemigrations_index = next(
         index for index, step in enumerate(steps) if 'makemigrations --check --dry-run' in step
     )
@@ -429,12 +418,10 @@ def test_ci_preprovisions_test_database_for_the_unprivileged_test_runtime():
         if 'manage.py migrate --settings=config.settings.migration' in step
         and 'migrate --check' not in step
     )
-    pytest_index = next(
-        index for index, step in enumerate(steps) if 'python -m pytest -v' in step
-    )
+    pytest_index = next(index for index, step in enumerate(steps) if 'python -m pytest -v' in step)
     assert bootstrap_index < makemigrations_index < migration_index < pytest_index
     assert 'CREATE DATABASE %I OWNER %I' in roles_script
-    assert "--set test_db=\"${POSTGRES_TEST_DB}\"" in roles_script
+    assert '--set test_db="${POSTGRES_TEST_DB}"' in roles_script
     test_database_bootstrap = re.search(
         r'(?ms)^psql --set ON_ERROR_STOP=1 \\\r?\n'
         r'(?:.*\r?\n)*?'

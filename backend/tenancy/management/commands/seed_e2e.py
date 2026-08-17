@@ -77,8 +77,7 @@ class Command(BaseCommand):
         is_compatible = all(
             (
                 os.environ.get('E2E_SEED', '').strip() == '1',
-                os.environ.get('DJANGO_SETTINGS_MODULE', '')
-                in E2E_SETTINGS_MODULES,
+                os.environ.get('DJANGO_SETTINGS_MODULE', '') in E2E_SETTINGS_MODULES,
                 str(database.get('NAME', '')) in E2E_DATABASE_NAMES,
                 str(database.get('USER', '')) in E2E_DATABASE_USERS,
                 str(database.get('HOST', '')) in E2E_DATABASE_HOSTS,
@@ -452,9 +451,7 @@ class Command(BaseCommand):
                 )
                 r9_return_sale_generation = 0
                 while True:
-                    r9_return_sale_key = r9_sale_key_for_generation(
-                        r9_return_sale_generation
-                    )
+                    r9_return_sale_key = r9_sale_key_for_generation(r9_return_sale_generation)
                     existing_r9_sale = Sale.all_objects.filter(
                         tenant=tenant,
                         idempotency_key=r9_return_sale_key,
@@ -466,14 +463,11 @@ class Command(BaseCommand):
                         tenant=tenant,
                         sale=existing_r9_sale,
                     ):
-                        returned_quantity = (
-                            SaleReturnItem.all_objects.filter(
-                                tenant=tenant,
-                                sale_item=existing_r9_item,
-                                sale_return__status__in=['draft', 'completed'],
-                            ).aggregate(total=Sum('quantity'))['total']
-                            or Decimal('0')
-                        )
+                        returned_quantity = SaleReturnItem.all_objects.filter(
+                            tenant=tenant,
+                            sale_item=existing_r9_item,
+                            sale_return__status__in=['draft', 'completed'],
+                        ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
                         if returned_quantity < existing_r9_item.quantity:
                             has_r9_returnable_quantity = True
                             break
@@ -508,18 +502,14 @@ class Command(BaseCommand):
                     ).first()
                     if existing_r9_refund_sale is None:
                         break
-                    refunded_amount = (
-                        SaleRefund.all_objects.filter(
-                            tenant=tenant,
-                            sale=existing_r9_refund_sale,
-                            status='completed',
-                        ).aggregate(total=Sum('amount'))['total']
-                        or Decimal('0')
-                    )
+                    refunded_amount = SaleRefund.all_objects.filter(
+                        tenant=tenant,
+                        sale=existing_r9_refund_sale,
+                        status='completed',
+                    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
                     if (
                         existing_r9_refund_sale.status == 'confirmed'
-                        and refunded_amount + Decimal('10.00')
-                        <= existing_r9_refund_sale.net_total
+                        and refunded_amount + Decimal('10.00') <= existing_r9_refund_sale.net_total
                     ):
                         break
                     r9_refund_sale_generation += 1

@@ -59,14 +59,14 @@ def _run_in_tenant(tenant, callback):
 
 # ── Fixtures locais ──────────────────────────────────────────────────
 
+
 @pytest.fixture
 def ctx(inv_tenant):
     """Cria infra base: company, branch, location, unit, product."""
+
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='OpsCo')
-        branch = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='OpsBranch'
-        )
+        branch = Branch.objects.create(tenant=inv_tenant, company=company, name='OpsBranch')
         location = StockLocation.objects.create(
             tenant=inv_tenant, branch=branch, code='OPSW', name='Dep Ops'
         )
@@ -95,17 +95,14 @@ def ctx(inv_tenant):
 @pytest.fixture
 def ctx_lot(inv_tenant):
     """Produto que exige lote + validade."""
+
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='LotCo')
-        branch = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='LotBranch'
-        )
+        branch = Branch.objects.create(tenant=inv_tenant, company=company, name='LotBranch')
         location = StockLocation.objects.create(
             tenant=inv_tenant, branch=branch, code='LOTW', name='Dep Lot'
         )
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='LOT-001',
@@ -136,23 +133,16 @@ def ctx_lot(inv_tenant):
 @pytest.fixture
 def ctx_branch2(inv_tenant):
     """Segunda filial para testes de transferência."""
+
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='XferCo')
-        b1 = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='SrcBranch'
-        )
-        b2 = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='DstBranch'
-        )
-        loc1 = StockLocation.objects.create(
-            tenant=inv_tenant, branch=b1, code='SRC', name='Origem'
-        )
+        b1 = Branch.objects.create(tenant=inv_tenant, company=company, name='SrcBranch')
+        b2 = Branch.objects.create(tenant=inv_tenant, company=company, name='DstBranch')
+        loc1 = StockLocation.objects.create(tenant=inv_tenant, branch=b1, code='SRC', name='Origem')
         loc2 = StockLocation.objects.create(
             tenant=inv_tenant, branch=b2, code='DST', name='Destino'
         )
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='XFER-001',
@@ -176,17 +166,14 @@ def ctx_branch2(inv_tenant):
 @pytest.fixture
 def ctx_notrack(inv_tenant):
     """Produto que NÃO rastreia estoque."""
+
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='NTCo')
-        branch = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='NTBranch'
-        )
+        branch = Branch.objects.create(tenant=inv_tenant, company=company, name='NTBranch')
         location = StockLocation.objects.create(
             tenant=inv_tenant, branch=branch, code='NTW', name='Dep NT'
         )
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='NT-001',
@@ -205,6 +192,7 @@ def ctx_notrack(inv_tenant):
 
 
 # ── normalize_quantity ───────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_normalize_quantity_valid(inv_tenant, ctx):
@@ -229,13 +217,9 @@ def test_normalize_quantity_precision_error(inv_tenant, ctx):
 def test_normalize_quantity_zero_precision(inv_tenant):
     unit = _run_in_tenant(
         inv_tenant,
-        lambda: Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        ),
+        lambda: Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0),
     )
-    result = _run_in_tenant(
-        inv_tenant, lambda: normalize_quantity(Decimal('5'), unit)
-    )
+    result = _run_in_tenant(inv_tenant, lambda: normalize_quantity(Decimal('5'), unit))
     assert result == Decimal('5')
 
 
@@ -243,9 +227,7 @@ def test_normalize_quantity_zero_precision(inv_tenant):
 def test_normalize_quantity_rejects_fractional_on_zero_precision(inv_tenant):
     unit = _run_in_tenant(
         inv_tenant,
-        lambda: Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        ),
+        lambda: Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0),
     )
     with pytest.raises(QuantityPrecisionError):
         _run_in_tenant(
@@ -256,13 +238,12 @@ def test_normalize_quantity_rejects_fractional_on_zero_precision(inv_tenant):
 
 # ── get_available_stock ─────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 def test_get_available_stock_no_balance(inv_tenant, ctx):
     result = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert result == Decimal('0')
 
@@ -277,13 +258,12 @@ def test_get_available_stock_with_balance(inv_tenant, ctx):
             quantity=Decimal('100'),
             reserved=Decimal('20'),
         )
+
     _run_in_tenant(inv_tenant, _setup)
 
     qty = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert qty == Decimal('100')
 
@@ -309,6 +289,7 @@ def test_get_available_stock_exclude_reserved_floor_zero(inv_tenant, ctx):
             quantity=Decimal('5'),
             reserved=Decimal('10'),
         )
+
     _run_in_tenant(inv_tenant, _setup)
 
     avail = _run_in_tenant(
@@ -334,6 +315,7 @@ def test_get_available_stock_with_lot(inv_tenant, ctx_lot):
             quantity=Decimal('50'),
             reserved=Decimal('0'),
         )
+
     _run_in_tenant(inv_tenant, _setup)
 
     qty = _run_in_tenant(
@@ -350,6 +332,7 @@ def test_get_available_stock_with_lot(inv_tenant, ctx_lot):
 
 # ── reserve_stock / release_reservation ─────────────────────────────
 
+
 @pytest.mark.django_db
 def test_reserve_stock_success(inv_tenant, ctx):
     def _seed():
@@ -360,13 +343,12 @@ def test_reserve_stock_success(inv_tenant, ctx):
             quantity=Decimal('100'),
             reserved=Decimal('0'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: reserve_stock(
-            inv_tenant, ctx['product'], ctx['location'], Decimal('30')
-        ),
+        lambda: reserve_stock(inv_tenant, ctx['product'], ctx['location'], Decimal('30')),
     )
     assert bal.reserved == Decimal('30')
     assert bal.quantity == Decimal('100')
@@ -393,14 +375,13 @@ def test_reserve_stock_insufficient(inv_tenant, ctx):
             quantity=Decimal('10'),
             reserved=Decimal('0'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     with pytest.raises(InsufficientStock):
         _run_in_tenant(
             inv_tenant,
-            lambda: reserve_stock(
-                inv_tenant, ctx['product'], ctx['location'], Decimal('15')
-            ),
+            lambda: reserve_stock(inv_tenant, ctx['product'], ctx['location'], Decimal('15')),
         )
 
 
@@ -414,14 +395,13 @@ def test_reserve_stock_negative_rejected(inv_tenant, ctx):
             quantity=Decimal('10'),
             reserved=Decimal('0'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     with pytest.raises(ValueError, match='must be positive'):
         _run_in_tenant(
             inv_tenant,
-            lambda: reserve_stock(
-                inv_tenant, ctx['product'], ctx['location'], Decimal('-1')
-            ),
+            lambda: reserve_stock(inv_tenant, ctx['product'], ctx['location'], Decimal('-1')),
         )
 
 
@@ -435,13 +415,12 @@ def test_release_reservation_success(inv_tenant, ctx):
             quantity=Decimal('100'),
             reserved=Decimal('30'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: release_reservation(
-            inv_tenant, ctx['product'], ctx['location'], Decimal('10')
-        ),
+        lambda: release_reservation(inv_tenant, ctx['product'], ctx['location'], Decimal('10')),
     )
     assert bal.reserved == Decimal('20')
 
@@ -456,13 +435,12 @@ def test_release_reservation_caps_zero(inv_tenant, ctx):
             quantity=Decimal('100'),
             reserved=Decimal('5'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: release_reservation(
-            inv_tenant, ctx['product'], ctx['location'], Decimal('20')
-        ),
+        lambda: release_reservation(inv_tenant, ctx['product'], ctx['location'], Decimal('20')),
     )
     assert bal.reserved == Decimal('0')
 
@@ -477,18 +455,18 @@ def test_release_reservation_negative_rejected(inv_tenant, ctx):
             quantity=Decimal('100'),
             reserved=Decimal('30'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     with pytest.raises(ValueError, match='must be positive'):
         _run_in_tenant(
             inv_tenant,
-            lambda: release_reservation(
-                inv_tenant, ctx['product'], ctx['location'], Decimal('-1')
-            ),
+            lambda: release_reservation(inv_tenant, ctx['product'], ctx['location'], Decimal('-1')),
         )
 
 
 # ── _validate_lot_rules ─────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_validate_lot_rules_lot_required(inv_tenant):
@@ -504,37 +482,39 @@ def test_validate_lot_rules_lot_required(inv_tenant):
         )
         with pytest.raises(InvalidLotError, match='requires a lot'):
             _validate_lot_rules(product, None)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 @pytest.mark.django_db
 def test_validate_lot_rules_wrong_product(inv_tenant):
     def _test():
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         p1 = Product.all_objects.create(
-            tenant=inv_tenant, sku='VLR-A', name='A', base_unit=unit,
+            tenant=inv_tenant,
+            sku='VLR-A',
+            name='A',
+            base_unit=unit,
             requires_lot=True,
         )
         p2 = Product.all_objects.create(
-            tenant=inv_tenant, sku='VLR-B', name='B', base_unit=unit,
+            tenant=inv_tenant,
+            sku='VLR-B',
+            name='B',
+            base_unit=unit,
             requires_lot=False,
         )
-        lot = StockLot.all_objects.create(
-            tenant=inv_tenant, product=p1, lot_number='WRONG-LOT'
-        )
+        lot = StockLot.all_objects.create(tenant=inv_tenant, product=p1, lot_number='WRONG-LOT')
         with pytest.raises(InvalidLotError, match='same product'):
             _validate_lot_rules(p2, lot)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 @pytest.mark.django_db
 def test_validate_lot_rules_expiry_required(inv_tenant):
     def _test():
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='VLR-EXP',
@@ -545,15 +525,14 @@ def test_validate_lot_rules_expiry_required(inv_tenant):
         )
         with pytest.raises(InvalidLotError, match='expiry date'):
             _validate_lot_rules(product, None)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 @pytest.mark.django_db
 def test_validate_lot_rules_expired_lot_rejected(inv_tenant):
     def _test():
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='VLR-OLD',
@@ -570,15 +549,14 @@ def test_validate_lot_rules_expired_lot_rejected(inv_tenant):
         assert lot.is_expired
         with pytest.raises(ExpiredLotError):
             _validate_lot_rules(product, lot)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 @pytest.mark.django_db
 def test_validate_lot_rules_expired_lot_allowed(inv_tenant):
     def _test():
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='VLR-AEX',
@@ -594,15 +572,14 @@ def test_validate_lot_rules_expired_lot_allowed(inv_tenant):
         )
         assert lot.is_expired
         _validate_lot_rules(product, lot, allow_expired_lot=True)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 @pytest.mark.django_db
 def test_validate_lot_rules_lot_without_expiry_on_requires_expiry(inv_tenant):
     def _test():
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='VLR-NOEXP',
@@ -619,10 +596,12 @@ def test_validate_lot_rules_lot_without_expiry_on_requires_expiry(inv_tenant):
         )
         with pytest.raises(InvalidLotError, match='expiry date'):
             _validate_lot_rules(product, lot)
+
     _run_in_tenant(inv_tenant, _test)
 
 
 # ── create_receipt ───────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_create_receipt_basic(inv_tenant, ctx):
@@ -649,9 +628,7 @@ def test_create_receipt_basic(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('50')
 
@@ -724,9 +701,7 @@ def test_create_receipt_idempotent_replay(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('10')
 
@@ -735,15 +710,11 @@ def test_create_receipt_idempotent_replay(inv_tenant, ctx):
 def test_create_receipt_with_expiry(inv_tenant):
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='ExpCo')
-        branch = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='ExpBr'
-        )
+        branch = Branch.objects.create(tenant=inv_tenant, company=company, name='ExpBr')
         location = StockLocation.objects.create(
             tenant=inv_tenant, branch=branch, code='EXP', name='Dep Exp'
         )
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='EXP-001',
@@ -795,6 +766,7 @@ def test_create_receipt_with_expiry(inv_tenant):
 
 # ── create_issue ─────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 def test_create_issue_success(inv_tenant, ctx):
     _run_in_tenant(
@@ -833,9 +805,7 @@ def test_create_issue_success(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('35')
 
@@ -934,14 +904,13 @@ def test_create_issue_idempotent(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('45')
 
 
 # ── create_adjustment ───────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_create_adjustment_positive(inv_tenant, ctx):
@@ -968,9 +937,7 @@ def test_create_adjustment_positive(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('20')
 
@@ -1011,9 +978,7 @@ def test_create_adjustment_negative(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('25')
 
@@ -1058,15 +1023,11 @@ def test_create_adjustment_idempotent(inv_tenant, ctx):
 def test_create_adjustment_expired_lot_allowed(inv_tenant):
     def _create():
         company = Company.objects.create(tenant=inv_tenant, name='AlExpCo')
-        branch = Branch.objects.create(
-            tenant=inv_tenant, company=company, name='AlExpBr'
-        )
+        branch = Branch.objects.create(tenant=inv_tenant, company=company, name='AlExpBr')
         location = StockLocation.objects.create(
             tenant=inv_tenant, branch=branch, code='ALEXP', name='Dep AlExp'
         )
-        unit = Unit.all_objects.create(
-            tenant=inv_tenant, symbol='un', name='Un', precision=0
-        )
+        unit = Unit.all_objects.create(tenant=inv_tenant, symbol='un', name='Un', precision=0)
         product = Product.all_objects.create(
             tenant=inv_tenant,
             sku='ALEXP-001',
@@ -1112,6 +1073,7 @@ def test_create_adjustment_expired_lot_allowed(inv_tenant):
 
 
 # ── create_transfer ─────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_create_transfer_between_locations(inv_tenant, ctx_branch2):
@@ -1259,6 +1221,7 @@ def test_create_transfer_idempotent(inv_tenant, ctx_branch2):
 
 # ── create_operation ─────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 def test_create_operation_requires_idempotency_key(inv_tenant):
     with pytest.raises(ValueError, match='Idempotency-Key is required'):
@@ -1299,6 +1262,7 @@ def test_create_operation_duplicate_key_diff_payload(inv_tenant, ctx):
 
 # ── reverse_operation ───────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 def test_reverse_operation_success(inv_tenant, ctx):
     _run_in_tenant(
@@ -1318,7 +1282,7 @@ def test_reverse_operation_success(inv_tenant, ctx):
         inv_tenant,
         lambda: StockOperation.all_objects.filter(
             tenant=inv_tenant, idempotency_key='rev-seed-001'
-        ).first()
+        ).first(),
     )
 
     reversal = _run_in_tenant(
@@ -1346,9 +1310,7 @@ def test_reverse_operation_success(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('0')
 
@@ -1372,7 +1334,7 @@ def test_reverse_operation_already_reversed(inv_tenant, ctx):
         inv_tenant,
         lambda: StockOperation.all_objects.filter(
             tenant=inv_tenant, idempotency_key='rev-dup-seed'
-        ).first()
+        ).first(),
     )
     _run_in_tenant(
         inv_tenant,
@@ -1381,9 +1343,7 @@ def test_reverse_operation_already_reversed(inv_tenant, ctx):
     with pytest.raises(ValueError, match='already reversed'):
         _run_in_tenant(
             inv_tenant,
-            lambda: reverse_operation(
-                op, reason='Second', idempotency_key='rev-dup-002'
-            ),
+            lambda: reverse_operation(op, reason='Second', idempotency_key='rev-dup-002'),
         )
 
 
@@ -1397,6 +1357,7 @@ def test_reverse_operation_not_confirmed(inv_tenant, ctx):
             status='draft',
             idempotency_key='rev-draft-001',
         )
+
     op = _run_in_tenant(inv_tenant, _create_draft)
     with pytest.raises(ValueError, match='Only confirmed'):
         _run_in_tenant(
@@ -1406,6 +1367,7 @@ def test_reverse_operation_not_confirmed(inv_tenant, ctx):
 
 
 # ── reconcile_stock_balances ────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_reconcile_matching(inv_tenant, ctx):
@@ -1422,9 +1384,7 @@ def test_reconcile_matching(inv_tenant, ctx):
             idempotency_key='rec-match',
         ),
     )
-    divs = _run_in_tenant(
-        inv_tenant, lambda: reconcile_stock_balances(inv_tenant)
-    )
+    divs = _run_in_tenant(inv_tenant, lambda: reconcile_stock_balances(inv_tenant))
     assert divs == []
 
 
@@ -1451,9 +1411,7 @@ def test_reconcile_divergent(inv_tenant, ctx):
             location=ctx['location'],
         ).update(quantity=Decimal('100')),
     )
-    divs = _run_in_tenant(
-        inv_tenant, lambda: reconcile_stock_balances(inv_tenant)
-    )
+    divs = _run_in_tenant(inv_tenant, lambda: reconcile_stock_balances(inv_tenant))
     assert len(divs) == 1
     assert divs[0]['difference'] == Decimal('80')
     assert divs[0]['projected_quantity'] == Decimal('100')
@@ -1462,13 +1420,12 @@ def test_reconcile_divergent(inv_tenant, ctx):
 
 @pytest.mark.django_db
 def test_reconcile_empty(inv_tenant):
-    divs = _run_in_tenant(
-        inv_tenant, lambda: reconcile_stock_balances(inv_tenant)
-    )
+    divs = _run_in_tenant(inv_tenant, lambda: reconcile_stock_balances(inv_tenant))
     assert divs == []
 
 
 # ── _payload_hash e _apply_balance_delta ─────────────────────────────
+
 
 @pytest.mark.django_db
 def test_payload_hash_deterministic():
@@ -1510,6 +1467,7 @@ def test_apply_balance_delta_negative_allowed(inv_tenant, ctx):
             location=location,
             allow_negative=True,
         )
+
     _run_in_tenant(inv_tenant, _setup)
 
     bal = _run_in_tenant(
@@ -1529,9 +1487,7 @@ def test_apply_balance_delta_negative_allowed(inv_tenant, ctx):
 def test_get_balance_creates_if_missing(inv_tenant, ctx):
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: _get_balance(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: _get_balance(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal.quantity == Decimal('0')
     assert bal.reserved == Decimal('0')
@@ -1552,14 +1508,13 @@ def test_get_balance_for_update(inv_tenant, ctx):
     )
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: _get_balance(
-            inv_tenant, ctx['product'], ctx['location'], for_update=True
-        ),
+        lambda: _get_balance(inv_tenant, ctx['product'], ctx['location'], for_update=True),
     )
     assert bal.quantity == Decimal('10')
 
 
 # ── create_stock_movement ───────────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_create_stock_movement_zero_quantity_raises(inv_tenant, ctx):
@@ -1581,6 +1536,7 @@ def test_create_stock_movement_zero_quantity_raises(inv_tenant, ctx):
                 unit=ctx['unit'],
                 factor=Decimal('1'),
             )
+
     _run_in_tenant(inv_tenant, _test)
 
 
@@ -1620,14 +1576,13 @@ def test_create_stock_movement_out_direction(inv_tenant, ctx):
 
     bal = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert bal == Decimal('20')
 
 
 # ── process_operation e get_stock_balance ────────────────────────────
+
 
 @pytest.mark.django_db
 def test_get_stock_balance(inv_tenant, ctx):
@@ -1638,18 +1593,18 @@ def test_get_stock_balance(inv_tenant, ctx):
             location=ctx['location'],
             quantity=Decimal('75'),
         )
+
     _run_in_tenant(inv_tenant, _seed)
 
     qty = _run_in_tenant(
         inv_tenant,
-        lambda: get_available_stock(
-            inv_tenant, ctx['product'], ctx['location']
-        ),
+        lambda: get_available_stock(inv_tenant, ctx['product'], ctx['location']),
     )
     assert qty == Decimal('75')
 
 
 # ── _json_default fallback ──────────────────────────────────────────
+
 
 def test_json_default_fallback_string():
     assert _json_default('hello') == 'hello'
@@ -1661,11 +1616,13 @@ def test_json_default_fallback_int():
 
 def test_json_default_fallback_date():
     from datetime import date
+
     result = _json_default(date(2024, 6, 15))
     assert result == '2024-06-15'
 
 
 # ── _find_idempotent_operation ──────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_find_idempotent_operation_none_key(inv_tenant):
@@ -1687,6 +1644,7 @@ def test_find_idempotent_operation_empty_key(inv_tenant):
 
 # ── process_operation ───────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 def test_process_operation(inv_tenant, ctx):
     def _create():
@@ -1702,11 +1660,13 @@ def test_process_operation(inv_tenant, ctx):
         )
         result = process_operation(c)
         return result.id
+
     op_id = _run_in_tenant(inv_tenant, _create)
     assert op_id is not None
 
 
 # ── get_stock_balance (direct) ─────────────────────────────────────
+
 
 @pytest.mark.django_db
 def test_get_stock_balance_direct(inv_tenant, ctx):
@@ -1717,8 +1677,8 @@ def test_get_stock_balance_direct(inv_tenant, ctx):
             location=ctx['location'],
             quantity=Decimal('42'),
         )
-        qty = get_stock_balance(inv_tenant, ctx['product'], ctx['location'])
-        return qty
+        return get_stock_balance(inv_tenant, ctx['product'], ctx['location'])
+
     qty = _run_in_tenant(inv_tenant, _test)
     assert qty == Decimal('42')
 

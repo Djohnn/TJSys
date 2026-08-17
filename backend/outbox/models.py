@@ -20,7 +20,9 @@ class OutboxMessage(models.Model):
     correlation_id = models.CharField(max_length=100, blank=True, default='')
     tenant_id = models.CharField(max_length=100, blank=True, default='')
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default='PENDING',
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -39,7 +41,9 @@ class OutboxMessage(models.Model):
 class OutboxDelivery(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     message = models.ForeignKey(
-        OutboxMessage, on_delete=models.CASCADE, related_name='deliveries',
+        OutboxMessage,
+        on_delete=models.CASCADE,
+        related_name='deliveries',
     )
     handler = models.CharField(max_length=150)
     result = models.JSONField(default=dict, blank=True)
@@ -48,7 +52,8 @@ class OutboxDelivery(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['message', 'handler'], name='uniq_outbox_message_handler',
+                fields=['message', 'handler'],
+                name='uniq_outbox_message_handler',
             ),
         ]
 

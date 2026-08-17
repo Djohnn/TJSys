@@ -185,7 +185,8 @@ def test_login_throttle_blocks_eleventh_pre_mfa_login_at_production_rate(client)
             assert invalid_login.status_code == 401, f'anonymous attempt {attempt + 1}'
 
         user = User.objects.create_user(
-            email='production-rate@test.local', password='valid-password',
+            email='production-rate@test.local',
+            password='valid-password',
         )
         user.email_verified_at = timezone.now()
         user.save(update_fields=['email_verified_at'])

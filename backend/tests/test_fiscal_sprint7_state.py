@@ -130,14 +130,16 @@ def test_fiscal_document_isolation_between_tenants(tenant_alpha, tenant_beta):
 
     # The tenant filter for beta must not see alpha's document.
     terms = {'tenant': tenant_beta}
-    assert _run_in_tenant(tenant_beta, lambda: FiscalDocument.all_objects.filter(
-        **terms).count()) == 0
-    assert _run_in_tenant(
-        tenant_beta,
-        lambda: FiscalDocument.all_objects.filter(
-            tenant=tenant_beta, id=doc.id
-        ).exists(),
-    ) is False
+    assert (
+        _run_in_tenant(tenant_beta, lambda: FiscalDocument.all_objects.filter(**terms).count()) == 0
+    )
+    assert (
+        _run_in_tenant(
+            tenant_beta,
+            lambda: FiscalDocument.all_objects.filter(tenant=tenant_beta, id=doc.id).exists(),
+        )
+        is False
+    )
 
 
 @pytest.mark.django_db
@@ -182,11 +184,7 @@ def test_duplicate_webhook_is_idempotent(monkeypatch, client, fiscal_sale_contex
 
     docs = _run_in_tenant(
         ctx['tenant'],
-        lambda: list(
-            FiscalDocument.all_objects.filter(
-                tenant=ctx['tenant'], sale=ctx['sale']
-            )
-        ),
+        lambda: list(FiscalDocument.all_objects.filter(tenant=ctx['tenant'], sale=ctx['sale'])),
     )
     # Same single document, concluded once; no duplicate created by the webhook.
     assert len(docs) == 1

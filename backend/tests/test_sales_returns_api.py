@@ -248,9 +248,7 @@ class TestSaleReturnAPI:
             code='insufficient_returnable',
         )
 
-    def test_return_accepts_backend_quantity_scale_of_six_decimal_places(
-        self, returns_api_context
-    ):
+    def test_return_accepts_backend_quantity_scale_of_six_decimal_places(self, returns_api_context):
         """Given the backend scale, when six decimals are requested, then the API preserves it."""
         ctx = returns_api_context
         sale = self._sale(ctx)
