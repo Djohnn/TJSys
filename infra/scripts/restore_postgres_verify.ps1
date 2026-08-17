@@ -1,125 +1,145 @@
 <#
 .SYNOPSIS
-    PostgreSQL restore verification script.
+    Restores a custom-format backup into a disposable database and verifies it.
 .DESCRIPTION
-    Restores a backup into a disposable database and runs verification queries.
-    Does NOT overwrite the production database.
-.NOTES
-    Requires: PGHOST, PGPORT, PGUSER, PGPASSWORD environment variables.
-    Optional: BACKUP_FILE (path to backup), TARGET_DB (default: zyrp_restore_<timestamp>)
+    The drill is fail-closed. The only accepted non-zero pg_restore result is
+    the known PG18-to-PG16 transaction_timeout compatibility warning.
 #>
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$BackupFile,
-    
     [string]$TargetDb = $null,
-    [string]$PgHost = $env:PGHOST ?? "localhost",
-    [string]$PgPort = $env:PGPORT ?? "5432",
-    [string]$PgUser = $env:PGUSER ?? "zyrp",
+    [string]$PgHost = $(if ($env:PGHOST) { $env:PGHOST } else { "localhost" }),
+    [string]$PgPort = $(if ($env:PGPORT) { $env:PGPORT } else { "5432" }),
+    [string]$PgUser = $(if ($env:PGUSER) { $env:PGUSER } else { "tjsys_app" }),
     [string]$PgPassword = $env:PGPASSWORD,
     [switch]$KeepDatabase = $false
 )
 
+$ErrorActionPreference = "Stop"
+
+function Test-KnownPgRestoreCompatibilityWarning {
+    param(
+        [int]$ExitCode,
+        [string]$Output
+    )
+
+    if ($ExitCode -eq 0) {
+        return $true
+    }
+
+    $lines = $Output -split "`r?`n"
+    $errorLines = @($lines | Where-Object { $_ -match '(?i)(?:^|:\s*)(?:error|erro):' })
+    $hasTransactionTimeout = $Output -match 'unrecognized configuration parameter "transaction_timeout"'
+    $hasSingleIgnoredError = $Output -match '(?i)(?:errors ignored on restore|erros ignorados na restaura[cç][aã]o):\s*1\b'
+    $unexpectedErrors = @($errorLines | Where-Object {
+        $_ -notmatch 'transaction_timeout' -and
+        $_ -notmatch '(?i)(?:errors ignored on restore|erros ignorados na restaura[cç][aã]o):\s*1\b'
+    })
+
+    return $hasTransactionTimeout -and $hasSingleIgnoredError -and $unexpectedErrors.Count -eq 0
+}
+
+function Invoke-PsqlScalar {
+    param([string]$Database, [string]$Query)
+
+    $result = & psql -h $PgHost -p $PgPort -U $PgUser -d $Database -Atqc $Query 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        throw "Verification query failed: $result"
+    }
+    return "$result".Trim()
+}
+
 if (-not $PgPassword) {
-    Write-Error "PGPASSWORD environment variable is required"
-    exit 1
+    throw "PGPASSWORD environment variable is required"
 }
-
-if (-not (Test-Path $BackupFile)) {
-    Write-Error "Backup file not found: $BackupFile"
-    exit 1
+if (-not (Test-Path -LiteralPath $BackupFile)) {
+    throw "Backup file not found: $BackupFile"
 }
-
 if (-not $TargetDb) {
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $TargetDb = "zyrp_restore_${timestamp}"
+    $TargetDb = "tjsys_restore_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+}
+if ($TargetDb -notmatch '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$') {
+    throw "Invalid target database identifier: $TargetDb"
 }
 
-Write-Host "=== PostgreSQL Restore Verification ===" -ForegroundColor Cyan
-Write-Host "Source: $BackupFile" -ForegroundColor Gray
-Write-Host "Target DB: $TargetDb" -ForegroundColor Gray
-Write-Host "Host: $PgHost:$PgPort" -ForegroundColor Gray
-Write-Host ""
+$checksumFile = "$BackupFile.sha256"
+if (Test-Path -LiteralPath $checksumFile) {
+    $expectedChecksum = (Get-Content -LiteralPath $checksumFile -Raw).Trim()
+    $actualChecksum = (Get-FileHash -LiteralPath $BackupFile -Algorithm SHA256).Hash
+    if ($expectedChecksum -ne $actualChecksum) {
+        throw "Checksum mismatch for backup: $BackupFile"
+    }
+}
 
 $env:PGPASSWORD = $PgPassword
+$databaseCreated = $false
 
 try {
-    # 1. Create target database
-    Write-Host "Creating database: $TargetDb..." -ForegroundColor Yellow
-    $created = & psql -h $PgHost -p $PgPort -U $PgUser -d postgres -c "CREATE DATABASE \"$TargetDb\";" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to create database: $created"
-        exit 1
+    $createOutput = & psql -h $PgHost -p $PgPort -U $PgUser -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $TargetDb;" 2>&1
+    $createExitCode = $LASTEXITCODE
+    if ($createExitCode -ne 0) {
+        throw "Failed to create database: $createOutput"
     }
-    Write-Host "✅ Database created" -ForegroundColor Green
-    
-    # 2. Restore backup
-    Write-Host "Restoring backup..." -ForegroundColor Yellow
-    $restored = & pg_restore -h $PgHost -p $PgPort -U $PgUser -d $TargetDb -F custom -v $BackupFile 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Restore failed: $restored"
-        exit 1
+    $databaseCreated = $true
+
+    # Windows PowerShell promotes native stderr to ErrorRecord. pg_restore -v
+    # writes normal progress to stderr, so capture it without aborting early.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $restoreOutput = & pg_restore -h $PgHost -p $PgPort -U $PgUser -d $TargetDb -F custom -v $BackupFile 2>&1
+        $restoreExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
     }
-    Write-Host "✅ Backup restored" -ForegroundColor Green
-    
-    # 3. Run verification queries
-    Write-Host "Running verification queries..." -ForegroundColor Yellow
-    
-    $queries = @(
-        @{ Name = "Table count"; Query = "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" },
-        @{ Name = "Tenant count"; Query = "SELECT count(*) FROM tenancy_tenant;" },
-        @{ Name = "User count"; Query = "SELECT count(*) FROM accounts_customuser;" },
-        @{ Name = "Product count"; Query = "SELECT count(*) FROM catalog_product;" },
-        @{ Name = "Sale count"; Query = "SELECT count(*) FROM sales_sale;" },
-        @{ Name = "Fiscal document count"; Query = "SELECT count(*) FROM fiscal_fiscalcocument;" },
-        @{ Name = "Outbox count"; Query = "SELECT count(*) FROM outbox_outboxmessage;" }
+    $restoreText = $restoreOutput -join "`n"
+    if (-not (Test-KnownPgRestoreCompatibilityWarning -ExitCode $restoreExitCode -Output $restoreText)) {
+        throw "pg_restore failed with exit code ${restoreExitCode}: $restoreText"
+    }
+    if ($restoreExitCode -ne 0) {
+        Write-Warning "Accepted only the known transaction_timeout compatibility warning"
+    }
+
+    $criticalTables = @(
+        "tenancy_tenant",
+        "accounts_customuser",
+        "catalog_product",
+        "sales_sale",
+        "fiscal_fiscaldocument",
+        "outbox_outboxmessage",
+        "django_migrations"
     )
-    
-    $allPassed = $true
-    foreach ($q in $queries) {
-        try {
-            $result = & psql -h $PgHost -p $PgPort -U $PgUser -d $TargetDb -t -c $q.Query 2>&1
-            if ($LASTEXITCODE -eq 0) {
-                $value = $result.Trim()
-                Write-Host "  ✅ $($q.Name): $value" -ForegroundColor Green
-            } else {
-                Write-Host "  ❌ $($q.Name): $result" -ForegroundColor Red
-                $allPassed = $false
-            }
-        } catch {
-            Write-Host "  ❌ $($q.Name): $_" -ForegroundColor Red
-            $allPassed = $false
+    foreach ($table in $criticalTables) {
+        $exists = Invoke-PsqlScalar -Database $TargetDb -Query "SELECT CASE WHEN to_regclass('public.$table') IS NULL THEN 0 ELSE 1 END;"
+        if ($exists -ne "1") {
+            throw "Critical table missing after restore: $table"
         }
     }
-    
-    # 4. Check critical indexes
-    Write-Host "Checking critical indexes..." -ForegroundColor Yellow
-    $indexQuery = "SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public' AND indexname LIKE '%unique%' OR indexname LIKE '%tenant%';"
-    $indexes = & psql -h $PgHost -p $PgPort -U $PgUser -d $TargetDb -t -c $indexQuery 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  ✅ Critical indexes present" -ForegroundColor Green
-    } else {
-        Write-Host "  ⚠️ Index check failed" -ForegroundColor Yellow
+
+    $tableCount = Invoke-PsqlScalar -Database $TargetDb -Query "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"
+    if ([int]$tableCount -lt $criticalTables.Count) {
+        throw "Unexpected table count after restore: $tableCount"
     }
-    
-    if ($allPassed) {
-        Write-Host ""
-        Write-Host "✅ All verification checks passed!" -ForegroundColor Green
-    } else {
-        Write-Host ""
-        Write-Host "❌ Some verification checks failed" -ForegroundColor Red
-        exit 1
+
+    foreach ($table in $criticalTables | Where-Object { $_ -ne "django_migrations" }) {
+        [void](Invoke-PsqlScalar -Database $TargetDb -Query "SELECT count(*) FROM $table;")
     }
-    
+
+    $indexCount = Invoke-PsqlScalar -Database $TargetDb -Query "SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND (indexname LIKE '%unique%' OR indexname LIKE '%tenant%');"
+    if ([int]$indexCount -lt 1) {
+        throw "No critical tenant/unique index found after restore"
+    }
+
+    Write-Host "All verification checks passed"
 } finally {
-    if (-not $KeepDatabase) {
-        Write-Host "Cleaning up test database..." -ForegroundColor Yellow
-        & psql -h $PgHost -p $PgPort -U $PgUser -d postgres -c "DROP DATABASE IF EXISTS \"$TargetDb\" WITH (FORCE);" 2>&1 | Out-Null
-        Write-Host "✅ Test database dropped" -ForegroundColor Green
-    } else {
-        Write-Host "⚠️ Keeping test database: $TargetDb (use -KeepDatabase to retain)" -ForegroundColor Yellow
+    if ($databaseCreated -and -not $KeepDatabase) {
+        & psql -h $PgHost -p $PgPort -U $PgUser -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $TargetDb WITH (FORCE);" 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Could not drop disposable database: $TargetDb"
+        }
     }
-    
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
 }

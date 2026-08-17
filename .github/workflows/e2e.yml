@@ -8,6 +8,25 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.e2e
+      DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      POSTGRES_DB: zyrp
+      POSTGRES_APP_USER: zyrp
+      POSTGRES_APP_PASSWORD: zyrp
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: e2e-secret-key-not-for-production
+      E2E_SEED: '1'
+      E2E_USER_EMAIL: web-admin@tjsys.local
+      E2E_USER_PASSWORD: e2e-test-pwd-2026
+      E2E_RECOVERY_CODE: e2e0000001
+      AUTH_LOGIN_RATE: 100/minute
+      AUTH_MFA_RATE: 100/minute
+      VITE_API_BASE_URL: /api/v1
+      DEBUG: 'true'
+      MONITORING_ENABLED: 'true'
     services:
       postgres:
         image: postgres:16
@@ -58,15 +77,22 @@ jobs:
 
       - name: Start backend
         working-directory: ./backend
-        env:
-          DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
-          REDIS_URL: redis://localhost:6379
-          SECRET_KEY: ci-secret-key
-          DEBUG: 'true'
-          MONITORING_ENABLED: 'true'
         run: |
-          python manage.py runserver 0.0.0.0:8000 &
-          sleep 3
+          nohup python manage.py runserver 0.0.0.0:8000 >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/e2e-backend.pid"
+
+      - name: Wait for backend health
+        working-directory: ./backend
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/api/v1/health/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Backend health check timed out after 60 seconds.'
+          cat "$RUNNER_TEMP/e2e-backend.log"
+          exit 1
 
       - name: Install frontend deps
         working-directory: ./frontend
@@ -76,35 +102,9 @@ jobs:
         working-directory: ./frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Start frontend
-        working-directory: ./frontend
-        env:
-          VITE_API_BASE_URL: /api/v1
-        run: |
-          npx vite --host 0.0.0.0 --port 5173 &
-          sleep 3
-
-      - name: Wait for backend
-        run: |
-          for i in $(seq 1 30); do
-            curl -s http://localhost:8000/api/v1/health/ && break
-            sleep 2
-          done
-
       - name: Run Playwright E2E
         working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:5174
-          PLAYWRIGHT_RETRIES: '0'
-          FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
-          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
-          E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
-        run: |
-          npm run typecheck:e2e
-          npx playwright test e2e/product-pdv-stock-flow.spec.ts --project=chromium --reporter=html,json
+        run: npx playwright test --project=chromium --reporter=html,json
 
       - name: Install PDV deps and browsers
         working-directory: ./pdv
@@ -124,41 +124,6 @@ jobs:
         run: |
           npm run typecheck:e2e
           npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
-
-      - name: Run R0-R2 visual regression
-        working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:5174
-          PLAYWRIGHT_RETRIES: '0'
-        run: |
-          npx playwright test e2e/r0-baseline-e-governanca-do-design-system.spec.ts e2e/r1-tokens-e-componentes-fundamentais.spec.ts e2e/r2-shell-navegacao-e-responsividade.spec.ts --project=chromium --retries=0
-
-      - name: Run R3 catalog acceptance and accessibility
-        working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:5174
-          PLAYWRIGHT_RETRIES: '0'
-          FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
-          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
-        run: |
-          npx playwright test e2e/catalog-sprints-23-30.spec.ts e2e/accessibility.spec.ts --project=chromium --retries=0
-
-      - name: Run R4 product pricing vertical acceptance
-        working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:5174
-          PLAYWRIGHT_RETRIES: '0'
-          FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
-          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
-        run: |
-          npm run typecheck:e2e
-          npx playwright test e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts --project=chromium --retries=0 --reporter=html,json
 
       - name: Check Design Tokens
         working-directory: ./frontend

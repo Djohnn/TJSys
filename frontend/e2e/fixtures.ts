@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from '@playwright/test'
+import { expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 
 export { expect }
 
@@ -97,18 +97,22 @@ export async function authenticatePage(
 
 export const test = base.extend<{
   authenticatedPage: Page
+  anonymousPage: Page
 }>({
   authenticatedPage: async ({ page }, use) => {
-    const hasRealCredentials = Boolean(
-      process.env.E2E_USER_EMAIL
-      && process.env.E2E_USER_PASSWORD
-      && process.env.E2E_RECOVERY_CODE,
-    )
-    if (hasRealCredentials) {
-      await authenticatePage(page)
-    } else {
-      await openAuthenticatedShell(page)
-    }
+    await page.goto('/dashboard')
     await use(page)
+  },
+  anonymousPage: async ({ browser, baseURL }, use) => {
+    const context: BrowserContext = await browser.newContext({
+      baseURL,
+      storageState: { cookies: [], origins: [] },
+    })
+    const page = await context.newPage()
+    try {
+      await use(page)
+    } finally {
+      await context.close()
+    }
   },
 })

@@ -5,7 +5,7 @@
 | Código | PRD-OPS-001 |
 | Versão | 0.1.0 |
 | Status | Review |
-| Última atualização | 2026-07-14 |
+| Última atualização | 2026-08-17 |
 | Produto | TJSys |
 
 ## Finalidade
@@ -48,7 +48,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 6 | Concluída | Contingência offline e sincronização |
 | 7 | A detalhar | Integração fiscal por provider |
 | 8 | A detalhar | Piloto, observabilidade e hardening |
-| 9 | A detalhar | Devoluções, cancelamentos e estornos |
+| 9 | Concluída e reconciliada em 2026-08-17 | Devoluções, cancelamentos e estornos; gates atuais comprovados sobre a linha da master |
 | 10 | A detalhar | Compras, recebimento e contas a pagar |
 | 11 | A detalhar | Financeiro, fluxo de caixa e relatórios |
 | 12 | A detalhar | Pessoas, clientes e parceiros |
@@ -773,19 +773,69 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 
 ### Sprint 9 — Devoluções, Cancelamentos e Estornos
 
-**Estado:** Concluída em 2026-07-21.
-**Objetivo:** completar o ciclo pós-venda com fatos compensatórios auditáveis.
-**Entregável:** devolução parcial/total, cancelamento, reentrada de estoque, reembolso/estorno e integração fiscal quando aplicável.
+#### 9.0 Proveniência canônica pós-b7be70d e snapshots históricos
 
-**Especificação:** [Design da Sprint 9](superpowers/specs/2026-07-18-sprint-9-returns-cancellations-refunds-design.md)
+Todos os blocos de fechamento e baselines anteriores a
+`b7be70d885914c11336872f5b9f374f4713117d2` são snapshots históricos
+**superseded** e preservam seus outputs sem reescrita; contagens como
+110/111/347/356/13 não são o aceite corrente. A cadeia canônica de
+código/testes/CI é
+`a43701a902aff628139520931491441a0a47bf35` +
+`0ac90a7b4590cd83e88471000c28a4264a0361b2` +
+`31d8bfc114735b3e15fc6486d1c948ca5f576365` +
+`f3996678d77891d670acc5b8fbad1e75ba924e0f` +
+`7d9a5767d87f987e079a662089d57b7ed19212f0` (runtime/Dockerfile/dependências) +
+`aad9a792cf3cfaeb7741a1db37246117648ad07f` (MFA `storageState`) +
+`236eaf36fb23b14e5720c0d56a57068bfd41ac0c` (health readiness) +
+`14e0ed931fcb9e4f45e30c517209e8401f51e2ec` (auth cleanup/logout) +
+`1c2c4cad0bf9932169ca361c4ad2a982d26b5462` (Docker context/offline) +
+`f5c918fb21c965f91f720aa6febd1cae6cafb337` (lint E2E minor) +
+`b7be70d885914c11336872f5b9f374f4713117d2` (mypy exclui build derivado).
+Commits documentais intermediários constam apenas do inventário.
 
-**Plano:** [Plano de implementação da Sprint 9](superpowers/plans/2026-07-18-sprint-9-returns-cancellations-refunds-implementation-plan.md)
+Aceite corrente: backend R9/API `134 passed in 67.95s`, `EXIT=0`; fault
+injection `3 passed in 14.78s`, `EXIT=0`; workflow isolado `14 passed`, incluindo
+o contrato mypy; workflow+seed+logout real `24 passed in 14.84s`, `EXIT=0`.
+As contagens `13`, `19` e `20` dos escopos anteriores são snapshots históricos
+superseded. Distribuição isolada comprovou `requests` e SimpleJWT; contexto
+Docker `789.05kB`, build `77.12s`, `EXIT=0`; compose
+backend `healthy` e `/health/` HTTP `200` com database/cache `ok`. Digest Docker
+permanece minor deferido. TDD mypy: RED `2 failed | 11 passed`, duplicação em
+`backend/build`, `EXIT=2`; GREEN `Success: no issues found in 299 source files`,
+`0.8s`, `EXIT=0`. O artefato derivado foi removido, o ignore confirmado e o
+contrato fornece proteção permanente. Chromium: auth `8 passed (18.0s)`, R9
+`6 passed (24.4s)`, PDV/finance `14 passed (49.7s)`, todos `EXIT=0`;
+Firefox+WebKit `12 skipped`, `EXIT=0`; auth state ausente após logout. Vitest:
+`359 passed` em `22 files`; lint, ESLint E2E, typecheck e build `EXIT=0`; Ruff,
+Django check e `makemigrations --check` canônicos verdes. Axe dos dialogs
+R9 permanece coberto; a execução ampla teve `10` violações preexistentes fora
+das telas R9 e não constitui gate global verde.
+
+**Estado:** Concluída tecnicamente em 2026-08-13, após comprovação dos gates
+obrigatórios no [relatório final da Sprint 9](10_Releases/SPRINT-009_Returns_Cancellations_Refunds_Final_Report.md).
+O `migrate --check` foi comprovado em `config.settings.test` contra
+`test_tjsys`, com os nomes de banco alinhados e `EXIT=0`; ressalvas ambientais
+permanecem explícitas e não são convertidas em sucesso implícito.
+O fechamento final também validou o banco E2E dedicado `zyrp`: seed,
+`makemigrations --check` e `migrate --check` verdes.
+
+**Objetivo:** completar o ciclo pós-venda com fatos compensatórios auditáveis,
+idempotentes, atômicos e isolados por tenant.
+**Entregável:** devolução parcial/total, cancelamento comercial, reentrada de
+estoque, reembolso/estorno, contratos REST e jornada administrativa real.
+
+**Especificação aprovada:** [R9 — Auditoria e Fechamento do Pós-venda](superpowers/specs/2026-08-12-r9-finalization-audit-design.md)
+
+**Plano de auditoria:** [R9 Finalization Audit Implementation Plan](superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md), Task 9.
 
 #### 9.1 Domínio pós-venda
 
-- [x] Criar modelos de devolução, item devolvido, reembolso e cancelamento.
-- [x] Garantir venda confirmada imutável.
+- [x] Criar modelos de devolução, item devolvido, reembolso e cancelamento como
+      fatos compensatórios próprios.
+- [x] Garantir imutabilidade dos valores e itens originais da venda; o status
+      pode transicionar para `cancelled` pelo cancelamento comercial.
 - [x] Bloquear devolução acima da quantidade vendida líquida.
+- [x] Exigir `reason` obrigatório e chave de idempotência nos comandos.
 
 #### 9.2 Serviços transacionais
 
@@ -793,20 +843,67 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 - [x] Reentrar estoque por movimento auditável.
 - [x] Registrar reembolso em dinheiro, Pix ou cartão externo.
 - [x] Implementar cancelamento total com compensações necessárias.
+- [x] Provar concorrência, replay semântico e rollback de estoque, caixa,
+      auditoria e Outbox.
 
-#### 9.3 Fiscal e API
+#### 9.3 Fiscal, API e tenancy
 
-- [~] Solicitar cancelamento fiscal quando documento autorizado permitir — *decidido: on-demand, nunca automático; operador solicita manualmente via interface futura.*
+- [x] Manter cancelamento fiscal manual/on-demand; cancelamento comercial não
+      cancela NFC-e automaticamente.
 - [x] Expor endpoints de devolução, cancelamento e consulta.
+- [x] Expor o endpoint real de reembolso em `/api/v1/sales/{id}/refund/` e
+      preservar `/api/v1/sales/{id}/returns/`.
 - [x] Retornar Problem Details para erros de regra.
+- [x] Retornar `insufficient_returnable`/409 para saldo devolvível excedido,
+      retornando `invalid_quantity`/422 para quantidade não positiva.
 - [x] Testar isolamento cross-tenant.
+- [x] Aplicar RLS aos fatos compensatórios de `sales`.
+- [x] Validar contrato frontend com `sale_item_id`, persistência real e estado
+      404.
 
 #### 9.4 Qualidade e aceite
 
 - [x] Criar testes de models, services e API.
-- [x] Executar suíte focada e suíte completa.
+- [x] Executar suíte focada schema-new, fault injection, suíte backend global,
+      frontend e E2E Chromium.
+- [x] Executar Ruff, mypy, `makemigrations --check --dry-run`, migration
+      isolada `test_tjsys`, `migrate --check` em `config.settings.test`, Django
+      check, typecheck e build.
+- [x] Confirmar seed/CI, instalação coerente dos três browsers configurados,
+      atomicidade e que Firefox/WebKit são skipped sem consumir recovery codes.
+- [x] Confirmar dialogs com defaults derivados de `payments.method`, aviso
+      ajustável para múltiplos pagamentos, rateio monetário proporcional de
+      `line_total` com desconto e estados empty acessíveis.
 - [x] Registrar evidências no relatório final da Sprint 9.
-- [x] Criar commit final `feat: sprint 9 - devolucoes cancelamentos estornos`.
+- [x] Criar commits de implementação `a43701a`/`0ac90a7b` e manter commits documentais
+      isolados em `codex/r9-finalization`, sem push.
+
+#### 9.5 Snapshot histórico superseded do follow-up da quality review - 2026-08-13
+
+- [x] Expor `refundable_balance` tenant-safe, descontando refunds concluídos,
+      com prefetch explícito dos itens/refunds e teste de refund parcial.
+- [x] Normalizar `reason` com `strip` no serializer/serviço e rejeitar
+      whitespace vazio sem efeitos em return/refund/cancel.
+- [x] Usar Modal compartilhado acessível nos três dialogs: foco inicial,
+      trap, Escape, restauração de foco e close/cancel durante loading.
+- [x] Usar Decimal para dinheiro/crédito e `unit_precision` até seis casas;
+      cobrir desconto proporcional e `step=0.000001`.
+- [x] Remover start manual/sleep do Vite no `e2e.yml`; `webServer` controla
+      readiness e o teste estático cobre host/configuração.
+- [x] Cobrir 404 de cancelamento na UI, documentando o mock como edge de rede;
+      manter testes API cross-tenant reais para os três comandos.
+- [x] Confirmar RED/GREEN e contagens do snapshot pre-f399: backend `111`,
+      frontend focado `44`, Vitest `356`, E2E R9 `6`, spec Chromium `14`,
+      Firefox/WebKit `28 skipped`.
+- [x] Commit de código/testes/CI:
+      `31d8bfc114735b3e15fc6486d1c948ca5f576365`; documentação em commit
+      separado, sem push.
+
+Evidência pre-f399: workflow contract `10 passed`; Ruff e mypy focados sem
+issues; typecheck/build/diff check verdes. O RED frontend original
+`18 failed | 11 passed (29)`, `Duration 23.80s`, sem exit registrado, é
+preservado honestamente no relatório; o RED reproduzível desta continuação foi
+`34 passed | 9 failed`, `Duration 7.75s`, `EXIT=1`, seguido de GREEN `44 passed`.
 
 ### Sprint 10 — Compras, Recebimento e Contas a Pagar
 
@@ -1197,6 +1294,7 @@ Adicionar uma entrada somente ao encerrar cada sprint:
 | 4 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | 200+ testes backend; 29 Vitest frontend | Incluída no merge consolidado Sprints 3+4+5 | Aprovado localmente |
 | 5 | 2026-07-17 | Merge em `master` via `feat/sprint-3-inventory` | `electron-vite build` OK; 29 Vitest pass; Playwright spec criada | PDV Electron online incluso no merge consolidado | Aprovado localmente |
 | 6 | 2026-07-17 | Branch `feat/sprint-6-pdv-offline` | Frontend: 76 Vitest (47 main + 29 renderer) + 6 E2E Playwright. Backend: 200 pytest, Ruff 0, mypy 0, coverage 79.13% | Cobertura 79.13% (novo sales/ sem testes dedicados); testes de integração operationJournal/connectivityMonitor/syncEngine usam Electron mockado em vez de Electron runtime real | Aprovado localmente |
+| 9 | 2026-08-13 | Snapshot histórico: `codex/r9-finalization`, base `77b36ef`, implementation `0ac90a7b` | Snapshot histórico: Fault injection GREEN `3 passed`; R9/API final `110 passed`; backend `825 passed`, cobertura 80.99%; frontend `347 passed`; E2E R9 `5 passed (29.0s)`, Chromium `13 passed (1.2m)`, Firefox/WebKit `26 skipped`; CI browser contract/seed `7 passed`; Ruff, mypy, migrations E2E, Django check, typecheck, build e `git diff --check` verdes | Deploy check sem `MFA_ENCRYPTION_KEY` continua bloqueado sem secret real; `frontend/playwright-report/index.html`, `frontend/test-results/.last-run.json` e `graphify-out/` preservados fora dos commits | Snapshot histórico; aceite corrente em 9.0 |
 | 16 | 2026-07-21 | `feat/sprint-16-frontend-foundation` | Frontend: 48 Vitest (6 files), 3 E2E Playwright; Backend: 422 pytest | TypeScript 0 errors; MSW mock server configurado | Aprovado localmente |
 | 17 | 2026-07-22 | `feat/sprint-17-admin-tenancy` | Frontend: 103 Vitest (11 files), 8 E2E Playwright; Backend: 9 BDD tests | 10 falhas pré-existentes (paginação payments/people/purchasing) | Aprovado localmente |
 | 18 | 2026-07-22 | `feat/sprint-18-operations-web` | Frontend: 171 Vitest (15 files), 8 E2E Playwright; TypeScript 0 errors | E2E Playwright requer stack completa (backend+frente) | Aprovado localmente |

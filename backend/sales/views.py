@@ -1,9 +1,11 @@
 import csv
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.db.models import Prefetch
+from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,16 +14,18 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleReturn
+from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
     CloseCashSessionSerializer,
     CounterSaleSerializer,
     CreateSaleCancellationSerializer,
+    CreateSaleRefundSerializer,
     CreateSaleReturnSerializer,
     OpenCashSessionSerializer,
     SaleCancellationSerializer,
+    SaleRefundSerializer,
     SaleReturnSerializer,
     SaleSerializer,
     SyncBatchSerializer,
@@ -31,17 +35,45 @@ from sales.services import (
     DuplicateIdempotencyKey,
     EmptySale,
     InsufficientReturnableQuantity,
+    InvalidReturnQuantity,
     OpenCashSessionExists,
     PaymentMismatch,
+    RefundAmountExceeded,
     SaleAlreadyCancelled,
+    SaleHasReturns,
+    SaleNotCompensable,
     cancel_sale,
     close_cash_session,
     create_counter_sale,
+    create_sale_refund,
     create_sale_return,
     open_cash_session,
 )
 from tenancy.models import Branch
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
+
+
+class MissingIdempotencyKey(ValueError):
+    pass
+
+
+_SALES_COMMAND_ERRORS = (
+    Http404,
+    ObjectDoesNotExist,
+    DuplicateIdempotencyKey,
+    InsufficientStock,
+    CashSessionRequired,
+    OpenCashSessionExists,
+    RefundAmountExceeded,
+    SaleHasReturns,
+    SaleNotCompensable,
+    PaymentMismatch,
+    SaleAlreadyCancelled,
+    InvalidReturnQuantity,
+    InsufficientReturnableQuantity,
+    EmptySale,
+    ValueError,
+)
 
 
 def _problem(detail, code='invalid_sales_operation', status_code=400):
@@ -51,6 +83,7 @@ def _problem(detail, code='invalid_sales_operation', status_code=400):
             'title': 'Sales operation rejected',
             'status': status_code,
             'detail': str(detail),
+            'code': code,
         },
         status=status_code,
         content_type='application/problem+json',
@@ -60,7 +93,7 @@ def _problem(detail, code='invalid_sales_operation', status_code=400):
 def _idempotency_key(request):
     value = request.headers.get('Idempotency-Key', '').strip()
     if not value:
-        raise ValueError('Idempotency-Key header is required.')
+        raise MissingIdempotencyKey('Idempotency-Key header is required.')
     return value
 
 
@@ -106,7 +139,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
         return permissions
 
     def _handle_sales_error(self, exc):
-        if isinstance(exc, ObjectDoesNotExist):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
             return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
         if isinstance(exc, DuplicateIdempotencyKey):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
@@ -129,7 +162,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
                 opening_amount=data['opening_amount'],
                 idempotency_key=_idempotency_key(request),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             CashSessionSerializer(session, context=self.get_serializer_context()).data,
@@ -164,7 +197,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
                 closing_amount=serializer.validated_data['closing_amount'],
                 idempotency_key=_idempotency_key(request),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(CashSessionSerializer(session, context=self.get_serializer_context()).data)
 
@@ -178,6 +211,13 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     ]
     MAX_EXPORT_ROWS = 1000
 
+    def handle_exception(self, exc):
+        if isinstance(exc, NotAuthenticated):
+            return _problem(exc.detail, 'authentication_required', status.HTTP_401_UNAUTHORIZED)
+        if isinstance(exc, PermissionDenied):
+            return _problem(exc.detail, 'permission_denied', status.HTTP_403_FORBIDDEN)
+        return super().handle_exception(exc)
+
     def get_queryset(self):
         queryset = (
             Sale.objects.select_related(
@@ -186,7 +226,23 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 'operator',
             )
             .filter(tenant=self.request.tenant)
-            .prefetch_related('items', 'payments')
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=SaleItem.all_objects.filter(
+                        tenant=self.request.tenant,
+                    ).select_related('unit'),
+                ),
+                'payments',
+                Prefetch(
+                    'refunds',
+                    queryset=SaleRefund.all_objects.filter(
+                        tenant=self.request.tenant,
+                        status='completed',
+                    ),
+                    to_attr='_completed_refunds_for_serializer',
+                ),
+            )
         )
         branch_id = self.request.query_params.get('branch')
         cash_session_id = self.request.query_params.get('cash_session')
@@ -219,7 +275,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         return permissions
 
     def _handle_sales_error(self, exc):
-        if isinstance(exc, ObjectDoesNotExist):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
             return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
         if isinstance(exc, DuplicateIdempotencyKey):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
@@ -227,14 +283,31 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
             return _problem(exc, 'insufficient_stock', status.HTTP_409_CONFLICT)
         if isinstance(exc, CashSessionRequired):
             return _problem(exc, 'cash_session_required', status.HTTP_409_CONFLICT)
+        if isinstance(exc, RefundAmountExceeded):
+            return _problem(exc, 'refund_amount_exceeded', status.HTTP_409_CONFLICT)
+        if isinstance(exc, SaleHasReturns):
+            return _problem(exc, 'sale_has_returns', status.HTTP_409_CONFLICT)
+        if isinstance(exc, SaleNotCompensable):
+            return _problem(exc, 'sale_not_compensable', status.HTTP_409_CONFLICT)
         if isinstance(exc, PaymentMismatch):
             return _problem(exc, 'payment_mismatch')
-        if isinstance(exc, InsufficientReturnableQuantity):
-            return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
         if isinstance(exc, SaleAlreadyCancelled):
             return _problem(exc, 'sale_already_cancelled', status.HTTP_409_CONFLICT)
-        if isinstance(exc, (EmptySale, ValueError)):
+        if isinstance(exc, InvalidReturnQuantity):
+            return _problem(exc, 'invalid_quantity', status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if isinstance(exc, InsufficientReturnableQuantity):
+            return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
+        if isinstance(exc, MissingIdempotencyKey):
+            return _problem(exc, 'validation_error', status.HTTP_400_BAD_REQUEST)
+        if isinstance(exc, EmptySale):
             return _problem(exc)
+        if isinstance(exc, ValueError):
+            status_code = (
+                status.HTTP_422_UNPROCESSABLE_ENTITY
+                if self.action in {'returns', 'refund', 'cancel'}
+                else status.HTTP_400_BAD_REQUEST
+            )
+            return _problem(exc, 'validation_error', status_code)
         raise exc
 
     @action(detail=False, methods=['post'])
@@ -271,7 +344,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                     else None
                 ),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleSerializer(sale, context=self.get_serializer_context()).data,
@@ -281,7 +354,12 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def returns(self, request, pk=None):
         serializer = CreateSaleReturnSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         data = serializer.validated_data
         try:
             sale = self.get_object()
@@ -299,10 +377,38 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 idempotency_key=_idempotency_key(request),
                 actor=request.user,
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleReturnSerializer(sale_return, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'])
+    def refund(self, request, pk=None):
+        serializer = CreateSaleRefundSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            sale = self.get_object()
+            refund = create_sale_refund(
+                tenant=request.tenant,
+                sale=sale,
+                method=data['method'],
+                amount=data.get('amount'),
+                reason=data['reason'],
+                idempotency_key=_idempotency_key(request),
+                actor=request.user,
+            )
+        except _SALES_COMMAND_ERRORS as exc:
+            return self._handle_sales_error(exc)
+        return Response(
+            SaleRefundSerializer(refund, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -310,7 +416,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     def list_returns(self, request, pk=None):
         try:
             sale = self.get_object()
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         returns_queryset = SaleReturn.all_objects.filter(
             tenant=request.tenant,
@@ -323,7 +429,12 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         serializer = CreateSaleCancellationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         data = serializer.validated_data
         try:
             sale = self.get_object()
@@ -334,10 +445,11 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 idempotency_key=_idempotency_key(request),
                 actor=request.user,
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleCancellationSerializer(cancellation, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
         )
 
     @action(detail=False, methods=['get'])

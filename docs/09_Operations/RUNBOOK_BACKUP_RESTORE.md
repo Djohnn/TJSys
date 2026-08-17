@@ -2,7 +2,7 @@
 
 ## Overview
 
-PostgreSQL backup/restore for the Zyrp pilot. All scripts read credentials
+PostgreSQL backup/restore for the TJSys pilot. All scripts read credentials
 from environment variables — **never** embed secrets in scripts.
 
 ## Prerequisites
@@ -10,11 +10,11 @@ from environment variables — **never** embed secrets in scripts.
 - PostgreSQL client tools: `pg_dump`, `pg_restore`, `psql`
 - Environment variables:
   ```powershell
-  $env:DB_NAME = "zyrp"
-  $env:DB_USER = "postgres"
-  $env:DB_PASSWORD = "<your-password>"
-  $env:DB_HOST = "localhost"     # optional, default localhost
-  $env:DB_PORT = "5432"          # optional, default 5432
+  $env:PGDATABASE = "tjsys"
+  $env:PGUSER = "tjsys_app"
+  $env:PGPASSWORD = "<your-password>"
+  $env:PGHOST = "localhost"
+  $env:PGPORT = "5432"
   ```
 - Write permission to the backup directory
 
@@ -30,13 +30,14 @@ cd infra/scripts
 ```
 
 By default, backups are stored in `./backups/` with filename
-`zyrp_YYYYMMDD_HHmmss.dump`. Retention: 30 days (auto-cleanup).
+`tjsys_YYYYMMDD_HHmmss.dump`. Retention: 7 days (auto-cleanup). O formato
+custom já usa compressão nativa do PostgreSQL e não depende de `gzip`.
 
 ### Manual
 
 ```powershell
 $env:PGPASSWORD = "<password>"
-pg_dump -h localhost -p 5432 -U postgres -F c -Z 9 -f backup.dump zyrp
+pg_dump -h localhost -p 5432 -U tjsys_app -F c -Z 9 -f backup.dump tjsys
 ```
 
 ### Expected output
@@ -57,14 +58,15 @@ Run from the repository root:
 
 ```powershell
 cd infra/scripts
-./restore_postgres_verify.ps1 .\backups\zyrp_20260719_120000.dump
+./restore_postgres_verify.ps1 -BackupFile .\backups\tjsys_20260812_174300.dump
 ```
 
 This script:
-1. Creates a disposable database `verify_restore_<timestamp>`
-2. Restores the dump into it
-3. Verifies key tables exist and have rows
-4. Drops the disposable database
+1. Verifica o checksum SHA-256, quando presente
+2. Cria o banco descartável `tjsys_restore_<timestamp>`
+3. Restaura o dump e falha para erros fora da allowlist de compatibilidade
+4. Verifica tabelas críticas, consultas e índices
+5. Remove o banco descartável
 
 ### Expected output
 

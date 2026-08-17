@@ -3,6 +3,8 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8000'
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -25,7 +27,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
     },

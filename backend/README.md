@@ -23,7 +23,7 @@ python manage.py migrate --settings=config.settings.migration
 python manage.py migrate --check --settings=config.settings.migration
 ```
 
-Os testes usam `POSTGRES_TEST_USER`, que pode criar banco efêmero, mas não é superuser e não possui `BYPASSRLS`. A suíte falha se esse contrato for violado.
+Os testes usam `POSTGRES_TEST_USER` no banco de teste pré-provisionado; ele não é superuser, não possui `BYPASSRLS` nem `CREATEDB`. A suíte falha se esse contrato for violado.
 
 ## Identity e acesso
 

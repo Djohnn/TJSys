@@ -2,8 +2,13 @@ import logging
 import uuid
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.test import override_settings
 
 from config.log_context import get_request_context
+from monitoring.views import ReadinessView
+
+User = get_user_model()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -49,3 +54,57 @@ class TestRequestObservability:
     def test_request_context_is_cleared_after_response(self, client):
         client.get('/health/')
         assert get_request_context() == {}
+
+    def test_monitoring_readiness_returns_503_when_database_is_down(self, client, monkeypatch):
+        """Given DB failure, readiness shall fail closed with a useful reason."""
+        monkeypatch.setattr(ReadinessView, '_check_db', lambda self: False)
+        monkeypatch.setattr(ReadinessView, '_check_redis', lambda self: True)
+
+        response = client.get('/api/v1/monitoring/ready/')
+
+        assert response.status_code == 503
+        assert response.json() == {'status': 'not_ready', 'reason': 'database unavailable'}
+        assert response.headers['X-Correlation-ID']
+
+    def test_monitoring_readiness_returns_503_when_cache_is_down(self, client, monkeypatch):
+        """Given cache failure, readiness shall fail closed with a useful reason."""
+        monkeypatch.setattr(ReadinessView, '_check_db', lambda self: True)
+        monkeypatch.setattr(ReadinessView, '_check_redis', lambda self: False)
+
+        response = client.get('/api/v1/monitoring/ready/')
+
+        assert response.status_code == 503
+        assert response.json() == {'status': 'not_ready', 'reason': 'cache unavailable'}
+        assert response.headers['X-Correlation-ID']
+
+
+@pytest.mark.django_db
+class TestMetricsResetAuthorization:
+    @override_settings(DEBUG=True)
+    def test_anonymous_metrics_reset_is_forbidden(self, client):
+        response = client.post('/api/v1/monitoring/metrics/reset/')
+
+        assert response.status_code == 403
+
+    @override_settings(DEBUG=True)
+    def test_staff_can_reset_metrics_in_debug_environment(self, client):
+        staff = User.objects.create_user(email='metrics-admin@example.com', password='pass')
+        staff.is_staff = True
+        staff.save(update_fields=['is_staff'])
+        client.force_login(staff)
+
+        response = client.post('/api/v1/monitoring/metrics/reset/')
+
+        assert response.status_code == 200
+        assert response.json() == {'status': 'reset'}
+
+    @override_settings(DEBUG=False)
+    def test_metrics_reset_is_disabled_outside_debug(self, client):
+        staff = User.objects.create_user(email='metrics-prod@example.com', password='pass')
+        staff.is_staff = True
+        staff.save(update_fields=['is_staff'])
+        client.force_login(staff)
+
+        response = client.post('/api/v1/monitoring/metrics/reset/')
+
+        assert response.status_code == 403
