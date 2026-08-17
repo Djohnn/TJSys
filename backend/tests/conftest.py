@@ -52,6 +52,11 @@ def django_db_setup(django_db_blocker):
         raise RuntimeError(f'Refusing to reset non-test database schema: {database["NAME"]}')
 
     with conn.cursor() as cursor:
+        cursor.execute(
+            sql.SQL(
+                'ALTER ROLE {} NOSUPERUSER NOBYPASSRLS NOCREATEDB'
+            ).format(sql.Identifier(runtime_user))
+        )
         cursor.execute('DROP SCHEMA IF EXISTS public CASCADE')
         cursor.execute('CREATE SCHEMA public')
         cursor.execute(
@@ -311,7 +316,7 @@ def sale_context(django_user_model):
             company=company,
             name='Filial Venda',
         )
-        device = Device.all_objects.create(
+        Device.all_objects.create(
             tenant=tenant,
             branch=branch,
             name='PDV Venda',
