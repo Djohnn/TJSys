@@ -1,12 +1,44 @@
 # Sprint 9 — Devoluções, Cancelamentos e Estornos — Relatório Final
 
 **Data do fechamento:** 2026-08-13
+
+**Reconciliação com a master:** 2026-08-17, commit `a662b2a86be93348980f7b5a042f273114dc5541`
 **Base:** `77b36ef` (`codex/r9-finalization`)
 **Branch de auditoria:** `codex/r9-finalization`
 **Design aprovado:** [R9 — Auditoria e Fechamento do Pós-venda](../superpowers/specs/2026-08-12-r9-finalization-audit-design.md)
 **Plano de auditoria:** [R9 Finalization Audit Implementation Plan](../superpowers/plans/2026-08-12-r9-finalization-audit-implementation-plan.md), Task 9, linhas 370–408
 
 ## Resultado executivo
+
+### Revalidação da consolidação — 2026-08-17
+
+A implementação R9 foi reconciliada sobre a linha da `master`, preservando as
+versões atuais de catálogo, inventário e PDV e trazendo somente o hardening R8
+necessário à execução e evidência da R9. A primeira execução Docker/Playwright
+expôs dois defeitos reais do ambiente E2E: o proxy Vite apontava para o próprio
+contêiner e o host interno `backend` não era aceito pelo Django. Os contratos
+foram protegidos por teste, corrigidos e reexecutados. O axe ainda encontrou
+contraste `2.53:1` no texto auxiliar do reembolso; após o ajuste, a matriz
+Chromium completa terminou sem retries.
+
+Evidência fresca dessa reconciliação:
+
+- contratos E2E e seed: `23 passed in 31.25s`;
+- serviços e API R9: `117 passed in 67.09s`;
+- concorrência e atomicidade: `4 passed in 45.68s`;
+- migrations isoladas de refund e RLS: `1 passed in 26.22s` e `1 passed in 26.82s`;
+- Vitest focal: `1 file passed`, `44 passed (44)`, `15.58s`;
+- Vitest completo: `25 files passed`, `408 passed`, `29.94s`;
+- Playwright Chromium, sem retries: `14 passed (1.3m)`;
+- PDV: `28 files passed`, `210 passed`, `20.90s`;
+- Ruff focal: `All checks passed!`; mypy focal: `Success: no issues found in 8 source files`;
+- typecheck, ESLint focal, build, Django check e `makemigrations --check`: `EXIT=0`.
+
+Os gates globais continuam registrando dívida anterior e fora deste recorte:
+Ruff encontra `483 errors` e mypy encontra `29 errors in 2 files`, concentrados
+em inventário, catálogo, PDV e testes legados preservados da `master`. Esses
+resultados não foram ocultados nem convertidos em sucesso da R9; sua correção
+permanece separada para a etapa de refatoração já prevista.
 
 ### Proveniência canônica pós-b7be70d e snapshots históricos
 

@@ -5,7 +5,7 @@
 | Código | PRD-OPS-001 |
 | Versão | 0.1.0 |
 | Status | Review |
-| Última atualização | 2026-08-16 |
+| Última atualização | 2026-08-17 |
 | Produto | TJSys |
 
 ## Finalidade
@@ -48,7 +48,7 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 | 6 | Concluída | Contingência offline e sincronização |
 | 7 | A detalhar | Integração fiscal por provider |
 | 8 | A detalhar | Piloto, observabilidade e hardening |
-| 9 | Concluída em 2026-08-13 | Devoluções, cancelamentos e estornos; gates finais comprovados no alvo TEST |
+| 9 | Concluída e reconciliada em 2026-08-17 | Devoluções, cancelamentos e estornos; gates atuais comprovados sobre a linha da master |
 | 10 | A detalhar | Compras, recebimento e contas a pagar |
 | 11 | A detalhar | Financeiro, fluxo de caixa e relatórios |
 | 12 | A detalhar | Pessoas, clientes e parceiros |
