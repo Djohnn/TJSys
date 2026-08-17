@@ -2333,7 +2333,7 @@ describe('ProductPricesStep base price contract', () => {
     expect((patchHeaders as Headers | null)?.get('If-Match')).toBe('3')
   })
 
-  it('creates a ProductPrice when the base price is absent', async () => {
+  it('creates the R4 ProductPrice command when the base price is absent', async () => {
     let payload: Record<string, unknown> | null = null
     server.use(
       http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
@@ -2352,7 +2352,9 @@ describe('ProductPricesStep base price contract', () => {
     await user.click(screen.getByTestId('save-base-price'))
     await waitFor(() => expect(payload).not.toBeNull())
     expect((payload as unknown as Record<string, unknown>).amount).toBe('11.00')
-    expect((payload as unknown as Record<string, unknown>).valid_from).toEqual(expect.any(String))
+    expect((payload as unknown as Record<string, unknown>).product_id).toBe('p1')
+    expect((payload as unknown as Record<string, unknown>).tiers).toEqual([])
+    expect((payload as unknown as Record<string, unknown>).command_id).toEqual(expect.any(String))
   })
 
   it('uses only the effective ProductPrice when history is also returned', async () => {
@@ -2384,5 +2386,98 @@ describe('ProductPricesStep base price contract', () => {
     expect(screen.queryByTestId('base-price-empty')).not.toBeInTheDocument()
     expect(screen.queryByTestId('save-base-price')).not.toBeInTheDocument()
     expect(screen.getByTestId('add-tier-button')).toBeDisabled()
+  })
+
+  it('saves the initial retail price through the explicit R4 POST contract', async () => {
+    let payload: Record<string, unknown> | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ results: [] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ results: [] })),
+      http.post(`${BASE}/catalog/products/p1/prices/`, async ({ request }) => {
+        payload = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ command_id: payload.command_id, status: 'applied' }, { status: 201 })
+      }),
+    )
+
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    await user.type(await screen.findByTestId('base-price-amount'), '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+
+    await waitFor(() => expect(payload).not.toBeNull())
+    expect(payload).toMatchObject({ product_id: 'p1', amount: '11.00', tiers: [] })
+    expect((payload as unknown as Record<string, unknown>).command_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[4-9][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+  })
+
+  it('reports an R4 409 conflict while preserving the entered retail price', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ results: [] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ results: [] })),
+      http.post(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json(
+        { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Comando já aplicado com outro conteúdo.' },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )),
+    )
+
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    const amount = await screen.findByTestId('base-price-amount')
+    await user.type(amount, '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+
+    expect(await screen.findByTestId('price-feedback')).toHaveTextContent('Conflito')
+    expect(amount).toHaveValue('11.00')
+  })
+
+  it('shows explicit empty and tier loading error states without an R4 snapshot', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ results: [] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json(
+        { type: 'about:blank', title: 'Tiers unavailable', status: 503, detail: 'Faixas indisponíveis.' },
+        { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
+      )),
+    )
+
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+
+    expect(await screen.findByTestId('base-price-empty')).toHaveTextContent('Nenhum preço base cadastrado')
+    expect(await screen.findByTestId('price-tiers-load-error')).toHaveTextContent('Faixas indisponíveis.')
+  })
+
+  it('associates tier validation errors and gives each remove action a contextual name', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ results: [{ id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1 }] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ results: [{ id: 'tier-1', product: 'p1', price: 'price-1', min_quantity: '5', amount: '9.00' }] })),
+    )
+
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    await screen.findByTestId('price-tier-row')
+    expect(screen.getByRole('button', { name: /Remover faixa de atacado.*5/i })).toBeInTheDocument()
+    await user.click(screen.getByTestId('add-tier-button'))
+    expect(screen.getByTestId('tier-min-quantity-input')).toHaveAttribute('aria-describedby', 'tier-min-quantity-error')
+    expect(screen.getByTestId('tier-amount-input')).toHaveAttribute('aria-describedby', 'tier-amount-error')
+  })
+
+  it('calculates a missing retail margin with Decimal.js values from the R4 snapshot', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ id: 'price-1', product: 'p1', amount: '100.00', cost: '75.00', currency: 'BRL', retail_margin: null, tiers: [], version: 1 })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ results: [] })),
+    )
+
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('r4-pricing-summary')).toHaveTextContent('25.00%')
   })
 })

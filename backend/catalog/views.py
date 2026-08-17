@@ -2,6 +2,7 @@ import hashlib
 import json
 import uuid
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.http import HttpResponse
@@ -55,7 +56,14 @@ from catalog.serializers import (
 )
 from catalog.services.events import emit_catalog_event
 from catalog.services.label_pdf import generate_label_pdf
-from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
+from catalog.services.pricing import (
+    PriceNotAvailable,
+    R4CommandConflict,
+    SprintR4Command,
+    execute_r4_command,
+    pricing_snapshot,
+    resolve_effective_price,
+)
 from catalog.services.product_identity import create_product_ean
 from inventory.services.product_stock import apply_initial_product_stock
 from outbox.models import OutboxMessage
@@ -330,6 +338,46 @@ class ProductPriceViewSet(CatalogViewSetBase):
             request=self.request,
         )
         return instance
+
+
+class R4ProductPriceViewSet(ProductPriceViewSet):
+    """Explicit R4 price contract; legacy ProductPriceViewSet stays unchanged."""
+
+    def list(self, request, *args, **kwargs):
+        product = Product.objects.filter(
+            id=self.kwargs.get('product_pk'), tenant=request.tenant,
+        ).first()
+        if product is None:
+            return Response({'results': []})
+        snapshot = pricing_snapshot(product=product)
+        if snapshot is None:
+            return Response({'results': []})
+        return Response(snapshot)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            product_pk = self.kwargs.get('product_pk')
+            if str(request.data.get('product_id')) != str(product_pk):
+                raise ValueError('product_id must match the product in the URL')
+            command = SprintR4Command(
+                tenant_id=request.tenant.id,
+                command_id=uuid.UUID(str(request.data['command_id'])),
+                payload=dict(request.data),
+            )
+            result = execute_r4_command(command)
+        except R4CommandConflict as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Conflict', 'status': 409, 'detail': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+                content_type='application/problem+json',
+            )
+        except (DjangoValidationError, KeyError, TypeError, ValueError) as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Bad Request', 'status': 400, 'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+                content_type='application/problem+json',
+            )
+        return Response(result, status=status.HTTP_201_CREATED)
 
 
 class BranchPriceViewSet(CatalogViewSetBase):

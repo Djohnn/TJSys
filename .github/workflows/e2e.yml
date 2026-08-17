@@ -45,6 +45,12 @@ jobs:
 
       - name: Install backend deps
         working-directory: ./backend
+        env:
+          DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+          REDIS_URL: redis://localhost:6379
+          SECRET_KEY: ci-secret-key
+          DEBUG: 'true'
+          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
         run: |
           pip install -e .
           python manage.py migrate --noinput
@@ -87,7 +93,45 @@ jobs:
 
       - name: Run Playwright E2E
         working-directory: ./frontend
-        run: npx playwright test --project=chromium --retries=0 --reporter=html,json
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+          FRONTEND_BASE_URL: http://localhost:5174
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
+          E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
+        run: |
+          npm run typecheck:e2e
+          npx playwright test e2e/product-pdv-stock-flow.spec.ts --project=chromium --reporter=html,json
+
+      - name: Install PDV deps and browsers
+        working-directory: ./pdv
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run PDV vertical acceptance
+        working-directory: ./pdv
+        env:
+          PLAYWRIGHT_RETRIES: '0'
+          E2E_PDV_API_KEY: ${{ secrets.E2E_PDV_API_KEY }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
+          E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
+        run: |
+          npm run typecheck:e2e
+          npx playwright test e2e/product-stock-sale.spec.ts --reporter=html,json
+
+      - name: Run R0-R2 visual regression
+        working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+        run: |
+          npx playwright test e2e/r0-baseline-e-governanca-do-design-system.spec.ts e2e/r1-tokens-e-componentes-fundamentais.spec.ts e2e/r2-shell-navegacao-e-responsividade.spec.ts --project=chromium --retries=0
 
       - name: Run R3 catalog acceptance and accessibility
         working-directory: ./frontend
@@ -95,19 +139,36 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:5174
           PLAYWRIGHT_RETRIES: '0'
           FRONTEND_BASE_URL: http://localhost:5174
-          E2E_USER_EMAIL: web-admin@tjsys.local
-          E2E_USER_PASSWORD: e2e-test-pwd-2026
-          E2E_RECOVERY_CODE: e2e0000001
-          E2E_ADMIN_RECOVERY_CODE: e2e0000002
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
         run: |
           npx playwright test e2e/catalog-sprints-23-30.spec.ts e2e/accessibility.spec.ts --project=chromium --retries=0
+
+      - name: Run R4 product pricing vertical acceptance
+        working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+          FRONTEND_BASE_URL: http://localhost:5174
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_RECOVERY_CODE: ${{ secrets.E2E_RECOVERY_CODE }}
+          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
+        run: |
+          npm run typecheck:e2e
+          npx playwright test e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts --project=chromium --retries=0 --reporter=html,json
 
       - name: Check Design Tokens
         working-directory: ./frontend
         run: node scripts/check-design-tokens.mjs
 
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report
-          path: frontend/playwright-report/
+          path: |
+            frontend/playwright-report/
+            pdv/playwright-report/
+            test-results/product-pdv-flow.json

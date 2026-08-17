@@ -14,7 +14,7 @@ raiz. As evidências de execução da Task 3 ficam registradas abaixo.
 | R2 — execução CI/browser | `.github/workflows/e2e.yml` | workflow integrado | incorporate | CI instala Chromium e agora executa somente `--project=chromium --retries=0`, eliminando a tentativa anterior de Firefox/WebKit não instalados. |
 | R2 — teclado/foco | `AppShell.test.tsx`; spec Playwright R2 | escopo R2 | incorporate | Unitário prova foco inicial no drawer, ciclo Tab/Shift+Tab, Escape e clique externo; Playwright prova drawer móvel, flyout e retorno de foco. |
 | R3 — identidade, mídia, EAN e estoque inicial | `backend/catalog/`; `backend/inventory/services/`; `frontend/src/catalog/`; `frontend/src/inventory/`; specs e testes R3 | `2c4c945` (`chore(r3): close sprint verification`) + remediação de integração | incorporate | Merge reconciliado sobre R0–R2. Migrações linearizadas em `0016`–`0019`, divergência arquivo/pacote de `inventory.services` resolvida preservando exports, criação atômica e fluxo persistido validados. Gates atuais registrados abaixo. |
-| R4 — produto/custo/margens e autenticação MFA | `frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts`; auth | `ee10b3a` (`fix(r4): stabilize MFA E2E authentication`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0/R1; alterações R4 foram explicitamente excluídas da árvore final. |
+| R4 — produto/custo/margens e autenticação MFA | `backend/catalog/services/pricing.py`; `backend/catalog/r4_urls.py`; `frontend/src/catalog/ProductPricesStep.tsx`; spec E2E R4; auth e CI | `2c4c945..ee10b3a` + remediação de integração | incorporate | O candidato passou isoladamente antes do merge. Na linha integrada, um RED revelou helper de preço efetivo ausente e o axe revelou contraste `2.42:1`; ambos foram corrigidos e a matriz R0–R4 terminou verde. |
 | Linha de integração | branch `codex/r0-r4-consolidation` na worktree dedicada | `master` em `8636cf18066a7586fe8f1d67e08186731621cbe2` | incorporate | Worktree criada em `8636cf1`; R0 foi consolidado anteriormente e R1 é integrado nesta task a partir de `a8d447d`. |
 | Estado publicado de referência | `origin/master` | `c3653ea876f200c68fc2892095503439fe8ce1d2` | already-represented | Ref existe, mas não é a base solicitada; a integração usa o `master` local exato `8636cf1`. |
 | Fixture canônica de regressão visual R0 | `frontend/e2e/r0-baseline-e-governanca-do-design-system.spec.ts-snapshots/r0-baseline-e-governanca-do-design-system-chromium-win32.png` | `2c4c945` (`chore(r3): close sprint verification`) | incorporate | O blob versionado foi restaurado path-scoped de `2c4c945` após o merge R0; o spec chama `expect(page).toHaveScreenshot('r0-baseline-e-governanca-do-design-system.png')`. O fixture é canônico e versionado; `playwright-report`, `test-results` e demais outputs continuam generated/runtime. |
@@ -55,6 +55,15 @@ raiz. As evidências de execução da Task 3 ficam registradas abaixo.
 * **Gates finais:** backend integrado `33 passed in 41.25s`; Vitest `25 files, 370 passed`; Playwright R3 + axe `15 passed (37.0s)`; regressão R0–R2 `5 passed (7.7s)`; build Vite `214 modules transformed` e concluído em `2.41s`; typecheck verde; ESLint `0 errors, 5 warnings`; checker de tokens verde; Ruff escopado `All checks passed!`; mypy escopado `Success: no issues found in 7 source files`; `manage.py check` sem problemas; `makemigrations --check --dry-run` retornou `No changes detected` apesar do aviso de conexão PostgreSQL indisponível.
 * **Dívida separada:** Ruff global reporta 503 erros históricos fora do slice. Não houve refatoração global durante a reconciliação.
 
+## Registro da consolidação R4
+
+* **Proveniência:** 13 commits próprios em `2c4c945..ee10b3a`, do contrato RED `acda1d6` ao endurecimento de autenticação MFA `ee10b3a`. Antes do merge, o candidato passou `15 passed in 21.32s` no backend e `102 passed` nos três arquivos Vitest impactados.
+* **Conflitos reconciliados:** `views.py` preserva `HttpResponse` da R3 e acrescenta imports R4; `ProductPricesStep` preserva o instante de referência estável e acrescenta o command ID; o `.gitignore` manteve a versão integrada porque o lado candidato continha regras de `.graphifyignore` (`*`, `!src/**`) que esconderiam quase todo o repositório; a CI usa o `DATABASE_URL` correspondente ao serviço PostgreSQL `zyrp` e executa regressão visual R0–R2, R3 e R4 separadamente.
+* **RED de integração backend:** a primeira suíte R3–R4 terminou `1 failed, 47 passed` com `NameError: _unique_effective_price is not defined`. O helper e a semântica de preço ativo/único do candidato foram incorporados sem alterar as rotas legadas. GREEN: `48 passed in 61.79s`; rerun final R4 `15 passed in 25.32s`.
+* **RED de acessibilidade:** o cenário local R4 inicialmente falhou com contraste `2.42:1` nos quatro rótulos do resumo e no estado vazio. Após trocar somente esses textos de `neutral-500` para `neutral-700`, o cenário passou `1 passed (3.5s)`. O teste mantém backend real quando há credenciais e usa snapshot determinístico apenas para a superfície local.
+* **Gates finais:** Playwright serial R0–R4 `21 passed (41.6s)`; Vitest `25 files, 377 passed`; build Vite `214 modules transformed`, `built in 2.66s`; typecheck verde; ESLint `0 errors, 5 warnings`; checker de tokens verde; Ruff R4 `All checks passed!`; mypy R4 `Success: no issues found in 3 source files`; `makemigrations --check --dry-run` retornou `No changes detected` com timeout de conexão do banco local; `manage.py check` sem problemas.
+* **Controle de flakiness:** a tentativa conjunta com seis workers saturou o Vite local e todos os 21 cenários expiraram em `page.goto`. O rerun determinístico com `--workers=1` passou integralmente; não foram adicionados retries nem waits fixos.
+
 ## Evidência read-only do checkout raiz
 
 Os comandos foram executados sem modificar `C:\ERP`. O bloco abaixo é um
@@ -73,7 +82,6 @@ captura e os números não devem ser tratados como estado permanente.
 
 ## Classificação
 
-R0, R1, R2 e R3 estão marcadas `incorporate` na linha isolada. R4 permanece
-`retain-for-later` até passar pela mesma reconciliação baseada em proveniência,
-conflitos e gates atuais. A dívida global não é tratada como passe nem é
-misturada com a implementação das sprints.
+R0, R1, R2, R3 e R4 estão marcadas `incorporate` na linha isolada, com
+proveniência, conflitos e gates atuais registrados. A dívida global não é
+tratada como passe nem é misturada com a implementação das sprints.
