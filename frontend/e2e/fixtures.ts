@@ -28,6 +28,30 @@ const EMPTY_PAGE = {
 }
 
 export async function openAuthenticatedShell(page: Page): Promise<void> {
+  await page.route('**/api/v1/catalog/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', json: EMPTY_PAGE }),
+  )
+  await page.route('**/api/v1/catalog/categories/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: { ...EMPTY_PAGE, count: 1, results: [{ id: 'cat-shell', name: 'Categoria Teste', is_active: true, parent: null, parent_name: '' }] },
+    }),
+  )
+  await page.route('**/api/v1/catalog/brands/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: { ...EMPTY_PAGE, count: 1, results: [{ id: 'brand-shell', name: 'Marca Teste', is_active: true }] },
+    }),
+  )
+  await page.route('**/api/v1/catalog/units/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: { ...EMPTY_PAGE, count: 1, results: [{ id: 'unit-shell', name: 'Unidade', abbreviation: 'UN', symbol: 'UN', precision: 0 }] },
+    }),
+  )
   await page.route('**/api/v1/auth/csrf/', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', json: {} }),
   )
@@ -75,7 +99,16 @@ export const test = base.extend<{
   authenticatedPage: Page
 }>({
   authenticatedPage: async ({ page }, use) => {
-    await authenticatePage(page)
+    const hasRealCredentials = Boolean(
+      process.env.E2E_USER_EMAIL
+      && process.env.E2E_USER_PASSWORD
+      && process.env.E2E_RECOVERY_CODE,
+    )
+    if (hasRealCredentials) {
+      await authenticatePage(page)
+    } else {
+      await openAuthenticatedShell(page)
+    }
     await use(page)
   },
 })

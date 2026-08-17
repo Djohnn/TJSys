@@ -14,6 +14,8 @@ import {
 } from './catalogApi'
 import { compositionSchema, type CompositionFormData } from './catalogSchemas'
 import Button from '@/components/ui/Button'
+import { formatQuantity } from '@/components/formatQuantity'
+import { isApiProblemError } from '@/api/problem'
 
 interface ProductCompositionStepProps {
   productId: string
@@ -84,6 +86,20 @@ export default function ProductCompositionStep({ productId }: ProductComposition
     <div data-testid="product-composition-step" className="space-y-4">
       <h2 className="text-xl font-bold text-neutral-900 mb-6">Composição</h2>
 
+      {product && !isKit && (
+        <div role="status" data-testid="composition-not-kit" className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+          A composição está disponível somente para produtos do tipo Kit.
+        </div>
+      )}
+
+      {compositionAddMutation.isError && (
+        <div role="alert" className="text-danger text-sm" data-testid="composition-feedback">
+          {isApiProblemError(compositionAddMutation.error)
+            ? compositionAddMutation.error.problem.detail
+            : 'Erro ao adicionar componente.'}
+        </div>
+      )}
+
       {isKit && hasNoActiveComposition && (
         <div
           role="alert"
@@ -111,7 +127,7 @@ export default function ProductCompositionStep({ productId }: ProductComposition
                 {compositionItems.map((item) => (
                   <tr key={item.id} data-testid="composition-row" className="border-b border-border last:border-0">
                     <td className="px-3 py-2">{item.component_sku}</td>
-                    <td className="px-3 py-2">{item.quantity}</td>
+                    <td className="px-3 py-2">{item.unit_precision == null ? item.quantity : formatQuantity(item.quantity, { precision: item.unit_precision, symbol: item.unit_symbol })}</td>
                     <td className="px-3 py-2">
                       <Button
                         type="button"
@@ -130,7 +146,7 @@ export default function ProductCompositionStep({ productId }: ProductComposition
             </table>
           )}
 
-          <div className="flex items-end gap-3 p-3 bg-neutral-50 rounded-lg border border-border mt-4">
+          {isKit && <div className="flex items-end gap-3 p-3 bg-neutral-50 rounded-lg border border-border mt-4">
             <div>
               <label htmlFor="composition-component" className="block text-sm font-medium text-neutral-700 mb-1">Componente</label>
               <select
@@ -170,7 +186,7 @@ export default function ProductCompositionStep({ productId }: ProductComposition
             >
               Adicionar
             </Button>
-          </div>
+          </div>}
         </div>
       )}
     </div>

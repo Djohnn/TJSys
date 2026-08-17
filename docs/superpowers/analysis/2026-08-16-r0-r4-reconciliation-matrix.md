@@ -13,7 +13,7 @@ raiz. As evidências de execução da Task 3 ficam registradas abaixo.
 | R2 — retries visuais | `frontend/playwright.config.ts` | configuração integrada | incorporate | `retries: 0` é fixo; execução final Chromium usou `--retries=0` e terminou `5 passed`. |
 | R2 — execução CI/browser | `.github/workflows/e2e.yml` | workflow integrado | incorporate | CI instala Chromium e agora executa somente `--project=chromium --retries=0`, eliminando a tentativa anterior de Firefox/WebKit não instalados. |
 | R2 — teclado/foco | `AppShell.test.tsx`; spec Playwright R2 | escopo R2 | incorporate | Unitário prova foco inicial no drawer, ciclo Tab/Shift+Tab, Escape e clique externo; Playwright prova drawer móvel, flyout e retorno de foco. |
-| R3 — verificação de sprint e configuração Playwright | `CHECKPOINT-R3.md`; `frontend/playwright.config.ts`; specs R0–R2 | `2c4c945` (`chore(r3): close sprint verification`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0/R1; alterações R3 foram explicitamente excluídas da árvore final. |
+| R3 — identidade, mídia, EAN e estoque inicial | `backend/catalog/`; `backend/inventory/services/`; `frontend/src/catalog/`; `frontend/src/inventory/`; specs e testes R3 | `2c4c945` (`chore(r3): close sprint verification`) + remediação de integração | incorporate | Merge reconciliado sobre R0–R2. Migrações linearizadas em `0016`–`0019`, divergência arquivo/pacote de `inventory.services` resolvida preservando exports, criação atômica e fluxo persistido validados. Gates atuais registrados abaixo. |
 | R4 — produto/custo/margens e autenticação MFA | `frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts`; auth | `ee10b3a` (`fix(r4): stabilize MFA E2E authentication`) | retain-for-later | O merge candidato contém essa ancestralidade, mas a tarefa é limitada a R0/R1; alterações R4 foram explicitamente excluídas da árvore final. |
 | Linha de integração | branch `codex/r0-r4-consolidation` na worktree dedicada | `master` em `8636cf18066a7586fe8f1d67e08186731621cbe2` | incorporate | Worktree criada em `8636cf1`; R0 foi consolidado anteriormente e R1 é integrado nesta task a partir de `a8d447d`. |
 | Estado publicado de referência | `origin/master` | `c3653ea876f200c68fc2892095503439fe8ce1d2` | already-represented | Ref existe, mas não é a base solicitada; a integração usa o `master` local exato `8636cf1`. |
@@ -47,6 +47,14 @@ raiz. As evidências de execução da Task 3 ficam registradas abaixo.
 * **Acessibilidade:** axe reproduziu contraste `2.53:1` no botão `Sair`; após correção para o token `neutral-700`, a matriz R0/R1/R2 passou sem violações critical/serious.
 * **Gates finais:** Vitest `24 files, 340 passed`; Playwright/axe Chromium `5 passed (20.9s)` com retries zero; ESLint `0 errors, 4 warnings` preexistentes; checker de tokens verde; detector Impeccable `[]`; `diff --check` verde. Typecheck contém apenas os quatro erros `ProductStockFields`/`inventoryApi` explicitamente pertencentes à R3/Task5.
 
+## Registro da consolidação R3
+
+* **Proveniência:** merge `--no-ff --no-commit` de `2c4c945` sobre a linha integrada R0–R2; conflitos foram resolvidos por unidade funcional, sem escolha global `ours`/`theirs`.
+* **Decisões de integração:** o contrato `POST /api/v1/catalog/products/apply/` mantém criação atômica e replay idempotente; EAN manual aceita 13 dígitos sem endurecimento retroativo de checksum; a sequência automática é isolada por tenant. As migrations candidatas foram renumeradas para não duplicar `0016_product_subcategory`. O antigo módulo `inventory/services.py` virou pacote e preserva a API pública anterior.
+* **Frontend:** o editor usa o comando atômico no create e mantém os fluxos de edição, atualização/desativação de código, mídia e estoque. O fixture E2E usa autenticação real quando credenciais existem e fallback local determinístico quando não existem. Correções de contraste foram limitadas às violações reais encontradas pelo axe.
+* **Gates finais:** backend integrado `33 passed in 41.25s`; Vitest `25 files, 370 passed`; Playwright R3 + axe `15 passed (37.0s)`; regressão R0–R2 `5 passed (7.7s)`; build Vite `214 modules transformed` e concluído em `2.41s`; typecheck verde; ESLint `0 errors, 5 warnings`; checker de tokens verde; Ruff escopado `All checks passed!`; mypy escopado `Success: no issues found in 7 source files`; `manage.py check` sem problemas; `makemigrations --check --dry-run` retornou `No changes detected` apesar do aviso de conexão PostgreSQL indisponível.
+* **Dívida separada:** Ruff global reporta 503 erros históricos fora do slice. Não houve refatoração global durante a reconciliação.
+
 ## Evidência read-only do checkout raiz
 
 Os comandos foram executados sem modificar `C:\ERP`. O bloco abaixo é um
@@ -65,9 +73,7 @@ captura e os números não devem ser tratados como estado permanente.
 
 ## Classificação
 
-R0 e R1 são as unidades marcadas `incorporate`. R2–R4 e suas fixtures foram
-preservados como `retain-for-later`, apesar de aparecerem na ancestralidade do
-commit candidato, porque aceitar essa cadeia reclassificaria trabalho fora do
-boundary. A matriz documenta essa proveniência para a próxima consolidação.
-Os deferimentos para R2/Task4 e R3/Task5 são pendências explícitas, não passes
-finais; a Task9 exige zero falhas antes do aceite global.
+R0, R1, R2 e R3 estão marcadas `incorporate` na linha isolada. R4 permanece
+`retain-for-later` até passar pela mesma reconciliação baseada em proveniência,
+conflitos e gates atuais. A dívida global não é tratada como passe nem é
+misturada com a implementação das sprints.

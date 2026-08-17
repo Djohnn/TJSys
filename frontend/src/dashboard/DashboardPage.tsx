@@ -69,7 +69,7 @@ export default function DashboardPage() {
       <div data-testid="health-status" aria-live="polite" className="mb-6">
         {health
           ? <span className="text-green-700 text-sm">&#9679; Backend online</span>
-          : <span className="text-warning text-sm">&#9679; Verificando...</span>
+          : <span className="text-neutral-700 text-sm">&#9679; Verificando...</span>
         }
       </div>
 

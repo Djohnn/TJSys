@@ -89,6 +89,19 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test --project=chromium --retries=0 --reporter=html,json
 
+      - name: Run R3 catalog acceptance and accessibility
+        working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5174
+          PLAYWRIGHT_RETRIES: '0'
+          FRONTEND_BASE_URL: http://localhost:5174
+          E2E_USER_EMAIL: web-admin@tjsys.local
+          E2E_USER_PASSWORD: e2e-test-pwd-2026
+          E2E_RECOVERY_CODE: e2e0000001
+          E2E_ADMIN_RECOVERY_CODE: e2e0000002
+        run: |
+          npx playwright test e2e/catalog-sprints-23-30.spec.ts e2e/accessibility.spec.ts --project=chromium --retries=0
+
       - name: Check Design Tokens
         working-directory: ./frontend
         run: node scripts/check-design-tokens.mjs

@@ -126,10 +126,17 @@ class Product(TimeStampedModel, TenantScopedModel):
     tracks_inventory = models.BooleanField(default=True)
     # Sprint 22 — D5: campos descritivos simples.
     brand = models.CharField(max_length=120, blank=True, default='')
+    brand_ref = models.ForeignKey(
+        'Brand',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='products',
+    )
+    subcategory = models.CharField(max_length=120, blank=True, default='')
     model = models.CharField(max_length=120, blank=True, default='')
     tags = models.JSONField(default=list, blank=True)
     scale_code = models.CharField(max_length=20, blank=True, default='')
-    subcategory = models.CharField(max_length=120, blank=True, default='')
     # Sprint 26 — service metadata
     billing_unit = models.CharField(max_length=30, blank=True, default='')
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
@@ -161,6 +168,9 @@ class Product(TimeStampedModel, TenantScopedModel):
         if self.category_id and self.tenant_id:
             if self.category.tenant_id != self.tenant_id:
                 raise ValidationError({'category': 'Category must belong to the same tenant.'})
+        if self.brand_ref_id and self.tenant_id:
+            if self.brand_ref.tenant_id != self.tenant_id:
+                raise ValidationError({'brand_ref': 'Brand must belong to the same tenant.'})
         # Sprint 26: service invariants
         if self.product_kind == 'servico':
             self.tracks_inventory = False
@@ -558,6 +568,27 @@ class Brand(TimeStampedModel, TenantScopedModel):
     def save(self, *args, **kwargs):
         self.name = ' '.join(self.name.split())
         super().save(*args, **kwargs)
+
+
+class TenantProductCodeSequence(TimeStampedModel, TenantScopedModel):
+    """Tenant-local state used to allocate internal EAN-13 bodies."""
+
+    next_value = models.PositiveBigIntegerField(default=0)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant'],
+                name='uniq_tenant_product_code_sequence',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(next_value__gte=0, next_value__lt=10000000000),
+                name='product_code_sequence_range',
+            ),
+        ]
 
 
 class ProductImage(TimeStampedModel, TenantScopedModel):

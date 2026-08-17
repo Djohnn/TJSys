@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-surface rounded-xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-neutral-900">Zyrp</h1>
-          <p className="text-sm text-neutral-500 mt-1">Painel Administrativo</p>
+          <p className="text-sm text-neutral-700 mt-1">Painel Administrativo</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

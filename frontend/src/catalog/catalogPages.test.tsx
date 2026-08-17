@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
-import { toProductPayload } from './catalogSchemas'
+import { productToFormData, toProductPayload } from './catalogSchemas'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import { AuthContext } from '@/auth/AuthProvider'
@@ -26,10 +26,12 @@ import LabelsPage from './LabelsPage'
 import { persistServiceExtensions } from './catalogApi'
 
 const BASE = '/api/v1'
+let capturedProductCode: { method: string; productId: string; value?: string; is_active?: boolean; is_principal?: boolean } | null = null
+let capturedApplyProduct: Record<string, unknown> | null = null
 
 const authValue: AuthContextValue = {
   state: 'authenticated',
-  user: { id: 1, email: 'admin@zyrp.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
+  user: { id: 1, email: 'admin@tjsys.local', name: 'Admin', is_active: true, is_mfa_enabled: false },
   memberships: [{ id: 1, tenant_id: 'tenant-alpha', tenant_name: 'Alpha', role: 'admin' }],
   login: async () => ({ requiresMfa: false }),
   challengeMfa: async () => {},
@@ -212,6 +214,7 @@ function renderProductEditor(initialRoute = '/catalog/products/new') {
           <TenantContext.Provider value={tenantValue}>
             <Routes>
               <Route path="/catalog/products/new" element={<ProductEditorPage />} />
+              <Route path="/catalog/products/:productId/edit" element={<><ProductEditorPage /><LocationProbe /></>} />
             </Routes>
           </TenantContext.Provider>
         </AuthContext.Provider>
@@ -220,7 +223,14 @@ function renderProductEditor(initialRoute = '/catalog/products/new') {
   )
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location-path">{location.pathname}</output>
+}
+
 beforeEach(() => {
+  capturedProductCode = null
+  capturedApplyProduct = null
   server.use(
     http.get(`${BASE}/catalog/products/`, ({ request }) => {
       const url = new URL(request.url)
@@ -249,6 +259,32 @@ beforeEach(() => {
         { status: 201 },
       )
     }),
+    http.post(`${BASE}/catalog/products/apply/`, async ({ request }) => {
+      const body = (await request.json()) as { product?: { name?: string; tracks_inventory?: boolean; barcode?: string } }
+      capturedApplyProduct = body.product ?? null
+      const name = body.product?.name ?? ''
+      if (!name) {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { name: ['Este campo é obrigatório.'] } },
+          { status: 422 },
+        )
+      }
+      if (name === 'Conflito') {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Já existe um produto com este nome.', code: 'unique_violation' },
+          { status: 409 },
+        )
+      }
+      return HttpResponse.json(
+        {
+          product: { id: 'p-new', name, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: body.product?.tracks_inventory ?? false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
+          stock_summary: body.product?.tracks_inventory
+            ? { quantity: '25.000000', reserved: '0.000000', available: '25.000000', status: 'normal', branch: 'b1', branch_name: 'Filial Centro', location: 'l1', location_name: 'Loja Centro', minimum_quantity: '5.000000', maximum_quantity: '100.000000', reorder_point: '10.000000' }
+            : null,
+        },
+        { status: 201 },
+      )
+    }),
     http.patch(`${BASE}/catalog/products/:id/`, async ({ request, params }) => {
       const body = (await request.json()) as { name?: string }
       if (!body.name) {
@@ -260,6 +296,17 @@ beforeEach(() => {
       return HttpResponse.json(
         { id: params.id, ...body, sku: '', barcode: '', category: null, category_name: '', unit: null, unit_name: '', is_active: true, product_kind: '', tracks_inventory: false, brand: '', model: '', tags: [], scale_code: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' },
       )
+    }),
+    http.get(`${BASE}/catalog/products/:id/codes/`, ({ params }) => HttpResponse.json({ count: 1, next: null, previous: null, results: params.id === 'p1' ? [{ id: 'code-1', product: 'p1', code_type: 'ean', value: '123', is_principal: true, is_active: true, version: 1 }] : [] })),
+    http.post(`${BASE}/catalog/products/:id/codes/`, async ({ request, params }) => {
+      const body = await request.json() as { value?: string; is_active?: boolean; is_principal?: boolean }
+      capturedProductCode = { method: 'POST', productId: params.id as string, value: body.value ?? '', is_active: body.is_active, is_principal: body.is_principal }
+      return HttpResponse.json({ id: 'code-1', product: params.id, value: body.value ?? '' }, { status: 201 })
+    }),
+    http.patch(`${BASE}/catalog/products/:productId/codes/:codeId/`, async ({ request, params }) => {
+      const body = await request.json() as { value?: string; is_active?: boolean; is_principal?: boolean }
+      capturedProductCode = { method: 'PATCH', productId: params.productId as string, value: body.value, is_active: body.is_active, is_principal: body.is_principal }
+      return HttpResponse.json({ id: params.codeId, product: params.productId, code_type: 'ean', value: body.value ?? '123', is_active: body.is_active ?? true, is_principal: body.is_principal ?? true, version: 2 })
     }),
     http.get(`${BASE}/catalog/categories/`, () => HttpResponse.json(CATEGORIES)),
     http.post(`${BASE}/catalog/categories/`, async ({ request }) => {
@@ -312,7 +359,7 @@ beforeEach(() => {
         { id: params.id as string, name: body.name ?? 'Marca A', is_active: body.is_active ?? true },
       )
     }),
-    http.get(`${BASE}/products/:id/fiscal-data/`, ({ params }) => {
+    http.get(`${BASE}/catalog/products/:id/fiscal-data/`, ({ params }) => {
       if (params.id === 'p-no-fiscal') {
         return HttpResponse.json(
           { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Not found.' },
@@ -329,7 +376,7 @@ beforeEach(() => {
         fiscal_class: '',
       })
     }),
-    http.post(`${BASE}/products/:id/fiscal-data/`, async ({ request, params }) => {
+    http.post(`${BASE}/catalog/products/:id/fiscal-data/`, async ({ request, params }) => {
       const body = await request.json() as Record<string, unknown>
       return HttpResponse.json({
         id: `fd-${params.id}`,
@@ -337,16 +384,21 @@ beforeEach(() => {
         ...body,
       })
     }),
-    http.get(`${BASE}/products/:id/price-tiers/`, ({ params }) => {
+    http.get(`${BASE}/catalog/products/:id/price-tiers/`, ({ params }) => {
       if (params.id === 'p-no-tiers') {
-        return HttpResponse.json([])
+        return HttpResponse.json({ count: 0, next: null, previous: null, results: [] })
       }
-      return HttpResponse.json([
-        { id: 'pt-1', product: params.id as string, min_quantity: '1', amount: '10.00' },
-        { id: 'pt-2', product: params.id as string, min_quantity: '10', amount: '8.50' },
-      ])
+      return HttpResponse.json({
+        count: 2,
+        next: null,
+        previous: null,
+        results: [
+          { id: 'pt-1', product: params.id as string, min_quantity: '1', amount: '10.00' },
+          { id: 'pt-2', product: params.id as string, min_quantity: '10', amount: '8.50' },
+        ],
+      })
     }),
-    http.post(`${BASE}/products/:id/price-tiers/`, async ({ request, params }) => {
+    http.post(`${BASE}/catalog/products/:id/price-tiers/`, async ({ request, params }) => {
       const body = await request.json() as { min_quantity?: string; amount?: string }
       return HttpResponse.json(
         {
@@ -358,13 +410,13 @@ beforeEach(() => {
         { status: 201 },
       )
     }),
-    http.delete(`${BASE}/products/:id/price-tiers/:tierId/`, () => {
+    http.delete(`${BASE}/catalog/products/:id/price-tiers/:tierId/`, () => {
       return new HttpResponse(null, { status: 204 })
     }),
     http.get(`${BASE}/catalog/products/:id/`, ({ params }) => {
-      if (params.id === 'p1') {
+      if (params.id === 'p1' || params.id === 'p-new') {
         return HttpResponse.json({
-          id: 'p1', name: 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+          id: params.id as string, name: params.id === 'p-new' ? 'Produto Novo Teste' : 'Produto A', sku: 'SKU-A', barcode: '123', category: 'cat-1', category_name: 'Categoria A', unit: 'unit-1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00', is_active: true, product_kind: 'kit', tracks_inventory: true, brand: 'Marca A', model: 'Modelo A', tags: ['tag1', 'tag2'], scale_code: 'SC001', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
         })
       }
       return HttpResponse.json(
@@ -435,6 +487,40 @@ beforeEach(() => {
     http.delete(`${BASE}/catalog/combos/:comboId/items/:itemId/`, () => {
       return new HttpResponse(null, { status: 204 })
     }),
+    http.get(`${BASE}/branches/`, () => HttpResponse.json({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'b1', name: 'Filial Centro', code: 'FC', is_active: true },
+        { id: 'b2', name: 'Filial Norte', code: 'FN', is_active: true },
+      ],
+    })),
+    http.get(`${BASE}/inventory/stock-locations/`, ({ request }) => {
+      const url = new URL(request.url)
+      const branch = url.searchParams.get('branch')
+      const locations = [
+        { id: 'l1', branch: 'b1', branch_name: 'Filial Centro', code: 'L-01', name: 'Loja Centro', location_type: 'store', is_primary: true, is_active: true },
+        { id: 'l2', branch: 'b2', branch_name: 'Filial Norte', code: 'L-02', name: 'Depósito Norte', location_type: 'warehouse', is_primary: true, is_active: true },
+      ]
+      const filtered = branch ? locations.filter((l) => l.branch === branch) : locations
+      return HttpResponse.json({ count: filtered.length, next: null, previous: null, results: filtered })
+    }),
+    http.get(`${BASE}/inventory/product-policies/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    http.get(`${BASE}/inventory/product-summary/:productId/`, () => HttpResponse.json({
+      product: 'p1',
+      branch: 'b1',
+      branch_name: 'Filial Centro',
+      location: 'l1',
+      location_name: 'Loja Centro',
+      quantity: '25.000000',
+      reserved: '0.000000',
+      available: '25.000000',
+      status: 'normal',
+      minimum_quantity: '5.000000',
+      maximum_quantity: '100.000000',
+      reorder_point: '10.000000',
+    })),
   )
 })
 
@@ -485,35 +571,32 @@ describe('ProductsPage', () => {
     })
   })
 
-  it('creates a new product and closes form on success', async () => {
-    renderProductsPage()
+  it('creates a new product via the editor and enables pricing tab', async () => {
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    expect(screen.getByTestId('product-form')).toBeInTheDocument()
-
-    await user.type(screen.getByLabelText(/nome/i), 'Produto Novo')
-    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+    await user.type(screen.getByLabelText('Nome'), 'Produto Novo')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('product-form')).not.toBeInTheDocument()
+      expect(screen.getByTestId('step-tab-prices')).not.toBeDisabled()
     })
+    expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto criado com sucesso.')
   })
 
   it('shows validation error for empty product name', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => {
       expect(screen.getByText(/Nome é obrigatório/i)).toBeInTheDocument()
@@ -521,19 +604,18 @@ describe('ProductsPage', () => {
   })
 
   it('shows error on 409 conflict for product', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    await user.type(screen.getByLabelText(/nome/i), 'Conflito')
-    await user.click(screen.getByRole('button', { name: 'Salvar' }))
+    await user.type(screen.getByLabelText('Nome'), 'Conflito')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('form-error')).toHaveTextContent(/já existe/i)
+      expect(screen.getByTestId('editor-feedback')).toHaveTextContent(/já existe/i)
     })
   })
 
@@ -663,15 +745,11 @@ describe('UnitsPage', () => {
 
 describe('Product form – Dados Comerciais', () => {
   it('shows new fields in create form', async () => {
-    renderProductsPage()
-    const user = userEvent.setup()
+    renderProductEditor()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
-
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    expect(screen.getByTestId('product-form')).toBeInTheDocument()
 
     expect(screen.getByText('Dados Comerciais')).toBeInTheDocument()
     expect(screen.getByTestId('product-kind-select')).toBeInTheDocument()
@@ -771,7 +849,7 @@ describe('Product form – Preços por Quantidade', () => {
       expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId('price-tiers-table')).toBeInTheDocument()
+    expect(await screen.findByTestId('price-tiers-table')).toBeInTheDocument()
     const rows = screen.getAllByTestId('price-tier-row')
     expect(rows).toHaveLength(2)
   })
@@ -806,8 +884,13 @@ describe('Product form – Preços por Quantidade', () => {
       { id: 'pt-2', product: 'p1', min_quantity: '10', amount: '8.50' },
     ]
     server.use(
-      http.get(`${BASE}/products/p1/price-tiers/`, () => HttpResponse.json(tiers)),
-      http.delete(`${BASE}/products/p1/price-tiers/:tierId/`, ({ params }) => {
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({
+        count: tiers.length,
+        next: null,
+        previous: null,
+        results: tiers,
+      })),
+      http.delete(`${BASE}/catalog/products/p1/price-tiers/:tierId/`, ({ params }) => {
         tiers = tiers.filter((t) => t.id !== params.tierId)
         return new HttpResponse(null, { status: 204 })
       }),
@@ -827,7 +910,7 @@ describe('Product form – Preços por Quantidade', () => {
       expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
     })
 
-    const deleteButton = screen.getByTestId('delete-tier-pt-1')
+    const deleteButton = await screen.findByTestId('delete-tier-pt-1')
     await user.click(deleteButton)
 
     await waitFor(() => {
@@ -838,15 +921,12 @@ describe('Product form – Preços por Quantidade', () => {
 
 describe('Product form – quick create modals', () => {
   it('quick category create button opens modal', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
-
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    expect(screen.getByTestId('product-form')).toBeInTheDocument()
 
     const catBtn = screen.getByTestId('quick-create-category-btn')
     expect(catBtn).toBeInTheDocument()
@@ -859,14 +939,13 @@ describe('Product form – quick create modals', () => {
   })
 
   it('quick category create submits and closes', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
     await user.click(screen.getByTestId('quick-create-category-btn'))
 
     await waitFor(() => {
@@ -882,15 +961,12 @@ describe('Product form – quick create modals', () => {
   })
 
   it('quick unit create button opens modal', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
-
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
-    expect(screen.getByTestId('product-form')).toBeInTheDocument()
 
     const unitBtn = screen.getByTestId('quick-create-unit-btn')
     expect(unitBtn).toBeInTheDocument()
@@ -904,14 +980,13 @@ describe('Product form – quick create modals', () => {
   })
 
   it('quick unit create shows error on duplicate', async () => {
-    renderProductsPage()
+    renderProductEditor()
     const user = userEvent.setup()
 
     await waitFor(() => {
-      expect(screen.getByText('Produto A')).toBeInTheDocument()
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('button', { name: /novo produto/i }))
     await user.click(screen.getByTestId('quick-create-unit-btn'))
 
     await waitFor(() => {
@@ -934,20 +1009,21 @@ describe('Product payload contract', () => {
     const payload = toProductPayload({
       name: 'Test', sku: 'T1', unit: 'unit-1', barcode: '789123', tags: 'qa, web',
       description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
-      scale_code: '', tracks_inventory: false,
+      scale_code: '', tracks_inventory: false, stock: null,
     })
     expect(payload.product).toHaveProperty('base_unit', 'unit-1')
     expect(payload.product).not.toHaveProperty('unit')
     expect(payload.product).not.toHaveProperty('barcode')
     expect(payload.barcode).toBe('789123')
     expect(payload.product.tags).toEqual(['qa', 'web'])
+    expect(payload.stock).toBeUndefined()
   })
 
   it('splits comma-separated tags into array', () => {
     const payload = toProductPayload({
       name: 'T', sku: 'T', unit: 'u', barcode: '', tags: 'a, b , c',
       description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
-      scale_code: '', tracks_inventory: false,
+      scale_code: '', tracks_inventory: false, stock: null,
     })
     expect(payload.product.tags).toEqual(['a', 'b', 'c'])
   })
@@ -956,10 +1032,30 @@ describe('Product payload contract', () => {
     const payload = toProductPayload({
       name: 'T', sku: 'T', unit: 'u', barcode: '', tags: '',
       description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
-      scale_code: '', tracks_inventory: false,
+      scale_code: '', tracks_inventory: false, stock: null,
     })
     expect(payload.product.tags).toEqual([])
     expect(payload.barcode).toBe('')
+  })
+
+  it('includes stock payload only when tracking inventory', () => {
+    const stock = {
+      branch: 'b1', location: 'l1', current_quantity: '0', initial_quantity: '25',
+      minimum_quantity: '5', maximum_quantity: '100', reorder_point: '10', allow_negative: false,
+    }
+    const enabled = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: '',
+      description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: true, stock,
+    })
+    expect(enabled.stock).toEqual(stock)
+
+    const disabled = toProductPayload({
+      name: 'T', sku: 'T', unit: 'u', barcode: '', tags: '',
+      description: '', category: null, is_active: true, product_kind: '', brand: '', model: '',
+      scale_code: '', tracks_inventory: false, stock,
+    })
+    expect(disabled.stock).toBeUndefined()
   })
 })
 
@@ -982,6 +1078,19 @@ describe('CatalogHomePage', () => {
 })
 
 describe('ProductEditorPage', () => {
+  it('sends barcode inside the atomic apply command without a follow-up code mutation', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByTestId('product-identity-step')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Nome'), 'Produto Com EAN')
+    await user.type(screen.getByRole('textbox', { name: /Barras/ }), '7891234567890')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedApplyProduct).toMatchObject({ barcode: '7891234567890' }))
+    expect(capturedProductCode).toBeNull()
+  })
+
   it('renders editor layout for new product', async () => {
     renderProductEditor()
     await waitFor(() => {
@@ -1038,6 +1147,21 @@ describe('ProductEditorPage', () => {
       expect(screen.getByTestId('step-tab-fiscal')).not.toBeDisabled()
     })
   })
+
+  it('replaces the create URL with the persisted edit URL and opens prices', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByTestId('product-identity-step')).toBeInTheDocument())
+    await user.type(screen.getByLabelText('Nome'), 'Produto Novo Teste')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path')).toHaveTextContent('/catalog/products/p-new/edit')
+    })
+    expect(screen.getByTestId('step-tab-prices')).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByTestId('product-prices-step')).toBeInTheDocument()
+  })
 })
 
 function renderProductEditorEdit(productId = 'p1', initialRoute = `/catalog/products/${productId}/edit`) {
@@ -1056,6 +1180,101 @@ function renderProductEditorEdit(productId = 'p1', initialRoute = `/catalog/prod
     </QueryClientProvider>,
   )
 }
+
+describe('ProductEditorPage – persisted identity', () => {
+  it('loads identity fields from the product addressed by the edit URL', async () => {
+    renderProductEditorEdit('p1')
+
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveValue('Produto A'))
+    expect(screen.getByLabelText('SKU')).toHaveValue('SKU-A')
+    expect(screen.getByLabelText('Código de Barras')).toHaveValue('123')
+    expect(screen.getByTestId('product-kind-select')).toHaveValue('kit')
+    expect(screen.getByTestId('product-tracks-inventory-checkbox')).toBeChecked()
+  })
+
+  it('persists identity changes through the edit mutation', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    const name = await screen.findByLabelText('Nome')
+    await user.clear(name)
+    await user.type(name, 'Produto Editado')
+    await user.click(screen.getByTestId('product-tracks-inventory-checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
+  })
+
+  it('maps persisted stock defaults so a stock-controlled product can be submitted', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto atualizado com sucesso.'))
+  })
+
+  it('persists a changed barcode through the product-code API in edit mode', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await screen.findByTestId('product-identity-step')
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
+    const barcode = await screen.findByLabelText('Código de Barras')
+    await user.clear(barcode)
+    await user.type(barcode, '999999')
+    await user.click(screen.getByTestId('product-tracks-inventory-checkbox'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedProductCode).toMatchObject({ method: 'PATCH', productId: 'p1', value: '999999' }))
+  })
+
+  it('deactivates the principal barcode when the edit barcode is cleared', async () => {
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+
+    await waitFor(() => expect(screen.getByLabelText('Filial')).toHaveValue('b1'))
+    const barcode = await screen.findByLabelText('Código de Barras')
+    await user.clear(barcode)
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(capturedProductCode).toMatchObject({ method: 'PATCH', productId: 'p1', is_active: false, is_principal: false }))
+  })
+})
+
+describe('ProductEditorPage – product load errors', () => {
+  it('shows an actionable error instead of an endless loading state', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p404/`, () => HttpResponse.json({ detail: 'Not found.' }, { status: 404 })),
+    )
+    renderProductEditorEdit('p404')
+
+    expect(await screen.findByText('Não foi possível carregar o produto.')).toBeInTheDocument()
+    expect(screen.getByTestId('product-retry-button')).toBeInTheDocument()
+    expect(screen.queryByText('Carregando produto...')).not.toBeInTheDocument()
+  })
+})
+
+describe('productToFormData', () => {
+  it('preserves product commercial metadata', () => {
+    const result = productToFormData({
+      id: 'p1', name: 'Produto', description: 'Desc', sku: 'SKU', barcode: '123', category: null,
+      category_name: '', unit: 'u1', unit_name: 'Un', unit_symbol: 'UN', unit_precision: 2, price: '10.00',
+      is_active: true, product_kind: 'revenda', tracks_inventory: false, brand: '', model: '', tags: ['a'],
+      scale_code: '', created_at: '', updated_at: '',
+    })
+    expect(result).toMatchObject({ name: 'Produto', tags: 'a', stock: null })
+
+    const stockResult = productToFormData({
+      id: 'p-stock', name: 'Estoque', sku: '', barcode: '', category: null, category_name: '', unit: null,
+      unit_name: '', is_active: true, product_kind: 'revenda', tracks_inventory: true, brand: '', model: '',
+      tags: [], scale_code: '', stock: { branch: 'b1', location: 'l1' }, created_at: '', updated_at: '',
+    })
+    expect(stockResult.stock).toMatchObject({ branch: 'b1', location: 'l1' })
+  })
+})
 
 describe('ProductEditorPage – quick create category', () => {
   it('quick-created category appears in dropdown without reloading', async () => {
@@ -1090,7 +1309,152 @@ describe('ProductEditorPage – quick create category', () => {
   })
 })
 
+describe('ProductEditorPage – stock control', () => {
+  it('reveals and requires stock fields when inventory control is selected', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTestId('product-stock-fields')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Controlar estoque' }))
+
+    expect(screen.getByTestId('product-stock-fields')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Filial')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Local de estoque')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quantidade atual')).toBeDisabled()
+    expect(screen.getByLabelText('Quantidade inicial')).toHaveValue(0)
+    expect(screen.getByLabelText('Quantidade mínima')).toHaveValue(0)
+    expect(screen.getByLabelText('Ponto de reposição')).toHaveValue(0)
+  })
+
+  it('hides stock control for services', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    await user.selectOptions(screen.getByTestId('product-kind-select'), 'servico')
+
+    expect(screen.queryByTestId('product-tracks-inventory-checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('product-stock-fields')).not.toBeInTheDocument()
+  })
+
+  it('clears selected location when branch changes', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('checkbox', { name: 'Controlar estoque' }))
+
+    const branchSelect = await screen.findByLabelText('Filial')
+    await user.selectOptions(branchSelect, 'b1')
+
+    const locationSelect = await screen.findByLabelText('Local de estoque')
+    await user.selectOptions(locationSelect, 'l1')
+
+    await user.selectOptions(branchSelect, 'b2')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-location-select')).toHaveValue('')
+    })
+  })
+
+  it('rejects maximum below minimum', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('checkbox', { name: 'Controlar estoque' }))
+
+    const minInput = screen.getByLabelText('Quantidade mínima')
+    await user.clear(minInput)
+    await user.type(minInput, '10')
+    const maxInput = screen.getByLabelText('Quantidade máxima')
+    await user.clear(maxInput)
+    await user.type(maxInput, '5')
+
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Máxima deve ser maior ou igual à mínima')).toBeInTheDocument()
+    })
+  })
+
+  it('creates product with stock through atomic apply', async () => {
+    renderProductEditor()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+
+    await user.type(screen.getByLabelText('Nome'), 'Produto Estoque')
+    await user.click(screen.getByRole('checkbox', { name: 'Controlar estoque' }))
+
+    const branchSelect = await screen.findByLabelText('Filial')
+    await user.selectOptions(branchSelect, 'b1')
+    const locationSelect = await screen.findByLabelText('Local de estoque')
+    await user.selectOptions(locationSelect, 'l1')
+
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-tab-prices')).not.toBeDisabled()
+    })
+    expect(screen.getByTestId('editor-feedback')).toHaveTextContent('Produto criado com sucesso.')
+  })
+})
+
+describe('ProductEditorPage – inventory step', () => {
+  it('shows current, reserved, available and replenishment thresholds', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('tab', { name: 'Estoque' }))
+
+    expect(await screen.findByTestId('product-inventory-step')).toBeInTheDocument()
+    expect(await screen.findAllByText('25,000000')).toHaveLength(2)
+    expect(screen.getByTestId('stock-available-value')).toHaveTextContent('25,000000')
+    expect(screen.getByTestId('stock-current-value')).toHaveTextContent('25,000000')
+    expect(screen.getByTestId('stock-minimum-value')).toHaveTextContent('5,000000')
+    expect(screen.getByTestId('stock-reorder-value')).toHaveTextContent('10,000000')
+    expect(screen.getByTestId('stock-reserved-value')).toHaveTextContent('0,000000')
+    expect(screen.getByText('Normal')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ajustar estoque' }))
+      .toHaveAttribute('href', '/inventory/adjustments/new?product=p1&branch=b1&location=l1')
+    expect(screen.getByRole('link', { name: 'Ver movimentações' }))
+      .toHaveAttribute('href', '/inventory/movements?product=p1&branch=b1&location=l1')
+  })
+})
+
 describe('ProductEditorPage – fiscal step', () => {
+  it('offers only fiscal types accepted by the backend contract', async () => {
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('step-tab-fiscal'))
+    const select = await screen.findByTestId('fiscal-type-select') as HTMLSelectElement
+    expect(Array.from(select.options).map((option) => option.value)).toEqual([
+      '', 'revenda', 'industrializacao', 'servico', 'uso_consumo', 'outro',
+    ])
+  })
+
   it('loads and saves fiscal data in edit mode', async () => {
     renderProductEditorEdit()
     const user = userEvent.setup()
@@ -1124,6 +1488,20 @@ describe('ProductEditorPage – fiscal step', () => {
 })
 
 describe('ProductEditorPage – composition step', () => {
+  it('explains that composition is available only for kit products', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/`, () =>
+        HttpResponse.json({ id: 'p1', name: 'Produto A', sku: 'SKU-A', is_active: true, product_kind: 'revenda', tracks_inventory: true }),
+      ),
+    )
+    renderProductEditorEdit()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('step-tab-composition'))
+    expect(await screen.findByTestId('composition-not-kit')).toHaveTextContent('somente para produtos do tipo Kit')
+    expect(screen.queryByTestId('add-composition-button')).not.toBeInTheDocument()
+  })
+
   it('shows composition items for kit product', async () => {
     renderProductEditorEdit()
     const user = userEvent.setup()
@@ -1452,11 +1830,11 @@ describe('ServiceEditorPage', () => {
   it('persists service fiscal configuration and initial price after product creation', async () => {
     const requests: string[] = []
     server.use(
-      http.post(`${BASE}/products/s-new/fiscal-data/`, () => {
+      http.post(`${BASE}/catalog/products/s-new/fiscal-data/`, () => {
         requests.push('fiscal')
         return HttpResponse.json({ id: 'f1', product: 's-new' })
       }),
-      http.post(`${BASE}/products/s-new/price-tiers/`, () => {
+      http.post(`${BASE}/catalog/products/s-new/price-tiers/`, () => {
         requests.push('price')
         return HttpResponse.json({ id: 'pt1', product: 's-new' }, { status: 201 })
       }),
@@ -1662,7 +2040,12 @@ describe('LabelsPage', () => {
   it('uploads and displays a valid product image when editing', async () => {
     const images: Array<Record<string, unknown>> = []
     server.use(
-      http.get(`${BASE}/catalog/products/p1/images/`, () => HttpResponse.json(images)),
+      http.get(`${BASE}/catalog/products/p1/images/`, () => HttpResponse.json({
+        count: images.length,
+        next: null,
+        previous: null,
+        results: images,
+      })),
       http.post(`${BASE}/catalog/products/p1/images/`, () => {
         const image = {
           id: 'img-1', product: 'p1', object_key: 'produto.png',
@@ -1684,6 +2067,40 @@ describe('LabelsPage', () => {
     expect(screen.getByRole('img', { name: 'produto' })).toHaveAttribute(
       'src', '/media/catalog/products/produto.png',
     )
+  })
+
+  it('keeps the product editor usable when the media collection fails', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/images/`, () =>
+        HttpResponse.json({ detail: 'media unavailable' }, { status: 503 }),
+      ),
+    )
+
+    renderProductEditorEdit()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('product-identity-step')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('product-media-panel')).toBeInTheDocument()
+    const mediaError = await waitFor(() => screen.getByTestId('media-load-error'))
+    expect(mediaError).toHaveRole('alert')
+    expect(mediaError).toHaveTextContent('Não foi possível carregar as imagens. O restante do cadastro permanece disponível.')
+  })
+
+  it('isolates malformed media collections without disabling editor controls', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/images/`, () =>
+        HttpResponse.json({ count: 1, next: null, previous: null, results: null }),
+      ),
+    )
+
+    renderProductEditorEdit()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('media-load-error')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('media-load-error')).toHaveRole('alert')
+    expect(screen.getByLabelText('Nome')).not.toBeDisabled()
   })
 
   it('shows a PDF preview before offering the final download', async () => {
@@ -1840,5 +2257,132 @@ describe('ProductChannelsStep', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('channel-publish-error')).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('ProductPricesStep base price contract', () => {
+  it('links a new quantity tier to the effective ProductPrice', async () => {
+    let tierPayload: Record<string, unknown> | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 1 }] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.post(`${BASE}/catalog/products/p1/price-tiers/`, async ({ request }) => {
+        tierPayload = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ id: 'tier-new', product: 'p1', price: 'price-1', min_quantity: '5', amount: '9.00' }, { status: 201 })
+      }),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    await user.type(await screen.findByTestId('tier-min-quantity-input'), '5')
+    await user.type(screen.getByTestId('tier-amount-input'), '9.00')
+    await user.click(screen.getByTestId('add-tier-button'))
+    await waitFor(() => expect(tierPayload).not.toBeNull())
+    expect(tierPayload).toMatchObject({ price: 'price-1', min_quantity: '5', amount: '9.00' })
+  })
+
+  it('shows empty state when no ProductPrice exists and does not promote tiers', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'tier-1', product: 'p1', min_quantity: '1', amount: '9.00' }] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-empty')).toHaveTextContent('Nenhum preço base cadastrado')
+    expect(screen.queryByTestId('base-price-amount')).not.toHaveValue('9.00')
+  })
+
+  it('signals multiple ProductPrice records while keeping tiers optional', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 2, next: null, previous: null, results: [
+        { id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 3 },
+        { id: 'price-2', product: 'p1', amount: '12.00', valid_from: '2026-02-01T00:00:00Z', valid_to: null, is_active: true, version: 1 },
+      ] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-conflict')).toHaveRole('alert')
+    expect(screen.getByTestId('price-tiers-section')).toBeInTheDocument()
+  })
+
+  it('updates ProductPrice with If-Match version', async () => {
+    let patchHeaders: Headers | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 1, next: null, previous: null, results: [{ id: 'price-1', product: 'p1', amount: '10.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 3 }] })),
+      http.patch(`${BASE}/catalog/products/p1/prices/price-1/`, async ({ request }) => {
+        patchHeaders = request.headers
+        return HttpResponse.json({ id: 'price-1', product: 'p1', amount: '11.00', valid_from: '2026-01-01T00:00:00Z', valid_to: null, is_active: true, version: 4 })
+      }),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    const amount = await screen.findByTestId('base-price-amount')
+    await user.clear(amount)
+    await user.type(amount, '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+    await waitFor(() => expect(patchHeaders).not.toBeNull())
+    expect((patchHeaders as Headers | null)?.get('If-Match')).toBe('3')
+  })
+
+  it('creates a ProductPrice when the base price is absent', async () => {
+    let payload: Record<string, unknown> | null = null
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+      http.post(`${BASE}/catalog/products/p1/prices/`, async ({ request }) => {
+        payload = await request.json() as Record<string, unknown>
+        return HttpResponse.json({ id: 'price-new', product: 'p1', amount: '11.00', valid_from: '2026-08-08T00:00:00Z', valid_to: null, is_active: true, version: 1 }, { status: 201 })
+      }),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    const amount = await screen.findByTestId('base-price-amount')
+    await user.type(amount, '11.00')
+    await user.click(screen.getByTestId('save-base-price'))
+    await waitFor(() => expect(payload).not.toBeNull())
+    expect((payload as unknown as Record<string, unknown>).amount).toBe('11.00')
+    expect((payload as unknown as Record<string, unknown>).valid_from).toEqual(expect.any(String))
+  })
+
+  it('uses only the effective ProductPrice when history is also returned', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ count: 2, next: null, previous: null, results: [
+        { id: 'price-old', product: 'p1', amount: '9.00', valid_from: '2026-01-01T00:00:00Z', valid_to: '2026-02-01T00:00:00Z', is_active: true, version: 1 },
+        { id: 'price-current', product: 'p1', amount: '11.00', valid_from: '2026-03-01T00:00:00Z', valid_to: null, is_active: true, version: 2 },
+      ] })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-amount')).toHaveValue('11.00')
+    expect(screen.queryByTestId('base-price-conflict')).not.toBeInTheDocument()
+  })
+
+  it('does not offer create when the base-price query fails', async () => {
+    server.use(
+      http.get(`${BASE}/catalog/products/p1/prices/`, () => HttpResponse.json({ detail: 'unavailable' }, { status: 503 })),
+      http.get(`${BASE}/catalog/products/p1/price-tiers/`, () => HttpResponse.json({ count: 0, next: null, previous: null, results: [] })),
+    )
+    renderProductEditorEdit('p1')
+    const user = userEvent.setup()
+    await waitFor(() => expect(screen.getByTestId('product-editor-steps')).toBeInTheDocument())
+    await user.click(screen.getByTestId('step-tab-prices'))
+    expect(await screen.findByTestId('base-price-load-error')).toHaveRole('alert')
+    expect(screen.queryByTestId('base-price-empty')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('save-base-price')).not.toBeInTheDocument()
+    expect(screen.getByTestId('add-tier-button')).toBeDisabled()
   })
 })

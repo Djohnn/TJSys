@@ -2,8 +2,8 @@ import hashlib
 import json
 import uuid
 
-from django.db import models, transaction
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
@@ -56,6 +56,7 @@ from catalog.serializers import (
 from catalog.services.events import emit_catalog_event
 from catalog.services.label_pdf import generate_label_pdf
 from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
+from catalog.services.product_identity import create_product_ean
 from inventory.services.product_stock import apply_initial_product_stock
 from outbox.models import OutboxMessage
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
@@ -137,7 +138,7 @@ class CatalogCursorPagination(CursorPagination):
 
 
 class CatalogViewSetBase(viewsets.ModelViewSet):
-    pagination_class = CatalogCursorPagination
+    pagination_class: type[CatalogCursorPagination] | None = CatalogCursorPagination
     permission_classes = [
         IsAuthenticated,
         HasActiveTenant,
@@ -546,6 +547,8 @@ class ProductImageViewSet(viewsets.ModelViewSet):
         return instance
 
     def perform_destroy(self, instance):
+        if instance.file:
+            instance.file.delete(save=False)
         emit_catalog_event(
             action='catalog.productimage.deleted',
             event_type='catalog.productimage.deleted',
@@ -929,6 +932,14 @@ class ProductApplyView(APIView):
         category = None
         if product_data.get('category'):
             category = Category.all_objects.get(tenant=tenant, id=product_data['category'])
+        brand_name = product_data.get('brand', '').strip()
+        brand_ref = None
+        if brand_name:
+            brand_ref, _ = Brand.all_objects.get_or_create(
+                tenant=tenant,
+                name=brand_name,
+                defaults={'is_active': True},
+            )
 
         product = Product.all_objects.create(
             tenant=tenant,
@@ -938,13 +949,21 @@ class ProductApplyView(APIView):
             category=category,
             base_unit=base_unit,
             product_kind=product_data.get('product_kind', ''),
-            brand=product_data.get('brand', ''),
+            brand=brand_name,
+            brand_ref=brand_ref,
+            subcategory=product_data.get('subcategory', ''),
             model=product_data.get('model', ''),
             tags=product_data.get('tags', []),
             tracks_inventory=product_data.get('tracks_inventory', False),
         )
         product.full_clean()
         product.save()
+
+        create_product_ean(
+            tenant=tenant,
+            product=product,
+            requested_value=product_data.get('barcode', ''),
+        )
 
         emit_catalog_event(
             action='catalog.product.created',

@@ -29,3 +29,22 @@ export const adjustmentSchema = z.object({
 })
 
 export type AdjustmentFormData = z.infer<typeof adjustmentSchema>
+
+export const stockPolicySchema = z
+  .object({
+    minimum_quantity: z.string().regex(/^\d+(\.\d{1,6})?$/, 'Informe um decimal válido').default('0'),
+    maximum_quantity: z.string().regex(/^$|^\d+(\.\d{1,6})?$/, 'Informe um decimal válido').default(''),
+    reorder_point: z.string().regex(/^\d+(\.\d{1,6})?$/, 'Informe um decimal válido').default('0'),
+    allow_negative: z.boolean().default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.maximum_quantity && Number(value.maximum_quantity) < Number(value.minimum_quantity)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['maximum_quantity'],
+        message: 'Máxima deve ser maior ou igual à mínima',
+      })
+    }
+  })
+
+export type StockPolicyFormData = z.infer<typeof stockPolicySchema>
