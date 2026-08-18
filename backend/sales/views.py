@@ -14,7 +14,7 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
+from sales.models import CashSession, Commission, CommissionRule, Sale, SaleItem, SaleRefund, SaleReturn
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
@@ -610,3 +610,96 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+# =============================================================================
+# F4 — Commission
+# =============================================================================
+
+
+class CommissionRuleViewSet(viewsets.ModelViewSet):
+    serializer_class = CommissionRuleSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = CommissionRule.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        rule_type = self.request.query_params.get('rule_type')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if rule_type:
+            queryset = queryset.filter(rule_type=rule_type)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CommissionSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = Commission.objects.select_related('sale', 'rule', 'operator').filter(
+            tenant=self.request.tenant,
+        )
+        status = self.request.query_params.get('status')
+        operator_id = self.request.query_params.get('operator')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if status:
+            queryset = queryset.filter(status=status)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status != 'pending':
+            return _problem('Commission is not pending.', 'invalid_status', status.HTTP_409_CONFLICT)
+        commission.status = 'approved'
+        commission.approved_at = timezone.now()
+        commission.save()
+        return Response(CommissionSerializer(commission).data)
+
+    @action(detail=True, methods=['post'])
+    def pay(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status != 'approved':
+            return _problem('Commission is not approved.', 'invalid_status', status.HTTP_409_CONFLICT)
+        commission.status = 'paid'
+        commission.paid_at = timezone.now()
+        commission.save()
+        return Response(CommissionSerializer(commission).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status not in ('pending', 'approved'):
+            return _problem('Commission cannot be cancelled.', 'invalid_status', status.HTTP_409_CONFLICT)
+        commission.status = 'cancelled'
+        commission.save()
+        return Response(CommissionSerializer(commission).data)

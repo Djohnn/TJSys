@@ -500,3 +500,59 @@ class CreateSaleCancellationSerializer(serializers.Serializer):
             return normalize_reason(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+
+# =============================================================================
+# F4 — Commission
+# =============================================================================
+
+
+class CommissionRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommissionRule
+        fields = [
+            'id',
+            'name',
+            'description',
+            'rule_type',
+            'value',
+            'min_sale_value',
+            'max_sale_value',
+            'product',
+            'category',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CommissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Commission
+        fields = [
+            'id',
+            'sale',
+            'rule',
+            'operator',
+            'status',
+            'sale_value',
+            'commission_value',
+            'notes',
+            'approved_at',
+            'paid_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CreateCommissionRuleSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    rule_type = serializers.ChoiceField(choices=CommissionRule.TYPE_CHOICES)
+    value = serializers.DecimalField(max_digits=18, decimal_places=4)
+    min_sale_value = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    max_sale_value = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, allow_null=True)
+    product = serializers.UUIDField(required=False, allow_null=True)
+    category = serializers.UUIDField(required=False, allow_null=True)
