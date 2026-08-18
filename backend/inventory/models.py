@@ -463,3 +463,173 @@ class ProductStockControlCommand(TimeStampedModel, TenantScopedModel):
                 name='uniq_product_stock_control_command_tenant_id',
             ),
         ]
+
+
+# =============================================================================
+# Sprint F7 — ProductionOrder (ordens de produção)
+# =============================================================================
+
+
+class ProductionOrder(VersionedInventoryModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('confirmed', 'Confirmada'),
+        ('in_progress', 'Em andamento'),
+        ('completed', 'Concluída'),
+        ('cancelled', 'Cancelada'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Baixa'),
+        ('medium', 'Média'),
+        ('high', 'Alta'),
+        ('urgent', 'Urgente'),
+    ]
+
+    code = models.CharField(max_length=40)
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
+    planned_start_date = models.DateField(null=True, blank=True)
+    planned_end_date = models.DateField(null=True, blank=True)
+    actual_start_date = models.DateField(null=True, blank=True)
+    actual_end_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders_created',
+    )
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders_confirmed',
+    )
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                name='uniq_production_order_tenant_code',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.code} — {self.product.sku}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.unit_id and self.tenant_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.planned_start_date and self.planned_end_date:
+            if self.planned_start_date > self.planned_end_date:
+                errors['planned_end_date'] = 'End date must be after start date.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = ProductionOrder.all_objects.get(pk=self.pk)
+            if current.status in ('completed', 'cancelled'):
+                raise ValidationError('Completed or cancelled orders are immutable.')
+        super().save(*args, **kwargs)
+
+
+# =============================================================================
+# Sprint F7 — ProductionOrderItem (itens da ordem de produção)
+# =============================================================================
+
+
+class ProductionOrderItem(VersionedInventoryModel):
+    order = models.ForeignKey(
+        ProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['order', 'product']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='productionorderitem_quantity_positive',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.order.code} — {self.product.sku} x {self.quantity}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.unit_id and self.tenant_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.order_id and self.tenant_id and self.order.tenant_id != self.tenant_id:
+            errors['order'] = 'Order must belong to the same tenant.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = ProductionOrderItem.all_objects.get(pk=self.pk)
+            if current.order_id:
+                order = ProductionOrder.all_objects.get(pk=current.order_id)
+                if order.status in ('completed', 'cancelled'):
+                    raise ValidationError('Items of completed or cancelled orders are immutable.')
+        super().save(*args, **kwargs)
