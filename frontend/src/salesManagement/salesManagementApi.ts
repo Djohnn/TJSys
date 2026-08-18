@@ -271,3 +271,149 @@ export function fetchCashSession(
     signal,
   }) as Promise<CashSession>
 }
+
+// =============================================================================
+// F3 — Quotes
+// =============================================================================
+
+export interface QuoteItem {
+  id: string
+  product: string
+  product_name: string
+  product_sku: string
+  quantity: string
+  unit_price: string
+  discount: string
+  notes: string
+}
+
+export interface Quote {
+  id: string
+  branch: string
+  branch_name: string
+  customer: string | null
+  customer_name: string
+  operator: string
+  operator_name: string
+  status: string
+  quote_number: string
+  valid_until: string | null
+  notes: string
+  gross_total: string
+  discount_total: string
+  net_total: string
+  converted_sale: string | null
+  items: QuoteItem[]
+  created_at: string
+  updated_at: string
+}
+
+export function fetchQuotes(
+  tenantId: string,
+  params: { page?: number; q?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Quote>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<Quote>>(`/sales/quotes/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<Quote>>
+}
+
+export function fetchQuote(
+  tenantId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<Quote> {
+  return apiRequest<Quote>(`/sales/quotes/${id}/`, {
+    tenantId,
+    signal,
+  }) as Promise<Quote>
+}
+
+export function convertQuoteToSale(
+  tenantId: string,
+  quoteId: string,
+): Promise<unknown> {
+  return apiRequest<unknown>(`/sales/quotes/${quoteId}/convert/`, {
+    method: 'POST',
+    tenantId,
+  }) as Promise<unknown>
+}
+
+// =============================================================================
+// F3 — Sales Orders
+// =============================================================================
+
+export interface SalesOrderItem {
+  id: string
+  product: string
+  product_name: string
+  product_sku: string
+  quantity: string
+  unit_price: string
+  discount: string
+  notes: string
+}
+
+export interface SalesOrder {
+  id: string
+  branch: string
+  branch_name: string
+  customer: string | null
+  customer_name: string
+  operator: string
+  operator_name: string
+  quote: string | null
+  quote_number: string
+  status: string
+  order_number: string
+  expected_date: string | null
+  notes: string
+  gross_total: string
+  discount_total: string
+  net_total: string
+  converted_sale: string | null
+  items: SalesOrderItem[]
+  created_at: string
+  updated_at: string
+}
+
+export function fetchSalesOrders(
+  tenantId: string,
+  params: { page?: number; q?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<SalesOrder>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<SalesOrder>>(`/sales/sales-orders/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<SalesOrder>>
+}
+
+export function fetchSalesOrder(
+  tenantId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<SalesOrder> {
+  return apiRequest<SalesOrder>(`/sales/sales-orders/${id}/`, {
+    tenantId,
+    signal,
+  }) as Promise<SalesOrder>
+}
+
+export function convertOrderToSale(
+  tenantId: string,
+  orderId: string,
+): Promise<unknown> {
+  return apiRequest<unknown>(`/sales/sales-orders/${orderId}/convert/`, {
+    method: 'POST',
+    tenantId,
+  }) as Promise<unknown>
+}
