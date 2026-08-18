@@ -31,6 +31,7 @@ from catalog.models import (
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
+    SubCategory,
     Unit,
 )
 from catalog.permissions import CatalogCapabilityPermission, PricingCapabilityPermission
@@ -52,6 +53,7 @@ from catalog.serializers import (
     ProductPriceTierSerializer,
     ProductSerializer,
     ProductUnitSerializer,
+    SubCategorySerializer,
     UnitSerializer,
 )
 from catalog.services.events import emit_catalog_event
@@ -230,6 +232,18 @@ class UnitViewSet(CatalogViewSetBase):
 class CategoryViewSet(CatalogViewSetBase):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+
+class SubCategoryViewSet(CatalogViewSetBase):
+    queryset = SubCategory.objects.select_related('category')
+    serializer_class = SubCategorySerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(category_id=category)
+        return qs
 
 
 class ProductViewSet(CatalogViewSetBase):

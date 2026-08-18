@@ -20,11 +20,13 @@ from catalog.views import (
     ProductPriceViewSet,
     ProductUnitViewSet,
     ProductViewSet,
+    SubCategoryViewSet,
     UnitViewSet,
 )
 
 router = DefaultRouter()
 router.register('categories', CategoryViewSet, basename='category')
+router.register('subcategories', SubCategoryViewSet, basename='subcategory')
 router.register('units', UnitViewSet, basename='unit')
 router.register('products', ProductViewSet, basename='product')
 router.register('brands', BrandViewSet, basename='brand')
