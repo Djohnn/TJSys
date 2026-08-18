@@ -6,6 +6,8 @@ from rest_framework import serializers
 from sales.models import (
     CashMovement,
     CashSession,
+    Quote,
+    QuoteItem,
     Sale,
     SaleCancellation,
     SaleItem,
@@ -500,3 +502,43 @@ class CreateSaleCancellationSerializer(serializers.Serializer):
             return normalize_reason(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+
+class QuoteItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+
+    class Meta:
+        model = QuoteItem
+        fields = ['id', 'product', 'product_name', 'product_sku', 'quantity', 'unit_price', 'discount', 'notes']
+        read_only_fields = ['id']
+
+
+class QuoteSerializer(serializers.ModelSerializer):
+    items = QuoteItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='customer.name', read_only=True, default='')
+    operator_name = serializers.CharField(source='operator.name', read_only=True, default='')
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
+
+    class Meta:
+        model = Quote
+        fields = [
+            'id', 'branch', 'branch_name', 'customer', 'customer_name',
+            'operator', 'operator_name', 'status', 'quote_number',
+            'valid_until', 'notes', 'gross_total', 'discount_total',
+            'net_total', 'converted_sale', 'items', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CreateQuoteSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    customer = serializers.UUIDField(required=False, allow_null=True)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    items = QuoteItemSerializer(many=True, min_length=1)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('At least one item is required.')
+        return value

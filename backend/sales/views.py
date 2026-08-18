@@ -14,16 +14,19 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
+from sales.models import CashSession, Quote, QuoteItem, Sale, SaleItem, SaleRefund, SaleReturn
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
     CloseCashSessionSerializer,
     CounterSaleSerializer,
+    CreateQuoteSerializer,
     CreateSaleCancellationSerializer,
     CreateSaleRefundSerializer,
     CreateSaleReturnSerializer,
     OpenCashSessionSerializer,
+    QuoteItemSerializer,
+    QuoteSerializer,
     SaleCancellationSerializer,
     SaleRefundSerializer,
     SaleReturnSerializer,
@@ -610,3 +613,53 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+class QuoteViewSet(viewsets.ModelViewSet):
+    serializer_class = QuoteSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, SalesCapabilityPermission]
+
+    def get_queryset(self):
+        return Quote.objects.filter(tenant=self.request.tenant).select_related('branch', 'customer', 'operator')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateQuoteSerializer
+        return QuoteSerializer
+
+    def perform_create(self, serializer):
+        from django.db import transaction
+        from sales.services import create_quote
+
+        data = serializer.validated_data
+        items_data = data.pop('items', [])
+        with transaction.atomic():
+            quote = create_quote(
+                tenant=self.request.tenant,
+                branch_id=data['branch'],
+                customer_id=data.get('customer'),
+                operator=self.request.user,
+                valid_until=data.get('valid_until'),
+                notes=data.get('notes', ''),
+                items=items_data,
+            )
+        self._quote = quote
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(QuoteSerializer(self._quote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        from sales.services import convert_quote_to_sale
+
+        quote = self.get_object()
+        if quote.status not in ('draft', 'sent', 'approved'):
+            return _problem('Quote cannot be converted in its current status.')
+        try:
+            sale = convert_quote_to_sale(quote, request.user)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return _problem(str(exc))
