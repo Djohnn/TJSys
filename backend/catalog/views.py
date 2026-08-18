@@ -31,6 +31,7 @@ from catalog.models import (
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
+    Tag,
     Unit,
 )
 from catalog.permissions import CatalogCapabilityPermission, PricingCapabilityPermission
@@ -52,6 +53,7 @@ from catalog.serializers import (
     ProductPriceTierSerializer,
     ProductSerializer,
     ProductUnitSerializer,
+    TagSerializer,
     UnitSerializer,
 )
 from catalog.services.events import emit_catalog_event
@@ -565,6 +567,15 @@ class BrandViewSet(CatalogViewSetBase):
 
     def get_queryset(self):
         return Brand.objects.filter(tenant=self.request.tenant).order_by('name')
+
+
+class TagViewSet(CatalogViewSetBase):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    filterset_fields = ['is_active']
+
+    def get_queryset(self):
+        return Tag.objects.filter(tenant=self.request.tenant).order_by('name')
 
 
 class ProductImageViewSet(viewsets.ModelViewSet):

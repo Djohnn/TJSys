@@ -21,6 +21,7 @@ from catalog.models import (
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
+    Tag,
     Unit,
 )
 
@@ -248,6 +249,13 @@ class BrandSerializer(FullCleanModelSerializer):
     class Meta:
         model = Brand
         fields = ['id', 'name', 'is_active', 'version']
+        read_only_fields = ['id', 'version']
+
+
+class TagSerializer(FullCleanModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['id', 'name', 'color', 'is_active', 'version']
         read_only_fields = ['id', 'version']
 
 
