@@ -9,6 +9,7 @@ from inventory.views import (
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
+    StockMapView,
     StockMovementViewSet,
     StockOperationReversalViewSet,
     StockOperationViewSet,
@@ -47,5 +48,10 @@ urlpatterns = [
         'products/<uuid:product_id>/stock-control/reactivate/',
         ProductStockControlReactivateView.as_view(),
         name='product-stock-control-reactivate',
+    ),
+    path(
+        'stock-map/',
+        StockMapView.as_view(),
+        name='stock-map',
     ),
 ]
