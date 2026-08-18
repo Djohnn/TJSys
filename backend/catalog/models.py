@@ -570,6 +570,44 @@ class Brand(TimeStampedModel, TenantScopedModel):
         super().save(*args, **kwargs)
 
 
+class Tag(TimeStampedModel, TenantScopedModel):
+    name = models.CharField(max_length=80)
+    color = models.CharField(max_length=7, blank=True, default='#6B7280')
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'name'],
+                condition=models.Q(is_active=True),
+                name='uniq_tag_tenant_name_active',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.name} [{self.tenant.name}]'
+
+    def clean(self):
+        super().clean()
+        self.name = ' '.join(self.name.split()).lower()
+        duplicate = Tag.all_objects.filter(
+            tenant_id=self.tenant_id,
+            name__iexact=self.name,
+            is_active=True,
+        ).exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError({'name': 'An active tag with this name already exists.'})
+
+    def save(self, *args, **kwargs):
+        self.name = ' '.join(self.name.split()).lower()
+        super().save(*args, **kwargs)
+
+
 class TenantProductCodeSequence(TimeStampedModel, TenantScopedModel):
     """Tenant-local state used to allocate internal EAN-13 bodies."""
 
