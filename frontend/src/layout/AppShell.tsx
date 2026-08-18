@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import TenantSelector from '@/tenant/TenantSelector'
+import { GlobalSearch } from '@/search/GlobalSearch'
+import { ShortcutHelp } from '@/shortcuts/ShortcutHelp'
+import { useKeyboardShortcuts } from '@/shortcuts/useKeyboardShortcuts'
 import Navigation from './Navigation'
 
 export default function AppShell(): ReactNode {
   const auth = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [openFlyout, setOpenFlyout] = useState<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const drawerRef = useRef<HTMLDivElement>(null)
   const drawerCloseRef = useRef<HTMLButtonElement>(null)
@@ -29,16 +34,28 @@ export default function AppShell(): ReactNode {
     setOpenFlyout((prev) => (prev === id ? null : id))
   }
 
+  const handleShortcutAction = useCallback((action: string) => {
+    if (action === 'global-search') {
+      setSearchOpen(true)
+    } else if (action === 'show-help') {
+      setHelpOpen((prev) => !prev)
+    }
+  }, [])
+
+  useKeyboardShortcuts(handleShortcutAction)
+
   useEffect(() => {
-    if (!menuOpen && !openFlyout) return
+    if (!menuOpen && !openFlyout && !searchOpen && !helpOpen) return
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (openFlyout) closeFlyout(true)
+      if (searchOpen) setSearchOpen(false)
+      else if (helpOpen) setHelpOpen(false)
+      else if (openFlyout) closeFlyout(true)
       else closeMenu()
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [menuOpen, openFlyout])
+  }, [menuOpen, openFlyout, searchOpen, helpOpen])
 
   useEffect(() => {
     if (!openFlyout) return
@@ -90,6 +107,30 @@ export default function AppShell(): ReactNode {
             </button>
             <span className="truncate text-sm font-semibold text-neutral-700">Administrativo</span>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Buscar (Ctrl+K)"
+              className="flex h-11 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-gray-50)] px-3 text-sm text-[var(--color-gray-500)] transition-colors hover:bg-[var(--color-gray-100)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-800)]"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <span className="hidden sm:inline">Buscar...</span>
+              <kbd className="hidden rounded bg-[var(--color-gray-200)] px-1.5 py-0.5 text-xs text-[var(--color-gray-600)] sm:inline">⌘K</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Atalhos de teclado"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg text-[var(--color-gray-500)] transition-colors hover:bg-[var(--color-gray-100)] hover:text-[var(--color-gray-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-800)] sm:flex"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+              </svg>
+            </button>
+          </div>
           <div className="min-w-0 flex-1 sm:flex-none"><TenantSelector /></div>
           <button
             type="button"
@@ -120,6 +161,8 @@ export default function AppShell(): ReactNode {
           </div>
         </div>
       )}
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )
 }

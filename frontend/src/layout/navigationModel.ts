@@ -22,7 +22,7 @@ export interface ContextNavigationItem { id: string; label: string; to: string }
 
 export const MODULE_ITEMS: readonly NavigationItem[] = [
   { id: 'home', label: 'Início', route: '/dashboard', status: 'active', icon: 'home' },
-  { id: 'favorites', label: 'Favoritos', route: '/catalog', status: 'active', icon: 'star' },
+  { id: 'favorites', label: 'Favoritos', route: '/favorites', status: 'active', icon: 'star' },
   { id: 'catalog', label: 'Catálogo', route: '/catalog', status: 'active', icon: 'catalog' },
   {
     id: 'sales',

@@ -10,6 +10,7 @@ import { OrganizationProvider } from '@/organization/OrganizationProvider'
 import AppShell from '@/layout/AppShell'
 import ErrorState from '@/errors/ErrorState'
 import DashboardPage from '@/dashboard/DashboardPage'
+import FavoritesPage from '@/favorites/FavoritesPage'
 import CompaniesPage from '@/organization/CompaniesPage'
 import BranchesPage from '@/organization/BranchesPage'
 import MembersPage from '@/access/MembersPage'
@@ -87,6 +88,7 @@ export default function App(): ReactNode {
             >
               <Route index element={<DashboardPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="favorites" element={<FavoritesPage />} />
               <Route path="catalog" element={<CatalogHomePage />} />
               <Route path="catalog/products" element={<ProductsPage />} />
               <Route path="catalog/products/new" element={<ProductEditorPage />} />

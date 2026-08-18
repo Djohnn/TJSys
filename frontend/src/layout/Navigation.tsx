@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
+import { FavoritesRail } from '@/favorites/FavoritesRail'
 import { CATALOG_ITEMS, MODULE_ITEMS, isRouteActive, type NavigationIcon, type NavigationItem } from './navigationModel'
 
 function ModuleIcon({ type }: { type: NavigationIcon }): ReactNode {
@@ -142,6 +143,7 @@ function ModuleRail({ pathname, flyoutScope, openFlyout, onToggleFlyout, onFlyou
           )
         })}
       </div>
+      <FavoritesRail onNavigate={onNavigate} />
       {openItem && flyoutTop !== null && (
         <FlyoutMenu item={openItem} top={flyoutTop} onFlyoutClose={onFlyoutClose} onNavigate={onNavigate} />
       )}
