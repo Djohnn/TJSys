@@ -6,6 +6,7 @@ from inventory.views import (
     ProductStockControlReactivateView,
     ProductStockPolicyViewSet,
     ProductStockSummaryView,
+    ProductionOrderViewSet,
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
@@ -29,6 +30,11 @@ router.register(
     'product-policies',
     ProductStockPolicyViewSet,
     basename='productstockpolicy',
+)
+router.register(
+    'production-orders',
+    ProductionOrderViewSet,
+    basename='productionorder',
 )
 
 urlpatterns = [
