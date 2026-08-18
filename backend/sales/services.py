@@ -1100,3 +1100,218 @@ def cancel_sale(
         tenant_id=tenant.id,
     )
     return cancellation
+
+
+# =============================================================================
+# F3 — Quote to Sale conversion
+# =============================================================================
+
+
+class QuoteAlreadyConverted(Exception):
+    pass
+
+
+class QuoteExpired(Exception):
+    pass
+
+
+class QuoteNotConvertible(Exception):
+    pass
+
+
+def create_quote(
+    *,
+    tenant,
+    branch_id,
+    customer_id,
+    operator,
+    valid_until,
+    notes,
+    items,
+):
+    from sales.models import Quote, QuoteItem
+
+    quote = Quote(
+        tenant=tenant,
+        branch_id=branch_id,
+        customer_id=customer_id,
+        operator=operator,
+        valid_until=valid_until,
+        notes=notes,
+        status='draft',
+    )
+    quote.full_clean()
+    quote.save()
+
+    gross_total = Decimal('0')
+    for item_data in items:
+        item = QuoteItem(
+            tenant=tenant,
+            quote=quote,
+            product_id=item_data['product'],
+            quantity=item_data['quantity'],
+            unit_price=item_data['unit_price'],
+            discount=item_data.get('discount', Decimal('0')),
+            notes=item_data.get('notes', ''),
+        )
+        item.full_clean()
+        item.save()
+        gross_total += item.unit_price * item.quantity - item.discount
+
+    quote.gross_total = _money(gross_total)
+    quote.net_total = _money(gross_total - quote.discount_total)
+    quote.save(update_fields=['gross_total', 'net_total', 'updated_at'])
+
+    return quote
+
+
+def convert_quote_to_sale(quote, actor):
+    from sales.models import Quote
+
+    if quote.status in ('converted', 'expired', 'rejected'):
+        raise QuoteAlreadyConverted('Quote has already been converted or is no longer valid.')
+
+    if quote.valid_until and quote.valid_until < timezone.now().date():
+        quote.status = 'expired'
+        quote.save(update_fields=['status', 'updated_at'])
+        raise QuoteExpired('Quote validity has expired.')
+
+    sale = create_counter_sale(
+        tenant=quote.tenant,
+        branch=quote.branch,
+        operator=actor,
+        customer=quote.customer,
+        items=[
+            {
+                'product': item.product_id,
+                'quantity': item.quantity,
+                'unit_price': item.unit_price,
+                'discount': item.discount,
+            }
+            for item in quote.items.all()
+        ],
+        idempotency_key=f'quote:{quote.id}:{timezone.now().timestamp()}',
+    )
+
+    quote.status = 'converted'
+    quote.converted_sale = sale
+    quote.version += 1
+    quote.save(update_fields=['status', 'converted_sale', 'version', 'updated_at'])
+
+    create_audit_record(
+        actor=actor,
+        action='sales.quote.converted',
+        resource_type='Quote',
+        resource_id=str(quote.id),
+        detail={
+            'sale_id': str(sale.id),
+            'quote_number': quote.quote_number,
+        },
+        correlation_id=quote.idempotency_key,
+        tenant_id=quote.tenant.id,
+    )
+
+    return sale
+
+
+# =============================================================================
+# F3 — SalesOrder to Sale conversion
+# =============================================================================
+
+
+class OrderAlreadyConverted(Exception):
+    pass
+
+
+class OrderNotConvertible(Exception):
+    pass
+
+
+def create_sales_order(
+    *,
+    tenant,
+    branch_id,
+    customer_id,
+    operator,
+    quote_id,
+    expected_date,
+    notes,
+    items,
+):
+    from sales.models import SalesOrder, SalesOrderItem
+
+    order = SalesOrder(
+        tenant=tenant,
+        branch_id=branch_id,
+        customer_id=customer_id,
+        operator=operator,
+        quote_id=quote_id,
+        expected_date=expected_date,
+        notes=notes,
+        status='draft',
+    )
+    order.full_clean()
+    order.save()
+
+    gross_total = Decimal('0')
+    for item_data in items:
+        item = SalesOrderItem(
+            tenant=tenant,
+            order=order,
+            product_id=item_data['product'],
+            quantity=item_data['quantity'],
+            unit_price=item_data['unit_price'],
+            discount=item_data.get('discount', Decimal('0')),
+            notes=item_data.get('notes', ''),
+        )
+        item.full_clean()
+        item.save()
+        gross_total += item.unit_price * item.quantity - item.discount
+
+    order.gross_total = _money(gross_total)
+    order.net_total = _money(gross_total - order.discount_total)
+    order.save(update_fields=['gross_total', 'net_total', 'updated_at'])
+
+    return order
+
+
+def convert_order_to_sale(order, actor):
+    if order.status in ('cancelled', 'delivered'):
+        raise OrderNotConvertible('Order cannot be converted in its current status.')
+
+    sale = create_counter_sale(
+        tenant=order.tenant,
+        branch=order.branch,
+        operator=actor,
+        customer=order.customer,
+        items=[
+            {
+                'product': item.product_id,
+                'quantity': item.quantity,
+                'unit_price': item.unit_price,
+                'discount': item.discount,
+            }
+            for item in order.items.all()
+        ],
+        idempotency_key=f'order:{order.id}:{timezone.now().timestamp()}',
+    )
+
+    order.status = 'converted' if hasattr(order, 'status') else 'cancelled'
+    order.converted_sale = sale
+    order.version += 1
+    order.save(update_fields=['status', 'converted_sale', 'version', 'updated_at'])
+
+    create_audit_record(
+        actor=actor,
+        action='sales.order.converted',
+        resource_type='SalesOrder',
+        resource_id=str(order.id),
+        detail={
+            'sale_id': str(sale.id),
+            'order_number': order.order_number,
+        },
+        correlation_id=order.idempotency_key,
+        tenant_id=order.tenant.id,
+    )
+
+    return sale
