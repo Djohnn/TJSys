@@ -14,7 +14,7 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
+from sales.models import CashSession, PriceList, PriceListItem, Sale, SaleItem, SaleRefund, SaleReturn
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
@@ -610,3 +610,47 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+# =============================================================================
+# F4 — PriceList
+# =============================================================================
+
+
+class PriceListViewSet(viewsets.ModelViewSet):
+    serializer_class = PriceListSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = PriceList.objects.filter(tenant=self.request.tenant).prefetch_related(
+            Prefetch(
+                'items',
+                queryset=PriceListItem.all_objects.filter(
+                    tenant=self.request.tenant,
+                ).select_related('product'),
+            ),
+        )
+        audience = self.request.query_params.get('audience')
+        is_active = self.request.query_params.get('is_active')
+        if audience:
+            queryset = queryset.filter(audience=audience)
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)

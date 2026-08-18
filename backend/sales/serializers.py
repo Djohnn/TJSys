@@ -500,3 +500,64 @@ class CreateSaleCancellationSerializer(serializers.Serializer):
             return normalize_reason(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+
+# =============================================================================
+# F4 — PriceList
+# =============================================================================
+
+
+class PriceListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceListItem
+        fields = [
+            'id',
+            'product',
+            'price',
+            'min_quantity',
+            'max_quantity',
+            'discount_percentage',
+        ]
+        read_only_fields = fields
+
+
+class PriceListSerializer(serializers.ModelSerializer):
+    items = PriceListItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PriceList
+        fields = [
+            'id',
+            'name',
+            'description',
+            'audience',
+            'is_default',
+            'is_active',
+            'valid_from',
+            'valid_until',
+            'priority',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CreatePriceListItemSerializer(serializers.Serializer):
+    product = serializers.UUIDField()
+    price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    min_quantity = serializers.DecimalField(max_digits=18, decimal_places=6, default=1)
+    max_quantity = serializers.DecimalField(max_digits=18, decimal_places=6, required=False, allow_null=True)
+    discount_percentage = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+
+
+class CreatePriceListSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    audience = serializers.ChoiceField(choices=PriceList.AUDIENCE_CHOICES)
+    is_default = serializers.BooleanField(default=False)
+    is_active = serializers.BooleanField(default=True)
+    valid_from = serializers.DateField(required=False, allow_null=True)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    priority = serializers.IntegerField(default=0)
+    items = CreatePriceListItemSerializer(many=True, required=False, default=[])
