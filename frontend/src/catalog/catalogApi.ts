@@ -87,6 +87,24 @@ export interface Category {
   parent_name: string
 }
 
+export interface SubCategory {
+  id: string
+  category: string
+  category_name: string
+  name: string
+  code: string
+  is_active: boolean
+  version: number
+}
+
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  is_active: boolean
+  version: number
+}
+
 export interface Unit {
   id: string
   name: string
@@ -303,6 +321,83 @@ export function updateCategory(
     tenantId,
     body,
   }) as Promise<Category>
+}
+
+export function fetchSubCategories(
+  tenantId: string,
+  params: { page?: number; q?: string; category?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<SubCategory>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  if (params.category) searchParams.set('category', params.category)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<SubCategory>>(`/catalog/subcategories/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<SubCategory>>
+}
+
+export function createSubCategory(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<SubCategory> {
+  return apiRequest<SubCategory>('/catalog/subcategories/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<SubCategory>
+}
+
+export function updateSubCategory(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<SubCategory> {
+  return apiRequest<SubCategory>(`/catalog/subcategories/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<SubCategory>
+}
+
+export function fetchTags(
+  tenantId: string,
+  params: { page?: number; q?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Tag>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<Tag>>(`/catalog/tags/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<Tag>>
+}
+
+export function createTag(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<Tag> {
+  return apiRequest<Tag>('/catalog/tags/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<Tag>
+}
+
+export function updateTag(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<Tag> {
+  return apiRequest<Tag>(`/catalog/tags/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<Tag>
 }
 
 export function createUnit(
