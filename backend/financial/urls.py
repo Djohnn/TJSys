@@ -6,6 +6,7 @@ from financial.views import (
     CashflowEntryViewSet,
     CashflowReportView,
     FinancialReportView,
+    FiscalCompensationViewSet,
     InventoryReportView,
     PayableViewSet,
     PendingOperationsReportView,
@@ -17,6 +18,7 @@ router = DefaultRouter()
 router.register('payables', PayableViewSet, basename='payable')
 router.register('receivables', ReceivableViewSet, basename='receivable')
 router.register('cashflow', CashflowEntryViewSet, basename='cashflow')
+router.register('fiscal-compensations', FiscalCompensationViewSet, basename='fiscal-compensation')
 
 urlpatterns = [
     path('reports/sales/', SalesReportView.as_view(), name='report-sales'),
