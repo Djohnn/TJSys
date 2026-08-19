@@ -3,6 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import viewsets
@@ -90,11 +91,35 @@ class SalesReportView(ReportView):
         branch = self.branch(request)
         if branch:
             queryset = queryset.filter(branch=branch)
+
         totals = queryset.aggregate(count=Count('id'), net_total=Sum('net_total'))
+
+        by_status = (
+            queryset.values('status')
+            .annotate(count=Count('id'), total=Sum('net_total'))
+            .order_by('status')
+        )
+
+        by_payment_method = (
+            queryset.values('payment_method')
+            .annotate(count=Count('id'), total=Sum('net_total'))
+            .order_by('payment_method')
+        )
+
+        by_day = (
+            queryset.annotate(day=TruncDate('created_at'))
+            .values('day')
+            .annotate(count=Count('id'), total=Sum('net_total'))
+            .order_by('day')
+        )
+
         return Response(
             {
                 'count': totals['count'],
                 'net_total': totals['net_total'] or Decimal('0.00'),
+                'by_status': list(by_status),
+                'by_payment_method': list(by_payment_method),
+                'by_day': list(by_day),
             }
         )
 
@@ -136,20 +161,41 @@ class InventoryReportView(ReportView):
         branch = self.branch(request)
         if branch:
             queryset = queryset.filter(location__branch=branch)
+
+        items = [
+            {
+                'product_id': str(balance.product_id),
+                'sku': balance.product.sku,
+                'product_name': balance.product.name,
+                'location_id': str(balance.location_id),
+                'location_name': balance.location.name,
+                'quantity': balance.quantity,
+                'reserved': balance.reserved,
+                'available': balance.available,
+                'critical': balance.available <= 0,
+            }
+            for balance in queryset[:MAX_EXPORT_ROWS]
+        ]
+
+        summary = queryset.aggregate(
+            total_products=Count('product_id', distinct=True),
+            total_quantity=Sum('quantity'),
+            total_reserved=Sum('reserved'),
+            total_available=Sum('available'),
+        )
+
+        critical_count = queryset.filter(available__lte=0).count()
+
         return Response(
             {
-                'items': [
-                    {
-                        'product_id': str(balance.product_id),
-                        'sku': balance.product.sku,
-                        'location_id': str(balance.location_id),
-                        'quantity': balance.quantity,
-                        'reserved': balance.reserved,
-                        'available': balance.available,
-                        'critical': balance.available <= 0,
-                    }
-                    for balance in queryset[:MAX_EXPORT_ROWS]
-                ]
+                'items': items,
+                'summary': {
+                    'total_products': summary['total_products'] or 0,
+                    'total_quantity': summary['total_quantity'] or 0,
+                    'total_reserved': summary['total_reserved'] or 0,
+                    'total_available': summary['total_available'] or 0,
+                    'critical_items': critical_count,
+                },
             }
         )
 
