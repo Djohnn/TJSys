@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from financial.views import (
+    BillingViewSet,
     CashClosingReportView,
     CashflowEntryViewSet,
     CashflowReportView,
@@ -17,6 +18,7 @@ router = DefaultRouter()
 router.register('payables', PayableViewSet, basename='payable')
 router.register('receivables', ReceivableViewSet, basename='receivable')
 router.register('cashflow', CashflowEntryViewSet, basename='cashflow')
+router.register('billings', BillingViewSet, basename='billing')
 
 urlpatterns = [
     path('reports/sales/', SalesReportView.as_view(), name='report-sales'),
