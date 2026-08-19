@@ -285,3 +285,81 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
         if date_to:
             queryset = queryset.filter(due_date__lte=date_to)
         return queryset.order_by('-created_at')
+
+
+# =============================================================================
+# Sprint F9 — BankReconciliation API
+# =============================================================================
+
+
+from rest_framework import serializers
+from rest_framework.decorators import action
+from financial.models import BankReconciliation, BankReconciliationItem, FinancialAccount
+
+
+class BankReconciliationSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    account = serializers.UUIDField()
+    statement_date = serializers.DateField()
+    statement_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
+    system_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
+    difference = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendente'),
+            ('matched', 'Conciliado'),
+            ('partial', 'Parcial'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='pending',
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    reconciled_by = serializers.UUIDField(read_only=True)
+    reconciled_at = serializers.DateTimeField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class BankReconciliationViewSet(viewsets.ModelViewSet):
+    serializer_class = BankReconciliationSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return BankReconciliation.objects.select_related(
+            'account',
+            'reconciled_by',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'match', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability(self.required_capability))
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant, reconciled_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def match(self, request, pk=None):
+        reconciliation = self.get_object()
+        if reconciliation.status != 'pending':
+            return Response({'detail': 'Only pending reconciliations can be matched.'}, status=400)
+        reconciliation.status = 'matched'
+        reconciliation.reconciled_at = timezone.now()
+        reconciliation.full_clean()
+        reconciliation.save()
+        return Response(BankReconciliationSerializer(reconciliation).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        reconciliation = self.get_object()
+        if reconciliation.status in ('matched', 'cancelled'):
+            return Response({'detail': 'Matched or cancelled reconciliations cannot be cancelled.'}, status=400)
+        reconciliation.status = 'cancelled'
+        reconciliation.full_clean()
+        reconciliation.save()
+        return Response(BankReconciliationSerializer(reconciliation).data)
