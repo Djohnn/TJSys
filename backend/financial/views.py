@@ -285,3 +285,92 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
         if date_to:
             queryset = queryset.filter(due_date__lte=date_to)
         return queryset.order_by('-created_at')
+
+
+# =============================================================================
+# Sprint F9 — FinancialStatement API (extrato financeiro)
+# =============================================================================
+
+
+from django.db.models import Sum
+from financial.models import CashflowEntry, FinancialAccount
+
+
+class FinancialStatementView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant, FinancialReportingPermission]
+
+    def get(self, request):
+        account_id = request.query_params.get('account')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+
+        if not account_id:
+            return Response({'detail': 'account parameter is required.'}, status=400)
+
+        account = FinancialAccount.objects.filter(
+            tenant=request.tenant,
+            id=account_id,
+        ).first()
+
+        if not account:
+            return Response({'detail': 'Account not found.'}, status=404)
+
+        entries = CashflowEntry.objects.filter(
+            tenant=request.tenant,
+            account=account,
+        )
+
+        if date_from:
+            entries = entries.filter(effective_date__gte=date_from)
+        if date_to:
+            entries = entries.filter(effective_date__lte=date_to)
+
+        entries = entries.order_by('effective_date', 'created_at')
+
+        opening_balance = Decimal('0.00')
+        if date_from:
+            opening_entries = CashflowEntry.objects.filter(
+                tenant=request.tenant,
+                account=account,
+                effective_date__lt=date_from,
+            )
+            opening_balance = opening_entries.aggregate(
+                total=Sum(
+                    models.Case(
+                        models.When(direction='inflow', then='amount'),
+                        models.When(direction='outflow', then=-models.F('amount')),
+                        default=0,
+                        output_field=models.DecimalField(),
+                    )
+                )
+            )['total'] or Decimal('0.00')
+
+        transactions = []
+        running_balance = opening_balance
+
+        for entry in entries:
+            if entry.direction == 'inflow':
+                running_balance += entry.amount
+            else:
+                running_balance -= entry.amount
+
+            transactions.append({
+                'id': str(entry.id),
+                'effective_date': entry.effective_date.isoformat(),
+                'description': entry.description,
+                'direction': entry.direction,
+                'amount': str(entry.amount),
+                'status': entry.status,
+                'balance': str(running_balance),
+            })
+
+        return Response({
+            'account': {
+                'id': str(account.id),
+                'name': account.name,
+                'account_type': account.account_type,
+            },
+            'opening_balance': str(opening_balance),
+            'closing_balance': str(running_balance),
+            'transactions': transactions,
+        })
