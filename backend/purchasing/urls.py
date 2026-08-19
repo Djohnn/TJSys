@@ -8,6 +8,7 @@ from purchasing.views import (
     PurchaseReceiptViewSet,
     PurchasingSummaryViewSet,
     RecurringPurchaseOrderViewSet,
+    SupplierReturnViewSet,
     SupplierViewSet,
 )
 
@@ -30,6 +31,11 @@ router.register(
     'recurring-purchase-orders',
     RecurringPurchaseOrderViewSet,
     basename='recurringpurchaseorder',
+)
+router.register(
+    'supplier-returns',
+    SupplierReturnViewSet,
+    basename='supplierreturn',
 )
 
 urlpatterns = [
