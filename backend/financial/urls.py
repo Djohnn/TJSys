@@ -5,6 +5,7 @@ from financial.views import (
     CashClosingReportView,
     CashflowEntryViewSet,
     CashflowReportView,
+    DREReportView,
     FinancialReportView,
     InventoryReportView,
     PayableViewSet,
@@ -29,5 +30,6 @@ urlpatterns = [
         PendingOperationsReportView.as_view(),
         name='report-pending-operations',
     ),
+    path('reports/dre/', DREReportView.as_view(), name='report-dre'),
     path('', include(router.urls)),
 ]
