@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -414,6 +415,157 @@ class RecurringTemplateItem(VersionedPurchasingModel):
             raise ValidationError('Unit cost must be positive.')
         if self.product.tenant_id != self.tenant_id:
             raise ValidationError('Product must belong to the same tenant.')
+
+    def line_total(self):
+        return self.quantity * self.unit_cost * self.factor
+
+
+# =============================================================================
+# Sprint F8 — SupplierQuote (orçamentos de fornecedores)
+# =============================================================================
+
+
+class SupplierQuote(VersionedPurchasingModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('sent', 'Enviado'),
+        ('received', 'Recebido'),
+        ('approved', 'Aprovado'),
+        ('rejected', 'Rejeitado'),
+        ('expired', 'Expirado'),
+        ('cancelled', 'Cancelado'),
+    ]
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name='quotes',
+    )
+    branch = models.ForeignKey(
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        related_name='supplier_quotes',
+    )
+    code = models.CharField(max_length=40)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    valid_until = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    total_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_quotes_created',
+    )
+    idempotency_key = models.CharField(max_length=100, blank=True, default='')
+    payload_hash = models.CharField(max_length=64, blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                name='uniq_supplier_quote_tenant_code',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                condition=~models.Q(idempotency_key=''),
+                name='uniq_supplier_quote_idempotency_tenant',
+            ),
+        ]
+
+    def __str__(self):
+        return f'QUOTE-{self.code} ({self.supplier.name})'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.supplier_id and self.supplier.tenant_id != self.tenant_id:
+            errors['supplier'] = 'Supplier must belong to the same tenant.'
+        if self.branch_id and self.branch.tenant_id != self.tenant_id:
+            errors['branch'] = 'Branch must belong to the same tenant.'
+        if self.valid_until and self.valid_until < timezone.now().date():
+            if self.status not in ('expired', 'cancelled'):
+                errors['valid_until'] = 'Quote validity has expired.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = SupplierQuote.all_objects.get(pk=self.pk)
+            if current.status in ('cancelled', 'expired'):
+                raise ValidationError('Cancelled or expired quotes are immutable.')
+        super().save(*args, **kwargs)
+
+
+class SupplierQuoteItem(VersionedPurchasingModel):
+    quote = models.ForeignKey(
+        SupplierQuote,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='supplier_quote_items',
+    )
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='supplier_quote_items',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit_cost = models.DecimalField(max_digits=18, decimal_places=2)
+    factor = models.DecimalField(max_digits=18, decimal_places=6, default=1)
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['quote', 'product']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='supplierquoteitem_quantity_positive',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_cost__gt=0),
+                name='supplierquoteitem_unit_cost_positive',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.quote.code} — {self.product.sku} x {self.quantity}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.unit_cost <= 0:
+            errors['unit_cost'] = 'Unit cost must be positive.'
+        if self.product_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.unit_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.quote_id and self.quote.tenant_id != self.tenant_id:
+            errors['quote'] = 'Quote must belong to the same tenant.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = SupplierQuoteItem.all_objects.get(pk=self.pk)
+            if current.quote_id:
+                quote = SupplierQuote.all_objects.get(pk=current.quote_id)
+                if quote.status in ('cancelled', 'expired'):
+                    raise ValidationError('Items of cancelled or expired quotes are immutable.')
+        super().save(*args, **kwargs)
 
     def line_total(self):
         return self.quantity * self.unit_cost * self.factor
