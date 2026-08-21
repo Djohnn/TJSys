@@ -483,3 +483,27 @@ class StorageType(VersionedInventoryModel):
         if self.temperature_min is not None and self.temperature_max is not None:
             if self.temperature_min > self.temperature_max:
                 raise ValidationError({'temperature_max': 'Max temperature must be greater than min.'})
+
+
+class MovementReason(VersionedInventoryModel):
+    DIRECTION_CHOICES = [
+        ('in', 'Entrada'),
+        ('out', 'Saida'),
+        ('transfer', 'Transferencia'),
+    ]
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    direction = models.CharField(max_length=20, choices=DIRECTION_CHOICES)
+    requires_authorization = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+
+    def clean(self):
+        super().clean()
+
