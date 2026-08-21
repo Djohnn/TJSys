@@ -500,3 +500,75 @@ class CreateSaleCancellationSerializer(serializers.Serializer):
             return normalize_reason(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+
+# =============================================================================
+# F4 — Consignment
+# =============================================================================
+
+
+class ConsignmentItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConsignmentItem
+        fields = [
+            'id',
+            'product',
+            'unit',
+            'quantity',
+            'returned_quantity',
+            'factor',
+            'unit_price',
+            'discount_amount',
+            'line_total',
+            'notes',
+        ]
+        read_only_fields = fields
+
+
+class ConsignmentSerializer(serializers.ModelSerializer):
+    items = ConsignmentItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Consignment
+        fields = [
+            'id',
+            'branch',
+            'operator',
+            'customer',
+            'status',
+            'consignment_number',
+            'expected_return_date',
+            'actual_return_date',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields
+
+
+class CreateConsignmentItemSerializer(serializers.Serializer):
+    product = serializers.UUIDField()
+    unit = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    factor = serializers.DecimalField(max_digits=18, decimal_places=6)
+    unit_price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    discount_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        default=Decimal('0'),
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class CreateConsignmentSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    customer = serializers.UUIDField()
+    expected_return_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    items = CreateConsignmentItemSerializer(many=True, min_length=1)

@@ -610,3 +610,79 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+# =============================================================================
+# F4 — Consignment
+# =============================================================================
+
+
+class ConsignmentViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ConsignmentSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = (
+            Consignment.objects.select_related('branch', 'operator', 'customer')
+            .filter(tenant=self.request.tenant)
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=ConsignmentItem.all_objects.filter(
+                        tenant=self.request.tenant,
+                    ).select_related('product', 'unit'),
+                ),
+            )
+        )
+        branch_id = self.request.query_params.get('branch')
+        operator_id = self.request.query_params.get('operator')
+        customer_id = self.request.query_params.get('customer')
+        status = self.request.query_params.get('status')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def _handle_sales_error(self, exc):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
+            return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
+        if isinstance(exc, DuplicateIdempotencyKey):
+            return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
+        if isinstance(exc, ValueError):
+            return _problem(exc)
+        raise exc
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        consignment = self.get_object()
+        if consignment.status not in ('draft', 'active'):
+            return _problem('Consignment cannot be converted.', 'invalid_status', status.HTTP_409_CONFLICT)
+        try:
+            consignment.status = 'closed'
+            consignment.actual_return_date = timezone.now().date()
+            consignment.save()
+            return Response(ConsignmentSerializer(consignment, context=self.get_serializer_context()).data)
+        except _SALES_COMMAND_ERRORS as exc:
+            return self._handle_sales_error(exc)
