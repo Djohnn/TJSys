@@ -2,7 +2,6 @@ import django.db.models.deletion
 import uuid
 from django.conf import settings
 from django.db import migrations, models
-import django.utils.timezone
 
 
 class Migration(migrations.Migration):
@@ -19,14 +18,14 @@ class Migration(migrations.Migration):
             name='Pipeline',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('version', models.PositiveIntegerField(default=1)),
                 ('name', models.CharField(max_length=100)),
                 ('description', models.TextField(blank=True, default='')),
                 ('is_default', models.BooleanField(default=False)),
                 ('is_active', models.BooleanField(default=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='%(class)s_set', to='tenancy.tenant')),
+                ('tenant', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, to='tenancy.tenant')),
             ],
             options={
                 'ordering': ['name'],
@@ -36,7 +35,7 @@ class Migration(migrations.Migration):
             name='PipelineStage',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('version', models.PositiveIntegerField(default=1)),
                 ('name', models.CharField(max_length=100)),
@@ -46,7 +45,7 @@ class Migration(migrations.Migration):
                 ('is_won', models.BooleanField(default=False)),
                 ('is_lost', models.BooleanField(default=False)),
                 ('is_active', models.BooleanField(default=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='%(class)s_set', to='tenancy.tenant')),
+                ('tenant', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, to='tenancy.tenant')),
             ],
             options={
                 'ordering': ['order', 'name'],
@@ -56,7 +55,7 @@ class Migration(migrations.Migration):
             name='Opportunity',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('version', models.PositiveIntegerField(default=1)),
                 ('title', models.CharField(max_length=200)),
@@ -75,7 +74,7 @@ class Migration(migrations.Migration):
                 ('customer', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='opportunities', to='people.person')),
                 ('pipeline', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='opportunities', to='crm.pipeline')),
                 ('stage', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='opportunities', to='crm.pipelinestage')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='%(class)s_set', to='tenancy.tenant')),
+                ('tenant', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, to='tenancy.tenant')),
             ],
             options={
                 'ordering': ['-created_at'],
