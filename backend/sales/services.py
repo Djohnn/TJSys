@@ -1166,8 +1166,6 @@ def create_quote(
 
 
 def convert_quote_to_sale(quote, actor):
-    from sales.models import Quote
-
     if quote.status in ('converted', 'expired', 'rejected'):
         raise QuoteAlreadyConverted('Quote has already been converted or is no longer valid.')
 

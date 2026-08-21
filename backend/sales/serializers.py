@@ -8,8 +8,6 @@ from sales.models import (
     CashSession,
     Quote,
     QuoteItem,
-    SalesOrder,
-    SalesOrderItem,
     Sale,
     SaleCancellation,
     SaleItem,
@@ -17,6 +15,8 @@ from sales.models import (
     SaleRefund,
     SaleReturn,
     SaleReturnItem,
+    SalesOrder,
+    SalesOrderItem,
 )
 from sales.validators import normalize_reason
 
@@ -512,7 +512,16 @@ class QuoteItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuoteItem
-        fields = ['id', 'product', 'product_name', 'product_sku', 'quantity', 'unit_price', 'discount', 'notes']
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'product_sku',
+            'quantity',
+            'unit_price',
+            'discount',
+            'notes',
+        ]
         read_only_fields = ['id']
 
 
@@ -538,7 +547,7 @@ class CreateQuoteSerializer(serializers.Serializer):
     customer = serializers.UUIDField(required=False, allow_null=True)
     valid_until = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
-    items = QuoteItemSerializer(many=True, min_length=1)
+    items = QuoteItemSerializer(many=True, allow_empty=False)
 
     def validate_items(self, value):
         if not value:
@@ -552,7 +561,16 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SalesOrderItem
-        fields = ['id', 'product', 'product_name', 'product_sku', 'quantity', 'unit_price', 'discount', 'notes']
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'product_sku',
+            'quantity',
+            'unit_price',
+            'discount',
+            'notes',
+        ]
         read_only_fields = ['id']
 
 
@@ -581,7 +599,7 @@ class CreateSalesOrderSerializer(serializers.Serializer):
     quote = serializers.UUIDField(required=False, allow_null=True)
     expected_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
-    items = SalesOrderItemSerializer(many=True, min_length=1)
+    items = SalesOrderItemSerializer(many=True, allow_empty=False)
 
     def validate_items(self, value):
         if not value:

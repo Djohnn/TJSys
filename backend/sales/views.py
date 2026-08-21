@@ -1,6 +1,7 @@
 import csv
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
@@ -14,7 +15,15 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Quote, QuoteItem, Sale, SaleItem, SaleRefund, SaleReturn, SalesOrder, SalesOrderItem
+from sales.models import (
+    CashSession,
+    Quote,
+    Sale,
+    SaleItem,
+    SaleRefund,
+    SaleReturn,
+    SalesOrder,
+)
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
@@ -26,14 +35,12 @@ from sales.serializers import (
     CreateSaleReturnSerializer,
     CreateSalesOrderSerializer,
     OpenCashSessionSerializer,
-    QuoteItemSerializer,
     QuoteSerializer,
-    SalesOrderItemSerializer,
-    SalesOrderSerializer,
     SaleCancellationSerializer,
     SaleRefundSerializer,
     SaleReturnSerializer,
     SaleSerializer,
+    SalesOrderSerializer,
     SyncBatchSerializer,
 )
 from sales.services import (
@@ -51,8 +58,10 @@ from sales.services import (
     cancel_sale,
     close_cash_session,
     create_counter_sale,
+    create_quote,
     create_sale_refund,
     create_sale_return,
+    create_sales_order,
     open_cash_session,
 )
 from tenancy.models import Branch
@@ -620,10 +629,17 @@ class SyncBatchView(APIView):
 
 class QuoteViewSet(viewsets.ModelViewSet):
     serializer_class = QuoteSerializer
-    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, SalesCapabilityPermission]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
 
     def get_queryset(self):
-        return Quote.objects.filter(tenant=self.request.tenant).select_related('branch', 'customer', 'operator')
+        return Quote.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator'
+        )
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -631,9 +647,6 @@ class QuoteViewSet(viewsets.ModelViewSet):
         return QuoteSerializer
 
     def perform_create(self, serializer):
-        from django.db import transaction
-        from sales.services import create_quote
-
         data = serializer.validated_data
         items_data = data.pop('items', [])
         with transaction.atomic():
@@ -670,10 +683,17 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
 class SalesOrderViewSet(viewsets.ModelViewSet):
     serializer_class = SalesOrderSerializer
-    permission_classes = [IsAuthenticated, HasActiveTenant, HasVerifiedMFA, SalesCapabilityPermission]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
 
     def get_queryset(self):
-        return SalesOrder.objects.filter(tenant=self.request.tenant).select_related('branch', 'customer', 'operator', 'quote')
+        return SalesOrder.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator', 'quote'
+        )
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -681,9 +701,6 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
         return SalesOrderSerializer
 
     def perform_create(self, serializer):
-        from django.db import transaction
-        from sales.services import create_sales_order
-
         data = serializer.validated_data
         items_data = data.pop('items', [])
         with transaction.atomic():

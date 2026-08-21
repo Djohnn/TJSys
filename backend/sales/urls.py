@@ -1,7 +1,13 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from sales.views import CashSessionViewSet, QuoteViewSet, SaleViewSet, SalesOrderViewSet, SyncBatchView
+from sales.views import (
+    CashSessionViewSet,
+    QuoteViewSet,
+    SalesOrderViewSet,
+    SaleViewSet,
+    SyncBatchView,
+)
 
 router = DefaultRouter()
 router.register('cash-sessions', CashSessionViewSet, basename='cashsession')
