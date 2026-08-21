@@ -79,7 +79,9 @@ class CashMovement(VersionedSalesModel):
         ('closing_adjustment', 'Ajuste de fechamento'),
     ]
 
-    cash_session = models.ForeignKey(CashSession, on_delete=models.PROTECT, related_name='movements')
+    cash_session = models.ForeignKey(
+        CashSession, on_delete=models.PROTECT, related_name='movements'
+    )
     movement_type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     payment_method = models.CharField(max_length=30, blank=True, default='')
@@ -96,7 +98,11 @@ class CashMovement(VersionedSalesModel):
         super().clean()
         if self.amount < 0:
             raise ValidationError({'amount': 'Amount cannot be negative.'})
-        if self.cash_session_id and self.tenant_id and self.cash_session.tenant_id != self.tenant_id:
+        if (
+            self.cash_session_id
+            and self.tenant_id
+            and self.cash_session.tenant_id != self.tenant_id
+        ):
             raise ValidationError({'cash_session': 'Cash session must belong to the same tenant.'})
 
 
@@ -108,7 +114,9 @@ class Sale(VersionedSalesModel):
 
     branch = models.ForeignKey('tenancy.Branch', on_delete=models.PROTECT, related_name='sales')
     cash_session = models.ForeignKey(CashSession, on_delete=models.PROTECT, related_name='sales')
-    operator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='sales')
+    operator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='sales'
+    )
     customer = models.ForeignKey(
         'people.Person', on_delete=models.PROTECT, null=True, blank=True, related_name='sales'
     )
@@ -136,7 +144,11 @@ class Sale(VersionedSalesModel):
         super().clean()
         if self.branch_id and self.tenant_id and self.branch.tenant_id != self.tenant_id:
             raise ValidationError({'branch': 'Branch must belong to the same tenant.'})
-        if self.cash_session_id and self.tenant_id and self.cash_session.tenant_id != self.tenant_id:
+        if (
+            self.cash_session_id
+            and self.tenant_id
+            and self.cash_session.tenant_id != self.tenant_id
+        ):
             raise ValidationError({'cash_session': 'Cash session must belong to the same tenant.'})
         if self.customer_id and self.customer.tenant_id != self.tenant_id:
             raise ValidationError({'customer': 'Customer must belong to the same tenant.'})
@@ -144,10 +156,16 @@ class Sale(VersionedSalesModel):
 
 class SaleItem(VersionedSalesModel):
     sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name='items')
-    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='sale_items')
+    product = models.ForeignKey(
+        'catalog.Product', on_delete=models.PROTECT, related_name='sale_items'
+    )
     unit = models.ForeignKey('catalog.Unit', on_delete=models.PROTECT, related_name='sale_items')
     stock_operation = models.ForeignKey(
-        'inventory.StockOperation', on_delete=models.PROTECT, null=True, blank=True, related_name='sale_items'
+        'inventory.StockOperation',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='sale_items',
     )
     quantity = models.DecimalField(max_digits=18, decimal_places=6)
     factor = models.DecimalField(max_digits=18, decimal_places=6, default=1)
@@ -404,7 +422,9 @@ class ConsignmentItem(VersionedSalesModel):
         if self.returned_quantity < 0:
             raise ValidationError({'returned_quantity': 'Returned quantity cannot be negative.'})
         if self.returned_quantity > self.quantity:
-            raise ValidationError({'returned_quantity': 'Returned quantity cannot exceed original quantity.'})
+            raise ValidationError(
+                {'returned_quantity': 'Returned quantity cannot exceed original quantity.'}
+            )
         if self.factor <= 0:
             raise ValidationError({'factor': 'Factor must be positive.'})
         if self.discount_amount < 0:
@@ -457,7 +477,9 @@ class CommissionRule(VersionedSalesModel):
         if self.min_sale_value < 0:
             raise ValidationError({'min_sale_value': 'Minimum sale value cannot be negative.'})
         if self.max_sale_value is not None and self.max_sale_value < self.min_sale_value:
-            raise ValidationError({'max_sale_value': 'Maximum sale value must be greater than minimum.'})
+            raise ValidationError(
+                {'max_sale_value': 'Maximum sale value must be greater than minimum.'}
+            )
 
 
 class Commission(VersionedSalesModel):
@@ -544,7 +566,9 @@ class PriceList(VersionedSalesModel):
     def clean(self):
         super().clean()
         if self.valid_from and self.valid_until and self.valid_from > self.valid_until:
-            raise ValidationError({'valid_until': 'Valid until date must be after valid from date.'})
+            raise ValidationError(
+                {'valid_until': 'Valid until date must be after valid from date.'}
+            )
 
 
 class PriceListItem(VersionedSalesModel):
@@ -577,6 +601,10 @@ class PriceListItem(VersionedSalesModel):
         if self.min_quantity <= 0:
             raise ValidationError({'min_quantity': 'Minimum quantity must be positive.'})
         if self.max_quantity is not None and self.max_quantity < self.min_quantity:
-            raise ValidationError({'max_quantity': 'Maximum quantity must be greater than minimum.'})
+            raise ValidationError(
+                {'max_quantity': 'Maximum quantity must be greater than minimum.'}
+            )
         if self.discount_percentage < 0 or self.discount_percentage > 100:
-            raise ValidationError({'discount_percentage': 'Discount percentage must be between 0 and 100.'})
+            raise ValidationError(
+                {'discount_percentage': 'Discount percentage must be between 0 and 100.'}
+            )

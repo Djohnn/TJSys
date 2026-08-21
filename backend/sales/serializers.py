@@ -593,7 +593,10 @@ class CreateConsignmentSerializer(serializers.Serializer):
     customer = serializers.UUIDField()
     expected_return_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
-    items = CreateConsignmentItemSerializer(many=True, min_length=1)
+    items = serializers.ListField(
+        child=CreateConsignmentItemSerializer(),
+        min_length=1,
+    )
 
 
 # =============================================================================
@@ -646,7 +649,11 @@ class CreateCommissionRuleSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True, default='')
     rule_type = serializers.ChoiceField(choices=CommissionRule.TYPE_CHOICES)
     value = serializers.DecimalField(max_digits=18, decimal_places=4)
-    min_sale_value = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    min_sale_value = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
     max_sale_value = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -687,14 +694,22 @@ class PriceListSerializer(serializers.ModelSerializer):
 class CreatePriceListItemSerializer(serializers.Serializer):
     product = serializers.UUIDField()
     price = serializers.DecimalField(max_digits=18, decimal_places=4)
-    min_quantity = serializers.DecimalField(max_digits=18, decimal_places=6, default=1)
+    min_quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal('1'),
+    )
     max_quantity = serializers.DecimalField(
         max_digits=18,
         decimal_places=6,
         required=False,
         allow_null=True,
     )
-    discount_percentage = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    discount_percentage = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
 
 
 class CreatePriceListSerializer(serializers.Serializer):

@@ -688,12 +688,16 @@ class ConsignmentViewSet(viewsets.ReadOnlyModelViewSet):
     def convert(self, request, pk=None):
         consignment = self.get_object()
         if consignment.status not in ('draft', 'active'):
-            return _problem('Consignment cannot be converted.', 'invalid_status', status.HTTP_409_CONFLICT)
+            return _problem(
+                'Consignment cannot be converted.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
         try:
             consignment.status = 'closed'
             consignment.actual_return_date = timezone.now().date()
             consignment.save()
-            return Response(ConsignmentSerializer(consignment, context=self.get_serializer_context()).data)
+            return Response(
+                ConsignmentSerializer(consignment, context=self.get_serializer_context()).data
+            )
         except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
 
@@ -733,6 +737,8 @@ class CommissionRuleViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
+
+
 class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CommissionSerializer
     permission_classes = [
@@ -763,7 +769,9 @@ class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
     def approve(self, request, pk=None):
         commission = self.get_object()
         if commission.status != 'pending':
-            return _problem('Commission is not pending.', 'invalid_status', status.HTTP_409_CONFLICT)
+            return _problem(
+                'Commission is not pending.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
         commission.status = 'approved'
         commission.approved_at = timezone.now()
         commission.save()
@@ -773,7 +781,9 @@ class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
     def pay(self, request, pk=None):
         commission = self.get_object()
         if commission.status != 'approved':
-            return _problem('Commission is not approved.', 'invalid_status', status.HTTP_409_CONFLICT)
+            return _problem(
+                'Commission is not approved.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
         commission.status = 'paid'
         commission.paid_at = timezone.now()
         commission.save()
@@ -783,7 +793,9 @@ class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
     def cancel(self, request, pk=None):
         commission = self.get_object()
         if commission.status not in ('pending', 'approved'):
-            return _problem('Commission cannot be cancelled.', 'invalid_status', status.HTTP_409_CONFLICT)
+            return _problem(
+                'Commission cannot be cancelled.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
         commission.status = 'cancelled'
         commission.save()
         return Response(CommissionSerializer(commission).data)
