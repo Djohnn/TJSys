@@ -20,12 +20,20 @@ export interface CreateFavoriteInput {
   icon?: string
 }
 
+interface PaginatedFavoritesResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: UserFavorite[]
+}
+
 export async function getFavorites(tenantId: string, signal?: AbortSignal): Promise<UserFavorite[]> {
-  const result = await apiRequest<UserFavorite[]>('/favorites/', {
+  const result = await apiRequest<UserFavorite[] | PaginatedFavoritesResponse>('/favorites/', {
     tenantId,
     signal,
   })
-  return result ?? []
+  if (Array.isArray(result)) return result
+  return result?.results ?? []
 }
 
 export async function createFavorite(
