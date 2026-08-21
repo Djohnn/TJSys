@@ -133,8 +133,6 @@ class CreateActivitySerializer(serializers.Serializer):
     reminder_date = serializers.DateTimeField(required=False, allow_null=True)
     is_recurring = serializers.BooleanField(default=False)
     recurrence_interval = serializers.CharField(required=False, allow_blank=True, default='')
-
-
 class CustomerHistoryEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerHistoryEntry

@@ -1,4 +1,5 @@
 from django.db.models import Prefetch
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -170,14 +171,14 @@ class ActivityViewSet(viewsets.ModelViewSet):
         ).filter(tenant=self.request.tenant)
         customer_id = self.request.query_params.get('customer')
         activity_type_id = self.request.query_params.get('activity_type')
-        status = self.request.query_params.get('status')
+        status_param = self.request.query_params.get('status')
         assigned_to = self.request.query_params.get('assigned_to')
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
         if activity_type_id:
             queryset = queryset.filter(activity_type_id=activity_type_id)
-        if status:
-            queryset = queryset.filter(status=status)
+        if status_param:
+            queryset = queryset.filter(status=status_param)
         if assigned_to:
             queryset = queryset.filter(assigned_to_id=assigned_to)
         return queryset
@@ -218,8 +219,6 @@ class ActivityViewSet(viewsets.ModelViewSet):
         activity.status = 'cancelled'
         activity.save()
         return Response(ActivitySerializer(activity).data)
-
-
 class CustomerHistoryEntryViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerHistoryEntrySerializer
     permission_classes = [
