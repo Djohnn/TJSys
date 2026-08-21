@@ -21,6 +21,7 @@ from catalog.models import (
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
+    SubCategory,
     Unit,
 )
 
@@ -67,6 +68,15 @@ class CategorySerializer(FullCleanModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'code', 'parent', 'is_active', 'version']
+        read_only_fields = ['id', 'version']
+
+
+class SubCategorySerializer(FullCleanModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+
+    class Meta:
+        model = SubCategory
+        fields = ['id', 'category', 'category_name', 'name', 'code', 'is_active', 'version']
         read_only_fields = ['id', 'version']
 
 
