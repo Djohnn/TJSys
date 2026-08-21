@@ -21,6 +21,7 @@ from catalog.views import (
     ProductUnitViewSet,
     ProductViewSet,
     SubCategoryViewSet,
+    TagViewSet,
     UnitViewSet,
 )
 
@@ -30,6 +31,7 @@ router.register('subcategories', SubCategoryViewSet, basename='subcategory')
 router.register('units', UnitViewSet, basename='unit')
 router.register('products', ProductViewSet, basename='product')
 router.register('brands', BrandViewSet, basename='brand')
+router.register('tags', TagViewSet, basename='tag')
 router.register('combos', CommercialComboViewSet, basename='combo')
 router.register('label-templates', LabelTemplateViewSet, basename='label-template')
 
