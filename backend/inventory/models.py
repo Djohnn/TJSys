@@ -483,4 +483,3 @@ class StorageType(VersionedInventoryModel):
         if self.temperature_min is not None and self.temperature_max is not None:
             if self.temperature_min > self.temperature_max:
                 raise ValidationError({'temperature_max': 'Max temperature must be greater than min.'})
-
