@@ -6,6 +6,7 @@ from sales.views import (
     CommissionRuleViewSet,
     CommissionViewSet,
     ConsignmentViewSet,
+    PriceListViewSet,
     SaleViewSet,
     SyncBatchView,
 )
@@ -16,6 +17,7 @@ router.register('sales', SaleViewSet, basename='sale')
 router.register('consignments', ConsignmentViewSet, basename='consignment')
 router.register('commission-rules', CommissionRuleViewSet, basename='commission-rule')
 router.register('commissions', CommissionViewSet, basename='commission')
+router.register('price-lists', PriceListViewSet, basename='pricelist')
 
 urlpatterns = [
     path('', include(router.urls)),

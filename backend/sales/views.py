@@ -21,6 +21,8 @@ from sales.models import (
     CommissionRule,
     Consignment,
     ConsignmentItem,
+    PriceList,
+    PriceListItem,
     Sale,
     SaleItem,
     SaleRefund,
@@ -38,6 +40,7 @@ from sales.serializers import (
     CreateSaleRefundSerializer,
     CreateSaleReturnSerializer,
     OpenCashSessionSerializer,
+    PriceListSerializer,
     SaleCancellationSerializer,
     SaleRefundSerializer,
     SaleReturnSerializer,
@@ -730,8 +733,6 @@ class CommissionRuleViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
-
-
 class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CommissionSerializer
     permission_classes = [
@@ -786,3 +787,42 @@ class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
         commission.status = 'cancelled'
         commission.save()
         return Response(CommissionSerializer(commission).data)
+
+
+class PriceListViewSet(viewsets.ModelViewSet):
+    serializer_class = PriceListSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = PriceList.objects.filter(tenant=self.request.tenant).prefetch_related(
+            Prefetch(
+                'items',
+                queryset=PriceListItem.all_objects.filter(
+                    tenant=self.request.tenant,
+                ).select_related('product'),
+            ),
+        )
+        audience = self.request.query_params.get('audience')
+        is_active = self.request.query_params.get('is_active')
+        if audience:
+            queryset = queryset.filter(audience=audience)
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)

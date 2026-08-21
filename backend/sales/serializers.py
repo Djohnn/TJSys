@@ -10,6 +10,8 @@ from sales.models import (
     CommissionRule,
     Consignment,
     ConsignmentItem,
+    PriceList,
+    PriceListItem,
     Sale,
     SaleCancellation,
     SaleItem,
@@ -529,6 +531,22 @@ class ConsignmentItemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PriceListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceListItem
+        fields = [
+            'id',
+            'product',
+            'price',
+            'min_quantity',
+            'max_quantity',
+            'discount_percentage',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
 class ConsignmentSerializer(serializers.ModelSerializer):
     items = ConsignmentItemSerializer(many=True, read_only=True)
 
@@ -629,6 +647,63 @@ class CreateCommissionRuleSerializer(serializers.Serializer):
     rule_type = serializers.ChoiceField(choices=CommissionRule.TYPE_CHOICES)
     value = serializers.DecimalField(max_digits=18, decimal_places=4)
     min_sale_value = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
-    max_sale_value = serializers.DecimalField(max_digits=18, decimal_places=2, required=False, allow_null=True)
+    max_sale_value = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
     product = serializers.UUIDField(required=False, allow_null=True)
     category = serializers.UUIDField(required=False, allow_null=True)
+
+
+# =============================================================================
+# F4 — Price lists
+# =============================================================================
+
+
+class PriceListSerializer(serializers.ModelSerializer):
+    items = PriceListItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PriceList
+        fields = [
+            'id',
+            'name',
+            'description',
+            'audience',
+            'is_default',
+            'is_active',
+            'valid_from',
+            'valid_until',
+            'priority',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CreatePriceListItemSerializer(serializers.Serializer):
+    product = serializers.UUIDField()
+    price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    min_quantity = serializers.DecimalField(max_digits=18, decimal_places=6, default=1)
+    max_quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
+    )
+    discount_percentage = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+
+
+class CreatePriceListSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    audience = serializers.ChoiceField(choices=PriceList.AUDIENCE_CHOICES)
+    is_default = serializers.BooleanField(default=False)
+    is_active = serializers.BooleanField(default=True)
+    valid_from = serializers.DateField(required=False, allow_null=True)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    priority = serializers.IntegerField(default=0)
+    items = CreatePriceListItemSerializer(many=True, required=False, default=[])
