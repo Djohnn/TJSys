@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('catalog', '0016_product_subcategory'),
+        ('catalog', '0020_subcategory'),
         ('tenancy', '0001_initial'),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SubCategory',
+            name='Tag',
             fields=[
                 (
                     'id',
@@ -25,38 +25,26 @@ class Migration(migrations.Migration):
                 ),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=120)),
-                ('code', models.CharField(blank=True, default='', max_length=40)),
+                ('name', models.CharField(max_length=80)),
+                ('color', models.CharField(blank=True, default='#6B7280', max_length=7)),
                 ('is_active', models.BooleanField(default=True)),
                 ('version', models.PositiveIntegerField(default=1)),
                 (
-                    'category',
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name='subcategories',
-                        to='catalog.category',
-                    ),
-                ),
-                (
                     'tenant',
                     models.ForeignKey(
+                        editable=False,
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='%(class)s_set',
                         to='tenancy.tenant',
                     ),
                 ),
             ],
             options={
-                'ordering': ['category', 'name'],
+                'ordering': ['name'],
                 'constraints': [
                     models.UniqueConstraint(
-                        fields=('tenant', 'category', 'name'),
-                        name='uniq_subcategory_tenant_category_name',
-                    ),
-                    models.UniqueConstraint(
-                        fields=('tenant', 'code'),
-                        condition=models.Q(~models.Q(code='')),
-                        name='uniq_subcategory_tenant_code',
+                        fields=('tenant', 'name'),
+                        condition=models.Q(is_active=True),
+                        name='uniq_tag_tenant_name_active',
                     ),
                 ],
             },
