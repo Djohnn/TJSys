@@ -47,7 +47,16 @@ class RecoveryVerificationSerializer(TenantSelectionSerializer):
 class UserFavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = None  # Set dynamically
-        fields = ['id', 'entity_type', 'entity_id', 'label', 'route', 'position', 'icon', 'created_at']
+        fields = [
+            'id',
+            'entity_type',
+            'entity_id',
+            'label',
+            'route',
+            'position',
+            'icon',
+            'created_at',
+        ]
         read_only_fields = ['id', 'created_at']
 
     def __init__(self, *args, **kwargs):
@@ -59,7 +68,7 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
 class UserFavoriteCreateSerializer(serializers.Serializer):
     entity_type = serializers.CharField(max_length=32)
     entity_id = serializers.UUIDField(required=False, allow_null=True)
-    label = serializers.CharField(max_length=200)
+    label = serializers.CharField(max_length=200)  # type: ignore[assignment]
     route = serializers.CharField(max_length=200)
     position = serializers.IntegerField(required=False, default=0)
     icon = serializers.CharField(max_length=32, required=False, default='')

@@ -158,7 +158,7 @@ class GlobalSearchView(APIView):
                     'id': str(s.id),
                     'label': s.name,
                     'subtitle': f'Documento: {s.document}' if s.document else 'Fornecedor',
-                    'route': f'/purchasing/suppliers',
+                    'route': '/purchasing/suppliers',
                     'icon': 'purchasing',
                 }
                 for s in suppliers

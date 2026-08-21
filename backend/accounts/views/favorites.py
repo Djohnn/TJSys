@@ -10,7 +10,6 @@ from accounts.serializers import (
     UserFavoriteReorderSerializer,
     UserFavoriteSerializer,
 )
-from tenancy.context import set_current_tenant_id
 
 
 class UserFavoriteViewSet(viewsets.ModelViewSet):
