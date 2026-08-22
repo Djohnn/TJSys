@@ -336,7 +336,11 @@ class Billing(VersionedFinancialModel):
     supplier_name = models.CharField(max_length=200, blank=True, default='')
     code = models.CharField(max_length=40)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='other')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='other',
+    )
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)

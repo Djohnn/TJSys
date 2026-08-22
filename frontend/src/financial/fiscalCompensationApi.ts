@@ -50,7 +50,7 @@ export async function fetchFiscalCompensations(
   return apiRequest<PaginatedResponse<FiscalCompensation>>(
     `/fiscal-compensations/${qs ? `?${qs}` : ''}`,
     { tenantId, signal },
-  )
+  ) as Promise<PaginatedResponse<FiscalCompensation>>
 }
 
 export async function fetchFiscalCompensationById(
@@ -58,7 +58,7 @@ export async function fetchFiscalCompensationById(
   id: string,
   signal?: AbortSignal,
 ): Promise<FiscalCompensation> {
-  return apiRequest<FiscalCompensation>(`/fiscal-compensations/${id}/`, { tenantId, signal })
+  return apiRequest<FiscalCompensation>(`/fiscal-compensations/${id}/`, { tenantId, signal }) as Promise<FiscalCompensation>
 }
 
 export async function createFiscalCompensation(
@@ -71,7 +71,7 @@ export async function createFiscalCompensation(
     tenantId,
     body: JSON.stringify(data),
     signal,
-  })
+  }) as Promise<FiscalCompensation>
 }
 
 export async function updateFiscalCompensation(
@@ -85,7 +85,7 @@ export async function updateFiscalCompensation(
     tenantId,
     body: JSON.stringify(data),
     signal,
-  })
+  }) as Promise<FiscalCompensation>
 }
 
 export async function approveFiscalCompensation(
@@ -97,7 +97,7 @@ export async function approveFiscalCompensation(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<FiscalCompensation>
 }
 
 export async function processFiscalCompensation(
@@ -109,7 +109,7 @@ export async function processFiscalCompensation(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<FiscalCompensation>
 }
 
 export async function cancelFiscalCompensation(
@@ -121,5 +121,5 @@ export async function cancelFiscalCompensation(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<FiscalCompensation>
 }

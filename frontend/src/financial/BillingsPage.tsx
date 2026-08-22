@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import Decimal from 'decimal.js'
@@ -6,7 +5,7 @@ import Decimal from 'decimal.js'
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { fetchBillings } from './billingApi'
-import type { PaginatedResponse, Billing } from './billingApi'
+import type { PaginatedResponse } from './billingApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -156,7 +155,7 @@ export default function BillingsPage() {
         </div>
 
         {billings.length === 0 ? (
-          <EmptyState message="Nenhum faturamento encontrado." />
+          <EmptyState title="Nenhum faturamento encontrado." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">
@@ -208,7 +207,7 @@ export default function BillingsPage() {
           </p>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={page <= 1}
               onClick={() => setFilter('page', String(page - 1))}
             >
@@ -218,7 +217,7 @@ export default function BillingsPage() {
               Página {page} de {totalPages}
             </span>
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={page >= totalPages}
               onClick={() => setFilter('page', String(page + 1))}
             >

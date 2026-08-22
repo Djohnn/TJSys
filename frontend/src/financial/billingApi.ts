@@ -53,7 +53,7 @@ export async function fetchBillings(
   return apiRequest<PaginatedResponse<Billing>>(
     `/billings/${qs ? `?${qs}` : ''}`,
     { tenantId, signal },
-  )
+  ) as Promise<PaginatedResponse<Billing>>
 }
 
 export async function fetchBillingById(
@@ -61,7 +61,7 @@ export async function fetchBillingById(
   id: string,
   signal?: AbortSignal,
 ): Promise<Billing> {
-  return apiRequest<Billing>(`/billings/${id}/`, { tenantId, signal })
+  return apiRequest<Billing>(`/billings/${id}/`, { tenantId, signal }) as Promise<Billing>
 }
 
 export async function createBilling(
@@ -74,7 +74,7 @@ export async function createBilling(
     tenantId,
     body: JSON.stringify(data),
     signal,
-  })
+  }) as Promise<Billing>
 }
 
 export async function updateBilling(
@@ -88,7 +88,7 @@ export async function updateBilling(
     tenantId,
     body: JSON.stringify(data),
     signal,
-  })
+  }) as Promise<Billing>
 }
 
 export async function issueBilling(
@@ -100,7 +100,7 @@ export async function issueBilling(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<Billing>
 }
 
 export async function payBilling(
@@ -112,7 +112,7 @@ export async function payBilling(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<Billing>
 }
 
 export async function cancelBilling(
@@ -124,5 +124,5 @@ export async function cancelBilling(
     method: 'POST',
     tenantId,
     signal,
-  })
+  }) as Promise<Billing>
 }

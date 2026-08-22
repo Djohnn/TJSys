@@ -297,8 +297,12 @@ class FiscalCompensationSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     fiscal_document = serializers.UUIDField(required=False, allow_null=True)
     branch = serializers.UUIDField()
-    customer_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
-    supplier_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
     code = serializers.CharField(max_length=40)
     compensation_type = serializers.ChoiceField(
         choices=[
@@ -319,7 +323,9 @@ class FiscalCompensationSerializer(serializers.Serializer):
         default='pending',
     )
     amount = serializers.DecimalField(max_digits=18, decimal_places=2)
-    compensated_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    compensated_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
     remaining_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
     due_date = serializers.DateField(required=False, allow_null=True)
     compensated_at = serializers.DateTimeField(required=False, allow_null=True)
@@ -333,8 +339,12 @@ class BillingSerializer(serializers.Serializer):
     sale = serializers.UUIDField(required=False, allow_null=True)
     purchase_order = serializers.UUIDField(required=False, allow_null=True)
     branch = serializers.UUIDField()
-    customer_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
-    supplier_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
     code = serializers.CharField(max_length=40)
     status = serializers.ChoiceField(
         choices=[
@@ -360,8 +370,12 @@ class BillingSerializer(serializers.Serializer):
         default='other',
     )
     amount = serializers.DecimalField(max_digits=18, decimal_places=2)
-    discount_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
-    tax_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    discount_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    tax_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
     total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
     due_date = serializers.DateField(required=False, allow_null=True)
     paid_at = serializers.DateTimeField(required=False, allow_null=True)
@@ -384,7 +398,9 @@ class FiscalCompensationViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
-        write_actions = {'create', 'update', 'partial_update', 'destroy', 'approve', 'process', 'cancel'}
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy', 'approve', 'process', 'cancel'
+        }
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
             permissions.append(HasVerifiedMFA())
@@ -419,7 +435,10 @@ class FiscalCompensationViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         compensation = self.get_object()
         if compensation.status in ('cancelled', 'processed'):
-            return Response({'detail': 'Cancelled or processed compensations cannot be cancelled.'}, status=400)
+            return Response(
+                {'detail': 'Cancelled or processed compensations cannot be cancelled.'},
+                status=400,
+            )
         compensation.status = 'cancelled'
         compensation.full_clean()
         compensation.save()
@@ -465,7 +484,10 @@ class BillingViewSet(viewsets.ModelViewSet):
     def pay(self, request, pk=None):
         billing = self.get_object()
         if billing.status not in ('issued', 'pending', 'overdue'):
-            return Response({'detail': 'Only issued, pending, or overdue billings can be paid.'}, status=400)
+            return Response(
+                {'detail': 'Only issued, pending, or overdue billings can be paid.'},
+                status=400,
+            )
         billing.status = 'paid'
         billing.paid_at = timezone.now()
         billing.full_clean()
@@ -476,7 +498,10 @@ class BillingViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         billing = self.get_object()
         if billing.status in ('cancelled', 'paid'):
-            return Response({'detail': 'Cancelled or paid billings cannot be cancelled.'}, status=400)
+            return Response(
+                {'detail': 'Cancelled or paid billings cannot be cancelled.'},
+                status=400,
+            )
         billing.status = 'cancelled'
         billing.full_clean()
         billing.save()
