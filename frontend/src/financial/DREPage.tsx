@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import Decimal from 'decimal.js'
@@ -6,7 +5,6 @@ import Decimal from 'decimal.js'
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { fetchDREReport } from './reportsApi'
-import type { DREReport, DRELine } from './reportsApi'
 import LoadingState from '@/components/LoadingState'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -121,7 +119,7 @@ export default function DREPage() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 const today = new Date()
                 const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -132,7 +130,7 @@ export default function DREPage() {
               Mês Atual
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 const today = new Date()
                 const firstDay = new Date(today.getFullYear(), 0, 1)
@@ -214,7 +212,7 @@ export default function DREPage() {
         {data && (
           <div className="mt-4 flex justify-end">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 const params = new URLSearchParams()
                 params.set('date_from', dateFrom)

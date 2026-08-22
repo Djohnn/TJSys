@@ -2,11 +2,11 @@ import csv
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Count, F, Sum
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -101,7 +101,7 @@ class SalesReportView(ReportView):
         )
 
         by_payment_method = (
-            queryset.values('payment_method')
+            queryset.values(payment_method=F('payments__method'))
             .annotate(count=Count('id'), total=Sum('net_total'))
             .order_by('payment_method')
         )
@@ -155,8 +155,11 @@ class InventoryReportView(ReportView):
     def get(self, request):
         from inventory.models import StockBalance
 
-        queryset = StockBalance.all_objects.select_related('product', 'location').filter(
-            tenant=request.tenant,
+        queryset = StockBalance.all_objects.select_related(
+            'product',
+            'location',
+        ).filter(tenant=request.tenant).annotate(
+            available_quantity=F('quantity') - F('reserved'),
         )
         branch = self.branch(request)
         if branch:
@@ -171,8 +174,8 @@ class InventoryReportView(ReportView):
                 'location_name': balance.location.name,
                 'quantity': balance.quantity,
                 'reserved': balance.reserved,
-                'available': balance.available,
-                'critical': balance.available <= 0,
+                'available': balance.available_quantity,
+                'critical': balance.available_quantity <= 0,
             }
             for balance in queryset[:MAX_EXPORT_ROWS]
         ]
@@ -181,10 +184,10 @@ class InventoryReportView(ReportView):
             total_products=Count('product_id', distinct=True),
             total_quantity=Sum('quantity'),
             total_reserved=Sum('reserved'),
-            total_available=Sum('available'),
+            total_available=Sum('available_quantity'),
         )
 
-        critical_count = queryset.filter(available__lte=0).count()
+        critical_count = queryset.filter(available_quantity__lte=0).count()
 
         return Response(
             {
@@ -335,17 +338,15 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
 
 # =============================================================================
 # Sprint F11 — DRE API (Demonstração do Resultado do Exercício)
-# =============================================================================
-
-
-from decimal import Decimal
-from rest_framework import serializers
-
-
 class DRELineSerializer(serializers.Serializer):
-    label = serializers.CharField()
+    label = serializers.CharField()  # type: ignore[assignment]
     value = serializers.DecimalField(max_digits=18, decimal_places=2)
-    percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
     children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
 
 
@@ -370,10 +371,8 @@ class DREReportView(ReportView):
         date_from, date_to = self.period(request)
         branch = self.branch(request)
 
-        from sales.models import Sale
-        from inventory.models import StockBalance
         from purchasing.models import PurchaseOrder
-        from financial.models import Payable, Receivable, Billing
+        from sales.models import Sale
 
         sales_queryset = Sale.all_objects.filter(
             tenant=request.tenant,
@@ -389,17 +388,14 @@ class DREReportView(ReportView):
         if branch:
             purchase_queryset = purchase_queryset.filter(branch=branch)
 
-        billing_queryset = Billing.objects.filter(
-            tenant=request.tenant,
-            created_at__date__range=(date_from, date_to),
-        )
-        if branch:
-            billing_queryset = billing_queryset.filter(branch=branch)
-
         gross_revenue = sales_queryset.aggregate(total=Sum('net_total'))['total'] or Decimal('0.00')
-        total_purchases = purchase_queryset.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-        total_billing_discounts = billing_queryset.aggregate(total=Sum('discount_amount'))['total'] or Decimal('0.00')
-        total_billing_taxes = billing_queryset.aggregate(total=Sum('tax_amount'))['total'] or Decimal('0.00')
+        total_purchases = purchase_queryset.aggregate(total=Sum('items_total'))['total'] or Decimal(
+            '0.00'
+        )
+        total_billing_discounts = sales_queryset.aggregate(total=Sum('discount_total'))[
+            'total'
+        ] or Decimal('0.00')
+        total_billing_taxes = Decimal('0.00')
 
         deductions = total_billing_discounts + total_billing_taxes
         net_revenue = gross_revenue - deductions
@@ -422,7 +418,9 @@ class DREReportView(ReportView):
 
         operating_result = gross_profit - operating_expenses
         result_before_tax = operating_result
-        income_tax = result_before_tax * Decimal('0.25') if result_before_tax > 0 else Decimal('0.00')
+        income_tax = (
+            result_before_tax * Decimal('0.25') if result_before_tax > 0 else Decimal('0.00')
+        )
         net_result = result_before_tax - income_tax
 
         def make_line(label, value, base=net_revenue, children=None):
@@ -464,14 +462,18 @@ class DREReportView(ReportView):
         response['Content-Disposition'] = 'attachment; filename="dre-report.csv"'
         writer = csv.writer(response)
         writer.writerow(['line', 'value', 'percentage'])
-        writer.writerow(['Receita Bruta', dre['revenue']['value'], dre['revenue']['percentage']])
-        writer.writerow(['Deduções', dre['deductions']['value'], dre['deductions']['percentage']])
-        writer.writerow(['Receita Líquida', dre['net_revenue']['value'], dre['net_revenue']['percentage']])
-        writer.writerow(['Custo dos Produtos/Serviços', dre['cost_of_goods']['value'], dre['cost_of_goods']['percentage']])
-        writer.writerow(['Lucro Bruto', dre['gross_profit']['value'], dre['gross_profit']['percentage']])
-        writer.writerow(['Despesas Operacionais', dre['operating_expenses']['value'], dre['operating_expenses']['percentage']])
-        writer.writerow(['Resultado Operacional', dre['operating_result']['value'], dre['operating_result']['percentage']])
-        writer.writerow(['Resultado Antes do IR/CSLL', dre['result_before_tax']['value'], dre['result_before_tax']['percentage']])
-        writer.writerow(['IR/CSLL (25%)', dre['income_tax']['value'], dre['income_tax']['percentage']])
-        writer.writerow(['Resultado Líquido', dre['net_result']['value'], dre['net_result']['percentage']])
+        lines = [
+            ('Receita Bruta', dre['revenue']),
+            ('Deduções', dre['deductions']),
+            ('Receita Líquida', dre['net_revenue']),
+            ('Custo dos Produtos/Serviços', dre['cost_of_goods']),
+            ('Lucro Bruto', dre['gross_profit']),
+            ('Despesas Operacionais', dre['operating_expenses']),
+            ('Resultado Operacional', dre['operating_result']),
+            ('Resultado Antes do IR/CSLL', dre['result_before_tax']),
+            ('IR/CSLL (25%)', dre['income_tax']),
+            ('Resultado Líquido', dre['net_result']),
+        ]
+        for label, line in lines:
+            writer.writerow([label, line['value'], line['percentage']])
         return response

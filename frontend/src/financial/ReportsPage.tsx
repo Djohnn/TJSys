@@ -20,7 +20,7 @@ export default function ReportsPage() {
 
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
-  const [reportType, setReportType] = useState<'receivables' | 'payables' | 'cashflow' | 'trial_balance'>('receivables')
+  const [reportType, setReportType] = useState<'receivables' | 'payables' | 'cashflow' | 'trial_balance' | 'dre'>('receivables')
   const [format, setFormat] = useState<'PDF' | 'CSV'>('PDF')
   const [error, setError] = useState<string | null>(null)
 

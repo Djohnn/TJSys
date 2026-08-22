@@ -49,7 +49,7 @@ export async function fetchDREReport(
   return apiRequest<DREReport>(
     `/financial/reports/dre/?${searchParams.toString()}`,
     { tenantId, signal },
-  )
+  ) as Promise<DREReport>
 }
 
 export interface SalesReport {
@@ -79,7 +79,7 @@ export async function fetchSalesReport(
   return apiRequest<SalesReport>(
     `/financial/reports/sales/?${searchParams.toString()}`,
     { tenantId, signal },
-  )
+  ) as Promise<SalesReport>
 }
 
 export interface InventoryReportItem {
@@ -123,7 +123,7 @@ export async function fetchInventoryReport(
   return apiRequest<InventoryReport>(
     `/financial/reports/inventory/${qs ? `?${qs}` : ''}`,
     { tenantId, signal },
-  )
+  ) as Promise<InventoryReport>
 }
 
 export interface FinancialReportItem {
@@ -146,7 +146,7 @@ export async function fetchFinancialReport(
   return apiRequest<FinancialReport>(
     '/financial/reports/financial/',
     { tenantId, signal },
-  )
+  ) as Promise<FinancialReport>
 }
 
 export interface CashflowReport {
@@ -172,5 +172,5 @@ export async function fetchCashflowReport(
   return apiRequest<CashflowReport>(
     `/financial/reports/cashflow/?${searchParams.toString()}`,
     { tenantId, signal },
-  )
+  ) as Promise<CashflowReport>
 }
