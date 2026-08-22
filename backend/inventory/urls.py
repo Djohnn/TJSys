@@ -14,6 +14,8 @@ from inventory.views import (
     StockOperationViewSet,
     MovementReasonViewSet,
     ReplenishmentOrderViewSet,
+    InventoryCountItemViewSet,
+    InventoryCountViewSet,
     ReplenishmentRuleViewSet,
     StorageTypeViewSet,
 )
@@ -38,6 +40,8 @@ router.register('storage-types', StorageTypeViewSet, basename='storage-type')
 router.register('movement-reasons', MovementReasonViewSet, basename='movement-reason')
 router.register('replenishment-rules', ReplenishmentRuleViewSet, basename='replenishment-rule')
 router.register('replenishment-orders', ReplenishmentOrderViewSet, basename='replenishment-order')
+router.register('inventory-counts', InventoryCountViewSet, basename='inventory-count')
+router.register('inventory-count-items', InventoryCountItemViewSet, basename='inventory-count-item')
 
 urlpatterns = [
     path('', include(router.urls)),
