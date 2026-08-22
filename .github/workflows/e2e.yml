@@ -17,6 +17,8 @@ jobs:
       POSTGRES_APP_USER: zyrp
       POSTGRES_APP_PASSWORD: zyrp
       REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
       SECRET_KEY: e2e-secret-key-not-for-production
       E2E_SEED: '1'
       E2E_USER_EMAIL: web-admin@tjsys.local

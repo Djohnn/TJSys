@@ -29,7 +29,7 @@ env:
   POSTGRES_TEST_PASSWORD: zyrp_test_ci
   POSTGRES_TEST_DB: test_zyrp
   CELERY_BROKER_URL: redis://localhost:6379/1
-  CELERY_RESULT_BACKEND: redis://localhost:6379/1
+  CELERY_RESULT_BACKEND: redis://localhost:6379/2
   EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
   EMAIL_HOST: localhost
   EMAIL_HOST_USER: ci-user

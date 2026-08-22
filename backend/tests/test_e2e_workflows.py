@@ -115,6 +115,20 @@ def _top_level_env_keys(workflow_text: str) -> set[str]:
     }
 
 
+def _top_level_env(workflow_text: str) -> dict[str, str]:
+    match = re.search(
+        r'(?ms)^env:\s*\r?\n(?P<body>(?:^  [A-Za-z0-9_]+:[^\r\n]*\r?\n?)+)',
+        workflow_text,
+    )
+    assert match, 'workflow sem env no nível superior'
+    values = {}
+    for line in match.group('body').splitlines():
+        key, separator, value = line.strip().partition(':')
+        if separator:
+            values[key] = value.strip().strip("'").strip('"')
+    return values
+
+
 @pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
 def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_path: Path):
     """Given workflow com seed, When parseia CI, Then prova bootstrap E2E antes do browser."""
@@ -165,6 +179,25 @@ def test_seed_workflow_has_complete_e2e_contract_and_readiness_gate(workflow_pat
         ]
         assert consumer_indexes
         assert health_index < min(consumer_indexes)
+
+
+@pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
+def test_e2e_workflows_route_celery_to_redis_databases(workflow_path: Path):
+    """Given CI Redis, when Django starts E2E, then Celery uses DB1/DB2 explicitly."""
+    workflow_text = workflow_path.read_text(encoding='utf-8')
+    if workflow_path.name == 'e2e.yml':
+        workflow = _load_workflow(workflow_path)
+        job_text = next(job for job in workflow.values() if 'seed_e2e' in job)
+        env = _env(job_text)
+    else:
+        env = _top_level_env(workflow_text)
+
+    # Given Redis is exposed on localhost:6379 in both CI service definitions.
+    # When Django/Celery settings are loaded in the E2E job.
+    # Then broker and result backend must use separate, explicit Redis databases.
+    assert env['REDIS_URL'] == 'redis://localhost:6379/0'
+    assert env['CELERY_BROKER_URL'] == 'redis://localhost:6379/1'
+    assert env['CELERY_RESULT_BACKEND'] == 'redis://localhost:6379/2'
 
 
 @pytest.mark.parametrize('workflow_path', WORKFLOWS, ids=lambda path: path.name)
