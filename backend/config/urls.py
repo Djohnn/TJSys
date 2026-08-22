@@ -60,6 +60,7 @@ urlpatterns = [
     path('api/v1/pdv/', include('pdv.urls')),
     path('api/v1/people/', include('people.urls')),
     path('api/v1/pdv/', include('pdv.urls')),
+    path('api/v1/ecommerce/', include('ecommerce.urls')),
     path('admin/', admin.site.urls),
 ]
 
