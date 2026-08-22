@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -13,6 +14,7 @@ from rest_framework.views import APIView
 
 from catalog.models import Product, Unit
 from inventory.models import (
+    ProductionOrder,
     ProductStockPolicy,
     StockBalance,
     StockLocation,
@@ -747,9 +749,6 @@ class ProductStockControlReactivateView(APIView):
 # =============================================================================
 # Sprint F7 — ProductionOrder API
 # =============================================================================
-
-
-from inventory.models import ProductionOrder
 
 
 class ProductionOrderSerializer(serializers.Serializer):

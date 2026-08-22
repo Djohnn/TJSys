@@ -708,5 +708,7 @@ class ProductionOrderConsumption(VersionedInventoryModel):
                 if order_item.order_id:
                     order = ProductionOrder.all_objects.get(pk=order_item.order_id)
                     if order.status in ('completed', 'cancelled'):
-                        raise ValidationError('Consumptions of completed or cancelled orders are immutable.')
+                        raise ValidationError(
+                            'Consumptions of completed or cancelled orders are immutable.'
+                        )
         super().save(*args, **kwargs)
