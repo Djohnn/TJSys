@@ -12,6 +12,8 @@ from purchasing.models import (
     PurchaseReceiptItem,
     RecurringPurchaseOrderTemplate,
     Supplier,
+    SupplierQuote,
+    SupplierReturn,
 )
 from purchasing.permissions import PurchasingCapabilityPermission
 from purchasing.serializers import (
@@ -443,3 +445,168 @@ class RecurringPurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelView
             context=self.get_serializer_context(),
         )
         return Response(serializer.data, status=201)
+
+
+# =============================================================================
+# Sprint F8 — SupplierQuote API
+# =============================================================================
+
+
+class SupplierQuoteSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    supplier = serializers.UUIDField()
+    branch = serializers.UUIDField()
+    code = serializers.CharField(max_length=40)
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('sent', 'Enviado'),
+            ('received', 'Recebido'),
+            ('approved', 'Aprovado'),
+            ('rejected', 'Rejeitado'),
+            ('expired', 'Expirado'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='draft',
+    )
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    total_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+
+
+# Sprint F8 — PurchaseReturn API (devoluções de compra)
+# =============================================================================
+
+
+class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = SupplierQuoteSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, PurchasingCapabilityPermission]
+
+    def get_queryset(self):
+        return SupplierQuote.objects.select_related(
+            'supplier',
+            'branch',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy',
+            'send', 'approve', 'reject', 'cancel',
+        }
+        if self.action in write_actions:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(PurchasingCapabilityPermission())
+        return permissions
+
+    @action(detail=True, methods=['post'])
+    def send(self, request, pk=None):
+        quote = self.get_object()
+        if quote.status != 'draft':
+            return Response({'detail': 'Only draft quotes can be sent.'}, status=400)
+        quote.status = 'sent'
+        quote.full_clean()
+        quote.save()
+        return Response(SupplierQuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        quote = self.get_object()
+        if quote.status != 'received':
+            return Response({'detail': 'Only received quotes can be approved.'}, status=400)
+        quote.status = 'approved'
+        quote.full_clean()
+        quote.save()
+        return Response(SupplierQuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        quote = self.get_object()
+        if quote.status != 'received':
+            return Response({'detail': 'Only received quotes can be rejected.'}, status=400)
+        quote.status = 'rejected'
+        quote.full_clean()
+        quote.save()
+        return Response(SupplierQuoteSerializer(quote).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        quote = self.get_object()
+        if quote.status in ('cancelled', 'expired'):
+            return Response(
+                {'detail': 'Cancelled or expired quotes cannot be cancelled.'},
+                status=400,
+            )
+        quote.status = 'cancelled'
+        quote.full_clean()
+        quote.save()
+        return Response(SupplierQuoteSerializer(quote).data)
+
+
+class SupplierReturnViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = SupplierReturnSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, PurchasingCapabilityPermission]
+
+    def get_queryset(self):
+        return SupplierReturn.objects.select_related(
+            'receipt',
+            'receipt__purchase_order',
+            'receipt__purchase_order__supplier',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy', 'complete', 'cancel',
+        }
+        if self.action in write_actions:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(PurchasingCapabilityPermission())
+        return permissions
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        supplier_return = self.get_object()
+        if supplier_return.status != 'draft':
+            return Response({'detail': 'Only draft returns can be completed.'}, status=400)
+        supplier_return.status = 'completed'
+        supplier_return.full_clean()
+        supplier_return.save()
+        return Response(SupplierReturnSerializer(supplier_return).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        supplier_return = self.get_object()
+        if supplier_return.status in ('completed', 'cancelled'):
+            return Response(
+                {'detail': 'Completed or cancelled returns cannot be cancelled.'},
+                status=400,
+            )
+        supplier_return.status = 'cancelled'
+        supplier_return.full_clean()
+        supplier_return.save()
+        return Response(SupplierReturnSerializer(supplier_return).data)
+
+
+# Sprint F8 — OpenPurchase API (compras em aberto)
+# =============================================================================
+
+
+class OpenPurchaseViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated, HasActiveTenant, PurchasingCapabilityPermission]
+
+    def get_queryset(self):
+        return PurchaseOrder.objects.select_related(
+            'supplier',
+            'branch',
+        ).filter(
+            tenant=self.request.tenant,
+            status__in=['draft', 'approved', 'partially_received'],
+        )
+
+    def get_serializer_class(self):
+        return PurchaseOrderListSerializer
