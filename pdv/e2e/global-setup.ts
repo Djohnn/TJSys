@@ -6,6 +6,10 @@ async function assertExternalServer() {
   try {
     const response = await fetch(PDV_BASE_URL)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const html = await response.text()
+    if (!/<title>\s*Zyrp PDV\s*<\/title>/i.test(html)) {
+      throw new Error('identidade PDV ausente: esperado <title>Zyrp PDV</title>')
+    }
   } catch (error) {
     throw new Error(`E2E_EXTERNAL_SERVER=1 exige servidor PDV saudável em ${PDV_BASE_URL}: ${String(error)}`)
   }
