@@ -2,15 +2,22 @@ import csv
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Case, Count, DecimalField, F, Sum, When
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models import CashflowEntry, Payable, Receivable
+from financial.models import (
+    BankReconciliation,
+    CashflowEntry,
+    FinancialAccount,
+    Payable,
+    Receivable,
+)
 from financial.permissions import FinancialReportingPermission
 from financial.serializers import CashflowEntrySerializer, PayableSerializer, ReceivableSerializer
 from financial.services import cashflow_projection
@@ -292,14 +299,9 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
 # =============================================================================
 
 
-from rest_framework import serializers
-from rest_framework.decorators import action
-from financial.models import BankReconciliation, BankReconciliationItem, FinancialAccount
-
-
-class BankReconciliationSerializer(serializers.Serializer):
+class BankReconciliationSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    account = serializers.UUIDField()
+    account = serializers.PrimaryKeyRelatedField(queryset=FinancialAccount.all_objects.all())
     statement_date = serializers.DateField()
     statement_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
     system_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
@@ -318,6 +320,36 @@ class BankReconciliationSerializer(serializers.Serializer):
     reconciled_at = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = BankReconciliation
+        fields = [
+            'id',
+            'account',
+            'statement_date',
+            'statement_balance',
+            'system_balance',
+            'difference',
+            'status',
+            'notes',
+            'reconciled_by',
+            'reconciled_at',
+            'created_at',
+            'updated_at',
+        ]
+
+    def create(self, validated_data):
+        instance = self.Meta.model(**validated_data)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.full_clean()
+        instance.save()
+        return instance
 
 
 class BankReconciliationViewSet(viewsets.ModelViewSet):
@@ -363,3 +395,87 @@ class BankReconciliationViewSet(viewsets.ModelViewSet):
         reconciliation.full_clean()
         reconciliation.save()
         return Response(BankReconciliationSerializer(reconciliation).data)
+
+
+# Sprint F9 — FinancialStatement API (extrato financeiro)
+# =============================================================================
+
+
+class FinancialStatementView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant, FinancialReportingPermission]
+
+    def get(self, request):
+        account_id = request.query_params.get('account')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+
+        if not account_id:
+            return Response({'detail': 'account parameter is required.'}, status=400)
+
+        account = FinancialAccount.all_objects.filter(
+            tenant=request.tenant,
+            id=account_id,
+        ).first()
+
+        if not account:
+            return Response({'detail': 'Account not found.'}, status=404)
+
+        entries = CashflowEntry.all_objects.filter(
+            tenant=request.tenant,
+            account=account,
+        )
+
+        if date_from:
+            entries = entries.filter(effective_date__gte=date_from)
+        if date_to:
+            entries = entries.filter(effective_date__lte=date_to)
+
+        entries = entries.order_by('effective_date', 'created_at')
+
+        opening_balance = Decimal('0.00')
+        if date_from:
+            opening_entries = CashflowEntry.all_objects.filter(
+                tenant=request.tenant,
+                account=account,
+                effective_date__lt=date_from,
+            )
+            opening_balance = opening_entries.aggregate(
+                total=Sum(
+                    Case(
+                        When(direction='inflow', then='amount'),
+                        When(direction='outflow', then=-F('amount')),
+                        default=0,
+                        output_field=DecimalField(max_digits=18, decimal_places=2),
+                    )
+                )
+            )['total'] or Decimal('0.00')
+
+        transactions = []
+        running_balance = opening_balance
+
+        for entry in entries:
+            if entry.direction == 'inflow':
+                running_balance += entry.amount
+            else:
+                running_balance -= entry.amount
+
+            transactions.append({
+                'id': str(entry.id),
+                'effective_date': entry.effective_date.isoformat(),
+                'description': entry.description,
+                'direction': entry.direction,
+                'amount': str(entry.amount),
+                'status': entry.status,
+                'balance': str(running_balance),
+            })
+
+        return Response({
+            'account': {
+                'id': str(account.id),
+                'name': account.name,
+                'account_type': account.account_type,
+            },
+            'opening_balance': str(opening_balance),
+            'closing_balance': str(running_balance),
+            'transactions': transactions,
+        })
