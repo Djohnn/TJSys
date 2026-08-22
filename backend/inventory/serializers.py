@@ -8,13 +8,13 @@ from inventory.models import (
     ProductStockPolicy,
     ReplenishmentOrder,
     ReplenishmentRule,
-    StorageType,
     StockBalance,
     StockLocation,
     StockLot,
     StockMovement,
     StockOperation,
     StockOperationReversal,
+    StorageType,
 )
 
 

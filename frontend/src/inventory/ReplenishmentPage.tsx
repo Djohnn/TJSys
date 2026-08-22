@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
-import type { PaginatedResponse } from './catalogApi'
+import type { PaginatedResponse } from './inventoryApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -64,16 +64,14 @@ const TRIGGER_LABELS: Record<string, string> = {
 
 export default function ReplenishmentPage() {
   const { selectedTenant } = useTenant()
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [q, setQ] = useState('')
   const [tab, setTab] = useState<'rules' | 'orders'>('rules')
   const tenantId = selectedTenant?.tenant_id ?? ''
 
   const { data: rulesData, isLoading: rulesLoading } = useQuery({
-    queryKey: ['replenishment-rules', tenantId, page, q],
+    queryKey: ['replenishment-rules', tenantId, page],
     queryFn: ({ signal }) =>
-      apiRequest<PaginatedResponse<ReplenishmentRule>>(`/inventory/replenishment-rules/?page=${page}${q ? `&q=${encodeURIComponent(q)}` : ''}`, {
+      apiRequest<PaginatedResponse<ReplenishmentRule>>(`/inventory/replenishment-rules/?page=${page}`, {
         tenantId,
         signal,
       }) as Promise<PaginatedResponse<ReplenishmentRule>>,
@@ -81,9 +79,9 @@ export default function ReplenishmentPage() {
   })
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
-    queryKey: ['replenishment-orders', tenantId, page, q],
+    queryKey: ['replenishment-orders', tenantId, page],
     queryFn: ({ signal }) =>
-      apiRequest<PaginatedResponse<ReplenishmentOrder>>(`/inventory/replenishment-orders/?page=${page}${q ? `&q=${encodeURIComponent(q)}` : ''}`, {
+      apiRequest<PaginatedResponse<ReplenishmentOrder>>(`/inventory/replenishment-orders/?page=${page}`, {
         tenantId,
         signal,
       }) as Promise<PaginatedResponse<ReplenishmentOrder>>,

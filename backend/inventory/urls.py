@@ -2,21 +2,21 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from inventory.views import (
+    InventoryCountItemViewSet,
+    InventoryCountViewSet,
+    MovementReasonViewSet,
     ProductStockControlDeactivateView,
     ProductStockControlReactivateView,
     ProductStockPolicyViewSet,
     ProductStockSummaryView,
+    ReplenishmentOrderViewSet,
+    ReplenishmentRuleViewSet,
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
     StockMovementViewSet,
     StockOperationReversalViewSet,
     StockOperationViewSet,
-    MovementReasonViewSet,
-    ReplenishmentOrderViewSet,
-    InventoryCountItemViewSet,
-    InventoryCountViewSet,
-    ReplenishmentRuleViewSet,
     StorageTypeViewSet,
 )
 

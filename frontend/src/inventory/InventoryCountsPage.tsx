@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
-import type { PaginatedResponse } from './catalogApi'
+import type { PaginatedResponse } from './inventoryApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -40,7 +40,6 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'danger' | 'neutra
 
 export default function InventoryCountsPage() {
   const { selectedTenant } = useTenant()
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const tenantId = selectedTenant?.tenant_id ?? ''

@@ -482,7 +482,9 @@ class StorageType(VersionedInventoryModel):
         super().clean()
         if self.temperature_min is not None and self.temperature_max is not None:
             if self.temperature_min > self.temperature_max:
-                raise ValidationError({'temperature_max': 'Max temperature must be greater than min.'})
+                raise ValidationError(
+                    {'temperature_max': 'Max temperature must be greater than min.'}
+                )
 
 
 class MovementReason(VersionedInventoryModel):
@@ -542,7 +544,9 @@ class ReplenishmentRule(VersionedInventoryModel):
         if self.min_quantity < 0:
             raise ValidationError({'min_quantity': 'Minimum quantity cannot be negative.'})
         if self.max_quantity < self.min_quantity:
-            raise ValidationError({'max_quantity': 'Maximum quantity must be greater than minimum.'})
+            raise ValidationError(
+                {'max_quantity': 'Maximum quantity must be greater than minimum.'}
+            )
         if self.reorder_quantity <= 0:
             raise ValidationError({'reorder_quantity': 'Reorder quantity must be positive.'})
         if self.product_id and self.product.tenant_id != self.tenant_id:
@@ -653,4 +657,3 @@ class InventoryCountItem(VersionedInventoryModel):
             raise ValidationError({'count': 'Count must belong to the same tenant.'})
         if self.product_id and self.product.tenant_id != self.tenant_id:
             raise ValidationError({'product': 'Product must belong to the same tenant.'})
-
