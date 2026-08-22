@@ -26,6 +26,33 @@ REQUIRED_E2E_ENV = {
 }
 
 
+def _e2e_compose_backend_environment() -> str:
+    compose = (PROJECT_ROOT / 'docker-compose.e2e.yml').read_text(encoding='utf-8')
+    backend_match = re.search(
+        r'(?ms)^  backend:\s*\n(?P<body>.*?)(?=^  frontend:|\Z)',
+        compose,
+    )
+    assert backend_match, 'docker-compose.e2e.yml perdeu o serviço backend'
+    environment_match = re.search(
+        r'(?ms)^    environment:\s*\n(?P<body>(?:^      [^\n]*\n?)+)',
+        backend_match.group('body'),
+    )
+    assert environment_match, 'backend E2E perdeu o bloco environment'
+    return environment_match.group('body')
+
+
+def test_e2e_compose_routes_cache_and_celery_to_redis_service():
+    """Given E2E in Docker, when loading settings, then all Redis clients use redis service."""
+    environment = _e2e_compose_backend_environment()
+
+    # Given the Docker service is named ``redis`` and listens on its internal port.
+    # When Django initializes cache and Celery from the Compose environment.
+    # Then no client may fall back to a host-only localhost port.
+    assert '      REDIS_URL: redis://redis:6379\n' in environment
+    assert '      CELERY_BROKER_URL: redis://redis:6379/1\n' in environment
+    assert '      CELERY_RESULT_BACKEND: redis://redis:6379/2\n' in environment
+
+
 def _load_workflow(path: Path) -> dict[str, str]:
     """Extract only the stable workflow/job blocks needed by this contract test.
 
