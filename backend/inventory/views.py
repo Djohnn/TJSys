@@ -886,3 +886,59 @@ class ProductionOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         order.full_clean()
         order.save()
         return Response(ProductionOrderSerializer(order).data)
+# Sprint F7 — StockMap API (mapa consolidado de estoque)
+# =============================================================================
+
+
+class StockMapView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant]
+
+    def get(self, request):
+        location_id = request.query_params.get('location')
+        product_id = request.query_params.get('product')
+        lot_id = request.query_params.get('lot')
+
+        balances = StockBalance.objects.select_related(
+            'product',
+            'location',
+            'location__branch',
+            'lot',
+        ).filter(tenant=request.tenant)
+
+        if location_id:
+            balances = balances.filter(location_id=location_id)
+        if product_id:
+            balances = balances.filter(product_id=product_id)
+        if lot_id:
+            balances = balances.filter(lot_id=lot_id)
+
+        balances = balances.exclude(quantity=0, reserved=0)
+
+        result = []
+        for balance in balances:
+            result.append({
+                'id': str(balance.id),
+                'product': {
+                    'id': str(balance.product.id),
+                    'sku': balance.product.sku,
+                    'name': balance.product.name,
+                },
+                'location': {
+                    'id': str(balance.location.id),
+                    'code': balance.location.code,
+                    'name': balance.location.name,
+                    'branch': {
+                        'id': str(balance.location.branch.id),
+                        'name': balance.location.branch.name,
+                    },
+                },
+                'lot': {
+                    'id': str(balance.lot.id),
+                    'lot_number': balance.lot.lot_number,
+                } if balance.lot else None,
+                'quantity': str(balance.quantity),
+                'reserved': str(balance.reserved),
+                'available': str(balance.available),
+            })
+
+        return Response(result)
