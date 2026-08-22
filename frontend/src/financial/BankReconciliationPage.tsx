@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
@@ -43,7 +43,6 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'danger' | 'neutra
 
 export default function BankReconciliationPage() {
   const { selectedTenant } = useTenant()
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const tenantId = selectedTenant?.tenant_id ?? ''
