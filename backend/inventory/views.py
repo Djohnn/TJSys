@@ -13,26 +13,38 @@ from rest_framework.views import APIView
 
 from catalog.models import Product, Unit
 from inventory.models import (
+    InventoryCount,
+    InventoryCountItem,
+    MovementReason,
     ProductStockPolicy,
+    ReplenishmentOrder,
+    ReplenishmentRule,
     StockBalance,
     StockLocation,
     StockLot,
     StockMovement,
     StockOperation,
     StockOperationReversal,
+    StorageType,
 )
 from inventory.permissions import (
     InventoryCapabilityPermission,
     InventoryLocationsPermission,
 )
 from inventory.serializers import (
+    InventoryCountItemSerializer,
+    InventoryCountSerializer,
+    MovementReasonSerializer,
     ProductStockPolicySerializer,
+    ReplenishmentOrderSerializer,
+    ReplenishmentRuleSerializer,
     StockBalanceSerializer,
     StockLocationSerializer,
     StockLotSerializer,
     StockMovementSerializer,
     StockOperationReversalSerializer,
     StockOperationSerializer,
+    StorageTypeSerializer,
 )
 from inventory.services import (
     DuplicateIdempotencyKey,
@@ -742,3 +754,178 @@ class ProductStockControlReactivateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+class StorageTypeViewSet(viewsets.ModelViewSet):
+    serializer_class = StorageTypeSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = StorageType.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+class MovementReasonViewSet(viewsets.ModelViewSet):
+    serializer_class = MovementReasonSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = MovementReason.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        direction = self.request.query_params.get('direction')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if direction:
+            queryset = queryset.filter(direction=direction)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+class ReplenishmentRuleViewSet(viewsets.ModelViewSet):
+    serializer_class = ReplenishmentRuleSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = ReplenishmentRule.objects.select_related(
+            'product', 'location',
+        ).filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        trigger_type = self.request.query_params.get('trigger_type')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if trigger_type:
+            queryset = queryset.filter(trigger_type=trigger_type)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class ReplenishmentOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = ReplenishmentOrderSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = ReplenishmentOrder.objects.select_related(
+            'rule', 'approved_by',
+        ).filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+class InventoryCountViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryCountSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = InventoryCount.objects.select_related(
+            'location', 'counted_by',
+        ).filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        location_id = self.request.query_params.get('location')
+        if status:
+            queryset = queryset.filter(status=status)
+        if location_id:
+            queryset = queryset.filter(location_id=location_id)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class InventoryCountItemViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryCountItemSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = InventoryCountItem.objects.select_related(
+            'count', 'product',
+        ).filter(tenant=self.request.tenant)
+        count_id = self.request.query_params.get('count')
+        if count_id:
+            queryset = queryset.filter(count_id=count_id)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
