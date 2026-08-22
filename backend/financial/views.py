@@ -285,3 +285,103 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
         if date_to:
             queryset = queryset.filter(due_date__lte=date_to)
         return queryset.order_by('-created_at')
+
+
+# =============================================================================
+# Sprint F10 — Fiscal Compensation API
+# =============================================================================
+
+
+from rest_framework import serializers
+from rest_framework.decorators import action
+from financial.models import FiscalCompensation
+
+
+class FiscalCompensationSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    supplier_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    code = serializers.CharField(max_length=40)
+    compensation_type = serializers.ChoiceField(
+        choices=[
+            ('credit', 'Crédito'),
+            ('debit', 'Débito'),
+            ('both', 'Ambos'),
+        ],
+        default='both',
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendente'),
+            ('approved', 'Aprovado'),
+            ('rejected', 'Rejeitado'),
+            ('processed', 'Processado'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='pending',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    compensated_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    remaining_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    compensated_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class FiscalCompensationViewSet(viewsets.ModelViewSet):
+    serializer_class = FiscalCompensationSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return FiscalCompensation.objects.select_related(
+            'fiscal_document',
+            'branch',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'approve', 'process', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability(self.required_capability))
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'pending':
+            return Response({'detail': 'Only pending compensations can be approved.'}, status=400)
+        compensation.status = 'approved'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def process(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'approved':
+            return Response({'detail': 'Only approved compensations can be processed.'}, status=400)
+        compensation.status = 'processed'
+        compensation.compensated_at = timezone.now()
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status in ('cancelled', 'processed'):
+            return Response({'detail': 'Cancelled or processed compensations cannot be cancelled.'}, status=400)
+        compensation.status = 'cancelled'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
