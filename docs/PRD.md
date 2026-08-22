@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Código | PRD-OPS-001 |
-| Versão | 0.1.0 |
+| Versão | 0.2.0 |
 | Status | Review |
-| Última atualização | 2026-08-17 |
+| Última atualização | 2026-08-22 |
 | Produto | TJSys |
 
 ## Finalidade
@@ -72,6 +72,21 @@ Em caso de conflito, o agente deve parar, informar a divergência e solicitar um
 - [x] Validar Django check e ausência de migrations pendentes.
 
 Evidência completa: [R0_R10_GLOBAL_HARDENING_FINAL_REPORT.md](10_Releases/R0_R10_GLOBAL_HARDENING_FINAL_REPORT.md).
+
+### Fechamento global R0-R11 + F1-F12 — 2026-08-22
+
+- [x] Confirmar R0-R11 como ancestrais da linha consolidada.
+- [x] Consolidar 84/84 branches de implementação F nos 12 branches de integração.
+- [x] Integrar F1-F12 ao `master` local.
+- [x] Zerar a suíte backend global: `1916 passed`, cobertura `90.01%`.
+- [x] Validar Web Admin: `408` Vitest, `94` Playwright Chromium e `11` axe.
+- [x] Validar PDV Electron: `213` unitários, `10` mock e `3` live.
+- [x] Validar fiscal live até `CONCLUDED`, migrations, Ruff, mypy e builds.
+- [x] Encerrar revisão independente sem findings P0-P2.
+
+**Estado:** concluído (`CLOSE`).
+
+**Evidência:** [R0_R11_F1_F12_GLOBAL_CLOSURE_FINAL_REPORT.md](10_Releases/R0_R11_F1_F12_GLOBAL_CLOSURE_FINAL_REPORT.md).
 
 ---
 

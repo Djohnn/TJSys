@@ -41,6 +41,7 @@ Registro oficial dos documentos do Zyrp.
 | SPRINT-001-REPORT | Sprint 1 Authentication and Onboarding Report | 1.0.0 | Complete | `10_Releases/SPRINT-001_Auth_Onboarding_Final_Report.md` |
 | SPRINT-005-REPORT | Sprint 5 PDV Electron Online Final Report | 1.0.0 | Local acceptance complete; backend/live pending | `10_Releases/SPRINT-005_PDV_Electron_Online_Final_Report.md` |
 | SPRINT-030-REPORT | Sprint 30 Catalog Hardening & Acceptance | 1.0.0 | Complete | `10_Releases/SPRINT-030_Catalog_Hardening_Acceptance_Final_Report.md` |
+| RF-GLOBAL-CLOSURE | R0-R11 + F1-F12 Global Closure Final Report | 1.0.0 | Complete | `10_Releases/R0_R11_F1_F12_GLOBAL_CLOSURE_FINAL_REPORT.md` |
 | OPS-CATALOG-ROLLBACK | Rollback Catálogo Sprints 23–30 | 1.0.0 | Approved | `09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md` |
 | DESIGN-CATALOG-NEXT | Especificação Sprints 31–33 | 1.0.0 | Approved | `superpowers/specs/2026-08-01-catalog-next-sprints-design.md` |
 | PLAN-CATALOG-NEXT | Plano Sprints 31–33 | 1.0.0 | Approved | `superpowers/plans/2026-08-01-catalog-next-sprints-implementation-plan.md` |
