@@ -73,4 +73,3 @@ urlpatterns = [
         name='stock-map',
     ),
 ]
-

@@ -747,7 +747,6 @@ class SalesOrderViewSet(viewsets.ModelViewSet):
             return _problem(str(exc))
 
 
-
 class ConsignmentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ConsignmentSerializer
     permission_classes = [
