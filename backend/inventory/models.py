@@ -563,8 +563,6 @@ class ProductionOrder(VersionedInventoryModel):
             if current.status in ('completed', 'cancelled'):
                 raise ValidationError('Completed or cancelled orders are immutable.')
         super().save(*args, **kwargs)
-
-
 # =============================================================================
 # Sprint F7 — ProductionOrderItem (itens da ordem de produção)
 # =============================================================================
