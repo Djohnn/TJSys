@@ -1,6 +1,12 @@
+import path from 'node:path'
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 
 export { expect }
+
+export const productPdvArtifactPath =
+  process.env.E2E_PRODUCT_ARTIFACT_PATH
+  ?? process.env.E2E_ARTIFACT_PATH
+  ?? path.resolve('..', 'test-results', 'product-pdv-flow.json')
 
 const SHELL_ME_RESPONSE = {
   user: {
