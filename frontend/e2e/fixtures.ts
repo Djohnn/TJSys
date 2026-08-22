@@ -85,12 +85,12 @@ export async function authenticatePage(
   await page.click('button[type="submit"]')
   const requiresMfa = options.requiresMfa ?? true
   if (requiresMfa) {
-    await page.waitForURL(/\/mfa/)
+    await page.waitForURL(/\/mfa/, { waitUntil: 'domcontentloaded' })
     await page.fill('#mfa-code', recoveryCode)
     await page.getByRole('button', { name: 'Verificar' }).click()
-    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
+    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname), { waitUntil: 'domcontentloaded' })
   } else {
-    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
+    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname), { waitUntil: 'domcontentloaded' })
   }
 
   const tenantSelector = page.getByTestId('tenant-selector')
