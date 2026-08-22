@@ -1,6 +1,15 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
-from crm.models import Activity, ActivityType, CustomerHistoryEntry, Opportunity, Pipeline, PipelineStage
+from crm.models import (
+    Activity,
+    ActivityType,
+    CustomerHistoryEntry,
+    Opportunity,
+    Pipeline,
+    PipelineStage,
+)
 
 
 class PipelineStageSerializer(serializers.ModelSerializer):
@@ -73,11 +82,11 @@ class CreateOpportunitySerializer(serializers.Serializer):
     assigned_to = serializers.UUIDField(required=False, allow_null=True)
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True, default='')
-    value = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    value = serializers.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0.00'))
     currency = serializers.CharField(max_length=3, default='BRL')
     probability = serializers.IntegerField(default=0)
     expected_close_date = serializers.DateField(required=False, allow_null=True)
-    source = serializers.CharField(required=False, allow_blank=True, default='')
+    source = serializers.CharField(required=False, allow_blank=True, default='')  # type: ignore[assignment]
     notes = serializers.CharField(required=False, allow_blank=True, default='')
 
 

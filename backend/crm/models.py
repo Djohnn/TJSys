@@ -132,7 +132,11 @@ class Activity(VersionedModel):
         ('cancelled', 'Cancelada'),
     ]
 
-    activity_type = models.ForeignKey(ActivityType, on_delete=models.PROTECT, related_name='activities')
+    activity_type = models.ForeignKey(
+        ActivityType,
+        on_delete=models.PROTECT,
+        related_name='activities',
+    )
     customer = models.ForeignKey(
         'people.Person',
         on_delete=models.PROTECT,

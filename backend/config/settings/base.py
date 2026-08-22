@@ -53,6 +53,7 @@ LOCAL_APPS = [
     'monitoring',
     'people',
     'payments',
+    'crm',
     'platform_admin',
     'pdv',
 ]

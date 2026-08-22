@@ -59,6 +59,7 @@ urlpatterns = [
     path('api/v1/sales/', include('sales.urls')),
     path('api/v1/pdv/', include('pdv.urls')),
     path('api/v1/people/', include('people.urls')),
+    path('api/v1/crm/', include('crm.urls')),
     path('api/v1/pdv/', include('pdv.urls')),
     path('admin/', admin.site.urls),
 ]

@@ -5,12 +5,17 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from crm.models import Activity, ActivityType, CustomerHistoryEntry, Opportunity, Pipeline, PipelineStage
+from crm.models import (
+    Activity,
+    ActivityType,
+    CustomerHistoryEntry,
+    Opportunity,
+    Pipeline,
+    PipelineStage,
+)
 from crm.serializers import (
     ActivitySerializer,
     ActivityTypeSerializer,
-    CreateActivitySerializer,
-    CreateOpportunitySerializer,
     CustomerHistoryEntrySerializer,
     OpportunitySerializer,
     PipelineSerializer,
