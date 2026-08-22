@@ -19,7 +19,9 @@ function quantityOptionsForProduct(product: any): QuantityFormatOptions {
     : product?.unit && typeof product.unit === 'object'
       ? product.unit
       : null;
-  const flatSymbol = product?.unit_symbol ?? product?.base_unit_symbol;
+  const flatSymbol = product?.unit_symbol
+    ?? product?.base_unit_symbol
+    ?? (typeof product?.unit_name === 'string' && /quilograma|kilogram/i.test(product.unit_name) ? 'kg' : undefined);
   const flatPrecision = product?.unit_precision ?? product?.quantity_precision ?? product?.decimal_places;
   if (!unit) return { symbol: flatSymbol, precision: flatPrecision };
   return {
@@ -224,8 +226,10 @@ export function Sale() {
       setError('Adicione pelo menos um pagamento');
       return;
     }
-    if (paymentTotal < parseFloat(netTotal.toFixed(2))) {
-      setError(`Pagamento insuficiente. Faltam ${(parseFloat(netTotal.toFixed(2)) - paymentTotal).toFixed(2)}`);
+    const roundedPaymentTotal = parseFloat(paymentTotal.toFixed(2));
+    const roundedNetTotal = parseFloat(netTotal.toFixed(2));
+    if (roundedPaymentTotal < roundedNetTotal) {
+      setError(`Pagamento insuficiente. Faltam ${(roundedNetTotal - roundedPaymentTotal).toFixed(2)}`);
       return;
     }
     if (!session.sessionId) {
