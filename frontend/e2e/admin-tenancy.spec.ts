@@ -58,10 +58,21 @@ test.describe('Painel administrativo de tenancy', () => {
   test('Navegação admin contém links corretos', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     await page.goto('/dashboard')
-    await expect(page.getByTestId('main-navigation')).toBeVisible()
+    const navigation = page.getByTestId('main-navigation')
+    await expect(navigation).toBeVisible()
+    await navigation.getByRole('button', { name: 'Administração' }).click()
 
-    await expect(
-      page.getByTestId('main-navigation').getByRole('link', { name: 'Administração' }),
-    ).toBeVisible()
+    const flyout = page.getByRole('menu', { name: 'Administração' })
+    await expect(flyout).toBeVisible()
+    for (const [label, href] of [
+      ['Empresas', '/organization/companies'],
+      ['Filiais', '/organization/branches'],
+      ['Membros', '/access/members'],
+      ['Convites', '/access/invitations'],
+      ['Segurança', '/security/mfa'],
+      ['Dispositivos', '/devices'],
+    ] as const) {
+      await expect(flyout.getByRole('menuitem', { name: label })).toHaveAttribute('href', href)
+    }
   })
 })

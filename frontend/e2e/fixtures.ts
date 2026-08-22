@@ -72,6 +72,7 @@ export async function openAuthenticatedShell(page: Page): Promise<void> {
 export async function authenticatePage(
   page: Page,
   email = process.env.E2E_USER_EMAIL,
+  options: { requiresMfa?: boolean } = {},
 ): Promise<void> {
   const password = process.env.E2E_USER_PASSWORD
   const recoveryCode = process.env.E2E_RECOVERY_CODE
@@ -82,10 +83,13 @@ export async function authenticatePage(
   await page.fill('[name="email"]', email)
   await page.fill('[name="password"]', password)
   await page.click('button[type="submit"]')
-  await page.waitForURL((url) => url.pathname !== '/login')
-  if (new URL(page.url()).pathname === '/mfa') {
+  const requiresMfa = options.requiresMfa ?? true
+  if (requiresMfa) {
+    await page.waitForURL(/\/mfa/)
     await page.fill('#mfa-code', recoveryCode)
     await page.getByRole('button', { name: 'Verificar' }).click()
+    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
+  } else {
     await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
   }
 
@@ -102,7 +106,7 @@ export const test = base.extend<{
   anonymousPage: Page
 }>({
   authenticatedPage: async ({ page }, use) => {
-    await page.goto('/dashboard')
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
     await use(page)
   },
   anonymousPage: async ({ browser, baseURL }, use) => {

@@ -62,11 +62,12 @@ describe('AppShell', () => {
     expect(nav).toBeInTheDocument()
 
     for (const label of [
-      'Início', 'Catálogo', 'Estoque', 'Financeiro', 'Relatórios', 'Administração',
+      'Início', 'Catálogo', 'Estoque', 'Financeiro', 'Relatórios',
     ]) {
       expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(within(nav).getByRole('button', { name: 'Vendas' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Administração' })).toBeInTheDocument()
   })
 
   it('shows the complete contextual catalog navigation', async () => {

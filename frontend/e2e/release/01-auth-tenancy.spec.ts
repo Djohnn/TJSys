@@ -36,7 +36,6 @@ test.describe('Autenticação e Tenancy', () => {
       'Compras',
       'Financeiro',
       'Relatórios',
-      'Administração',
     ]
     for (const label of moduleLinks) {
       await expect(
@@ -44,6 +43,19 @@ test.describe('Autenticação e Tenancy', () => {
       ).toBeVisible()
     }
     await expect(page.getByTestId('main-navigation').getByRole('button', { name: 'Vendas' })).toBeVisible()
+    await page.getByTestId('main-navigation').getByRole('button', { name: 'Administração' }).click()
+    const adminFlyout = page.getByRole('menu', { name: 'Administração' })
+    await expect(adminFlyout).toBeVisible()
+    for (const [label, href] of [
+      ['Empresas', '/organization/companies'],
+      ['Filiais', '/organization/branches'],
+      ['Membros', '/access/members'],
+      ['Convites', '/access/invitations'],
+      ['Segurança', '/security/mfa'],
+      ['Dispositivos', '/devices'],
+    ] as const) {
+      await expect(adminFlyout.getByRole('menuitem', { name: label })).toHaveAttribute('href', href)
+    }
   })
 
   test('Recuperação de sessão expirada — rota protegida sem auth → login → retorno', async ({ anonymousPage: page }) => {

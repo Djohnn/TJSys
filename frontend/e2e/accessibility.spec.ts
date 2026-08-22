@@ -45,7 +45,7 @@ test.describe('Acessibilidade (axe-core)', () => {
 
   test('Shell autenticado não possui violações críticas ou sérias', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/')
-    await authenticatedPage.waitForLoadState('networkidle')
+    await expect(authenticatedPage.getByTestId('app-shell')).toBeVisible()
 
     const results = await new AxeBuilder({ page: authenticatedPage })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

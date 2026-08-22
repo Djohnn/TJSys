@@ -63,17 +63,31 @@ test('cadastra produto com classificadores, saldo inicial e extensões persistid
   await page.getByTestId('save-base-price').click()
   await expect(page.getByTestId('price-feedback')).toContainText('Preço de venda varejo salvo.')
   await refreshedPrices
-  await expect(page.getByTestId('r4-pricing-summary')).toBeVisible()
+  await expect(page.getByTestId('r4-pricing-summary')).toContainText('BRL 49.90')
+  await expect(page.getByTestId('tier-min-quantity-input')).toBeVisible()
+  await page.getByTestId('tier-min-quantity-input').fill('1')
+  await page.getByTestId('tier-amount-input').fill('10.00')
+  const tierResponse = page.waitForResponse(
+    (response) => response.url().includes(`/catalog/products/${productId}/prices/`) && response.request().method() === 'POST',
+  )
+  await page.getByTestId('add-tier-button').click()
+  expect((await tierResponse).ok()).toBeTruthy()
+  await expect(page.getByTestId('price-tier-row')).toContainText('1')
+  await expect(page.getByTestId('price-tier-row')).toContainText('10.00')
   await page.goto(editUrl)
   await page.getByRole('tab', { name: 'Preços' }).click()
-  await expect(page.getByTestId('r4-pricing-summary')).toBeVisible()
+  await expect(page.getByTestId('r4-pricing-summary')).toContainText('BRL 49.90')
+  await expect(page.getByTestId('price-tier-row')).toContainText('1')
+  await expect(page.getByTestId('price-tier-row')).toContainText('10.00')
 
   await page.getByRole('tab', { name: 'Fiscal' }).click()
+  await expect(page.getByTestId('fiscal-data-section')).toBeVisible()
   await page.getByTestId('fiscal-ncm-input').fill('84713000')
   await page.getByTestId('fiscal-save-button').click()
   await expect(page.getByTestId('fiscal-feedback')).toContainText('Dados fiscais salvos.')
   await page.goto(editUrl)
   await page.getByRole('tab', { name: 'Fiscal' }).click()
+  await expect(page.getByTestId('fiscal-data-section')).toBeVisible()
   await expect(page.getByTestId('fiscal-ncm-input')).toHaveValue('84713000')
 
   await page.getByRole('tab', { name: 'Canais' }).click()
