@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from financial.models import (
+    Billing,
+    FiscalCompensation,
     BankReconciliation,
     CashflowEntry,
     FinancialAccount,
@@ -491,3 +493,219 @@ class FinancialStatementView(APIView):
             'closing_balance': str(running_balance),
             'transactions': transactions,
         })
+
+
+class FiscalCompensationSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    code = serializers.CharField(max_length=40)
+    compensation_type = serializers.ChoiceField(
+        choices=[
+            ('credit', 'Crédito'),
+            ('debit', 'Débito'),
+            ('both', 'Ambos'),
+        ],
+        default='both',
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendente'),
+            ('approved', 'Aprovado'),
+            ('rejected', 'Rejeitado'),
+            ('processed', 'Processado'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='pending',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    compensated_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    remaining_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    compensated_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class BillingSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    sale = serializers.UUIDField(required=False, allow_null=True)
+    purchase_order = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    code = serializers.CharField(max_length=40)
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('pending', 'Pendente'),
+            ('issued', 'Emitido'),
+            ('paid', 'Pago'),
+            ('overdue', 'Vencido'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='draft',
+    )
+    payment_method = serializers.ChoiceField(
+        choices=[
+            ('cash', 'Dinheiro'),
+            ('credit_card', 'Cartão de Crédito'),
+            ('debit_card', 'Cartão de Débito'),
+            ('bank_transfer', 'Transferência Bancária'),
+            ('boleto', 'Boleto'),
+            ('pix', 'PIX'),
+            ('other', 'Outro'),
+        ],
+        default='other',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    discount_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    tax_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    paid_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class FiscalCompensationViewSet(viewsets.ModelViewSet):
+    serializer_class = FiscalCompensationSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return FiscalCompensation.objects.select_related(
+            'fiscal_document',
+            'branch',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy', 'approve', 'process', 'cancel'
+        }
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability(self.required_capability))
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'pending':
+            return Response({'detail': 'Only pending compensations can be approved.'}, status=400)
+        compensation.status = 'approved'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def process(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'approved':
+            return Response({'detail': 'Only approved compensations can be processed.'}, status=400)
+        compensation.status = 'processed'
+        compensation.compensated_at = timezone.now()
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status in ('cancelled', 'processed'):
+            return Response(
+                {'detail': 'Cancelled or processed compensations cannot be cancelled.'},
+                status=400,
+            )
+        compensation.status = 'cancelled'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+
+class BillingViewSet(viewsets.ModelViewSet):
+    serializer_class = BillingSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return Billing.objects.select_related(
+            'sale',
+            'purchase_order',
+            'branch',
+            'fiscal_document',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'issue', 'pay', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability(self.required_capability))
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def issue(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status != 'draft':
+            return Response({'detail': 'Only draft billings can be issued.'}, status=400)
+        billing.status = 'issued'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def pay(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status not in ('issued', 'pending', 'overdue'):
+            return Response(
+                {'detail': 'Only issued, pending, or overdue billings can be paid.'},
+                status=400,
+            )
+        billing.status = 'paid'
+        billing.paid_at = timezone.now()
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status in ('cancelled', 'paid'):
+            return Response(
+                {'detail': 'Cancelled or paid billings cannot be cancelled.'},
+                status=400,
+            )
+        billing.status = 'cancelled'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
