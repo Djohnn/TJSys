@@ -12,6 +12,7 @@ from inventory.views import (
     StockMovementViewSet,
     StockOperationReversalViewSet,
     StockOperationViewSet,
+    MovementReasonViewSet,
     StorageTypeViewSet,
 )
 
@@ -32,6 +33,7 @@ router.register(
     basename='productstockpolicy',
 )
 router.register('storage-types', StorageTypeViewSet, basename='storage-type')
+router.register('movement-reasons', MovementReasonViewSet, basename='movement-reason')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -51,3 +53,4 @@ urlpatterns = [
         name='product-stock-control-reactivate',
     ),
 ]
+
