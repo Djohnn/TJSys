@@ -10,6 +10,7 @@ from purchasing.views import (
     PurchasingSummaryViewSet,
     RecurringPurchaseOrderViewSet,
     SupplierQuoteViewSet,
+    SupplierReturnViewSet,
     SupplierViewSet,
 )
 
@@ -42,6 +43,11 @@ router.register(
     'open-purchases',
     OpenPurchaseViewSet,
     basename='openpurchase',
+)
+router.register(
+    'supplier-returns',
+    SupplierReturnViewSet,
+    basename='supplierreturn',
 )
 
 urlpatterns = [

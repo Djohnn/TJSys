@@ -473,8 +473,13 @@ class SupplierQuoteSerializer(serializers.Serializer):
     valid_until = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
     total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
-    created_at = serializers.DateTimeField(read_only=True)
-    updated_at = serializers.DateTimeField(read_only=True)
+
+
+# Sprint F8 — PurchaseReturn API (devoluções de compra)
+# =============================================================================
+
+
+from purchasing.models import SupplierReturn
 
 
 class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
@@ -489,7 +494,10 @@ class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
-        write_actions = {'create', 'update', 'partial_update', 'destroy', 'send', 'approve', 'reject', 'cancel'}
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy',
+            'send', 'approve', 'reject', 'cancel',
+        }
         if self.action in write_actions:
             permissions.append(HasVerifiedMFA())
         permissions.append(PurchasingCapabilityPermission())
@@ -534,6 +542,48 @@ class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         quote.full_clean()
         quote.save()
         return Response(SupplierQuoteSerializer(quote).data)
+
+
+class SupplierReturnViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = SupplierReturnSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, PurchasingCapabilityPermission]
+
+    def get_queryset(self):
+        return SupplierReturn.objects.select_related(
+            'receipt',
+            'receipt__purchase_order',
+            'receipt__purchase_order__supplier',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {
+            'create', 'update', 'partial_update', 'destroy', 'complete', 'cancel',
+        }
+        if self.action in write_actions:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(PurchasingCapabilityPermission())
+        return permissions
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        supplier_return = self.get_object()
+        if supplier_return.status != 'draft':
+            return Response({'detail': 'Only draft returns can be completed.'}, status=400)
+        supplier_return.status = 'completed'
+        supplier_return.full_clean()
+        supplier_return.save()
+        return Response(SupplierReturnSerializer(supplier_return).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        supplier_return = self.get_object()
+        if supplier_return.status in ('completed', 'cancelled'):
+            return Response({'detail': 'Completed or cancelled returns cannot be cancelled.'}, status=400)
+        supplier_return.status = 'cancelled'
+        supplier_return.full_clean()
+        supplier_return.save()
+        return Response(SupplierReturnSerializer(supplier_return).data)
 
 
 # Sprint F8 — OpenPurchase API (compras em aberto)
