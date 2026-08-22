@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from purchasing.views import (
+    OpenPurchaseViewSet,
     PurchaseOrderItemViewSet,
     PurchaseOrderViewSet,
     PurchaseReceiptItemViewSet,
@@ -36,6 +37,11 @@ router.register(
     'supplier-quotes',
     SupplierQuoteViewSet,
     basename='supplierquote',
+)
+router.register(
+    'open-purchases',
+    OpenPurchaseViewSet,
+    basename='openpurchase',
 )
 
 urlpatterns = [

@@ -534,3 +534,23 @@ class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         quote.full_clean()
         quote.save()
         return Response(SupplierQuoteSerializer(quote).data)
+
+
+# Sprint F8 — OpenPurchase API (compras em aberto)
+# =============================================================================
+
+
+class OpenPurchaseViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated, HasActiveTenant, PurchasingCapabilityPermission]
+
+    def get_queryset(self):
+        return PurchaseOrder.objects.select_related(
+            'supplier',
+            'branch',
+        ).filter(
+            tenant=self.request.tenant,
+            status__in=['draft', 'approved', 'partially_received'],
+        )
+
+    def get_serializer_class(self):
+        return PurchaseOrderListSerializer
