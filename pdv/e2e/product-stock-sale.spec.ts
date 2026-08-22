@@ -15,6 +15,7 @@ type ProductArtifact = {
 }
 
 type FlowArtifact = {
+  schemaVersion: 1
   createdAt: string
   adminBaseUrl: string
   products: { unit: ProductArtifact; kilogram: ProductArtifact; withoutPrice: ProductArtifact }
@@ -24,7 +25,14 @@ const apiKey = process.env.E2E_PDV_API_KEY
 
 async function readArtifact() {
   try {
-    return JSON.parse(await fs.readFile(artifactPath, 'utf8')) as FlowArtifact
+    const parsed: unknown = JSON.parse(await fs.readFile(artifactPath, 'utf8'))
+    if (!parsed || typeof parsed !== 'object') throw new Error('raiz não é objeto')
+    const artifact = parsed as Partial<FlowArtifact>
+    if (artifact.schemaVersion !== 1) throw new Error('schemaVersion inválido')
+    if (typeof artifact.createdAt !== 'string' || !Number.isFinite(Date.parse(artifact.createdAt))) throw new Error('createdAt inválido')
+    if (Date.parse(artifact.createdAt) > Date.now() + 60_000) throw new Error('createdAt está no futuro')
+    if (!artifact.adminBaseUrl || !artifact.products?.unit || !artifact.products?.kilogram || !artifact.products?.withoutPrice) throw new Error('produtos obrigatórios ausentes')
+    return artifact as FlowArtifact
   } catch (error) {
     throw new Error(`Artefato do fluxo admin não encontrado em ${artifactPath}; execute o E2E frontend antes do PDV. ${String(error)}`)
   }
