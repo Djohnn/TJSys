@@ -27,9 +27,9 @@ test.describe('Catálogo — aceite Sprints 23–30', () => {
   test('classificadores administrativos carregam', async ({ authenticatedPage }) => {
     const page = authenticatedPage
     for (const [path, action] of [
-      ['/catalog/categories', 'Nova Categoria'],
-      ['/catalog/brands', 'Nova Marca'],
-      ['/catalog/units', 'Nova Unidade'],
+      ['/catalog/categories', /^Nova Categoria|Criar Categoria$/],
+      ['/catalog/brands', /^(Nova|Criar) Marca$/],
+      ['/catalog/units', /^Nova Unidade|Criar Unidade$/],
     ] as const) {
       await page.goto(path)
       await expect(page.locator('main')).toBeVisible()

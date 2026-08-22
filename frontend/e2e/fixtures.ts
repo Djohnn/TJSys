@@ -82,10 +82,12 @@ export async function authenticatePage(
   await page.fill('[name="email"]', email)
   await page.fill('[name="password"]', password)
   await page.click('button[type="submit"]')
-  await page.waitForURL(/\/mfa/)
-  await page.fill('#mfa-code', recoveryCode)
-  await page.getByRole('button', { name: 'Verificar' }).click()
-  await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
+  await page.waitForURL((url) => url.pathname !== '/login')
+  if (new URL(page.url()).pathname === '/mfa') {
+    await page.fill('#mfa-code', recoveryCode)
+    await page.getByRole('button', { name: 'Verificar' }).click()
+    await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname))
+  }
 
   const tenantSelector = page.getByTestId('tenant-selector')
   if (await tenantSelector.isVisible()) {

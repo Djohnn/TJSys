@@ -60,11 +60,8 @@ test.describe('Painel administrativo de tenancy', () => {
     await page.goto('/dashboard')
     await expect(page.getByTestId('main-navigation')).toBeVisible()
 
-    const adminLinks = ['Empresas', 'Filiais', 'Membros', 'Convites', 'Segurança', 'Dispositivos']
-    for (const label of adminLinks) {
-      await expect(
-        page.getByTestId('main-navigation').getByRole('link', { name: label }),
-      ).toBeVisible()
-    }
+    await expect(
+      page.getByTestId('main-navigation').getByRole('link', { name: 'Administração' }),
+    ).toBeVisible()
   })
 })

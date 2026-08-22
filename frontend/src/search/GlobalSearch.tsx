@@ -98,7 +98,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps): React.ReactN
         onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 shrink-0 text-[var(--color-gray-500)]">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 shrink-0 text-[var(--color-gray-600)]">
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input
@@ -117,26 +117,26 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps): React.ReactN
 
         <div className="max-h-80 overflow-y-auto p-2">
           {query.length < 2 && (
-            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-500)]">
+            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-600)]">
               Digite pelo menos 2 caracteres para buscar
             </p>
           )}
 
           {query.length >= 2 && isLoading && (
-            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-500)]">
+            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-600)]">
               Buscando...
             </p>
           )}
 
           {query.length >= 2 && !isLoading && results.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-500)]">
+            <p className="px-4 py-8 text-center text-sm text-[var(--color-gray-600)]">
               Nenhum resultado encontrado para &quot;{query}&quot;
             </p>
           )}
 
           {Object.entries(groupedResults).map(([group, groupResults]) => (
             <div key={group} className="mb-2">
-              <h3 className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-gray-500)]">
+              <h3 className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-gray-600)]">
                 {groupLabels[group] ?? group}
               </h3>
               {groupResults.map((result) => {
@@ -164,7 +164,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps): React.ReactN
                       <p className="truncate text-sm font-medium text-[var(--color-gray-900)]">
                         {result.label}
                       </p>
-                      <p className="truncate text-xs text-[var(--color-gray-500)]">
+                      <p className="truncate text-xs text-[var(--color-gray-600)]">
                         {result.subtitle}
                       </p>
                     </div>
@@ -175,7 +175,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps): React.ReactN
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-gray-500)]">
+        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-4 py-2 text-xs text-[var(--color-gray-600)]">
           <span>↑↓ navegar · Enter selecionar</span>
           <span>ESC fechar</span>
         </div>
