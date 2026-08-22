@@ -544,7 +544,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     const searchInput = page.getByRole('textbox', { name: 'Buscar pessoas' })
     await expect(searchInput).toBeVisible()
     await searchInput.fill('João')
-    await page.getByRole('button', { name: 'Buscar' }).click()
+    await page.getByTestId('people-page').getByRole('button', { name: 'Buscar', exact: true }).click()
   })
 
   test('Pessoas — detalhe mostra seções', async ({ authenticatedPage }) => {

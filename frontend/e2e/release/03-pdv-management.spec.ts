@@ -47,7 +47,7 @@ test.describe('PDV, Pessoas e Sessões de Caixa', () => {
     const searchInput = page.getByRole('textbox', { name: 'Buscar pessoas' })
     await expect(searchInput).toBeVisible()
     await searchInput.fill('João')
-    await page.getByRole('button', { name: 'Buscar' }).click()
+    await page.getByTestId('people-page').getByRole('button', { name: 'Buscar', exact: true }).click()
   })
 
   test('Detalhe da pessoa exibe seções de informação', async ({ authenticatedPage }) => {

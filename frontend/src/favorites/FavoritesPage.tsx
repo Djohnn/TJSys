@@ -56,7 +56,7 @@ export default function FavoritesPage(): React.ReactNode {
                 >
                   {favorite.label}
                 </Link>
-                <p className="text-xs text-[var(--color-gray-500)]">{favorite.entity_type}</p>
+                <p className="text-xs text-[var(--color-gray-600)]">{favorite.entity_type}</p>
               </div>
               <button
                 type="button"

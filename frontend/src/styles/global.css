@@ -26,8 +26,9 @@
   --color-neutral-200: var(--r1-color-gray-300);
   --color-neutral-300: var(--r1-color-gray-400);
   --color-neutral-400: var(--r1-color-gray-500);
-  --color-neutral-500: var(--r1-color-gray-500);
-  --color-neutral-600: var(--r1-color-gray-600);
+  /* Neutral text aliases must meet WCAG AA on their light surfaces. */
+  --color-neutral-500: var(--r1-color-gray-600);
+  --color-neutral-600: var(--r1-color-gray-700);
   --color-neutral-700: var(--r1-color-gray-700);
   --color-neutral-800: var(--r1-color-gray-800);
   --color-neutral-900: var(--r1-color-gray-900);

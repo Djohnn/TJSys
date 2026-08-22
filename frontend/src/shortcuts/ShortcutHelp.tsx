@@ -97,7 +97,7 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps): React.ReactN
           ))}
         </div>
 
-        <div className="border-t border-[var(--color-border)] px-6 py-4 text-center text-xs text-[var(--color-gray-500)]">
+        <div className="border-t border-[var(--color-border)] px-6 py-4 text-center text-xs text-[var(--color-gray-600)]">
           Pressione <kbd className="rounded bg-[var(--color-gray-100)] px-1.5 py-0.5">ESC</kbd> para fechar
         </div>
       </div>

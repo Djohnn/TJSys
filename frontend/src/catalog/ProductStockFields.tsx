@@ -95,7 +95,7 @@ export default function ProductStockFields({
         >
           <option value="">Selecione...</option>
           {locations.map((item) => (
-            <option key={item.id} value={item.id}>{item.name}</option>
+            <option key={item.id} value={item.id}>{item.name} ({item.code})</option>
           ))}
         </select>
         {locationError && <span role="alert" className="text-xs text-red-600 mt-1 block">{locationError}</span>}

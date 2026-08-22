@@ -40,7 +40,20 @@ export const MODULE_ITEMS: readonly NavigationItem[] = [
   { id: 'purchasing', label: 'Compras', route: '/purchasing/orders', status: 'active', icon: 'purchasing' },
   { id: 'financial', label: 'Financeiro', route: '/financial', status: 'active', icon: 'financial' },
   { id: 'reports', label: 'Relatórios', route: '/monitoring/operations', status: 'active', icon: 'reports' },
-  { id: 'admin', label: 'Administração', route: '/organization/companies', status: 'active', icon: 'admin' },
+  {
+    id: 'admin',
+    label: 'Administração',
+    status: 'active',
+    icon: 'admin',
+    children: [
+      { id: 'admin-companies', label: 'Empresas', route: '/organization/companies', status: 'active' },
+      { id: 'admin-branches', label: 'Filiais', route: '/organization/branches', status: 'active' },
+      { id: 'admin-members', label: 'Membros', route: '/access/members', status: 'active' },
+      { id: 'admin-invitations', label: 'Convites', route: '/access/invitations', status: 'active' },
+      { id: 'admin-security', label: 'Segurança', route: '/security/mfa', status: 'active' },
+      { id: 'admin-devices', label: 'Dispositivos', route: '/devices', status: 'active' },
+    ],
+  },
 ]
 
 export const CATALOG_ITEMS: readonly ContextNavigationItem[] = [

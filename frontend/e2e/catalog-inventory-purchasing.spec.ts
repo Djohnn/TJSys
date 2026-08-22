@@ -15,8 +15,8 @@ test.describe('Catálogo, Estoque e Compras', () => {
     await expect(page.getByTestId('products-page')).toBeVisible()
 
     const searchInput = page.getByRole('textbox', { name: 'Buscar produtos' })
-    await searchInput.fill('Ração')
-    await page.getByRole('button', { name: 'Buscar' }).click()
+    await searchInput.fill('Produto E2E')
+    await page.getByTestId('products-page').getByRole('button', { name: 'Buscar', exact: true }).click()
     await expect(page.getByTestId('products-table')).toBeVisible()
   })
 
