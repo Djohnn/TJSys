@@ -318,10 +318,20 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
     assert 'await rm(authStorageDirectory, { recursive: true, force: true })' in teardown_source
     assert 'test-results/.auth/' in gitignore.splitlines()
     assert 'await authenticatePage(page)' not in fixtures
-    assert "await page.goto('/dashboard')" in fixtures
+    assert 'const recoveryCode = process.env.E2E_RECOVERY_CODE' in fixtures
+    assert "await page.waitForURL(/\\/mfa/, { waitUntil: 'domcontentloaded' })" in fixtures
+    assert "await page.fill('#mfa-code', recoveryCode)" in fixtures
+    assert "await page.getByRole('button', { name: 'Verificar' }).click()" in fixtures
+    assert (
+        "await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname), "
+        "{ waitUntil: 'domcontentloaded' })"
+    ) in fixtures
+    assert "await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })" in fixtures
     assert 'anonymousPage' in fixtures
     assert 'storageState: { cookies: [], origins: [] }' in fixtures
     auth_spec = (frontend_root / 'e2e' / 'auth-tenant.spec.ts').read_text(encoding='utf-8')
+    assert 'authenticatedPage: page' in auth_spec
+    assert "await expect(page.getByTestId('app-shell')).toBeVisible()" in auth_spec
     assert 'async function mockLogout(page: Page): Promise<() => void>' in auth_spec
     assert auth_spec.count('await mockLogout(page)') == 2
     assert 'await mockUnauthenticatedSession(page)' in auth_spec
