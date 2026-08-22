@@ -285,3 +285,147 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
         if date_to:
             queryset = queryset.filter(due_date__lte=date_to)
         return queryset.order_by('-created_at')
+
+
+# =============================================================================
+# Sprint F11 — DRE API (Demonstração do Resultado do Exercício)
+# =============================================================================
+
+
+from decimal import Decimal
+from rest_framework import serializers
+
+
+class DRELineSerializer(serializers.Serializer):
+    label = serializers.CharField()
+    value = serializers.DecimalField(max_digits=18, decimal_places=2)
+    percentage = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+
+
+class DREReportSerializer(serializers.Serializer):
+    period_from = serializers.DateField()
+    period_to = serializers.DateField()
+    branch = serializers.DictField(required=False, allow_null=True)
+    revenue = DRELineSerializer()
+    deductions = DRELineSerializer()
+    net_revenue = DRELineSerializer()
+    cost_of_goods = DRELineSerializer()
+    gross_profit = DRELineSerializer()
+    operating_expenses = DRELineSerializer()
+    operating_result = DRELineSerializer()
+    result_before_tax = DRELineSerializer()
+    income_tax = DRELineSerializer()
+    net_result = DRELineSerializer()
+
+
+class DREReportView(ReportView):
+    def get(self, request):
+        date_from, date_to = self.period(request)
+        branch = self.branch(request)
+
+        from sales.models import Sale
+        from inventory.models import StockBalance
+        from purchasing.models import PurchaseOrder
+        from financial.models import Payable, Receivable, Billing
+
+        sales_queryset = Sale.all_objects.filter(
+            tenant=request.tenant,
+            created_at__date__range=(date_from, date_to),
+        )
+        if branch:
+            sales_queryset = sales_queryset.filter(branch=branch)
+
+        purchase_queryset = PurchaseOrder.all_objects.filter(
+            tenant=request.tenant,
+            created_at__date__range=(date_from, date_to),
+        )
+        if branch:
+            purchase_queryset = purchase_queryset.filter(branch=branch)
+
+        billing_queryset = Billing.objects.filter(
+            tenant=request.tenant,
+            created_at__date__range=(date_from, date_to),
+        )
+        if branch:
+            billing_queryset = billing_queryset.filter(branch=branch)
+
+        gross_revenue = sales_queryset.aggregate(total=Sum('net_total'))['total'] or Decimal('0.00')
+        total_purchases = purchase_queryset.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        total_billing_discounts = billing_queryset.aggregate(total=Sum('discount_amount'))['total'] or Decimal('0.00')
+        total_billing_taxes = billing_queryset.aggregate(total=Sum('tax_amount'))['total'] or Decimal('0.00')
+
+        deductions = total_billing_discounts + total_billing_taxes
+        net_revenue = gross_revenue - deductions
+        cost_of_goods = total_purchases
+        gross_profit = net_revenue - cost_of_goods
+
+        operating_expenses = Payable.all_objects.filter(
+            tenant=request.tenant,
+            due_date__range=(date_from, date_to),
+            description__icontains='despesa',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        if branch:
+            operating_expenses = Payable.all_objects.filter(
+                tenant=request.tenant,
+                branch=branch,
+                due_date__range=(date_from, date_to),
+                description__icontains='despesa',
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        operating_result = gross_profit - operating_expenses
+        result_before_tax = operating_result
+        income_tax = result_before_tax * Decimal('0.25') if result_before_tax > 0 else Decimal('0.00')
+        net_result = result_before_tax - income_tax
+
+        def make_line(label, value, base=net_revenue, children=None):
+            percentage = (value / base * 100) if base else Decimal('0.00')
+            return {
+                'label': label,
+                'value': str(value),
+                'percentage': str(percentage.quantize(Decimal('0.01'))),
+                'children': children or [],
+            }
+
+        branch_data = None
+        if branch:
+            branch_data = {'id': str(branch.id), 'name': branch.name}
+
+        dre = {
+            'period_from': str(date_from),
+            'period_to': str(date_to),
+            'branch': branch_data,
+            'revenue': make_line('Receita Bruta', gross_revenue),
+            'deductions': make_line('Deduções', deductions),
+            'net_revenue': make_line('Receita Líquida', net_revenue),
+            'cost_of_goods': make_line('Custo dos Produtos/Serviços', cost_of_goods),
+            'gross_profit': make_line('Lucro Bruto', gross_profit),
+            'operating_expenses': make_line('Despesas Operacionais', operating_expenses),
+            'operating_result': make_line('Resultado Operacional', operating_result),
+            'result_before_tax': make_line('Resultado Antes do IR/CSLL', result_before_tax),
+            'income_tax': make_line('IR/CSLL (25%)', income_tax),
+            'net_result': make_line('Resultado Líquido', net_result),
+        }
+
+        if request.query_params.get('export') == 'csv':
+            return self._csv(dre)
+        return Response(dre)
+
+    @staticmethod
+    def _csv(dre):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="dre-report.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['line', 'value', 'percentage'])
+        writer.writerow(['Receita Bruta', dre['revenue']['value'], dre['revenue']['percentage']])
+        writer.writerow(['Deduções', dre['deductions']['value'], dre['deductions']['percentage']])
+        writer.writerow(['Receita Líquida', dre['net_revenue']['value'], dre['net_revenue']['percentage']])
+        writer.writerow(['Custo dos Produtos/Serviços', dre['cost_of_goods']['value'], dre['cost_of_goods']['percentage']])
+        writer.writerow(['Lucro Bruto', dre['gross_profit']['value'], dre['gross_profit']['percentage']])
+        writer.writerow(['Despesas Operacionais', dre['operating_expenses']['value'], dre['operating_expenses']['percentage']])
+        writer.writerow(['Resultado Operacional', dre['operating_result']['value'], dre['operating_result']['percentage']])
+        writer.writerow(['Resultado Antes do IR/CSLL', dre['result_before_tax']['value'], dre['result_before_tax']['percentage']])
+        writer.writerow(['IR/CSLL (25%)', dre['income_tax']['value'], dre['income_tax']['percentage']])
+        writer.writerow(['Resultado Líquido', dre['net_result']['value'], dre['net_result']['percentage']])
+        return response
