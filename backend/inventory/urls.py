@@ -13,6 +13,8 @@ from inventory.views import (
     StockOperationReversalViewSet,
     StockOperationViewSet,
     MovementReasonViewSet,
+    ReplenishmentOrderViewSet,
+    ReplenishmentRuleViewSet,
     StorageTypeViewSet,
 )
 
@@ -34,6 +36,8 @@ router.register(
 )
 router.register('storage-types', StorageTypeViewSet, basename='storage-type')
 router.register('movement-reasons', MovementReasonViewSet, basename='movement-reason')
+router.register('replenishment-rules', ReplenishmentRuleViewSet, basename='replenishment-rule')
+router.register('replenishment-orders', ReplenishmentOrderViewSet, basename='replenishment-order')
 
 urlpatterns = [
     path('', include(router.urls)),
