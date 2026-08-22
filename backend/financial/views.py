@@ -390,7 +390,10 @@ class BankReconciliationViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         reconciliation = self.get_object()
         if reconciliation.status in ('matched', 'cancelled'):
-            return Response({'detail': 'Matched or cancelled reconciliations cannot be cancelled.'}, status=400)
+            return Response(
+                {'detail': 'Matched or cancelled reconciliations cannot be cancelled.'},
+                status=400,
+            )
         reconciliation.status = 'cancelled'
         reconciliation.full_clean()
         reconciliation.save()
