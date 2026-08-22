@@ -495,8 +495,14 @@ class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
         write_actions = {
-            'create', 'update', 'partial_update', 'destroy',
-            'send', 'approve', 'reject', 'cancel',
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'send',
+            'approve',
+            'reject',
+            'cancel',
         }
         if self.action in write_actions:
             permissions.append(HasVerifiedMFA())
@@ -561,7 +567,12 @@ class SupplierReturnViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
         write_actions = {
-            'create', 'update', 'partial_update', 'destroy', 'complete', 'cancel',
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'complete',
+            'cancel',
         }
         if self.action in write_actions:
             permissions.append(HasVerifiedMFA())

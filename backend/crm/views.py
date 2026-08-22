@@ -94,7 +94,10 @@ class OpportunityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Opportunity.objects.select_related(
-            'pipeline', 'stage', 'customer', 'assigned_to',
+            'pipeline',
+            'stage',
+            'customer',
+            'assigned_to',
         ).filter(tenant=self.request.tenant)
         pipeline_id = self.request.query_params.get('pipeline')
         stage_id = self.request.query_params.get('stage')
@@ -172,7 +175,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Activity.objects.select_related(
-            'activity_type', 'customer', 'opportunity', 'assigned_to',
+            'activity_type',
+            'customer',
+            'opportunity',
+            'assigned_to',
         ).filter(tenant=self.request.tenant)
         customer_id = self.request.query_params.get('customer')
         activity_type_id = self.request.query_params.get('activity_type')
@@ -224,6 +230,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
         activity.status = 'cancelled'
         activity.save()
         return Response(ActivitySerializer(activity).data)
+
+
 class CustomerHistoryEntryViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerHistoryEntrySerializer
     permission_classes = [
@@ -233,7 +241,8 @@ class CustomerHistoryEntryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = CustomerHistoryEntry.objects.select_related(
-            'customer', 'created_by',
+            'customer',
+            'created_by',
         ).filter(tenant=self.request.tenant)
         customer_id = self.request.query_params.get('customer')
         event_type = self.request.query_params.get('event_type')

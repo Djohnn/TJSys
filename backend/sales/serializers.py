@@ -540,10 +540,24 @@ class QuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quote
         fields = [
-            'id', 'branch', 'branch_name', 'customer', 'customer_name',
-            'operator', 'operator_name', 'status', 'quote_number',
-            'valid_until', 'notes', 'gross_total', 'discount_total',
-            'net_total', 'converted_sale', 'items', 'created_at', 'updated_at',
+            'id',
+            'branch',
+            'branch_name',
+            'customer',
+            'customer_name',
+            'operator',
+            'operator_name',
+            'status',
+            'quote_number',
+            'valid_until',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -590,11 +604,26 @@ class SalesOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalesOrder
         fields = [
-            'id', 'branch', 'branch_name', 'customer', 'customer_name',
-            'operator', 'operator_name', 'quote', 'quote_number',
-            'status', 'order_number', 'expected_date', 'notes',
-            'gross_total', 'discount_total', 'net_total', 'converted_sale',
-            'items', 'created_at', 'updated_at',
+            'id',
+            'branch',
+            'branch_name',
+            'customer',
+            'customer_name',
+            'operator',
+            'operator_name',
+            'quote',
+            'quote_number',
+            'status',
+            'order_number',
+            'expected_date',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -611,6 +640,8 @@ class CreateSalesOrderSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError('At least one item is required.')
         return value
+
+
 # =============================================================================
 # F4 — Consignment
 # =============================================================================

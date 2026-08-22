@@ -29,6 +29,7 @@ class UserFavoriteViewSet(viewsets.ModelViewSet):
         tenant_id = self.request.headers.get('X-Tenant-ID')
         if not tenant_id:
             from rest_framework.exceptions import ValidationError
+
             raise ValidationError({'tenant_id': 'Tenant ID is required.'})
         serializer.save(user=self.request.user, tenant_id=tenant_id)
 
@@ -41,6 +42,7 @@ class UserFavoriteViewSet(viewsets.ModelViewSet):
         tenant_id = request.headers.get('X-Tenant-ID')
         if not tenant_id:
             from rest_framework.exceptions import ValidationError
+
             raise ValidationError({'tenant_id': 'Tenant ID is required.'})
 
         # Check for duplicate
@@ -59,10 +61,15 @@ class UserFavoriteViewSet(viewsets.ModelViewSet):
         # Auto-assign position if not provided
         position = data.get('position', 0)
         if position == 0:
-            max_pos = UserFavorite.objects.filter(
-                user=request.user,
-                tenant_id=tenant_id,
-            ).order_by('-position').values_list('position', flat=True).first()
+            max_pos = (
+                UserFavorite.objects.filter(
+                    user=request.user,
+                    tenant_id=tenant_id,
+                )
+                .order_by('-position')
+                .values_list('position', flat=True)
+                .first()
+            )
             position = (max_pos or 0) + 1
 
         favorite = UserFavorite.objects.create(
@@ -94,6 +101,7 @@ class UserFavoriteReorderView(APIView):
         tenant_id = request.headers.get('X-Tenant-ID')
         if not tenant_id:
             from rest_framework.exceptions import ValidationError
+
             raise ValidationError({'tenant_id': 'Tenant ID is required.'})
 
         # Update positions

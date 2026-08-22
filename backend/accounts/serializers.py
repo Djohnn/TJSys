@@ -62,6 +62,7 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from accounts.models import UserFavorite
+
         self.Meta.model = UserFavorite
 
 

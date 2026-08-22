@@ -115,6 +115,8 @@ class Marketplace(TenantScopedModel, TimeStampedModel):
             errors['fee_fixed'] = 'Fee fixed cannot be negative.'
         if errors:
             raise ValidationError(errors)
+
+
 class OnlineOrder(TenantScopedModel, TimeStampedModel):
     STATUS_CHOICES = [
         ('pending', 'Pendente'),

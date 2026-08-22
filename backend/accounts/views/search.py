@@ -36,24 +36,27 @@ class GlobalSearchView(APIView):
         results.extend(self._search_suppliers(query, tenant_id, limit))
 
         # Sort by relevance (name match first, then label match)
-        results.sort(key=lambda x: (
-            not x['label'].lower().startswith(query.lower()),
-            x['label'].lower(),
-        ))
+        results.sort(
+            key=lambda x: (
+                not x['label'].lower().startswith(query.lower()),
+                x['label'].lower(),
+            )
+        )
 
         return Response({'results': results[:limit]})
 
     def _search_products(self, query, tenant_id, limit):
         try:
             from catalog.models import Product
+
             products = Product.objects.filter(
                 tenant_id=tenant_id,
                 is_active=True,
             ).filter(
-                Q(name__icontains=query) |
-                Q(sku__icontains=query) |
-                Q(barcode__icontains=query) |
-                Q(description__icontains=query)
+                Q(name__icontains=query)
+                | Q(sku__icontains=query)
+                | Q(barcode__icontains=query)
+                | Q(description__icontains=query)
             )[:limit]
 
             return [
@@ -73,12 +76,10 @@ class GlobalSearchView(APIView):
     def _search_categories(self, query, tenant_id, limit):
         try:
             from catalog.models import Category
+
             categories = Category.objects.filter(
                 tenant_id=tenant_id,
-            ).filter(
-                Q(name__icontains=query) |
-                Q(code__icontains=query)
-            )[:limit]
+            ).filter(Q(name__icontains=query) | Q(code__icontains=query))[:limit]
 
             return [
                 {
@@ -97,11 +98,10 @@ class GlobalSearchView(APIView):
     def _search_brands(self, query, tenant_id, limit):
         try:
             from catalog.models import Brand
+
             brands = Brand.objects.filter(
                 tenant_id=tenant_id,
-            ).filter(
-                Q(name__icontains=query)
-            )[:limit]
+            ).filter(Q(name__icontains=query))[:limit]
 
             return [
                 {
@@ -120,12 +120,11 @@ class GlobalSearchView(APIView):
     def _search_people(self, query, tenant_id, limit):
         try:
             from people.models import Person
+
             people = Person.objects.filter(
                 tenant_id=tenant_id,
             ).filter(
-                Q(name__icontains=query) |
-                Q(document__icontains=query) |
-                Q(email__icontains=query)
+                Q(name__icontains=query) | Q(document__icontains=query) | Q(email__icontains=query)
             )[:limit]
 
             return [
@@ -145,12 +144,10 @@ class GlobalSearchView(APIView):
     def _search_suppliers(self, query, tenant_id, limit):
         try:
             from purchasing.models import Supplier
+
             suppliers = Supplier.objects.filter(
                 tenant_id=tenant_id,
-            ).filter(
-                Q(name__icontains=query) |
-                Q(document__icontains=query)
-            )[:limit]
+            ).filter(Q(name__icontains=query) | Q(document__icontains=query))[:limit]
 
             return [
                 {

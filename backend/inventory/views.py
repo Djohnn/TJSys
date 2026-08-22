@@ -757,6 +757,7 @@ class ProductStockControlReactivateView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+
 class StorageTypeViewSet(viewsets.ModelViewSet):
     serializer_class = StorageTypeSerializer
     permission_classes = [
@@ -782,6 +783,7 @@ class StorageTypeViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
+
 
 class MovementReasonViewSet(viewsets.ModelViewSet):
     serializer_class = MovementReasonSerializer
@@ -812,6 +814,7 @@ class MovementReasonViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
 
+
 class ReplenishmentRuleViewSet(viewsets.ModelViewSet):
     serializer_class = ReplenishmentRuleSerializer
     permission_classes = [
@@ -821,7 +824,8 @@ class ReplenishmentRuleViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = ReplenishmentRule.objects.select_related(
-            'product', 'location',
+            'product',
+            'location',
         ).filter(tenant=self.request.tenant)
         is_active = self.request.query_params.get('is_active')
         trigger_type = self.request.query_params.get('trigger_type')
@@ -853,7 +857,8 @@ class ReplenishmentOrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = ReplenishmentOrder.objects.select_related(
-            'rule', 'approved_by',
+            'rule',
+            'approved_by',
         ).filter(tenant=self.request.tenant)
         status = self.request.query_params.get('status')
         if status:
@@ -872,6 +877,7 @@ class ReplenishmentOrderViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
 
+
 class InventoryCountViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryCountSerializer
     permission_classes = [
@@ -881,7 +887,8 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = InventoryCount.objects.select_related(
-            'location', 'counted_by',
+            'location',
+            'counted_by',
         ).filter(tenant=self.request.tenant)
         status = self.request.query_params.get('status')
         location_id = self.request.query_params.get('location')
@@ -913,7 +920,8 @@ class InventoryCountItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = InventoryCountItem.objects.select_related(
-            'count', 'product',
+            'count',
+            'product',
         ).filter(tenant=self.request.tenant)
         count_id = self.request.query_params.get('count')
         if count_id:
@@ -1067,6 +1075,8 @@ class ProductionOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
         order.full_clean()
         order.save()
         return Response(ProductionOrderSerializer(order).data)
+
+
 # Sprint F7 — StockMap API (mapa consolidado de estoque)
 # =============================================================================
 
@@ -1097,29 +1107,33 @@ class StockMapView(APIView):
 
         result = []
         for balance in balances:
-            result.append({
-                'id': str(balance.id),
-                'product': {
-                    'id': str(balance.product.id),
-                    'sku': balance.product.sku,
-                    'name': balance.product.name,
-                },
-                'location': {
-                    'id': str(balance.location.id),
-                    'code': balance.location.code,
-                    'name': balance.location.name,
-                    'branch': {
-                        'id': str(balance.location.branch.id),
-                        'name': balance.location.branch.name,
+            result.append(
+                {
+                    'id': str(balance.id),
+                    'product': {
+                        'id': str(balance.product.id),
+                        'sku': balance.product.sku,
+                        'name': balance.product.name,
                     },
-                },
-                'lot': {
-                    'id': str(balance.lot.id),
-                    'lot_number': balance.lot.lot_number,
-                } if balance.lot else None,
-                'quantity': str(balance.quantity),
-                'reserved': str(balance.reserved),
-                'available': str(balance.available),
-            })
+                    'location': {
+                        'id': str(balance.location.id),
+                        'code': balance.location.code,
+                        'name': balance.location.name,
+                        'branch': {
+                            'id': str(balance.location.branch.id),
+                            'name': balance.location.branch.name,
+                        },
+                    },
+                    'lot': {
+                        'id': str(balance.lot.id),
+                        'lot_number': balance.lot.lot_number,
+                    }
+                    if balance.lot
+                    else None,
+                    'quantity': str(balance.quantity),
+                    'reserved': str(balance.reserved),
+                    'available': str(balance.available),
+                }
+            )
 
         return Response(result)

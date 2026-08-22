@@ -436,6 +436,7 @@ class QuoteItem(VersionedSalesModel):
         if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
             raise ValidationError({'product': 'Product must belong to the same tenant.'})
 
+
 class SalesOrder(VersionedSalesModel):
     STATUS_CHOICES = [
         ('draft', 'Rascunho'),

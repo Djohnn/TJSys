@@ -55,6 +55,7 @@ class ChannelViewSet(viewsets.ModelViewSet):
         write_actions = {'create', 'update', 'partial_update', 'destroy'}
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions
@@ -123,6 +124,7 @@ class MarketplaceViewSet(viewsets.ModelViewSet):
         write_actions = {'create', 'update', 'partial_update', 'destroy'}
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions
@@ -219,6 +221,7 @@ class OnlineOrderViewSet(viewsets.ModelViewSet):
         }
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions

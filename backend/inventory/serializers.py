@@ -239,6 +239,7 @@ class ProductStockPolicySerializer(FullCleanModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'version']
 
+
 class StorageTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StorageType
@@ -254,6 +255,7 @@ class StorageTypeSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
 
 class MovementReasonSerializer(serializers.ModelSerializer):
     class Meta:

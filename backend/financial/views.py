@@ -379,6 +379,7 @@ class BankReconciliationViewSet(viewsets.ModelViewSet):
         write_actions = {'create', 'update', 'partial_update', 'destroy', 'match', 'cancel'}
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions
@@ -473,26 +474,30 @@ class FinancialStatementView(APIView):
             else:
                 running_balance -= entry.amount
 
-            transactions.append({
-                'id': str(entry.id),
-                'effective_date': entry.effective_date.isoformat(),
-                'description': entry.description,
-                'direction': entry.direction,
-                'amount': str(entry.amount),
-                'status': entry.status,
-                'balance': str(running_balance),
-            })
+            transactions.append(
+                {
+                    'id': str(entry.id),
+                    'effective_date': entry.effective_date.isoformat(),
+                    'description': entry.description,
+                    'direction': entry.direction,
+                    'amount': str(entry.amount),
+                    'status': entry.status,
+                    'balance': str(running_balance),
+                }
+            )
 
-        return Response({
-            'account': {
-                'id': str(account.id),
-                'name': account.name,
-                'account_type': account.account_type,
-            },
-            'opening_balance': str(opening_balance),
-            'closing_balance': str(running_balance),
-            'transactions': transactions,
-        })
+        return Response(
+            {
+                'account': {
+                    'id': str(account.id),
+                    'name': account.name,
+                    'account_type': account.account_type,
+                },
+                'opening_balance': str(opening_balance),
+                'closing_balance': str(running_balance),
+                'transactions': transactions,
+            }
+        )
 
 
 class FiscalCompensationSerializer(serializers.Serializer):
@@ -575,9 +580,7 @@ class BillingSerializer(serializers.Serializer):
     discount_amount = serializers.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal('0')
     )
-    tax_amount = serializers.DecimalField(
-        max_digits=18, decimal_places=2, default=Decimal('0')
-    )
+    tax_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0'))
     total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
     due_date = serializers.DateField(required=False, allow_null=True)
     paid_at = serializers.DateTimeField(required=False, allow_null=True)
@@ -601,10 +604,17 @@ class FiscalCompensationViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
         write_actions = {
-            'create', 'update', 'partial_update', 'destroy', 'approve', 'process', 'cancel'
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'approve',
+            'process',
+            'cancel',
         }
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions
@@ -665,6 +675,7 @@ class BillingViewSet(viewsets.ModelViewSet):
         write_actions = {'create', 'update', 'partial_update', 'destroy', 'issue', 'pay', 'cancel'}
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
+
             permissions.append(HasVerifiedMFA())
         permissions.append(HasCapability())
         return permissions
@@ -708,7 +719,6 @@ class BillingViewSet(viewsets.ModelViewSet):
         billing.full_clean()
         billing.save()
         return Response(BillingSerializer(billing).data)
-
 
 
 class DRELineSerializer(serializers.Serializer):

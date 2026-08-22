@@ -464,6 +464,7 @@ class ProductStockControlCommand(TimeStampedModel, TenantScopedModel):
             ),
         ]
 
+
 class StorageType(VersionedInventoryModel):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, default='')
@@ -752,6 +753,8 @@ class ProductionOrder(VersionedInventoryModel):
             if current.status in ('completed', 'cancelled'):
                 raise ValidationError('Completed or cancelled orders are immutable.')
         super().save(*args, **kwargs)
+
+
 # =============================================================================
 # Sprint F7 — ProductionOrderItem (itens da ordem de produção)
 # =============================================================================
@@ -820,6 +823,8 @@ class ProductionOrderItem(VersionedInventoryModel):
                 if order.status in ('completed', 'cancelled'):
                     raise ValidationError('Items of completed or cancelled orders are immutable.')
         super().save(*args, **kwargs)
+
+
 # =============================================================================
 # Sprint F7 — ProductionOrderConsumption (consumo de composição)
 # =============================================================================
@@ -901,4 +906,3 @@ class ProductionOrderConsumption(VersionedInventoryModel):
                             'Consumptions of completed or cancelled orders are immutable.'
                         )
         super().save(*args, **kwargs)
-

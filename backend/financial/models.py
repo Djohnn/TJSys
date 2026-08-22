@@ -621,4 +621,3 @@ class FiscalCompensation(VersionedFinancialModel):
                 raise ValidationError('Cancelled or processed compensations are immutable.')
         self.remaining_amount = self.amount - self.compensated_amount
         super().save(*args, **kwargs)
-
