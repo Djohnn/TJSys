@@ -40,6 +40,7 @@ class CustomUser(AbstractUser):
     email_verified_at = models.DateTimeField(null=True, blank=True)
     shortcuts = models.JSONField(
         default=dict,
+        db_default={},
         blank=True,
         help_text='Custom keyboard shortcuts as JSON object',
     )
