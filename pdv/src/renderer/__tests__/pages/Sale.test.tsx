@@ -78,7 +78,7 @@ describe('Sale', () => {
           sku: 'PDV-KG-001',
           name: 'Produto Quilograma',
           base_unit: 'unit-kg',
-          unit_name: 'Quilograma',
+          unit_name: 'KG',
           price: '24.00',
         }],
       }), { status: 200 }),
@@ -384,5 +384,35 @@ describe('Sale', () => {
 
     await screen.findByRole('status');
     expect(createSale).toHaveBeenCalledOnce();
+  });
+
+  it('enables exact payment when binary floating-point totals round to the same cents', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-cents',
+          sku: 'PDV-CENTS-001',
+          name: 'Produto Centavos',
+          base_unit: 'unit-1',
+          price: '0.10',
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Produto Centavos' },
+    });
+    fireEvent.click(await screen.findByText('Produto Centavos'));
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('0,00'), { target: { value: '0.30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar Pagamento' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar Venda' })).toBeEnabled());
   });
 });
