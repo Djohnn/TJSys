@@ -12,6 +12,8 @@ from purchasing.models import (
     PurchaseReceiptItem,
     RecurringPurchaseOrderTemplate,
     Supplier,
+    SupplierQuote,
+    SupplierReturn,
 )
 from purchasing.permissions import PurchasingCapabilityPermission
 from purchasing.serializers import (
@@ -450,9 +452,6 @@ class RecurringPurchaseOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelView
 # =============================================================================
 
 
-from purchasing.models import SupplierQuote
-
-
 class SupplierQuoteSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     supplier = serializers.UUIDField()
@@ -472,14 +471,15 @@ class SupplierQuoteSerializer(serializers.Serializer):
     )
     valid_until = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
-    total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    total_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
 
 
 # Sprint F8 — PurchaseReturn API (devoluções de compra)
 # =============================================================================
-
-
-from purchasing.models import SupplierReturn
 
 
 class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
@@ -537,7 +537,10 @@ class SupplierQuoteViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         quote = self.get_object()
         if quote.status in ('cancelled', 'expired'):
-            return Response({'detail': 'Cancelled or expired quotes cannot be cancelled.'}, status=400)
+            return Response(
+                {'detail': 'Cancelled or expired quotes cannot be cancelled.'},
+                status=400,
+            )
         quote.status = 'cancelled'
         quote.full_clean()
         quote.save()
@@ -579,7 +582,10 @@ class SupplierReturnViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         supplier_return = self.get_object()
         if supplier_return.status in ('completed', 'cancelled'):
-            return Response({'detail': 'Completed or cancelled returns cannot be cancelled.'}, status=400)
+            return Response(
+                {'detail': 'Completed or cancelled returns cannot be cancelled.'},
+                status=400,
+            )
         supplier_return.status = 'cancelled'
         supplier_return.full_clean()
         supplier_return.save()
