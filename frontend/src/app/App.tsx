@@ -38,6 +38,8 @@ import ReceivablesPage from '@/financial/ReceivablesPage'
 import PayablesPage from '@/financial/PayablesPage'
 import CashflowPage from '@/financial/CashflowPage'
 import ReportsPage from '@/financial/ReportsPage'
+import BankReconciliationPage from '@/financial/BankReconciliationPage'
+import FinancialStatementPage from '@/financial/FinancialStatementPage'
 import SalesPage from '@/salesManagement/SalesPage'
 import SaleDetailPage from '@/salesManagement/SaleDetailPage'
 import CashSessionsPage from '@/salesManagement/CashSessionsPage'
@@ -114,6 +116,8 @@ export default function App(): ReactNode {
               <Route path="financial/receivables" element={<ReceivablesPage />} />
               <Route path="financial/payables" element={<PayablesPage />} />
               <Route path="financial/cashflow" element={<CashflowPage />} />
+              <Route path="financial/bank-reconciliations" element={<BankReconciliationPage />} />
+              <Route path="financial/statement" element={<FinancialStatementPage />} />
               <Route path="financial/reports" element={<ReportsPage />} />
               <Route path="financial/cash-sessions" element={<CashSessionsPage />} />
               <Route path="financial/cash-sessions/:id" element={<CashSessionDetailPage />} />

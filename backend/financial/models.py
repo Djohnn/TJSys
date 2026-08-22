@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -286,3 +287,126 @@ class CashflowEntry(VersionedFinancialModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError('Cashflow entries are immutable; create an adjustment instead.')
+
+
+# =============================================================================
+# Sprint F9 — BankReconciliation (conciliação bancária)
+# =============================================================================
+
+
+class BankReconciliation(VersionedFinancialModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pendente'),
+        ('matched', 'Conciliado'),
+        ('partial', 'Parcial'),
+        ('cancelled', 'Cancelado'),
+    ]
+
+    account = models.ForeignKey(
+        FinancialAccount,
+        on_delete=models.PROTECT,
+        related_name='bank_reconciliations',
+    )
+    statement_date = models.DateField()
+    statement_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    system_balance = models.DecimalField(max_digits=18, decimal_places=2)
+    difference = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True, default='')
+    reconciled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bank_reconciliations',
+    )
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    idempotency_key = models.CharField(max_length=100, blank=True, default='')
+    payload_hash = models.CharField(max_length=64, blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-statement_date', '-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                condition=~models.Q(idempotency_key=''),
+                name='uniq_bank_reconciliation_idempotency_tenant',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Reconciliation {self.statement_date} - {self.account.name}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.account_id and self.account.tenant_id != self.tenant_id:
+            errors['account'] = 'Account must belong to the same tenant.'
+        if self.account_id and self.account.account_type != 'bank':
+            errors['account'] = 'Only bank accounts can be reconciled.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = BankReconciliation.all_objects.get(pk=self.pk)
+            if current.status in ('matched', 'cancelled'):
+                raise ValidationError('Matched or cancelled reconciliations are immutable.')
+        self.difference = self.statement_balance - self.system_balance
+        super().save(*args, **kwargs)
+
+
+class BankReconciliationItem(VersionedFinancialModel):
+    reconciliation = models.ForeignKey(
+        BankReconciliation,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    cashflow_entry = models.ForeignKey(
+        CashflowEntry,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='reconciliation_items',
+    )
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    effective_date = models.DateField()
+    is_matched = models.BooleanField(default=False)
+    matched_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['effective_date', 'created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0) | models.Q(amount__lt=0),
+                name='bankreconciliationitem_amount_non_zero',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.description} - {self.amount}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.reconciliation_id and self.reconciliation.tenant_id != self.tenant_id:
+            errors['reconciliation'] = 'Reconciliation must belong to the same tenant.'
+        if self.cashflow_entry_id and self.cashflow_entry.tenant_id != self.tenant_id:
+            errors['cashflow_entry'] = 'Cashflow entry must belong to the same tenant.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = BankReconciliationItem.all_objects.get(pk=self.pk)
+            if current.is_matched:
+                raise ValidationError('Matched items are immutable.')
+        super().save(*args, **kwargs)
