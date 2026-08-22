@@ -16,6 +16,7 @@ type ProductArtifact = {
 
 type FlowArtifact = {
   schemaVersion: 1;
+  createdAt: string;
   adminBaseUrl: string;
   products: {
     unit: ProductArtifact;
@@ -243,6 +244,7 @@ test("produz fluxo determinístico de produtos para o PDV e persiste R4", async 
   // Then o JSON contém referências persistidas e consumíveis pelo fluxo PDV
   const artifact: FlowArtifact = {
     schemaVersion: 1,
+    createdAt: new Date().toISOString(),
     adminBaseUrl: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5173",
     products: {
       unit: {
@@ -288,5 +290,8 @@ test("produz fluxo determinístico de produtos para o PDV e persiste R4", async 
   );
   expect(JSON.parse(await fs.readFile(productPdvArtifactPath, "utf8"))).toEqual(
     artifact,
+  );
+  expect(artifact.createdAt).toMatch(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
   );
 });
