@@ -302,6 +302,7 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
 class BankReconciliationSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     account = serializers.PrimaryKeyRelatedField(queryset=FinancialAccount.all_objects.all())
+    account_name = serializers.CharField(source='account.name', read_only=True)
     statement_date = serializers.DateField()
     statement_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
     system_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
@@ -317,6 +318,7 @@ class BankReconciliationSerializer(serializers.ModelSerializer):
     )
     notes = serializers.CharField(required=False, allow_blank=True, default='')
     reconciled_by = serializers.UUIDField(read_only=True)
+    reconciled_by_name = serializers.SerializerMethodField()
     reconciled_at = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -326,6 +328,7 @@ class BankReconciliationSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'account',
+            'account_name',
             'statement_date',
             'statement_balance',
             'system_balance',
@@ -333,10 +336,16 @@ class BankReconciliationSerializer(serializers.ModelSerializer):
             'status',
             'notes',
             'reconciled_by',
+            'reconciled_by_name',
             'reconciled_at',
             'created_at',
             'updated_at',
         ]
+
+    def get_reconciled_by_name(self, instance):
+        if not instance.reconciled_by:
+            return ''
+        return instance.reconciled_by.get_full_name() or instance.reconciled_by.email
 
     def create(self, validated_data):
         instance = self.Meta.model(**validated_data)

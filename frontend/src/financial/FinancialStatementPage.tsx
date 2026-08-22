@@ -68,6 +68,17 @@ export default function FinancialStatementPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-neutral-900">Extrato Financeiro</h2>
         </div>
+        <label className="flex max-w-md flex-col gap-1 text-sm text-neutral-700">
+          Conta
+          <input
+            type="text"
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            placeholder="Informe o ID da conta"
+            className="px-3 py-2 border border-border rounded-lg text-sm"
+            data-testid="financialstatement-account-input"
+          />
+        </label>
         <EmptyState
           title="Selecione uma conta"
           description="Escolha uma conta para visualizar o extrato."

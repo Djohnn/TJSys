@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
-import type { PaginatedResponse } from './catalogApi'
+import type { PaginatedResponse } from './bankingApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
