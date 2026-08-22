@@ -13,13 +13,20 @@ function parseProductPrice(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function toCents(value: number): number {
+  return Math.round(value * 100);
+}
+
 function quantityOptionsForProduct(product: any): QuantityFormatOptions {
   const unit = product?.base_unit && typeof product.base_unit === 'object'
     ? product.base_unit
     : product?.unit && typeof product.unit === 'object'
       ? product.unit
       : null;
-  const flatSymbol = product?.unit_symbol ?? product?.base_unit_symbol;
+  const unitName = typeof product?.unit_name === 'string' ? product.unit_name.trim() : '';
+  const flatSymbol = product?.unit_symbol
+    ?? product?.base_unit_symbol
+    ?? (/^(?:kg|kilo(?:s)?|quilo(?:s)?|quilograma(?:s)?|kilograma(?:s)?)$/i.test(unitName) ? 'kg' : undefined);
   const flatPrecision = product?.unit_precision ?? product?.quantity_precision ?? product?.decimal_places;
   if (!unit) return { symbol: flatSymbol, precision: flatPrecision };
   return {
@@ -89,7 +96,9 @@ export function Sale() {
   }, [items, payments]);
 
   const { grossTotal, discountTotal, netTotal, paymentTotal } = calculateTotals();
-  const remaining = Math.max(netTotal - paymentTotal, 0);
+  const paymentCents = toCents(paymentTotal);
+  const netCents = toCents(netTotal);
+  const remaining = Math.max(netCents - paymentCents, 0) / 100;
   const isCash = pendingMethod === 'cash';
 
   const pendingNum = parseFloat(pendingAmount) || 0;
@@ -213,7 +222,7 @@ export function Sale() {
     setPayments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const isConfirmEnabled = items.length > 0 && payments.length > 0 && paymentTotal >= netTotal;
+  const isConfirmEnabled = items.length > 0 && payments.length > 0 && paymentCents >= netCents;
 
   const handleSubmit = async () => {
     if (items.length === 0) {
@@ -224,8 +233,8 @@ export function Sale() {
       setError('Adicione pelo menos um pagamento');
       return;
     }
-    if (paymentTotal < parseFloat(netTotal.toFixed(2))) {
-      setError(`Pagamento insuficiente. Faltam ${(parseFloat(netTotal.toFixed(2)) - paymentTotal).toFixed(2)}`);
+    if (paymentCents < netCents) {
+      setError(`Pagamento insuficiente. Faltam ${((netCents - paymentCents) / 100).toFixed(2)}`);
       return;
     }
     if (!session.sessionId) {
@@ -686,7 +695,7 @@ const paymentsPayload = payments.map(p => ({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
                   <span>Total recebido</span>
-                  <span style={{ fontWeight: 600, color: paymentTotal >= netTotal ? '#2e7d32' : '#c62828' }}>
+                  <span style={{ fontWeight: 600, color: paymentCents >= netCents ? '#2e7d32' : '#c62828' }}>
                     R$ {paymentTotal.toFixed(2)}
                   </span>
                 </div>
@@ -696,10 +705,10 @@ const paymentsPayload = payments.map(p => ({
                     <span>R$ {remaining.toFixed(2)}</span>
                   </div>
                 )}
-                {paymentTotal > netTotal && (
+                {paymentCents > netCents && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: '#2e7d32', fontWeight: 600, borderTop: '1px dashed #e0e0e0', paddingTop: '8px' }}>
                     <span>Troco</span>
-                    <span>R$ {(paymentTotal - netTotal).toFixed(2)}</span>
+                    <span>R$ {((paymentCents - netCents) / 100).toFixed(2)}</span>
                   </div>
                 )}
               </div>
