@@ -198,7 +198,6 @@ function offlineEntries() {
 
 test.describe('R6 Offline Hardening', () => {
   test.setTimeout(120000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('inicia online, faz venda, muda para offline, força erro e sincroniza', async ({ page }) => {
     // --- Passo 1: inicia ONLINE, sem pendências ---

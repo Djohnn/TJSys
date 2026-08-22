@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { PDV_BASE_URL } from './e2e/config';
 
 const livePdvEnabled = process.env.E2E_LIVE_PDV === '1';
 
@@ -13,7 +14,7 @@ export default defineConfig({
     ? [['github'], ['html'], ['junit', { outputFile: 'results.xml' }]]
     : 'list',
   use: {
-    baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
+    baseURL: PDV_BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -29,7 +30,7 @@ export default defineConfig({
       grep: /@live/,
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: process.env.E2E_LIVE_BASE_URL ?? process.env.BASE_URL ?? 'http://localhost:5173',
+        baseURL: process.env.E2E_LIVE_BASE_URL ?? PDV_BASE_URL,
       },
     }] : []),
   ],

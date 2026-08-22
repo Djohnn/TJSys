@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { apiUrl } from './config';
 
 const liveApiKey = process.env.E2E_LIVE_API_KEY;
 
@@ -46,14 +47,14 @@ test.describe('QA Visual @live - Sprint 7', () => {
     });
 
     // GET REFS
-    const locResp = await page.request.get('http://localhost:8000/api/v1/stock-locations/', { headers: auth() });
+    const locResp = await page.request.get(apiUrl('/stock-locations/'), { headers: auth() });
     const locData = await locResp.json();
     const stockLocationId = (locData[0]?.id || locData.results?.[0]?.id) as string;
 
-    const refsResp = await page.request.get('http://localhost:8000/api/v1/units/', { headers: auth() });
+    const refsResp = await page.request.get(apiUrl('/units/'), { headers: auth() });
     const refs = await refsResp.json();
     const unitId = (refs.results?.[0] || refs[0])?.id as string;
-    const catResp = await page.request.get('http://localhost:8000/api/v1/categories/', { headers: auth() });
+    const catResp = await page.request.get(apiUrl('/categories/'), { headers: auth() });
     const cats = await catResp.json();
     const catId = (cats.results?.[0] || cats[0])?.id as string;
 
@@ -70,12 +71,12 @@ test.describe('QA Visual @live - Sprint 7', () => {
     const created: Array<{ name: string; id: string; price: number }> = [];
     for (const p of products) {
       // Buscar ou criar produto
-      const searchResp = await page.request.get(`http://localhost:8000/api/v1/products/?search=${encodeURIComponent(p.name)}`, { headers: auth() });
+      const searchResp = await page.request.get(apiUrl(`/products/?search=${encodeURIComponent(p.name)}`), { headers: auth() });
       const searchData = await searchResp.json();
       let prod = (searchData.results || searchData)[0];
 
       if (!prod) {
-        const prodResp = await page.request.post('http://localhost:8000/api/v1/products/', {
+        const prodResp = await page.request.post(apiUrl('/products/'), {
           data: {
             sku: p.sku, name: p.name, base_unit: unitId, category: catId,
             ncm: p.ncm, subcategory: '', is_active: true,
@@ -91,14 +92,14 @@ test.describe('QA Visual @live - Sprint 7', () => {
       }
 
       // Existing QA fixtures may predate the NCM field; normalize them too.
-      const ncmResponse = await page.request.patch(`http://localhost:8000/api/v1/products/${prod.id}/`, {
+      const ncmResponse = await page.request.patch(apiUrl(`/products/${prod.id}/`), {
         data: { ncm: p.ncm },
         headers: { ...auth(), 'Content-Type': 'application/json' },
       });
       expect(ncmResponse.status()).toBe(200);
 
       // Ensure price exists
-      const priceResp = await page.request.post(`http://localhost:8000/api/v1/products/${prod.id}/prices/`, {
+      const priceResp = await page.request.post(apiUrl(`/products/${prod.id}/prices/`), {
         data: { product: prod.id, amount: String(p.price), valid_from: '2026-01-01T00:00:00Z', is_active: true },
         headers: { ...auth(), 'Content-Type': 'application/json' },
       });
@@ -113,7 +114,7 @@ test.describe('QA Visual @live - Sprint 7', () => {
       created.push({ name: p.name, id: prod.id, price: p.price });
 
       // Add stock (idempotent key ensures no duplicates)
-      await page.request.post('http://localhost:8000/api/v1/stock-operations/receipt/', {
+      await page.request.post(apiUrl('/stock-operations/receipt/'), {
         data: { branch: branchId, location: stockLocationId, product: prod.id, unit: unitId, quantity: '100', factor: '1', unit_cost: '10.00' },
         headers: { ...auth(), 'Idempotency-Key': `qa-visual-${prod.id}` },
       });
@@ -198,7 +199,7 @@ test.describe('QA Visual @live - Sprint 7', () => {
     }
 
     // FISCAL STATUS — poll until the explicitly requested NFC-e is concluded.
-    const fiscalUrl = `http://localhost:8000/api/v1/sales/${saleData.id}/fiscal-status/`;
+    const fiscalUrl = apiUrl(`/sales/${saleData.id}/fiscal-status/`);
     console.log(`Fiscal URL: ${fiscalUrl}`);
     await expect.poll(async () => {
       const response = await page.request.get(fiscalUrl, { headers: auth() });

@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { apiUrl } from './config';
 
 const liveApiKey = process.env.E2E_LIVE_API_KEY;
 
@@ -42,7 +43,7 @@ test.describe('Sale flow @live (real backend)', () => {
     const token = await page.evaluate(() => localStorage.getItem('access_token')) as string;
     const tenantId = await page.evaluate(() => localStorage.getItem('tenant_id')) as string;
 
-    const locResp = await page.request.get('http://localhost:8000/api/v1/stock-locations/', {
+    const locResp = await page.request.get(apiUrl('/stock-locations/'), {
       headers: headers(token, tenantId),
     });
     const locData = await locResp.json();
@@ -50,7 +51,7 @@ test.describe('Sale flow @live (real backend)', () => {
     await page.evaluate((id: string) => localStorage.setItem('stock_location_id', id), stockLocationId);
 
     // Find product
-    const prodResp = await page.request.get('http://localhost:8000/api/v1/products/?search=E2E', {
+    const prodResp = await page.request.get(apiUrl('/products/?search=E2E'), {
       headers: headers(token, tenantId),
     });
     const prodData = await prodResp.json();
@@ -64,7 +65,7 @@ test.describe('Sale flow @live (real backend)', () => {
       branch: branchId, location: stockLocationId, product: productId,
       unit: unitId, quantity: '100', factor: '1', unit_cost: '30.00',
     };
-    await page.request.post('http://localhost:8000/api/v1/stock-operations/receipt/', {
+    await page.request.post(apiUrl('/stock-operations/receipt/'), {
       data: receiptPayload,
       headers: { ...headers(token, tenantId), 'Idempotency-Key': crypto.randomUUID() },
     });
