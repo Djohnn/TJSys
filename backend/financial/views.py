@@ -3,7 +3,6 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Case, Count, DecimalField, F, Sum, When
-from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import serializers, viewsets
@@ -13,11 +12,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from financial.models import (
-    Billing,
-    FiscalCompensation,
     BankReconciliation,
+    Billing,
     CashflowEntry,
     FinancialAccount,
+    FiscalCompensation,
     Payable,
     Receivable,
 )
@@ -851,4 +850,3 @@ class DREReportView(ReportView):
         for label, line in lines:
             writer.writerow([label, line['value'], line['percentage']])
         return response
-

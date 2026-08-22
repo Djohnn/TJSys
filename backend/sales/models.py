@@ -557,7 +557,11 @@ class Consignment(VersionedSalesModel):
         ('cancelled', 'Cancelado'),
     ]
 
-    branch = models.ForeignKey('tenancy.Branch', on_delete=models.PROTECT, related_name='consignments')
+    branch = models.ForeignKey(
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        related_name='consignments',
+    )
     operator = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='consignments'
     )
@@ -601,8 +605,16 @@ class Consignment(VersionedSalesModel):
 
 class ConsignmentItem(VersionedSalesModel):
     consignment = models.ForeignKey(Consignment, on_delete=models.PROTECT, related_name='items')
-    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='consignment_items')
-    unit = models.ForeignKey('catalog.Unit', on_delete=models.PROTECT, related_name='consignment_items')
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='consignment_items',
+    )
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='consignment_items',
+    )
     quantity = models.DecimalField(max_digits=18, decimal_places=6)
     returned_quantity = models.DecimalField(max_digits=18, decimal_places=6, default=0)
     factor = models.DecimalField(max_digits=18, decimal_places=6, default=1)
@@ -622,7 +634,9 @@ class ConsignmentItem(VersionedSalesModel):
         if self.quantity <= 0:
             raise ValidationError({'quantity': 'Quantity must be positive.'})
         if self.returned_quantity < 0 or self.returned_quantity > self.quantity:
-            raise ValidationError({'returned_quantity': 'Returned quantity must be between zero and quantity.'})
+            raise ValidationError(
+                {'returned_quantity': 'Returned quantity must be between zero and quantity.'}
+            )
         if self.factor <= 0:
             raise ValidationError({'factor': 'Factor must be positive.'})
         if self.discount_amount < 0:

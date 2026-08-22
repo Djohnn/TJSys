@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
@@ -17,13 +18,13 @@ from inventory.services import InsufficientStock
 from people.models import Person
 from sales.models import (
     CashSession,
-    Quote,
     Commission,
     CommissionRule,
     Consignment,
     ConsignmentItem,
     PriceList,
     PriceListItem,
+    Quote,
     Sale,
     SaleItem,
     SaleRefund,
@@ -44,8 +45,8 @@ from sales.serializers import (
     CreateSaleReturnSerializer,
     CreateSalesOrderSerializer,
     OpenCashSessionSerializer,
-    QuoteSerializer,
     PriceListSerializer,
+    QuoteSerializer,
     SaleCancellationSerializer,
     SaleRefundSerializer,
     SaleReturnSerializer,

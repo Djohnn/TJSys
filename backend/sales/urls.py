@@ -3,12 +3,12 @@ from rest_framework.routers import DefaultRouter
 
 from sales.views import (
     CashSessionViewSet,
-    QuoteViewSet,
-    SalesOrderViewSet,
     CommissionRuleViewSet,
     CommissionViewSet,
     ConsignmentViewSet,
     PriceListViewSet,
+    QuoteViewSet,
+    SalesOrderViewSet,
     SaleViewSet,
     SyncBatchView,
 )
