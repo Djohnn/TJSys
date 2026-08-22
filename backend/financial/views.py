@@ -5,12 +5,13 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models import CashflowEntry, Payable, Receivable
+from financial.models import Billing, CashflowEntry, FiscalCompensation, Payable, Receivable
 from financial.permissions import FinancialReportingPermission
 from financial.serializers import CashflowEntrySerializer, PayableSerializer, ReceivableSerializer
 from financial.services import cashflow_projection
@@ -292,11 +293,6 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
 # =============================================================================
 
 
-from rest_framework import serializers
-from rest_framework.decorators import action
-from financial.models import FiscalCompensation
-
-
 class FiscalCompensationSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     fiscal_document = serializers.UUIDField(required=False, allow_null=True)
@@ -328,6 +324,49 @@ class FiscalCompensationSerializer(serializers.Serializer):
     due_date = serializers.DateField(required=False, allow_null=True)
     compensated_at = serializers.DateTimeField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class BillingSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    sale = serializers.UUIDField(required=False, allow_null=True)
+    purchase_order = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    supplier_name = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    code = serializers.CharField(max_length=40)
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('pending', 'Pendente'),
+            ('issued', 'Emitido'),
+            ('paid', 'Pago'),
+            ('overdue', 'Vencido'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='draft',
+    )
+    payment_method = serializers.ChoiceField(
+        choices=[
+            ('cash', 'Dinheiro'),
+            ('credit_card', 'Cartão de Crédito'),
+            ('debit_card', 'Cartão de Débito'),
+            ('bank_transfer', 'Transferência Bancária'),
+            ('boleto', 'Boleto'),
+            ('pix', 'PIX'),
+            ('other', 'Outro'),
+        ],
+        default='other',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    discount_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    tax_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    paid_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
 
@@ -385,3 +424,60 @@ class FiscalCompensationViewSet(viewsets.ModelViewSet):
         compensation.full_clean()
         compensation.save()
         return Response(FiscalCompensationSerializer(compensation).data)
+
+
+class BillingViewSet(viewsets.ModelViewSet):
+    serializer_class = BillingSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return Billing.objects.select_related(
+            'sale',
+            'purchase_order',
+            'branch',
+            'fiscal_document',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'issue', 'pay', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability(self.required_capability))
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def issue(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status != 'draft':
+            return Response({'detail': 'Only draft billings can be issued.'}, status=400)
+        billing.status = 'issued'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def pay(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status not in ('issued', 'pending', 'overdue'):
+            return Response({'detail': 'Only issued, pending, or overdue billings can be paid.'}, status=400)
+        billing.status = 'paid'
+        billing.paid_at = timezone.now()
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status in ('cancelled', 'paid'):
+            return Response({'detail': 'Cancelled or paid billings cannot be cancelled.'}, status=400)
+        billing.status = 'cancelled'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
