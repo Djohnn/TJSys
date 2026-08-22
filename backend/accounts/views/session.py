@@ -109,3 +109,22 @@ class CSRFView(APIView):
     @method_decorator(ensure_csrf_cookie)
     def get(self, request):
         return Response({'csrf_token': get_token(request)})
+
+
+class UserShortcutsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        shortcuts = request.user.shortcuts or {}
+        return Response({'shortcuts': shortcuts})
+
+    def put(self, request):
+        shortcuts = request.data.get('shortcuts', {})
+        if not isinstance(shortcuts, dict):
+            return Response(
+                {'detail': 'Shortcuts must be a JSON object.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        request.user.shortcuts = shortcuts
+        request.user.save(update_fields=['shortcuts'])
+        return Response({'shortcuts': shortcuts})
