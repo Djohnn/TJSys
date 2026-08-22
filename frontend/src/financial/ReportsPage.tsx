@@ -20,7 +20,7 @@ export default function ReportsPage() {
 
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
-  const [reportType, setReportType] = useState<'receivables' | 'payables' | 'cashflow' | 'trial_balance'>('receivables')
+  const [reportType, setReportType] = useState<'receivables' | 'payables' | 'cashflow' | 'trial_balance' | 'dre'>('receivables')
   const [format, setFormat] = useState<'PDF' | 'CSV'>('PDF')
   const [error, setError] = useState<string | null>(null)
 
@@ -109,7 +109,7 @@ export default function ReportsPage() {
                   <select
                     id="report-type"
                     value={reportType}
-                    onChange={(e) => setReportType(e.target.value as 'receivables' | 'payables' | 'cashflow' | 'trial_balance')}
+                    onChange={(e) => setReportType(e.target.value as 'receivables' | 'payables' | 'cashflow' | 'trial_balance' | 'dre')}
                     data-testid="report-type"
                     className={inputClass}
                   >
@@ -117,6 +117,7 @@ export default function ReportsPage() {
                     <option value="payables">Contas a Pagar</option>
                     <option value="cashflow">Fluxo de Caixa</option>
                     <option value="trial_balance">Balanço</option>
+                    <option value="dre">DRE</option>
                   </select>
                 </div>
                 <div>

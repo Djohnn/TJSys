@@ -7,6 +7,7 @@ from financial.views import (
     CashClosingReportView,
     CashflowEntryViewSet,
     CashflowReportView,
+    DREReportView,
     FinancialReportView,
     FinancialStatementView,
     FiscalCompensationViewSet,
@@ -37,5 +38,6 @@ urlpatterns = [
         name='report-pending-operations',
     ),
     path('financial-statement/', FinancialStatementView.as_view(), name='financial-statement'),
+    path('reports/dre/', DREReportView.as_view(), name='report-dre'),
     path('', include(router.urls)),
 ]
