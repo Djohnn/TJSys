@@ -1,6 +1,7 @@
 import csv
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponse
 from rest_framework import status, viewsets
@@ -14,20 +15,32 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleItem, SaleRefund, SaleReturn
+from sales.models import (
+    CashSession,
+    Quote,
+    Sale,
+    SaleItem,
+    SaleRefund,
+    SaleReturn,
+    SalesOrder,
+)
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
     CloseCashSessionSerializer,
     CounterSaleSerializer,
+    CreateQuoteSerializer,
     CreateSaleCancellationSerializer,
     CreateSaleRefundSerializer,
     CreateSaleReturnSerializer,
+    CreateSalesOrderSerializer,
     OpenCashSessionSerializer,
+    QuoteSerializer,
     SaleCancellationSerializer,
     SaleRefundSerializer,
     SaleReturnSerializer,
     SaleSerializer,
+    SalesOrderSerializer,
     SyncBatchSerializer,
 )
 from sales.services import (
@@ -45,8 +58,10 @@ from sales.services import (
     cancel_sale,
     close_cash_session,
     create_counter_sale,
+    create_quote,
     create_sale_refund,
     create_sale_return,
+    create_sales_order,
     open_cash_session,
 )
 from tenancy.models import Branch
@@ -610,3 +625,112 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+class QuoteViewSet(viewsets.ModelViewSet):
+    serializer_class = QuoteSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        return Quote.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator'
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateQuoteSerializer
+        return QuoteSerializer
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        items_data = data.pop('items', [])
+        with transaction.atomic():
+            quote = create_quote(
+                tenant=self.request.tenant,
+                branch_id=data['branch'],
+                customer_id=data.get('customer'),
+                operator=self.request.user,
+                valid_until=data.get('valid_until'),
+                notes=data.get('notes', ''),
+                items=items_data,
+            )
+        self._quote = quote
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(QuoteSerializer(self._quote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        from sales.services import convert_quote_to_sale
+
+        quote = self.get_object()
+        if quote.status not in ('draft', 'sent', 'approved'):
+            return _problem('Quote cannot be converted in its current status.')
+        try:
+            sale = convert_quote_to_sale(quote, request.user)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return _problem(str(exc))
+
+
+class SalesOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = SalesOrderSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        return SalesOrder.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator', 'quote'
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateSalesOrderSerializer
+        return SalesOrderSerializer
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        items_data = data.pop('items', [])
+        with transaction.atomic():
+            order = create_sales_order(
+                tenant=self.request.tenant,
+                branch_id=data['branch'],
+                customer_id=data.get('customer'),
+                operator=self.request.user,
+                quote_id=data.get('quote'),
+                expected_date=data.get('expected_date'),
+                notes=data.get('notes', ''),
+                items=items_data,
+            )
+        self._order = order
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(SalesOrderSerializer(self._order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        from sales.services import convert_order_to_sale
+
+        order = self.get_object()
+        if order.status not in ('draft', 'confirmed'):
+            return _problem('Order cannot be converted in its current status.')
+        try:
+            sale = convert_order_to_sale(order, request.user)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return _problem(str(exc))
