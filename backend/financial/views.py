@@ -380,7 +380,7 @@ class BankReconciliationViewSet(viewsets.ModelViewSet):
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
             permissions.append(HasVerifiedMFA())
-        permissions.append(HasCapability(self.required_capability))
+        permissions.append(HasCapability())
         return permissions
 
     def perform_create(self, serializer):
@@ -606,7 +606,7 @@ class FiscalCompensationViewSet(viewsets.ModelViewSet):
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
             permissions.append(HasVerifiedMFA())
-        permissions.append(HasCapability(self.required_capability))
+        permissions.append(HasCapability())
         return permissions
 
     def perform_create(self, serializer):
@@ -666,7 +666,7 @@ class BillingViewSet(viewsets.ModelViewSet):
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
             permissions.append(HasVerifiedMFA())
-        permissions.append(HasCapability(self.required_capability))
+        permissions.append(HasCapability())
         return permissions
 
     def perform_create(self, serializer):
