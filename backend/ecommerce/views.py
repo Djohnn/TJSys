@@ -1,11 +1,13 @@
+from decimal import Decimal
+
+from django.utils import timezone
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.utils import timezone
 
-from tenancy.permissions import HasActiveTenant, HasCapability
 from ecommerce.models import Channel, Marketplace, OnlineOrder
+from tenancy.permissions import HasActiveTenant, HasCapability
 
 
 class ChannelSerializer(serializers.Serializer):
@@ -66,7 +68,12 @@ class MarketplaceSerializer(serializers.Serializer):
     channel = serializers.UUIDField()
     name = serializers.CharField(max_length=100)
     slug = serializers.SlugField(max_length=60)
-    marketplace_id = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    marketplace_id = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        default='',
+    )
     status = serializers.ChoiceField(
         choices=[
             ('active', 'Ativo'),
@@ -82,9 +89,21 @@ class MarketplaceSerializer(serializers.Serializer):
         ],
         default='percentage',
     )
-    commission_value = serializers.DecimalField(max_digits=10, decimal_places=2, default=0)
-    fee_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, default=0)
-    fee_fixed = serializers.DecimalField(max_digits=10, decimal_places=2, default=0)
+    commission_value = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+    fee_percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+    fee_fixed = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
     config_json = serializers.DictField(default=dict)
     is_active = serializers.BooleanField(default=True)
     created_at = serializers.DateTimeField(read_only=True)
@@ -141,13 +160,30 @@ class OnlineOrderSerializer(serializers.Serializer):
     )
     customer_name = serializers.CharField(max_length=200)
     customer_email = serializers.EmailField(required=False, allow_blank=True, default='')
-    customer_phone = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    customer_phone = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        default='',
+    )
     shipping_address = serializers.DictField(default=dict)
     billing_address = serializers.DictField(default=dict)
     subtotal = serializers.DecimalField(max_digits=18, decimal_places=2)
-    shipping_cost = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
-    discount_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
-    tax_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=0)
+    shipping_cost = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+    discount_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+    tax_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
     total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
     currency = serializers.CharField(max_length=3, default='BRL')
     notes = serializers.CharField(required=False, allow_blank=True, default='')
@@ -171,7 +207,16 @@ class OnlineOrderViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
-        write_actions = {'create', 'update', 'partial_update', 'destroy', 'confirm', 'ship', 'deliver', 'cancel'}
+        write_actions = {
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'confirm',
+            'ship',
+            'deliver',
+            'cancel',
+        }
         if self.action in write_actions:
             from tenancy.permissions import HasVerifiedMFA
             permissions.append(HasVerifiedMFA())

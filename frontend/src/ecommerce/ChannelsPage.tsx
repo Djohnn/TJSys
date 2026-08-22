@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 
 import { useTenant } from '@/tenant/TenantProvider'
-import { apiRequest } from '@/api/client'
 import { fetchChannels } from './ecommerceApi'
-import type { PaginatedResponse, Channel } from './ecommerceApi'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -103,7 +100,7 @@ export default function ChannelsPage() {
         </div>
 
         {channels.length === 0 ? (
-          <EmptyState message="Nenhum canal encontrado." />
+          <EmptyState title="Nenhum canal encontrado." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-neutral-200">
@@ -145,7 +142,7 @@ export default function ChannelsPage() {
           </p>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={page <= 1}
               onClick={() => setFilter('page', String(page - 1))}
             >
@@ -155,7 +152,7 @@ export default function ChannelsPage() {
               Página {page} de {totalPages}
             </span>
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={page >= totalPages}
               onClick={() => setFilter('page', String(page + 1))}
             >

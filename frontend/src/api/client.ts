@@ -57,6 +57,8 @@ function normalizeProblem(
   }
 }
 
+export function apiRequest(path: string, options?: RequestOptions): Promise<void>
+export function apiRequest<T>(path: string, options?: RequestOptions): Promise<T>
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},

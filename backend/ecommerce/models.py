@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 
 from tenancy.managers import TenantManager
 from tenancy.models import TenantScopedModel, TimeStampedModel
@@ -76,7 +76,11 @@ class Marketplace(TenantScopedModel, TimeStampedModel):
     slug = models.SlugField(max_length=60)
     marketplace_id = models.CharField(max_length=100, blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    commission_type = models.CharField(max_length=20, choices=COMMISSION_CHOICES, default='percentage')
+    commission_type = models.CharField(
+        max_length=20,
+        choices=COMMISSION_CHOICES,
+        default='percentage',
+    )
     commission_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     fee_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     fee_fixed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -150,7 +154,11 @@ class OnlineOrder(TenantScopedModel, TimeStampedModel):
     )
     external_order_id = models.CharField(max_length=100)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='pending',
+    )
     customer_name = models.CharField(max_length=200)
     customer_email = models.EmailField(blank=True, default='')
     customer_phone = models.CharField(max_length=20, blank=True, default='')
@@ -215,5 +223,7 @@ class OnlineOrder(TenantScopedModel, TimeStampedModel):
             current = OnlineOrder.all_objects.get(pk=self.pk)
             if current.status in ('cancelled', 'refunded'):
                 raise ValidationError('Cancelled or refunded orders are immutable.')
-        self.total_amount = self.subtotal + self.shipping_cost - self.discount_amount + self.tax_amount
+        self.total_amount = (
+            self.subtotal + self.shipping_cost - self.discount_amount + self.tax_amount
+        )
         super().save(*args, **kwargs)
