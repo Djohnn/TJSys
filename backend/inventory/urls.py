@@ -5,6 +5,7 @@ from inventory.views import (
     InventoryCountItemViewSet,
     InventoryCountViewSet,
     MovementReasonViewSet,
+    ProductionOrderViewSet,
     ProductStockControlDeactivateView,
     ProductStockControlReactivateView,
     ProductStockPolicyViewSet,
@@ -14,6 +15,7 @@ from inventory.views import (
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
+    StockMapView,
     StockMovementViewSet,
     StockOperationReversalViewSet,
     StockOperationViewSet,
@@ -42,6 +44,11 @@ router.register('replenishment-rules', ReplenishmentRuleViewSet, basename='reple
 router.register('replenishment-orders', ReplenishmentOrderViewSet, basename='replenishment-order')
 router.register('inventory-counts', InventoryCountViewSet, basename='inventory-count')
 router.register('inventory-count-items', InventoryCountItemViewSet, basename='inventory-count-item')
+router.register(
+    'production-orders',
+    ProductionOrderViewSet,
+    basename='productionorder',
+)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -59,6 +66,11 @@ urlpatterns = [
         'products/<uuid:product_id>/stock-control/reactivate/',
         ProductStockControlReactivateView.as_view(),
         name='product-stock-control-reactivate',
+    ),
+    path(
+        'stock-map/',
+        StockMapView.as_view(),
+        name='stock-map',
     ),
 ]
 

@@ -16,6 +16,7 @@ from inventory.models import (
     InventoryCount,
     InventoryCountItem,
     MovementReason,
+    ProductionOrder,
     ProductStockPolicy,
     ReplenishmentOrder,
     ReplenishmentRule,
@@ -929,3 +930,196 @@ class InventoryCountItemViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(tenant=self.request.tenant)
+
+
+class ProductionOrderSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    code = serializers.CharField(max_length=40)
+    product = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    unit = serializers.UUIDField()
+    location = serializers.UUIDField()
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('confirmed', 'Confirmada'),
+            ('in_progress', 'Em andamento'),
+            ('completed', 'Concluída'),
+            ('cancelled', 'Cancelada'),
+        ],
+        default='draft',
+    )
+    priority = serializers.ChoiceField(
+        choices=[
+            ('low', 'Baixa'),
+            ('medium', 'Média'),
+            ('high', 'Alta'),
+            ('urgent', 'Urgente'),
+        ],
+        default='medium',
+    )
+    planned_start_date = serializers.DateField(required=False, allow_null=True)
+    planned_end_date = serializers.DateField(required=False, allow_null=True)
+    actual_start_date = serializers.DateField(required=False, allow_null=True)
+    actual_end_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class ProductionOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = ProductionOrderSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant]
+
+    def get_queryset(self):
+        return ProductionOrder.objects.select_related(
+            'product',
+            'unit',
+            'location',
+            'location__branch',
+        ).filter(tenant=self.request.tenant)
+
+    def create(self, request, *args, **kwargs):
+        serializer = ProductionOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=data['product'],
+        )
+        unit = get_object_or_404(
+            Unit.all_objects,
+            tenant=request.tenant,
+            id=data['unit'],
+        )
+        location = get_object_or_404(
+            StockLocation.all_objects,
+            tenant=request.tenant,
+            id=data['location'],
+        )
+
+        order = ProductionOrder(
+            tenant=request.tenant,
+            code=data['code'],
+            product=product,
+            quantity=data['quantity'],
+            unit=unit,
+            location=location,
+            status=data.get('status', 'draft'),
+            priority=data.get('priority', 'medium'),
+            planned_start_date=data.get('planned_start_date'),
+            planned_end_date=data.get('planned_end_date'),
+            actual_start_date=data.get('actual_start_date'),
+            actual_end_date=data.get('actual_end_date'),
+            notes=data.get('notes', ''),
+            created_by=request.user,
+        )
+        order.full_clean()
+        order.save()
+
+        return Response(
+            ProductionOrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'draft':
+            return _problem('Only draft orders can be confirmed.')
+        order.status = 'confirmed'
+        order.confirmed_by = request.user
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'confirmed':
+            return _problem('Only confirmed orders can be started.')
+        order.status = 'in_progress'
+        order.actual_start_date = timezone.now().date()
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'in_progress':
+            return _problem('Only in-progress orders can be completed.')
+        order.status = 'completed'
+        order.actual_end_date = timezone.now().date()
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        if order.status in ('completed', 'cancelled'):
+            return _problem('Completed or cancelled orders cannot be cancelled.')
+        order.status = 'cancelled'
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+# Sprint F7 — StockMap API (mapa consolidado de estoque)
+# =============================================================================
+
+
+class StockMapView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant]
+
+    def get(self, request):
+        location_id = request.query_params.get('location')
+        product_id = request.query_params.get('product')
+        lot_id = request.query_params.get('lot')
+
+        balances = StockBalance.objects.select_related(
+            'product',
+            'location',
+            'location__branch',
+            'lot',
+        ).filter(tenant=request.tenant)
+
+        if location_id:
+            balances = balances.filter(location_id=location_id)
+        if product_id:
+            balances = balances.filter(product_id=product_id)
+        if lot_id:
+            balances = balances.filter(lot_id=lot_id)
+
+        balances = balances.exclude(quantity=0, reserved=0)
+
+        result = []
+        for balance in balances:
+            result.append({
+                'id': str(balance.id),
+                'product': {
+                    'id': str(balance.product.id),
+                    'sku': balance.product.sku,
+                    'name': balance.product.name,
+                },
+                'location': {
+                    'id': str(balance.location.id),
+                    'code': balance.location.code,
+                    'name': balance.location.name,
+                    'branch': {
+                        'id': str(balance.location.branch.id),
+                        'name': balance.location.branch.name,
+                    },
+                },
+                'lot': {
+                    'id': str(balance.lot.id),
+                    'lot_number': balance.lot.lot_number,
+                } if balance.lot else None,
+                'quantity': str(balance.quantity),
+                'reserved': str(balance.reserved),
+                'available': str(balance.available),
+            })
+
+        return Response(result)
+
