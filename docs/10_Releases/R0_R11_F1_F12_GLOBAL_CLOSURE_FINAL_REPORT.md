@@ -1,9 +1,13 @@
 # R0-R11 + F1-F12 — Relatório Final de Fechamento Global
 
-**Data:** 2026-08-22  
-**Branch de execução:** `codex/rf-final-closure`  
-**Base inicial:** `master` em `122b66c8ce2e9f6952f218811792ef9af290389f`  
-**HEAD validado:** `fb2bae1b121e872cceb13a6fd1e803c6938649cc`  
+**Data:** 2026-08-22
+
+**Branch de execução:** `codex/rf-final-closure`
+
+**Base inicial:** `master` em `122b66c8ce2e9f6952f218811792ef9af290389f`
+
+**HEAD validado:** `fb2bae1b121e872cceb13a6fd1e803c6938649cc`
+
 **Veredito:** **CLOSE**
 
 ## Escopo encerrado
