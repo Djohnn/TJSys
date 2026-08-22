@@ -286,3 +286,120 @@ class CashflowEntry(VersionedFinancialModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError('Cashflow entries are immutable; create an adjustment instead.')
+
+
+# =============================================================================
+# Sprint F10 — Billing (faturamento por pedido)
+# =============================================================================
+
+
+class Billing(VersionedFinancialModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('pending', 'Pendente'),
+        ('issued', 'Emitido'),
+        ('paid', 'Pago'),
+        ('overdue', 'Vencido'),
+        ('cancelled', 'Cancelado'),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Dinheiro'),
+        ('credit_card', 'Cartão de Crédito'),
+        ('debit_card', 'Cartão de Débito'),
+        ('bank_transfer', 'Transferência Bancária'),
+        ('boleto', 'Boleto'),
+        ('pix', 'PIX'),
+        ('other', 'Outro'),
+    ]
+
+    sale = models.ForeignKey(
+        'sales.Sale',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='billings',
+    )
+    purchase_order = models.ForeignKey(
+        'purchasing.PurchaseOrder',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='billings',
+    )
+    branch = models.ForeignKey(
+        'tenancy.Branch',
+        on_delete=models.PROTECT,
+        related_name='billings',
+    )
+    customer_name = models.CharField(max_length=200, blank=True, default='')
+    supplier_name = models.CharField(max_length=200, blank=True, default='')
+    code = models.CharField(max_length=40)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='other')
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    discount_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=18, decimal_places=2)
+    due_date = models.DateField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    fiscal_document = models.ForeignKey(
+        'fiscal.FiscalDocument',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='billings',
+    )
+    idempotency_key = models.CharField(max_length=100, blank=True, default='')
+    payload_hash = models.CharField(max_length=64, blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                name='uniq_billing_tenant_code',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'idempotency_key'],
+                condition=~models.Q(idempotency_key=''),
+                name='uniq_billing_idempotency_tenant',
+            ),
+        ]
+
+    def __str__(self):
+        return f'BILL-{self.code} ({self.customer_name or self.supplier_name})'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.sale_id and self.sale.tenant_id != self.tenant_id:
+            errors['sale'] = 'Sale must belong to the same tenant.'
+        if self.purchase_order_id and self.purchase_order.tenant_id != self.tenant_id:
+            errors['purchase_order'] = 'Purchase order must belong to the same tenant.'
+        if self.branch_id and self.branch.tenant_id != self.tenant_id:
+            errors['branch'] = 'Branch must belong to the same tenant.'
+        if self.fiscal_document_id and self.fiscal_document.tenant_id != self.tenant_id:
+            errors['fiscal_document'] = 'Fiscal document must belong to the same tenant.'
+        if self.amount < 0:
+            errors['amount'] = 'Amount cannot be negative.'
+        if self.discount_amount < 0:
+            errors['discount_amount'] = 'Discount amount cannot be negative.'
+        if self.tax_amount < 0:
+            errors['tax_amount'] = 'Tax amount cannot be negative.'
+        if self.total_amount < 0:
+            errors['total_amount'] = 'Total amount cannot be negative.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = Billing.all_objects.get(pk=self.pk)
+            if current.status in ('cancelled', 'paid'):
+                raise ValidationError('Cancelled or paid billings are immutable.')
+        self.total_amount = self.amount - self.discount_amount + self.tax_amount
+        super().save(*args, **kwargs)
