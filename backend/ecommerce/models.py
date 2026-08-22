@@ -53,3 +53,61 @@ class Channel(TenantScopedModel, TimeStampedModel):
             errors['slug'] = 'Slug must be alphanumeric.'
         if errors:
             raise ValidationError(errors)
+
+
+class Marketplace(TenantScopedModel, TimeStampedModel):
+    COMMISSION_CHOICES = [
+        ('percentage', 'Porcentagem'),
+        ('fixed', 'Fixo'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', 'Ativo'),
+        ('inactive', 'Inativo'),
+        ('pending', 'Pendente'),
+    ]
+
+    channel = models.ForeignKey(
+        Channel,
+        on_delete=models.CASCADE,
+        related_name='marketplaces',
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=60)
+    marketplace_id = models.CharField(max_length=100, blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    commission_type = models.CharField(max_length=20, choices=COMMISSION_CHOICES, default='percentage')
+    commission_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    fee_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    fee_fixed = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    config_json = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'channel', 'slug'],
+                name='uniq_marketplace_tenant_channel_slug',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.name} [{self.channel.name}]'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.channel_id and self.channel.tenant_id != self.tenant_id:
+            errors['channel'] = 'Channel must belong to the same tenant.'
+        if self.commission_value < 0:
+            errors['commission_value'] = 'Commission value cannot be negative.'
+        if self.fee_percentage < 0:
+            errors['fee_percentage'] = 'Fee percentage cannot be negative.'
+        if self.fee_fixed < 0:
+            errors['fee_fixed'] = 'Fee fixed cannot be negative.'
+        if errors:
+            raise ValidationError(errors)
