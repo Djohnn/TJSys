@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from platform_admin.models import Plan
+
 
 class RegistrationSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -7,6 +9,7 @@ class RegistrationSerializer(serializers.Serializer):
     tenant_name = serializers.CharField(max_length=200)
     company_name = serializers.CharField(max_length=200)
     branch_name = serializers.CharField(max_length=200)
+    plan_code = serializers.CharField(max_length=40)
 
 
 class TokenSerializer(serializers.Serializer):
@@ -77,3 +80,9 @@ class UserFavoriteCreateSerializer(serializers.Serializer):
 
 class UserFavoriteReorderSerializer(serializers.Serializer):
     favorite_ids = serializers.ListField(child=serializers.UUIDField())
+
+
+class PublicPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Plan
+        fields = ['code', 'name', 'trial_days']
