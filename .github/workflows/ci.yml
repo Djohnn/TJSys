@@ -162,7 +162,6 @@ jobs:
     env:
       DJANGO_SETTINGS_MODULE: config.settings.e2e
       DB_NAME: zyrp
-      DATABASE_URL: postgres://zyrp_app:${{ env.POSTGRES_APP_PASSWORD }}@localhost:5432/zyrp
       POSTGRES_HOST: localhost
       POSTGRES_PORT: '5432'
       POSTGRES_DB: zyrp
