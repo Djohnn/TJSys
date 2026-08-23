@@ -114,7 +114,12 @@ jobs:
       - name: Secrets detection
         run: |
           cd ..
-          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+          status=0
+          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline || status=$?
+          if ! git diff --quiet -- .secrets.baseline; then
+            git diff -- .secrets.baseline
+          fi
+          exit "$status"
 
       - name: Deploy check
         run: python manage.py check --deploy --settings=config.settings.production
