@@ -29,14 +29,29 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SETTINGS_MODULE: config.settings.e2e
       DATABASE_URL: postgres://zyrp:zyrp@db:5432/zyrp
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: zyrp
+      POSTGRES_APP_USER: zyrp
+      POSTGRES_APP_PASSWORD: zyrp
       REDIS_URL: redis://redis:6379
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       SECRET_KEY: e2e-secret-key-not-for-production
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      E2E_SEED: "1"
       DEBUG: "true"
       MONITORING_ENABLED: "true"
     command: >
       sh -c "python manage.py migrate --noinput && python manage.py seed_e2e && python manage.py runserver 0.0.0.0:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   frontend:
     build:
@@ -45,7 +60,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend: { condition: service_healthy }
     environment:
       VITE_API_BASE_URL: /api/v1
+      VITE_API_PROXY_TARGET: http://backend:8000
     command: npx vite --host 0.0.0.0 --port 5173

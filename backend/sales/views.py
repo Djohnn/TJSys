@@ -1,9 +1,13 @@
 import csv
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.db import transaction
+from django.db.models import Prefetch
+from django.http import Http404, HttpResponse
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,18 +16,42 @@ from catalog.models import Product, Unit
 from inventory.models import StockLocation
 from inventory.services import InsufficientStock
 from people.models import Person
-from sales.models import CashSession, Sale, SaleReturn
+from sales.models import (
+    CashSession,
+    Commission,
+    CommissionRule,
+    Consignment,
+    ConsignmentItem,
+    PriceList,
+    PriceListItem,
+    Quote,
+    Sale,
+    SaleItem,
+    SaleRefund,
+    SaleReturn,
+    SalesOrder,
+)
 from sales.permissions import SalesCapabilityPermission
 from sales.serializers import (
     CashSessionSerializer,
     CloseCashSessionSerializer,
+    CommissionRuleSerializer,
+    CommissionSerializer,
+    ConsignmentSerializer,
     CounterSaleSerializer,
+    CreateQuoteSerializer,
     CreateSaleCancellationSerializer,
+    CreateSaleRefundSerializer,
     CreateSaleReturnSerializer,
+    CreateSalesOrderSerializer,
     OpenCashSessionSerializer,
+    PriceListSerializer,
+    QuoteSerializer,
     SaleCancellationSerializer,
+    SaleRefundSerializer,
     SaleReturnSerializer,
     SaleSerializer,
+    SalesOrderSerializer,
     SyncBatchSerializer,
 )
 from sales.services import (
@@ -31,17 +59,47 @@ from sales.services import (
     DuplicateIdempotencyKey,
     EmptySale,
     InsufficientReturnableQuantity,
+    InvalidReturnQuantity,
     OpenCashSessionExists,
     PaymentMismatch,
+    RefundAmountExceeded,
     SaleAlreadyCancelled,
+    SaleHasReturns,
+    SaleNotCompensable,
     cancel_sale,
     close_cash_session,
     create_counter_sale,
+    create_quote,
+    create_sale_refund,
     create_sale_return,
+    create_sales_order,
     open_cash_session,
 )
 from tenancy.models import Branch
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
+
+
+class MissingIdempotencyKey(ValueError):
+    pass
+
+
+_SALES_COMMAND_ERRORS = (
+    Http404,
+    ObjectDoesNotExist,
+    DuplicateIdempotencyKey,
+    InsufficientStock,
+    CashSessionRequired,
+    OpenCashSessionExists,
+    RefundAmountExceeded,
+    SaleHasReturns,
+    SaleNotCompensable,
+    PaymentMismatch,
+    SaleAlreadyCancelled,
+    InvalidReturnQuantity,
+    InsufficientReturnableQuantity,
+    EmptySale,
+    ValueError,
+)
 
 
 def _problem(detail, code='invalid_sales_operation', status_code=400):
@@ -51,6 +109,7 @@ def _problem(detail, code='invalid_sales_operation', status_code=400):
             'title': 'Sales operation rejected',
             'status': status_code,
             'detail': str(detail),
+            'code': code,
         },
         status=status_code,
         content_type='application/problem+json',
@@ -60,7 +119,7 @@ def _problem(detail, code='invalid_sales_operation', status_code=400):
 def _idempotency_key(request):
     value = request.headers.get('Idempotency-Key', '').strip()
     if not value:
-        raise ValueError('Idempotency-Key header is required.')
+        raise MissingIdempotencyKey('Idempotency-Key header is required.')
     return value
 
 
@@ -106,7 +165,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
         return permissions
 
     def _handle_sales_error(self, exc):
-        if isinstance(exc, ObjectDoesNotExist):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
             return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
         if isinstance(exc, DuplicateIdempotencyKey):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
@@ -129,7 +188,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
                 opening_amount=data['opening_amount'],
                 idempotency_key=_idempotency_key(request),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             CashSessionSerializer(session, context=self.get_serializer_context()).data,
@@ -164,7 +223,7 @@ class CashSessionViewSet(viewsets.ReadOnlyModelViewSet):
                 closing_amount=serializer.validated_data['closing_amount'],
                 idempotency_key=_idempotency_key(request),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(CashSessionSerializer(session, context=self.get_serializer_context()).data)
 
@@ -178,6 +237,13 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     ]
     MAX_EXPORT_ROWS = 1000
 
+    def handle_exception(self, exc):
+        if isinstance(exc, NotAuthenticated):
+            return _problem(exc.detail, 'authentication_required', status.HTTP_401_UNAUTHORIZED)
+        if isinstance(exc, PermissionDenied):
+            return _problem(exc.detail, 'permission_denied', status.HTTP_403_FORBIDDEN)
+        return super().handle_exception(exc)
+
     def get_queryset(self):
         queryset = (
             Sale.objects.select_related(
@@ -186,7 +252,23 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 'operator',
             )
             .filter(tenant=self.request.tenant)
-            .prefetch_related('items', 'payments')
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=SaleItem.all_objects.filter(
+                        tenant=self.request.tenant,
+                    ).select_related('unit'),
+                ),
+                'payments',
+                Prefetch(
+                    'refunds',
+                    queryset=SaleRefund.all_objects.filter(
+                        tenant=self.request.tenant,
+                        status='completed',
+                    ),
+                    to_attr='_completed_refunds_for_serializer',
+                ),
+            )
         )
         branch_id = self.request.query_params.get('branch')
         cash_session_id = self.request.query_params.get('cash_session')
@@ -219,7 +301,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
         return permissions
 
     def _handle_sales_error(self, exc):
-        if isinstance(exc, ObjectDoesNotExist):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
             return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
         if isinstance(exc, DuplicateIdempotencyKey):
             return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
@@ -227,14 +309,31 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
             return _problem(exc, 'insufficient_stock', status.HTTP_409_CONFLICT)
         if isinstance(exc, CashSessionRequired):
             return _problem(exc, 'cash_session_required', status.HTTP_409_CONFLICT)
+        if isinstance(exc, RefundAmountExceeded):
+            return _problem(exc, 'refund_amount_exceeded', status.HTTP_409_CONFLICT)
+        if isinstance(exc, SaleHasReturns):
+            return _problem(exc, 'sale_has_returns', status.HTTP_409_CONFLICT)
+        if isinstance(exc, SaleNotCompensable):
+            return _problem(exc, 'sale_not_compensable', status.HTTP_409_CONFLICT)
         if isinstance(exc, PaymentMismatch):
             return _problem(exc, 'payment_mismatch')
-        if isinstance(exc, InsufficientReturnableQuantity):
-            return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
         if isinstance(exc, SaleAlreadyCancelled):
             return _problem(exc, 'sale_already_cancelled', status.HTTP_409_CONFLICT)
-        if isinstance(exc, (EmptySale, ValueError)):
+        if isinstance(exc, InvalidReturnQuantity):
+            return _problem(exc, 'invalid_quantity', status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if isinstance(exc, InsufficientReturnableQuantity):
+            return _problem(exc, 'insufficient_returnable', status.HTTP_409_CONFLICT)
+        if isinstance(exc, MissingIdempotencyKey):
+            return _problem(exc, 'validation_error', status.HTTP_400_BAD_REQUEST)
+        if isinstance(exc, EmptySale):
             return _problem(exc)
+        if isinstance(exc, ValueError):
+            status_code = (
+                status.HTTP_422_UNPROCESSABLE_ENTITY
+                if self.action in {'returns', 'refund', 'cancel'}
+                else status.HTTP_400_BAD_REQUEST
+            )
+            return _problem(exc, 'validation_error', status_code)
         raise exc
 
     @action(detail=False, methods=['post'])
@@ -271,7 +370,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                     else None
                 ),
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleSerializer(sale, context=self.get_serializer_context()).data,
@@ -281,7 +380,12 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def returns(self, request, pk=None):
         serializer = CreateSaleReturnSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         data = serializer.validated_data
         try:
             sale = self.get_object()
@@ -299,10 +403,38 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 idempotency_key=_idempotency_key(request),
                 actor=request.user,
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleReturnSerializer(sale_return, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'])
+    def refund(self, request, pk=None):
+        serializer = CreateSaleRefundSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            sale = self.get_object()
+            refund = create_sale_refund(
+                tenant=request.tenant,
+                sale=sale,
+                method=data['method'],
+                amount=data.get('amount'),
+                reason=data['reason'],
+                idempotency_key=_idempotency_key(request),
+                actor=request.user,
+            )
+        except _SALES_COMMAND_ERRORS as exc:
+            return self._handle_sales_error(exc)
+        return Response(
+            SaleRefundSerializer(refund, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -310,7 +442,7 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     def list_returns(self, request, pk=None):
         try:
             sale = self.get_object()
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         returns_queryset = SaleReturn.all_objects.filter(
             tenant=request.tenant,
@@ -323,7 +455,12 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         serializer = CreateSaleCancellationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         data = serializer.validated_data
         try:
             sale = self.get_object()
@@ -334,10 +471,11 @@ class SaleViewSet(viewsets.ReadOnlyModelViewSet):
                 idempotency_key=_idempotency_key(request),
                 actor=request.user,
             )
-        except Exception as exc:
+        except _SALES_COMMAND_ERRORS as exc:
             return self._handle_sales_error(exc)
         return Response(
             SaleCancellationSerializer(cancellation, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED,
         )
 
     @action(detail=False, methods=['get'])
@@ -498,3 +636,318 @@ class SyncBatchView(APIView):
                 )
 
         return Response({'results': results})
+
+
+class QuoteViewSet(viewsets.ModelViewSet):
+    serializer_class = QuoteSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        return Quote.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator'
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateQuoteSerializer
+        return QuoteSerializer
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        items_data = data.pop('items', [])
+        with transaction.atomic():
+            quote = create_quote(
+                tenant=self.request.tenant,
+                branch_id=data['branch'],
+                customer_id=data.get('customer'),
+                operator=self.request.user,
+                valid_until=data.get('valid_until'),
+                notes=data.get('notes', ''),
+                items=items_data,
+            )
+        self._quote = quote
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(QuoteSerializer(self._quote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        from sales.services import convert_quote_to_sale
+
+        quote = self.get_object()
+        if quote.status not in ('draft', 'sent', 'approved'):
+            return _problem('Quote cannot be converted in its current status.')
+        try:
+            sale = convert_quote_to_sale(quote, request.user)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return _problem(str(exc))
+
+
+class SalesOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = SalesOrderSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        HasVerifiedMFA,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        return SalesOrder.objects.filter(tenant=self.request.tenant).select_related(
+            'branch', 'customer', 'operator', 'quote'
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateSalesOrderSerializer
+        return SalesOrderSerializer
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        items_data = data.pop('items', [])
+        with transaction.atomic():
+            order = create_sales_order(
+                tenant=self.request.tenant,
+                branch_id=data['branch'],
+                customer_id=data.get('customer'),
+                operator=self.request.user,
+                quote_id=data.get('quote'),
+                expected_date=data.get('expected_date'),
+                notes=data.get('notes', ''),
+                items=items_data,
+            )
+        self._order = order
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(SalesOrderSerializer(self._order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        from sales.services import convert_order_to_sale
+
+        order = self.get_object()
+        if order.status not in ('draft', 'confirmed'):
+            return _problem('Order cannot be converted in its current status.')
+        try:
+            sale = convert_order_to_sale(order, request.user)
+            return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return _problem(str(exc))
+
+
+class ConsignmentViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ConsignmentSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = (
+            Consignment.objects.select_related('branch', 'operator', 'customer')
+            .filter(tenant=self.request.tenant)
+            .prefetch_related(
+                Prefetch(
+                    'items',
+                    queryset=ConsignmentItem.all_objects.filter(
+                        tenant=self.request.tenant,
+                    ).select_related('product', 'unit'),
+                ),
+            )
+        )
+        branch_id = self.request.query_params.get('branch')
+        operator_id = self.request.query_params.get('operator')
+        customer_id = self.request.query_params.get('customer')
+        status = self.request.query_params.get('status')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if branch_id:
+            queryset = queryset.filter(branch_id=branch_id)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        return queryset
+
+    def _handle_sales_error(self, exc):
+        if isinstance(exc, (Http404, ObjectDoesNotExist)):
+            return _problem('Resource not found.', 'not_found', status.HTTP_404_NOT_FOUND)
+        if isinstance(exc, DuplicateIdempotencyKey):
+            return _problem(exc, 'idempotency_conflict', status.HTTP_409_CONFLICT)
+        if isinstance(exc, ValueError):
+            return _problem(exc)
+        raise exc
+
+    @action(detail=True, methods=['post'])
+    def convert(self, request, pk=None):
+        consignment = self.get_object()
+        if consignment.status not in ('draft', 'active'):
+            return _problem(
+                'Consignment cannot be converted.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
+        try:
+            consignment.status = 'closed'
+            consignment.actual_return_date = timezone.now().date()
+            consignment.save()
+            return Response(
+                ConsignmentSerializer(consignment, context=self.get_serializer_context()).data
+            )
+        except _SALES_COMMAND_ERRORS as exc:
+            return self._handle_sales_error(exc)
+
+
+# =============================================================================
+# F4 — Commission
+# =============================================================================
+
+
+class CommissionRuleViewSet(viewsets.ModelViewSet):
+    serializer_class = CommissionRuleSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = CommissionRule.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        rule_type = self.request.query_params.get('rule_type')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if rule_type:
+            queryset = queryset.filter(rule_type=rule_type)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class CommissionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CommissionSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = Commission.objects.select_related('sale', 'rule', 'operator').filter(
+            tenant=self.request.tenant,
+        )
+        status = self.request.query_params.get('status')
+        operator_id = self.request.query_params.get('operator')
+        date_from = self.request.query_params.get('date_from')
+        date_to = self.request.query_params.get('date_to')
+        if status:
+            queryset = queryset.filter(status=status)
+        if operator_id:
+            queryset = queryset.filter(operator_id=operator_id)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status != 'pending':
+            return _problem(
+                'Commission is not pending.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
+        commission.status = 'approved'
+        commission.approved_at = timezone.now()
+        commission.save()
+        return Response(CommissionSerializer(commission).data)
+
+    @action(detail=True, methods=['post'])
+    def pay(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status != 'approved':
+            return _problem(
+                'Commission is not approved.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
+        commission.status = 'paid'
+        commission.paid_at = timezone.now()
+        commission.save()
+        return Response(CommissionSerializer(commission).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        commission = self.get_object()
+        if commission.status not in ('pending', 'approved'):
+            return _problem(
+                'Commission cannot be cancelled.', 'invalid_status', status.HTTP_409_CONFLICT
+            )
+        commission.status = 'cancelled'
+        commission.save()
+        return Response(CommissionSerializer(commission).data)
+
+
+class PriceListViewSet(viewsets.ModelViewSet):
+    serializer_class = PriceListSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+        SalesCapabilityPermission,
+    ]
+
+    def get_queryset(self):
+        queryset = PriceList.objects.filter(tenant=self.request.tenant).prefetch_related(
+            Prefetch(
+                'items',
+                queryset=PriceListItem.all_objects.filter(
+                    tenant=self.request.tenant,
+                ).select_related('product'),
+            ),
+        )
+        audience = self.request.query_params.get('audience')
+        is_active = self.request.query_params.get('is_active')
+        if audience:
+            queryset = queryset.filter(audience=audience)
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        permissions.append(SalesCapabilityPermission())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)

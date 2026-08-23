@@ -2,15 +2,24 @@ import csv
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Case, Count, DecimalField, F, Sum, When
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from financial.models import CashflowEntry, Payable, Receivable
+from financial.models import (
+    BankReconciliation,
+    Billing,
+    CashflowEntry,
+    FinancialAccount,
+    FiscalCompensation,
+    Payable,
+    Receivable,
+)
 from financial.permissions import FinancialReportingPermission
 from financial.serializers import CashflowEntrySerializer, PayableSerializer, ReceivableSerializer
 from financial.services import cashflow_projection
@@ -285,3 +294,569 @@ class ReceivableViewSet(viewsets.ReadOnlyModelViewSet):
         if date_to:
             queryset = queryset.filter(due_date__lte=date_to)
         return queryset.order_by('-created_at')
+
+
+# =============================================================================
+# Sprint F9 — BankReconciliation API
+# =============================================================================
+
+
+class BankReconciliationSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    account = serializers.PrimaryKeyRelatedField(queryset=FinancialAccount.all_objects.all())
+    account_name = serializers.CharField(source='account.name', read_only=True)
+    statement_date = serializers.DateField()
+    statement_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
+    system_balance = serializers.DecimalField(max_digits=18, decimal_places=2)
+    difference = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendente'),
+            ('matched', 'Conciliado'),
+            ('partial', 'Parcial'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='pending',
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    reconciled_by = serializers.UUIDField(read_only=True)
+    reconciled_by_name = serializers.SerializerMethodField()
+    reconciled_at = serializers.DateTimeField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = BankReconciliation
+        fields = [
+            'id',
+            'account',
+            'account_name',
+            'statement_date',
+            'statement_balance',
+            'system_balance',
+            'difference',
+            'status',
+            'notes',
+            'reconciled_by',
+            'reconciled_by_name',
+            'reconciled_at',
+            'created_at',
+            'updated_at',
+        ]
+
+    def get_reconciled_by_name(self, instance):
+        if not instance.reconciled_by:
+            return ''
+        return instance.reconciled_by.get_full_name() or instance.reconciled_by.email
+
+    def create(self, validated_data):
+        instance = self.Meta.model(**validated_data)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.full_clean()
+        instance.save()
+        return instance
+
+
+class BankReconciliationViewSet(viewsets.ModelViewSet):
+    serializer_class = BankReconciliationSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return BankReconciliation.objects.select_related(
+            'account',
+            'reconciled_by',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'match', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant, reconciled_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def match(self, request, pk=None):
+        reconciliation = self.get_object()
+        if reconciliation.status != 'pending':
+            return Response({'detail': 'Only pending reconciliations can be matched.'}, status=400)
+        reconciliation.status = 'matched'
+        reconciliation.reconciled_at = timezone.now()
+        reconciliation.full_clean()
+        reconciliation.save()
+        return Response(BankReconciliationSerializer(reconciliation).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        reconciliation = self.get_object()
+        if reconciliation.status in ('matched', 'cancelled'):
+            return Response(
+                {'detail': 'Matched or cancelled reconciliations cannot be cancelled.'},
+                status=400,
+            )
+        reconciliation.status = 'cancelled'
+        reconciliation.full_clean()
+        reconciliation.save()
+        return Response(BankReconciliationSerializer(reconciliation).data)
+
+
+# Sprint F9 — FinancialStatement API (extrato financeiro)
+# =============================================================================
+
+
+class FinancialStatementView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant, FinancialReportingPermission]
+
+    def get(self, request):
+        account_id = request.query_params.get('account')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+
+        if not account_id:
+            return Response({'detail': 'account parameter is required.'}, status=400)
+
+        account = FinancialAccount.all_objects.filter(
+            tenant=request.tenant,
+            id=account_id,
+        ).first()
+
+        if not account:
+            return Response({'detail': 'Account not found.'}, status=404)
+
+        entries = CashflowEntry.all_objects.filter(
+            tenant=request.tenant,
+            account=account,
+        )
+
+        if date_from:
+            entries = entries.filter(effective_date__gte=date_from)
+        if date_to:
+            entries = entries.filter(effective_date__lte=date_to)
+
+        entries = entries.order_by('effective_date', 'created_at')
+
+        opening_balance = Decimal('0.00')
+        if date_from:
+            opening_entries = CashflowEntry.all_objects.filter(
+                tenant=request.tenant,
+                account=account,
+                effective_date__lt=date_from,
+            )
+            opening_balance = opening_entries.aggregate(
+                total=Sum(
+                    Case(
+                        When(direction='inflow', then='amount'),
+                        When(direction='outflow', then=-F('amount')),
+                        default=0,
+                        output_field=DecimalField(max_digits=18, decimal_places=2),
+                    )
+                )
+            )['total'] or Decimal('0.00')
+
+        transactions = []
+        running_balance = opening_balance
+
+        for entry in entries:
+            if entry.direction == 'inflow':
+                running_balance += entry.amount
+            else:
+                running_balance -= entry.amount
+
+            transactions.append(
+                {
+                    'id': str(entry.id),
+                    'effective_date': entry.effective_date.isoformat(),
+                    'description': entry.description,
+                    'direction': entry.direction,
+                    'amount': str(entry.amount),
+                    'status': entry.status,
+                    'balance': str(running_balance),
+                }
+            )
+
+        return Response(
+            {
+                'account': {
+                    'id': str(account.id),
+                    'name': account.name,
+                    'account_type': account.account_type,
+                },
+                'opening_balance': str(opening_balance),
+                'closing_balance': str(running_balance),
+                'transactions': transactions,
+            }
+        )
+
+
+class FiscalCompensationSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    code = serializers.CharField(max_length=40)
+    compensation_type = serializers.ChoiceField(
+        choices=[
+            ('credit', 'Crédito'),
+            ('debit', 'Débito'),
+            ('both', 'Ambos'),
+        ],
+        default='both',
+    )
+    status = serializers.ChoiceField(
+        choices=[
+            ('pending', 'Pendente'),
+            ('approved', 'Aprovado'),
+            ('rejected', 'Rejeitado'),
+            ('processed', 'Processado'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='pending',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    compensated_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    remaining_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    compensated_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class BillingSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    sale = serializers.UUIDField(required=False, allow_null=True)
+    purchase_order = serializers.UUIDField(required=False, allow_null=True)
+    branch = serializers.UUIDField()
+    customer_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    supplier_name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, default=''
+    )
+    code = serializers.CharField(max_length=40)
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('pending', 'Pendente'),
+            ('issued', 'Emitido'),
+            ('paid', 'Pago'),
+            ('overdue', 'Vencido'),
+            ('cancelled', 'Cancelado'),
+        ],
+        default='draft',
+    )
+    payment_method = serializers.ChoiceField(
+        choices=[
+            ('cash', 'Dinheiro'),
+            ('credit_card', 'Cartão de Crédito'),
+            ('debit_card', 'Cartão de Débito'),
+            ('bank_transfer', 'Transferência Bancária'),
+            ('boleto', 'Boleto'),
+            ('pix', 'PIX'),
+            ('other', 'Outro'),
+        ],
+        default='other',
+    )
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2)
+    discount_amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal('0')
+    )
+    tax_amount = serializers.DecimalField(max_digits=18, decimal_places=2, default=Decimal('0'))
+    total_amount = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
+    paid_at = serializers.DateTimeField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    fiscal_document = serializers.UUIDField(required=False, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class FiscalCompensationViewSet(viewsets.ModelViewSet):
+    serializer_class = FiscalCompensationSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return FiscalCompensation.objects.select_related(
+            'fiscal_document',
+            'branch',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'approve',
+            'process',
+            'cancel',
+        }
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'pending':
+            return Response({'detail': 'Only pending compensations can be approved.'}, status=400)
+        compensation.status = 'approved'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def process(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status != 'approved':
+            return Response({'detail': 'Only approved compensations can be processed.'}, status=400)
+        compensation.status = 'processed'
+        compensation.compensated_at = timezone.now()
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        compensation = self.get_object()
+        if compensation.status in ('cancelled', 'processed'):
+            return Response(
+                {'detail': 'Cancelled or processed compensations cannot be cancelled.'},
+                status=400,
+            )
+        compensation.status = 'cancelled'
+        compensation.full_clean()
+        compensation.save()
+        return Response(FiscalCompensationSerializer(compensation).data)
+
+
+class BillingViewSet(viewsets.ModelViewSet):
+    serializer_class = BillingSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant, HasCapability]
+    required_capability = 'financial.view'
+
+    def get_queryset(self):
+        return Billing.objects.select_related(
+            'sale',
+            'purchase_order',
+            'branch',
+            'fiscal_document',
+        ).filter(tenant=self.request.tenant)
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        write_actions = {'create', 'update', 'partial_update', 'destroy', 'issue', 'pay', 'cancel'}
+        if self.action in write_actions:
+            from tenancy.permissions import HasVerifiedMFA
+
+            permissions.append(HasVerifiedMFA())
+        permissions.append(HasCapability())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=['post'])
+    def issue(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status != 'draft':
+            return Response({'detail': 'Only draft billings can be issued.'}, status=400)
+        billing.status = 'issued'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def pay(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status not in ('issued', 'pending', 'overdue'):
+            return Response(
+                {'detail': 'Only issued, pending, or overdue billings can be paid.'},
+                status=400,
+            )
+        billing.status = 'paid'
+        billing.paid_at = timezone.now()
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        billing = self.get_object()
+        if billing.status in ('cancelled', 'paid'):
+            return Response(
+                {'detail': 'Cancelled or paid billings cannot be cancelled.'},
+                status=400,
+            )
+        billing.status = 'cancelled'
+        billing.full_clean()
+        billing.save()
+        return Response(BillingSerializer(billing).data)
+
+
+class DRELineSerializer(serializers.Serializer):
+    label = serializers.CharField()  # type: ignore[assignment]
+    value = serializers.DecimalField(max_digits=18, decimal_places=2)
+    percentage = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
+    children = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+
+
+class DREReportSerializer(serializers.Serializer):
+    period_from = serializers.DateField()
+    period_to = serializers.DateField()
+    branch = serializers.DictField(required=False, allow_null=True)
+    revenue = DRELineSerializer()
+    deductions = DRELineSerializer()
+    net_revenue = DRELineSerializer()
+    cost_of_goods = DRELineSerializer()
+    gross_profit = DRELineSerializer()
+    operating_expenses = DRELineSerializer()
+    operating_result = DRELineSerializer()
+    result_before_tax = DRELineSerializer()
+    income_tax = DRELineSerializer()
+    net_result = DRELineSerializer()
+
+
+class DREReportView(ReportView):
+    def get(self, request):
+        date_from, date_to = self.period(request)
+        branch = self.branch(request)
+
+        from purchasing.models import PurchaseOrder
+        from sales.models import Sale
+
+        sales_queryset = Sale.all_objects.filter(
+            tenant=request.tenant,
+            created_at__date__range=(date_from, date_to),
+        )
+        if branch:
+            sales_queryset = sales_queryset.filter(branch=branch)
+
+        purchase_queryset = PurchaseOrder.all_objects.filter(
+            tenant=request.tenant,
+            created_at__date__range=(date_from, date_to),
+        )
+        if branch:
+            purchase_queryset = purchase_queryset.filter(branch=branch)
+
+        gross_revenue = sales_queryset.aggregate(total=Sum('net_total'))['total'] or Decimal('0.00')
+        total_purchases = purchase_queryset.aggregate(total=Sum('items_total'))['total'] or Decimal(
+            '0.00'
+        )
+        total_billing_discounts = sales_queryset.aggregate(total=Sum('discount_total'))[
+            'total'
+        ] or Decimal('0.00')
+        total_billing_taxes = Decimal('0.00')
+
+        deductions = total_billing_discounts + total_billing_taxes
+        net_revenue = gross_revenue - deductions
+        cost_of_goods = total_purchases
+        gross_profit = net_revenue - cost_of_goods
+
+        operating_expenses = Payable.all_objects.filter(
+            tenant=request.tenant,
+            due_date__range=(date_from, date_to),
+            description__icontains='despesa',
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        if branch:
+            operating_expenses = Payable.all_objects.filter(
+                tenant=request.tenant,
+                branch=branch,
+                due_date__range=(date_from, date_to),
+                description__icontains='despesa',
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        operating_result = gross_profit - operating_expenses
+        result_before_tax = operating_result
+        income_tax = (
+            result_before_tax * Decimal('0.25') if result_before_tax > 0 else Decimal('0.00')
+        )
+        net_result = result_before_tax - income_tax
+
+        def make_line(label, value, base=net_revenue, children=None):
+            percentage = (value / base * 100) if base else Decimal('0.00')
+            return {
+                'label': label,
+                'value': str(value),
+                'percentage': str(percentage.quantize(Decimal('0.01'))),
+                'children': children or [],
+            }
+
+        branch_data = None
+        if branch:
+            branch_data = {'id': str(branch.id), 'name': branch.name}
+
+        dre = {
+            'period_from': str(date_from),
+            'period_to': str(date_to),
+            'branch': branch_data,
+            'revenue': make_line('Receita Bruta', gross_revenue),
+            'deductions': make_line('Deduções', deductions),
+            'net_revenue': make_line('Receita Líquida', net_revenue),
+            'cost_of_goods': make_line('Custo dos Produtos/Serviços', cost_of_goods),
+            'gross_profit': make_line('Lucro Bruto', gross_profit),
+            'operating_expenses': make_line('Despesas Operacionais', operating_expenses),
+            'operating_result': make_line('Resultado Operacional', operating_result),
+            'result_before_tax': make_line('Resultado Antes do IR/CSLL', result_before_tax),
+            'income_tax': make_line('IR/CSLL (25%)', income_tax),
+            'net_result': make_line('Resultado Líquido', net_result),
+        }
+
+        if request.query_params.get('export') == 'csv':
+            return self._csv(dre)
+        return Response(dre)
+
+    @staticmethod
+    def _csv(dre):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="dre-report.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['line', 'value', 'percentage'])
+        lines = [
+            ('Receita Bruta', dre['revenue']),
+            ('Deduções', dre['deductions']),
+            ('Receita Líquida', dre['net_revenue']),
+            ('Custo dos Produtos/Serviços', dre['cost_of_goods']),
+            ('Lucro Bruto', dre['gross_profit']),
+            ('Despesas Operacionais', dre['operating_expenses']),
+            ('Resultado Operacional', dre['operating_result']),
+            ('Resultado Antes do IR/CSLL', dre['result_before_tax']),
+            ('IR/CSLL (25%)', dre['income_tax']),
+            ('Resultado Líquido', dre['net_result']),
+        ]
+        for label, line in lines:
+            writer.writerow([label, line['value'], line['percentage']])
+        return response

@@ -2,16 +2,24 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from inventory.views import (
+    InventoryCountItemViewSet,
+    InventoryCountViewSet,
+    MovementReasonViewSet,
+    ProductionOrderViewSet,
     ProductStockControlDeactivateView,
     ProductStockControlReactivateView,
     ProductStockPolicyViewSet,
     ProductStockSummaryView,
+    ReplenishmentOrderViewSet,
+    ReplenishmentRuleViewSet,
     StockBalanceViewSet,
     StockLocationViewSet,
     StockLotViewSet,
+    StockMapView,
     StockMovementViewSet,
     StockOperationReversalViewSet,
     StockOperationViewSet,
+    StorageTypeViewSet,
 )
 
 router = DefaultRouter()
@@ -30,6 +38,17 @@ router.register(
     ProductStockPolicyViewSet,
     basename='productstockpolicy',
 )
+router.register('storage-types', StorageTypeViewSet, basename='storage-type')
+router.register('movement-reasons', MovementReasonViewSet, basename='movement-reason')
+router.register('replenishment-rules', ReplenishmentRuleViewSet, basename='replenishment-rule')
+router.register('replenishment-orders', ReplenishmentOrderViewSet, basename='replenishment-order')
+router.register('inventory-counts', InventoryCountViewSet, basename='inventory-count')
+router.register('inventory-count-items', InventoryCountItemViewSet, basename='inventory-count-item')
+router.register(
+    'production-orders',
+    ProductionOrderViewSet,
+    basename='productionorder',
+)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -47,5 +66,10 @@ urlpatterns = [
         'products/<uuid:product_id>/stock-control/reactivate/',
         ProductStockControlReactivateView.as_view(),
         name='product-stock-control-reactivate',
+    ),
+    path(
+        'stock-map/',
+        StockMapView.as_view(),
+        name='stock-map',
     ),
 ]

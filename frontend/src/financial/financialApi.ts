@@ -74,7 +74,7 @@ export interface SettlementPayload {
 export interface ReportGeneratePayload {
   period_start: string
   period_end: string
-  type: 'receivables' | 'payables' | 'cashflow' | 'trial_balance'
+  type: 'receivables' | 'payables' | 'cashflow' | 'trial_balance' | 'dre'
   format: 'PDF' | 'CSV'
 }
 

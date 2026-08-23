@@ -1,11 +1,10 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect } from '@playwright/test'
-import { authenticatePage, test } from './fixtures'
+import { expect, test } from './fixtures'
 
 test.describe('Acessibilidade (axe-core)', () => {
   test('Página de login não possui violações críticas ou sérias', async ({ page }) => {
     await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await expect(page.locator('[name="email"]')).toBeVisible()
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -17,22 +16,22 @@ test.describe('Acessibilidade (axe-core)', () => {
     expect(seriousOrCritical).toEqual([])
   })
 
-  for (const path of [
-    '/catalog',
-    '/catalog/products',
-    '/catalog/products/new',
-    '/catalog/services',
-    '/catalog/combos',
-    '/catalog/categories',
-    '/catalog/brands',
-    '/catalog/units',
-    '/catalog/labels',
+  for (const [path, marker] of [
+    ['/catalog', 'catalog-home-page'],
+    ['/catalog/products', 'products-page'],
+    ['/catalog/products/new', 'product-editor-page'],
+    ['/catalog/services', 'services-page'],
+    ['/catalog/combos', 'combos-page'],
+    ['/catalog/categories', 'categories-page'],
+    ['/catalog/brands', 'brands-page'],
+    ['/catalog/units', 'units-page'],
+    ['/catalog/labels', 'labels-page'],
   ]) {
     test(`Catálogo ${path} não possui violações críticas ou sérias`, async ({
       authenticatedPage,
     }) => {
       await authenticatedPage.goto(path)
-      await authenticatedPage.waitForLoadState('networkidle')
+      await expect(authenticatedPage.getByTestId(marker)).toBeVisible()
       const results = await new AxeBuilder({ page: authenticatedPage })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .analyze()
@@ -44,11 +43,11 @@ test.describe('Acessibilidade (axe-core)', () => {
     })
   }
 
-  test('Shell autenticado não possui violações críticas ou sérias', async ({ page }) => {
-    await authenticatePage(page)
-    await page.waitForLoadState('networkidle')
+  test('Shell autenticado não possui violações críticas ou sérias', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/')
+    await expect(authenticatedPage.getByTestId('dashboard-page')).toBeVisible()
 
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: authenticatedPage })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze()
 

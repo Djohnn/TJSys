@@ -35,17 +35,19 @@ class SyncBatchesView(APIView):
             )
         except ValueError as exc:
             return Response({'code': 'invalid_batch_hash', 'detail': str(exc)}, status=400)
-        return Response({
-            'batch_id': str(batch.id),
-            'batch_hash': batch.batch_hash,
-            'results': [
-                {
-                    'event_id': str(event.event_id),
-                    'status': event.status,
-                    'result': event.result,
-                    'error_code': event.error_code or None,
-                    'error_detail': event.error_detail or None,
-                }
-                for event in events
-            ],
-        })
+        return Response(
+            {
+                'batch_id': str(batch.id),
+                'batch_hash': batch.batch_hash,
+                'results': [
+                    {
+                        'event_id': str(event.event_id),
+                        'status': event.status,
+                        'result': event.result,
+                        'error_code': event.error_code or None,
+                        'error_detail': event.error_detail or None,
+                    }
+                    for event in events
+                ],
+            }
+        )

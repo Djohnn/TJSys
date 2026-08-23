@@ -52,13 +52,14 @@ vi.mock('../utils/logger', () => ({
 
 import { syncEngine } from '../services/syncEngine';
 import { operationJournal } from '../services/operationJournal';
+import type { JournalEntry } from '../services/operationJournal';
 import { connectivityMonitor } from '../services/connectivityMonitor';
 import { api } from '../services/api';
 import { resolveConflict } from '../services/conflictResolver';
 import { batchSyncClient } from '../services/batchSyncClient';
 import { getBackoffDelay, shouldRetry } from '../utils/backoff';
 
-const mockEntry = (overrides = {}) => ({
+const mockEntry = (overrides: Partial<JournalEntry> = {}): JournalEntry => ({
   uuid: 'uuid-1',
   type: 'sale:create',
   payload: JSON.stringify({ amount: 100 }),

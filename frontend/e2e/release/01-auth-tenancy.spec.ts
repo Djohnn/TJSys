@@ -9,11 +9,12 @@ test.describe('Autenticação e Tenancy', () => {
     await expect(page.getByTestId('app-shell')).toBeVisible()
   })
 
-  test('Desafio MFA é apresentado quando conta requer MFA', async ({ page }) => {
+  test('Desafio MFA é apresentado quando conta requer MFA', async ({ anonymousPage: page }) => {
     await page.goto('/login')
-    await page.fill('[name="email"]', 'mfa@zyrp.local')
+    await page.fill('[name="email"]', 'mfa@tjsys.local')
     await page.fill('[name="password"]', 'e2e-test-pwd-2026')
     await page.click('button[type="submit"]')
+    await expect(page).toHaveURL(/\/mfa/)
     await expect(page.getByTestId('mfa-page')).toBeVisible()
   })
 
@@ -29,23 +30,35 @@ test.describe('Autenticação e Tenancy', () => {
     await expect(page.getByTestId('main-navigation')).toBeVisible()
 
     const moduleLinks = [
-      'Dashboard',
+      'Início',
       'Catálogo',
       'Estoque',
-      'Vendas',
+      'Compras',
       'Financeiro',
-      'Fiscal',
-      'Pagamentos',
-      'Monitoramento',
+      'Relatórios',
     ]
     for (const label of moduleLinks) {
       await expect(
         page.getByTestId('main-navigation').getByRole('link', { name: label }),
       ).toBeVisible()
     }
+    await expect(page.getByTestId('main-navigation').getByRole('button', { name: 'Vendas' })).toBeVisible()
+    await page.getByTestId('main-navigation').getByRole('button', { name: 'Administração' }).click()
+    const adminFlyout = page.getByRole('menu', { name: 'Administração' })
+    await expect(adminFlyout).toBeVisible()
+    for (const [label, href] of [
+      ['Empresas', '/organization/companies'],
+      ['Filiais', '/organization/branches'],
+      ['Membros', '/access/members'],
+      ['Convites', '/access/invitations'],
+      ['Segurança', '/security/mfa'],
+      ['Dispositivos', '/devices'],
+    ] as const) {
+      await expect(adminFlyout.getByRole('menuitem', { name: label })).toHaveAttribute('href', href)
+    }
   })
 
-  test('Recuperação de sessão expirada — rota protegida sem auth → login → retorno', async ({ page }) => {
+  test('Recuperação de sessão expirada — rota protegida sem auth → login → retorno', async ({ anonymousPage: page }) => {
     await page.goto('/financial/receivables')
     await expect(page).toHaveURL(/\/login/)
 
@@ -55,8 +68,8 @@ test.describe('Autenticação e Tenancy', () => {
     await expect(page.getByTestId('receivables-page')).toBeVisible()
   })
 
-  test('Negação de papel — operador não pode acessar páginas somente-admin', async ({ page }) => {
-    await authenticatePage(page, 'operator@zyrp.local')
+  test('Negação de papel — operador não pode acessar páginas somente-admin', async ({ anonymousPage: page }) => {
+    await authenticatePage(page, 'operator@tjsys.local')
 
     await page.goto('/fiscal/emitters')
     await expect(page.getByTestId('forbidden-page').or(page.getByRole('alert'))).toBeVisible()

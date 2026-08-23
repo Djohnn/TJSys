@@ -115,14 +115,8 @@ class StockLot(VersionedInventoryModel):
 
     def clean(self):
         super().clean()
-        if (
-            self.manufacture_date
-            and self.expiry_date
-            and self.manufacture_date >= self.expiry_date
-        ):
-            raise ValidationError(
-                {'expiry_date': 'Expiry date must be after manufacture date.'}
-            )
+        if self.manufacture_date and self.expiry_date and self.manufacture_date >= self.expiry_date:
+            raise ValidationError({'expiry_date': 'Expiry date must be after manufacture date.'})
         if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
             raise ValidationError({'product': 'Product must belong to the same tenant.'})
 
@@ -182,10 +176,14 @@ class StockOperation(VersionedInventoryModel):
         if self.branch_id and self.tenant_id and self.branch.tenant_id != self.tenant_id:
             raise ValidationError({'branch': 'Branch must belong to the same tenant.'})
         if self.idempotency_key:
-            exists = StockOperation.all_objects.filter(
-                tenant_id=self.tenant_id,
-                idempotency_key=self.idempotency_key,
-            ).exclude(pk=self.pk).exists()
+            exists = (
+                StockOperation.all_objects.filter(
+                    tenant_id=self.tenant_id,
+                    idempotency_key=self.idempotency_key,
+                )
+                .exclude(pk=self.pk)
+                .exists()
+            )
             if exists:
                 raise ValidationError({'idempotency_key': 'Idempotency key already used.'})
 
@@ -465,3 +463,446 @@ class ProductStockControlCommand(TimeStampedModel, TenantScopedModel):
                 name='uniq_product_stock_control_command_tenant_id',
             ),
         ]
+
+
+class StorageType(VersionedInventoryModel):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    temperature_min = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    temperature_max = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    requires_refrigeration = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+
+    def clean(self):
+        super().clean()
+        if self.temperature_min is not None and self.temperature_max is not None:
+            if self.temperature_min > self.temperature_max:
+                raise ValidationError(
+                    {'temperature_max': 'Max temperature must be greater than min.'}
+                )
+
+
+class MovementReason(VersionedInventoryModel):
+    DIRECTION_CHOICES = [
+        ('in', 'Entrada'),
+        ('out', 'Saida'),
+        ('transfer', 'Transferencia'),
+    ]
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    direction = models.CharField(max_length=20, choices=DIRECTION_CHOICES)
+    requires_authorization = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+
+    def clean(self):
+        super().clean()
+
+
+class ReplenishmentRule(VersionedInventoryModel):
+    TRIGGER_CHOICES = [
+        ('min', 'Estoque Minimo'),
+        ('periodic', 'Periodico'),
+        ('demand', 'Demanda'),
+    ]
+
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='replenishment_rules',
+    )
+    location = models.ForeignKey(
+        'inventory.StockLocation',
+        on_delete=models.PROTECT,
+        related_name='replenishment_rules',
+    )
+    trigger_type = models.CharField(max_length=20, choices=TRIGGER_CHOICES)
+    min_quantity = models.DecimalField(max_digits=18, decimal_places=6, default=0)
+    max_quantity = models.DecimalField(max_digits=18, decimal_places=6, default=0)
+    reorder_quantity = models.DecimalField(max_digits=18, decimal_places=6, default=0)
+    is_active = models.BooleanField(default=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['product__name', 'location__name']
+
+    def clean(self):
+        super().clean()
+        if self.min_quantity < 0:
+            raise ValidationError({'min_quantity': 'Minimum quantity cannot be negative.'})
+        if self.max_quantity < self.min_quantity:
+            raise ValidationError(
+                {'max_quantity': 'Maximum quantity must be greater than minimum.'}
+            )
+        if self.reorder_quantity <= 0:
+            raise ValidationError({'reorder_quantity': 'Reorder quantity must be positive.'})
+        if self.product_id and self.product.tenant_id != self.tenant_id:
+            raise ValidationError({'product': 'Product must belong to the same tenant.'})
+        if self.location_id and self.location.tenant_id != self.tenant_id:
+            raise ValidationError({'location': 'Location must belong to the same tenant.'})
+
+
+class ReplenishmentOrder(VersionedInventoryModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('pending', 'Pendente'),
+        ('approved', 'Aprovado'),
+        ('completed', 'Concluido'),
+        ('cancelled', 'Cancelado'),
+    ]
+
+    rule = models.ForeignKey(ReplenishmentRule, on_delete=models.PROTECT, related_name='orders')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    notes = models.TextField(blank=True, default='')
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='replenishment_approvals',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def clean(self):
+        super().clean()
+        if self.quantity <= 0:
+            raise ValidationError({'quantity': 'Quantity must be positive.'})
+        if self.rule_id and self.rule.tenant_id != self.tenant_id:
+            raise ValidationError({'rule': 'Rule must belong to the same tenant.'})
+
+
+class InventoryCount(VersionedInventoryModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('in_progress', 'Em andamento'),
+        ('completed', 'Concluido'),
+        ('cancelled', 'Cancelado'),
+    ]
+
+    location = models.ForeignKey(
+        'inventory.StockLocation',
+        on_delete=models.PROTECT,
+        related_name='inventory_counts',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    notes = models.TextField(blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    counted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventory_counts',
+    )
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def clean(self):
+        super().clean()
+        if self.location_id and self.location.tenant_id != self.tenant_id:
+            raise ValidationError({'location': 'Location must belong to the same tenant.'})
+
+
+class InventoryCountItem(VersionedInventoryModel):
+    count = models.ForeignKey(InventoryCount, on_delete=models.PROTECT, related_name='items')
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='inventory_count_items',
+    )
+    system_quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    counted_quantity = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    difference = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['product__name']
+
+    def clean(self):
+        super().clean()
+        if self.system_quantity < 0:
+            raise ValidationError({'system_quantity': 'System quantity cannot be negative.'})
+        if self.counted_quantity is not None and self.counted_quantity < 0:
+            raise ValidationError({'counted_quantity': 'Counted quantity cannot be negative.'})
+        if self.count_id and self.count.tenant_id != self.tenant_id:
+            raise ValidationError({'count': 'Count must belong to the same tenant.'})
+        if self.product_id and self.product.tenant_id != self.tenant_id:
+            raise ValidationError({'product': 'Product must belong to the same tenant.'})
+
+
+class ProductionOrder(VersionedInventoryModel):
+    STATUS_CHOICES = [
+        ('draft', 'Rascunho'),
+        ('confirmed', 'Confirmada'),
+        ('in_progress', 'Em andamento'),
+        ('completed', 'Concluída'),
+        ('cancelled', 'Cancelada'),
+    ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Baixa'),
+        ('medium', 'Média'),
+        ('high', 'Alta'),
+        ('urgent', 'Urgente'),
+    ]
+
+    code = models.CharField(max_length=40)
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
+    planned_start_date = models.DateField(null=True, blank=True)
+    planned_end_date = models.DateField(null=True, blank=True)
+    actual_start_date = models.DateField(null=True, blank=True)
+    actual_end_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders_created',
+    )
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders_confirmed',
+    )
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                name='uniq_production_order_tenant_code',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.code} — {self.product.sku}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.unit_id and self.tenant_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.planned_start_date and self.planned_end_date:
+            if self.planned_start_date > self.planned_end_date:
+                errors['planned_end_date'] = 'End date must be after start date.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = ProductionOrder.all_objects.get(pk=self.pk)
+            if current.status in ('completed', 'cancelled'):
+                raise ValidationError('Completed or cancelled orders are immutable.')
+        super().save(*args, **kwargs)
+
+
+# =============================================================================
+# Sprint F7 — ProductionOrderItem (itens da ordem de produção)
+# =============================================================================
+
+
+class ProductionOrderItem(VersionedInventoryModel):
+    order = models.ForeignKey(
+        ProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+        related_name='production_order_items',
+    )
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['order', 'product']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='productionorderitem_quantity_positive',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.order.code} — {self.product.sku} x {self.quantity}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.product_id and self.tenant_id and self.product.tenant_id != self.tenant_id:
+            errors['product'] = 'Product must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.unit_id and self.tenant_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.order_id and self.tenant_id and self.order.tenant_id != self.tenant_id:
+            errors['order'] = 'Order must belong to the same tenant.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = ProductionOrderItem.all_objects.get(pk=self.pk)
+            if current.order_id:
+                order = ProductionOrder.all_objects.get(pk=current.order_id)
+                if order.status in ('completed', 'cancelled'):
+                    raise ValidationError('Items of completed or cancelled orders are immutable.')
+        super().save(*args, **kwargs)
+
+
+# =============================================================================
+# Sprint F7 — ProductionOrderConsumption (consumo de composição)
+# =============================================================================
+
+
+class ProductionOrderConsumption(VersionedInventoryModel):
+    order_item = models.ForeignKey(
+        ProductionOrderItem,
+        on_delete=models.CASCADE,
+        related_name='consumptions',
+    )
+    component = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.PROTECT,
+        related_name='production_order_consumptions',
+    )
+    quantity = models.DecimalField(max_digits=18, decimal_places=6)
+    unit = models.ForeignKey(
+        'catalog.Unit',
+        on_delete=models.PROTECT,
+        related_name='production_order_consumptions',
+    )
+    location = models.ForeignKey(
+        StockLocation,
+        on_delete=models.PROTECT,
+        related_name='production_order_consumptions',
+    )
+    lot = models.ForeignKey(
+        StockLot,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='production_order_consumptions',
+    )
+    notes = models.TextField(blank=True, default='')
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['order_item', 'component']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='productionorderconsumption_quantity_positive',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.order_item.order.code} — {self.component.sku} x {self.quantity}'
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.quantity <= 0:
+            errors['quantity'] = 'Quantity must be positive.'
+        if self.component_id and self.tenant_id and self.component.tenant_id != self.tenant_id:
+            errors['component'] = 'Component must belong to the same tenant.'
+        if self.location_id and self.tenant_id and self.location.tenant_id != self.tenant_id:
+            errors['location'] = 'Location must belong to the same tenant.'
+        if self.unit_id and self.tenant_id and self.unit.tenant_id != self.tenant_id:
+            errors['unit'] = 'Unit must belong to the same tenant.'
+        if self.order_item_id and self.tenant_id and self.order_item.tenant_id != self.tenant_id:
+            errors['order_item'] = 'Order item must belong to the same tenant.'
+        if self.lot_id and self.tenant_id and self.lot.tenant_id != self.tenant_id:
+            errors['lot'] = 'Lot must belong to the same tenant.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            current = ProductionOrderConsumption.all_objects.get(pk=self.pk)
+            if current.order_item_id:
+                order_item = ProductionOrderItem.all_objects.get(pk=current.order_item_id)
+                if order_item.order_id:
+                    order = ProductionOrder.all_objects.get(pk=order_item.order_id)
+                    if order.status in ('completed', 'cancelled'):
+                        raise ValidationError(
+                            'Consumptions of completed or cancelled orders are immutable.'
+                        )
+        super().save(*args, **kwargs)

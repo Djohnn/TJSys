@@ -1,17 +1,20 @@
 import { api } from './api';
 import { getItem, setItem, removeItem } from '../utils/storage';
+import type { DeviceTokenResponse } from '../../shared/electron';
 
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const DEVICE_ID_KEY = 'device_id';
 const BRANCH_ID_KEY = 'branch_id';
+const TENANT_ID_KEY = 'tenant_id';
 const API_KEY_KEY = 'api_key';
 
-export interface DeviceTokenResponse {
-  token: string;
-  refresh_token: string;
-  device_id: string;
-  branch_id: string | null;
+function persistDeviceContext(data: DeviceTokenResponse): void {
+  setItem(ACCESS_TOKEN_KEY, data.token);
+  setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+  setItem(DEVICE_ID_KEY, data.device_id);
+  setItem(BRANCH_ID_KEY, data.branch_id ?? '');
+  setItem(TENANT_ID_KEY, data.tenant_id);
 }
 
 export const auth = {
@@ -21,27 +24,23 @@ export const auth = {
     });
 
     const data = response.data;
-    setItem(ACCESS_TOKEN_KEY, data.token);
-    setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-    setItem(DEVICE_ID_KEY, data.device_id);
-    setItem(BRANCH_ID_KEY, data.branch_id ?? '');
+    persistDeviceContext(data);
     setItem(API_KEY_KEY, apiKey);
 
     return data;
   },
 
-  async refreshToken(): Promise<{ token: string; refresh_token: string }> {
+  async refreshToken(): Promise<DeviceTokenResponse> {
     const refreshToken = getItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    const response = await api.post<{ token: string; refresh_token: string }>('/devices/refresh/', {
+    const response = await api.post<DeviceTokenResponse>('/devices/refresh/', {
       refresh_token: refreshToken,
     });
 
-    setItem(ACCESS_TOKEN_KEY, response.data.token);
-    setItem(REFRESH_TOKEN_KEY, response.data.refresh_token);
+    persistDeviceContext(response.data);
 
     return response.data;
   },
@@ -71,6 +70,7 @@ export const auth = {
     removeItem(REFRESH_TOKEN_KEY);
     removeItem(DEVICE_ID_KEY);
     removeItem(BRANCH_ID_KEY);
+    removeItem(TENANT_ID_KEY);
     removeItem(API_KEY_KEY);
   },
 

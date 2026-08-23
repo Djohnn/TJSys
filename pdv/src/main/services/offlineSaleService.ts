@@ -81,7 +81,7 @@ export class OfflineSaleService {
     const entry = this.operationJournal.addOperation({
       uuid,
       type: 'sale:create',
-      payload,
+      payload: { ...payload },
       idempotencyKey: uuid,
     });
 

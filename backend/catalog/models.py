@@ -89,6 +89,44 @@ class Category(TimeStampedModel, TenantScopedModel):
                 current = current.parent
 
 
+class SubCategory(TimeStampedModel, TenantScopedModel):
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name='subcategories',
+    )
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=40, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['category', 'name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'category', 'name'],
+                name='uniq_subcategory_tenant_category_name',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'code'],
+                condition=models.Q(~models.Q(code='')),
+                name='uniq_subcategory_tenant_code',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.category.name} > {self.name} [{self.tenant.name}]'
+
+    def clean(self):
+        super().clean()
+        if self.category_id and self.tenant_id:
+            if self.category.tenant_id != self.tenant_id:
+                raise ValidationError({'category': 'Category must belong to the same tenant.'})
+
+
 PRODUCT_KIND_CHOICES = [
     ('insumo', 'Insumo'),
     ('revenda', 'Revenda'),
@@ -126,10 +164,17 @@ class Product(TimeStampedModel, TenantScopedModel):
     tracks_inventory = models.BooleanField(default=True)
     # Sprint 22 — D5: campos descritivos simples.
     brand = models.CharField(max_length=120, blank=True, default='')
+    brand_ref = models.ForeignKey(
+        'Brand',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='products',
+    )
+    subcategory = models.CharField(max_length=120, blank=True, default='')
     model = models.CharField(max_length=120, blank=True, default='')
     tags = models.JSONField(default=list, blank=True)
     scale_code = models.CharField(max_length=20, blank=True, default='')
-    subcategory = models.CharField(max_length=120, blank=True, default='')
     # Sprint 26 — service metadata
     billing_unit = models.CharField(max_length=30, blank=True, default='')
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
@@ -161,6 +206,9 @@ class Product(TimeStampedModel, TenantScopedModel):
         if self.category_id and self.tenant_id:
             if self.category.tenant_id != self.tenant_id:
                 raise ValidationError({'category': 'Category must belong to the same tenant.'})
+        if self.brand_ref_id and self.tenant_id:
+            if self.brand_ref.tenant_id != self.tenant_id:
+                raise ValidationError({'brand_ref': 'Brand must belong to the same tenant.'})
         # Sprint 26: service invariants
         if self.product_kind == 'servico':
             self.tracks_inventory = False
@@ -558,6 +606,65 @@ class Brand(TimeStampedModel, TenantScopedModel):
     def save(self, *args, **kwargs):
         self.name = ' '.join(self.name.split())
         super().save(*args, **kwargs)
+
+
+class Tag(TimeStampedModel, TenantScopedModel):
+    name = models.CharField(max_length=80)
+    color = models.CharField(max_length=7, blank=True, default='#6B7280')
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant', 'name'],
+                condition=models.Q(is_active=True),
+                name='uniq_tag_tenant_name_active',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.name} [{self.tenant.name}]'
+
+    def clean(self):
+        super().clean()
+        self.name = ' '.join(self.name.split()).lower()
+        duplicate = Tag.all_objects.filter(
+            tenant_id=self.tenant_id,
+            name__iexact=self.name,
+            is_active=True,
+        ).exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError({'name': 'An active tag with this name already exists.'})
+
+    def save(self, *args, **kwargs):
+        self.name = ' '.join(self.name.split()).lower()
+        super().save(*args, **kwargs)
+
+
+class TenantProductCodeSequence(TimeStampedModel, TenantScopedModel):
+    """Tenant-local state used to allocate internal EAN-13 bodies."""
+
+    next_value = models.PositiveBigIntegerField(default=0)
+
+    objects = TenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tenant'],
+                name='uniq_tenant_product_code_sequence',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(next_value__gte=0, next_value__lt=10000000000),
+                name='product_code_sequence_range',
+            ),
+        ]
 
 
 class ProductImage(TimeStampedModel, TenantScopedModel):

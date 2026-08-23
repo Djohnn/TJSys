@@ -203,6 +203,8 @@ class MetricsResetView(View):
     """Reset metrics (for testing)."""
 
     def post(self, request):
+        if not settings.DEBUG or not request.user.is_authenticated or not request.user.is_staff:
+            return JsonResponse({'error': 'Metrics reset is forbidden'}, status=403)
         reset_metrics()
         return JsonResponse({'status': 'reset'})
 

@@ -3,7 +3,8 @@ import { expect } from '@playwright/test'
 import { authenticatePage, test } from '../fixtures'
 
 test.describe('Segurança e Resiliência', () => {
-  test('Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant', async ({ page }) => {
+  test('Isolamento cross-tenant — admin em um tenant não vê dados de outro tenant', async ({ anonymousPage: page }) => {
+    // Given an anonymous browser context, the explicit login owns this test's auth state.
     await authenticatePage(page)
 
     await page.goto('/financial/receivables')

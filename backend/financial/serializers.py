@@ -40,6 +40,9 @@ class PayableSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'branch',
+            'supplier',
+            'purchase_order',
+            'purchase_receipt',
             'supplier_name',
             'description',
             'amount',

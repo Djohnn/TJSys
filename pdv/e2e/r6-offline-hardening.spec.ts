@@ -16,7 +16,7 @@ const API_KEY = 'e2e-test-key-2026';
  *   6. Sincroniza: a tela de pendências lista o status por evento e dispara `startSync`.
  */
 
-function installElectronAPIMock(page: Page, opts: {
+async function installElectronAPIMock(page: Page, opts: {
   online?: boolean;
   syncStatus?: string;
   pendingCount?: number;
@@ -31,7 +31,34 @@ function installElectronAPIMock(page: Page, opts: {
     failSync = false,
   } = opts;
 
-  return page.addInitScript(
+  await page.route('**/api/v1/devices/validate/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      token: 'mock-access-token',
+      refresh_token: 'mock-refresh-token',
+      device_id: 'mock-device-id',
+      tenant_id: 'mock-tenant-id',
+      branch_id: 'mock-branch-id',
+    }),
+  }));
+  await page.route('**/api/v1/stock-locations/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: 'mock-stock-location-id', is_primary: true }]),
+  }));
+  await page.route('**/api/v1/cash-sessions/current/**', (route) => route.fulfill({
+    status: 404,
+    contentType: 'application/json',
+    body: JSON.stringify({ detail: 'Nenhum caixa aberto' }),
+  }));
+  await page.route('**/api/v1/sales/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ count: 0, results: [] }),
+  }));
+
+  await page.addInitScript(
     ({ apiKey, online: _online, syncStatus: _status, pendingCount: _pending, entries: _entries, failSync: _failSync }) => {
       const state = {
         online: _online,
@@ -71,7 +98,7 @@ function installElectronAPIMock(page: Page, opts: {
           }
           state.syncStatus = 'idle';
           state.pendingCount = 0;
-          state.entries = state.entries.map((e) => ({ ...e, status: 'synced', last_error: null }));
+          state.entries = state.entries.map((e: Record<string, unknown>) => ({ ...e, status: 'synced', last_error: null }));
           return Promise.resolve({
             success: true,
             data: { status: 'idle', pendingCount: 0, lastSyncAt: new Date().toISOString(), error: null },
@@ -171,7 +198,6 @@ function offlineEntries() {
 
 test.describe('R6 Offline Hardening', () => {
   test.setTimeout(120000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('inicia online, faz venda, muda para offline, força erro e sincroniza', async ({ page }) => {
     // --- Passo 1: inicia ONLINE, sem pendências ---

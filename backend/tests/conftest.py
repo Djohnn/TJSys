@@ -1,13 +1,15 @@
+import hashlib
 from pathlib import Path
 
 import pytest
-
-pytest_plugins = ('tests.test_pdv_device_flow',)
 from django.contrib.auth import get_user_model
 from django.db import connection
+from django.utils import timezone
 
 from tenancy.context import reset_current_tenant_id, set_current_tenant_id
-from tenancy.models import Branch, Company, Tenant, TenantMembership
+from tenancy.models import Branch, Company, Device, Tenant, TenantMembership
+
+pytest_plugins = ('tests.test_pdv_device_flow',)
 
 User = get_user_model()
 
@@ -34,12 +36,14 @@ def django_db_setup(django_db_blocker):
     runtime_user = database['USER']
     env_path = Path(__file__).resolve().parents[2] / '.env'
     env_config = Config(RepositoryEnv(str(env_path))) if env_path.exists() else config
-    owner_user = env_config('POSTGRES_USER', default='zyrp')
-    owner_password = env_config('POSTGRES_PASSWORD', default='zyrp')
+    # For test database, we need a superuser to drop/recreate the schema
+    # Use superuser (tjsys) for schema operations
+    owner_user = env_config('POSTGRES_USER', default='tjsys')
+    owner_password = env_config('POSTGRES_PASSWORD', default='tjsys')
     conn = psycopg.connect(
         dbname=database['NAME'],
         user=owner_user,
-        password=owner_password,
+        password=owner_password if owner_password else None,
         host=database['HOST'],
         port=database['PORT'],
         connect_timeout=5,
@@ -48,25 +52,54 @@ def django_db_setup(django_db_blocker):
         raise RuntimeError(f'Refusing to reset non-test database schema: {database["NAME"]}')
 
     with conn.cursor() as cursor:
+        cursor.execute(
+            sql.SQL('ALTER ROLE {} NOSUPERUSER NOBYPASSRLS NOCREATEDB').format(
+                sql.Identifier(runtime_user)
+            )
+        )
         cursor.execute('DROP SCHEMA IF EXISTS public CASCADE')
         cursor.execute('CREATE SCHEMA public')
         cursor.execute(
+            sql.SQL('ALTER SCHEMA public OWNER TO {}').format(
+                sql.Identifier(owner_user),
+            )
+        )
+        cursor.execute(
             sql.SQL('GRANT USAGE, CREATE ON SCHEMA public TO {}').format(
-                sql.Identifier(runtime_user),
+                sql.Identifier(owner_user),
             )
         )
         cursor.execute(
             sql.SQL('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {}').format(
-                sql.Identifier(runtime_user)
+                sql.Identifier(owner_user)
             )
         )
         cursor.execute(
             sql.SQL('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {}').format(
-                sql.Identifier(runtime_user)
+                sql.Identifier(owner_user)
             )
         )
+        if owner_user != runtime_user:
+            cursor.execute(
+                sql.SQL('GRANT USAGE, CREATE ON SCHEMA public TO {}').format(
+                    sql.Identifier(runtime_user),
+                )
+            )
+            cursor.execute(
+                sql.SQL('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {}').format(
+                    sql.Identifier(runtime_user)
+                )
+            )
+            cursor.execute(
+                sql.SQL('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {}').format(
+                    sql.Identifier(runtime_user)
+                )
+            )
     conn.commit()
     conn.close()
+    from django.db import connections
+
+    connections.close_all()
     with django_db_blocker.unblock():
         call_command('migrate', verbosity=0, interactive=False)
 
@@ -284,6 +317,15 @@ def sale_context(django_user_model):
             company=company,
             name='Filial Venda',
         )
+        Device.all_objects.create(
+            tenant=tenant,
+            branch=branch,
+            name='PDV Venda',
+            device_id='sale-context-device',
+            key_hash='sale-context-key-hash',
+            status='active',
+            registered_by=user,
+        )
         location = StockLocation.all_objects.create(
             tenant=tenant,
             branch=branch,
@@ -329,7 +371,6 @@ def sale_context(django_user_model):
         return {
             'tenant': tenant,
             'user': user,
-            'device': device,
             'unit': unit,
             'product': product,
             'branch': branch,
@@ -440,6 +481,102 @@ def fiscal_sale_context(django_user_model):
             'product': product,
             'branch': branch,
             'sale': sale,
+        }
+
+    return _run_in_tenant(tenant, _create)
+
+
+# ==================== PDV DEVICE FIXTURES ====================
+
+
+@pytest.fixture
+def pdv_device_context():
+    from decimal import Decimal
+
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    from catalog.models import Product, ProductPrice, Unit
+    from inventory.models import StockLocation
+    from inventory.services import create_receipt
+    from sales.services import open_cash_session
+
+    tenant = Tenant.objects.create(name='PDV Device', slug='pdv-device')
+    user = User.objects.create_user(email='pdv-device@test.local', password='pass123')
+    TenantMembership.objects.create(
+        user=user,
+        tenant=tenant,
+        role='admin',
+        is_active=True,
+    )
+
+    def _create():
+        unit = Unit.all_objects.create(tenant=tenant, symbol='UN', name='Unidade')
+        product = Product.all_objects.create(
+            tenant=tenant,
+            sku='PDV-001',
+            name='Produto PDV',
+            base_unit=unit,
+        )
+        ProductPrice.all_objects.create(
+            tenant=tenant,
+            product=product,
+            amount=Decimal('12.50'),
+            valid_from=timezone.now(),
+        )
+        company = Company.all_objects.create(tenant=tenant, name='Empresa PDV')
+        branch = Branch.all_objects.create(
+            tenant=tenant,
+            company=company,
+            name='Filial PDV',
+        )
+        location = StockLocation.all_objects.create(
+            tenant=tenant,
+            branch=branch,
+            code='BALCAO',
+            name='Balcao',
+            is_primary=True,
+        )
+        device = Device.all_objects.create(
+            tenant=tenant,
+            branch=branch,
+            name='PDV Balcao',
+            device_id='pdv-device-flow',
+            key_hash=hashlib.sha256(b'pdv-device-key').hexdigest(),
+            status='active',
+            registered_by=user,
+        )
+        create_receipt(
+            tenant,
+            branch,
+            product,
+            location,
+            Decimal('5'),
+            unit,
+            Decimal('1'),
+            idempotency_key='pdv-device-stock',
+            actor=user,
+            reason='seed pdv device stock',
+        )
+        open_cash_session(
+            tenant=tenant,
+            branch=branch,
+            operator=user,
+            opening_amount=Decimal('0'),
+            idempotency_key='pdv-device-cash-open',
+        )
+        refresh = RefreshToken()
+        refresh['device_id'] = str(device.id)
+        refresh['tenant_id'] = str(tenant.id)
+        refresh['branch_id'] = str(branch.id)
+        return {
+            'tenant': tenant,
+            'user': user,
+            'device': device,
+            'unit': unit,
+            'product': product,
+            'branch': branch,
+            'location': location,
+            'token': str(refresh.access_token),
         }
 
     return _run_in_tenant(tenant, _create)

@@ -4,6 +4,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Sale } from './pages/Sale';
 import { CashSession } from './pages/CashSession';
+import { SyncPending } from './pages/SyncPending';
 import { SyncIndicator } from './components/SyncIndicator';
 import { SyncStatusBar } from './components/SyncStatusBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -50,6 +51,7 @@ export function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/sale" element={<Sale />} />
                   <Route path="/cash-session" element={<CashSession />} />
+                  <Route path="/sync-pending" element={<SyncPending />} />
                 </Routes>
               </AppLayout>
             </ErrorBoundary>

@@ -15,6 +15,10 @@ function getBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 }
 
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
+}
+
 export function getCsrfToken(): string | null {
   const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
   return match ? match[1] : null
@@ -53,6 +57,8 @@ function normalizeProblem(
   }
 }
 
+export function apiRequest(path: string, options?: RequestOptions): Promise<void>
+export function apiRequest<T>(path: string, options?: RequestOptions): Promise<T>
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
@@ -95,7 +101,7 @@ export async function apiRequest<T>(
   try {
     response = await doFetch()
   } catch (firstErr) {
-    if (method === 'GET') {
+    if (method === 'GET' && !options.signal?.aborted && !isAbortError(firstErr)) {
       response = await doFetch()
     } else {
       throw firstErr

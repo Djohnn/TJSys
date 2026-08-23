@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -30,7 +30,7 @@ function simpleHeaders(): Record<string, string> {
   return { 'Content-Type': 'application/json' };
 }
 
-function setAuthData(data: { token: string; refresh_token: string; device_id: string; branch_id?: string; tenant_id?: string }) {
+function setAuthData(data: { token: string; refresh_token: string; device_id: string; branch_id?: string | null; tenant_id?: string }) {
   localStorage.setItem('access_token', data.token);
   localStorage.setItem('refresh_token', data.refresh_token);
   localStorage.setItem('device_id', data.device_id);
@@ -101,15 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthData(data);
         localStorage.setItem('api_key', apiKey);
 
-        if ((window as any).electronAPI?.syncAuthTokens) {
-          (window as any).electronAPI.syncAuthTokens({
+        if (window.electronAPI?.syncAuthTokens) {
+          window.electronAPI.syncAuthTokens({
             token: data.token,
             refresh_token: data.refresh_token,
             device_id: data.device_id,
             branch_id: data.branch_id,
             tenant_id: data.tenant_id,
             api_key: apiKey,
-          }).catch((err: any) => console.error('Failed to sync auth tokens:', err));
+          }).catch((err: unknown) => console.error('Failed to sync auth tokens:', err));
         }
 
         await syncPrimaryStockLocation();
@@ -145,15 +145,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('api_key', apiKey);
 
       // Sync auth tokens to main process for IPC calls
-      if ((window as any).electronAPI?.syncAuthTokens) {
-        (window as any).electronAPI.syncAuthTokens({
+      if (window.electronAPI?.syncAuthTokens) {
+        window.electronAPI.syncAuthTokens({
           token: data.token,
           refresh_token: data.refresh_token,
           device_id: data.device_id,
           branch_id: data.branch_id,
           tenant_id: data.tenant_id,
           api_key: apiKey,
-        }).catch((err: any) => console.error('Failed to sync auth tokens:', err));
+        }).catch((err: unknown) => console.error('Failed to sync auth tokens:', err));
       }
 
       await syncPrimaryStockLocation();
@@ -170,8 +170,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     clearAuthData();
-    if ((window as any).electronAPI?.logout) {
-      (window as any).electronAPI.logout().catch(() => {});
+    if (window.electronAPI?.logout) {
+      window.electronAPI.logout().catch(() => {});
     }
     setIsAuthenticated(false);
     setDeviceId(null);

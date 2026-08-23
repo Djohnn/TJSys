@@ -2,8 +2,10 @@ import hashlib
 import json
 import uuid
 
-from django.db import models, transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -29,6 +31,8 @@ from catalog.models import (
     ProductPrice,
     ProductPriceTier,
     ProductUnit,
+    SubCategory,
+    Tag,
     Unit,
 )
 from catalog.permissions import CatalogCapabilityPermission, PricingCapabilityPermission
@@ -50,11 +54,21 @@ from catalog.serializers import (
     ProductPriceTierSerializer,
     ProductSerializer,
     ProductUnitSerializer,
+    SubCategorySerializer,
+    TagSerializer,
     UnitSerializer,
 )
 from catalog.services.events import emit_catalog_event
 from catalog.services.label_pdf import generate_label_pdf
-from catalog.services.pricing import PriceNotAvailable, resolve_effective_price
+from catalog.services.pricing import (
+    PriceNotAvailable,
+    R4CommandConflict,
+    SprintR4Command,
+    execute_r4_command,
+    pricing_snapshot,
+    resolve_effective_price,
+)
+from catalog.services.product_identity import create_product_ean
 from inventory.services.product_stock import apply_initial_product_stock
 from outbox.models import OutboxMessage
 from tenancy.permissions import HasActiveTenant, HasVerifiedMFA
@@ -136,7 +150,7 @@ class CatalogCursorPagination(CursorPagination):
 
 
 class CatalogViewSetBase(viewsets.ModelViewSet):
-    pagination_class = CatalogCursorPagination
+    pagination_class: type[CatalogCursorPagination] | None = CatalogCursorPagination
     permission_classes = [
         IsAuthenticated,
         HasActiveTenant,
@@ -220,6 +234,18 @@ class UnitViewSet(CatalogViewSetBase):
 class CategoryViewSet(CatalogViewSetBase):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+
+class SubCategoryViewSet(CatalogViewSetBase):
+    queryset = SubCategory.objects.select_related('category')
+    serializer_class = SubCategorySerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(category_id=category)
+        return qs
 
 
 class ProductViewSet(CatalogViewSetBase):
@@ -328,6 +354,47 @@ class ProductPriceViewSet(CatalogViewSetBase):
             request=self.request,
         )
         return instance
+
+
+class R4ProductPriceViewSet(ProductPriceViewSet):
+    """Explicit R4 price contract; legacy ProductPriceViewSet stays unchanged."""
+
+    def list(self, request, *args, **kwargs):
+        product = Product.objects.filter(
+            id=self.kwargs.get('product_pk'),
+            tenant=request.tenant,
+        ).first()
+        if product is None:
+            return Response({'results': []})
+        snapshot = pricing_snapshot(product=product)
+        if snapshot is None:
+            return Response({'results': []})
+        return Response(snapshot)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            product_pk = self.kwargs.get('product_pk')
+            if str(request.data.get('product_id')) != str(product_pk):
+                raise ValueError('product_id must match the product in the URL')
+            command = SprintR4Command(
+                tenant_id=request.tenant.id,
+                command_id=uuid.UUID(str(request.data['command_id'])),
+                payload=dict(request.data),
+            )
+            result = execute_r4_command(command)
+        except R4CommandConflict as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Conflict', 'status': 409, 'detail': str(exc)},
+                status=status.HTTP_409_CONFLICT,
+                content_type='application/problem+json',
+            )
+        except (DjangoValidationError, KeyError, TypeError, ValueError) as exc:
+            return Response(
+                {'type': 'about:blank', 'title': 'Bad Request', 'status': 400, 'detail': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+                content_type='application/problem+json',
+            )
+        return Response(result, status=status.HTTP_201_CREATED)
 
 
 class BranchPriceViewSet(CatalogViewSetBase):
@@ -516,6 +583,15 @@ class BrandViewSet(CatalogViewSetBase):
         return Brand.objects.filter(tenant=self.request.tenant).order_by('name')
 
 
+class TagViewSet(CatalogViewSetBase):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    filterset_fields = ['is_active']
+
+    def get_queryset(self):
+        return Tag.objects.filter(tenant=self.request.tenant).order_by('name')
+
+
 class ProductImageViewSet(viewsets.ModelViewSet):
     serializer_class = ProductImageSerializer
     permission_classes = [
@@ -545,6 +621,8 @@ class ProductImageViewSet(viewsets.ModelViewSet):
         return instance
 
     def perform_destroy(self, instance):
+        if instance.file:
+            instance.file.delete(save=False)
         emit_catalog_event(
             action='catalog.productimage.deleted',
             event_type='catalog.productimage.deleted',
@@ -628,6 +706,16 @@ class ProductChannelProfileViewSet(CatalogViewSetBase):
             request=self.request,
         )
         return instance
+
+    def perform_destroy(self, instance):
+        emit_catalog_event(
+            action='catalog.channelprofile.deactivated',
+            event_type='catalog.channelprofile.deactivated',
+            instance=instance,
+            request=self.request,
+        )
+        instance.status = 'archived'
+        instance.save(update_fields=['status', 'updated_at'])
 
 
 class ChannelProfilePublishView(APIView):
@@ -824,9 +912,8 @@ class LabelGenerateView(APIView):
             show_name=template.show_name,
         )
 
-        return Response(
+        return HttpResponse(
             pdf_bytes,
-            status=status.HTTP_200_OK,
             content_type='application/pdf',
             headers={
                 'Content-Disposition': 'attachment; filename="labels.pdf"',
@@ -881,10 +968,14 @@ class ProductApplyView(APIView):
             json.dumps(request.data, sort_keys=True, separators=(',', ':'), default=str).encode()
         ).hexdigest()
         command_id = data['command_id']
-        receipt = ProductApplyCommand.all_objects.select_for_update().filter(
-            tenant=tenant,
-            command_id=command_id,
-        ).first()
+        receipt = (
+            ProductApplyCommand.all_objects.select_for_update()
+            .filter(
+                tenant=tenant,
+                command_id=command_id,
+            )
+            .first()
+        )
         if receipt:
             if receipt.payload_hash != payload_hash:
                 return Response(
@@ -919,6 +1010,14 @@ class ProductApplyView(APIView):
         category = None
         if product_data.get('category'):
             category = Category.all_objects.get(tenant=tenant, id=product_data['category'])
+        brand_name = product_data.get('brand', '').strip()
+        brand_ref = None
+        if brand_name:
+            brand_ref, _ = Brand.all_objects.get_or_create(
+                tenant=tenant,
+                name=brand_name,
+                defaults={'is_active': True},
+            )
 
         product = Product.all_objects.create(
             tenant=tenant,
@@ -928,13 +1027,21 @@ class ProductApplyView(APIView):
             category=category,
             base_unit=base_unit,
             product_kind=product_data.get('product_kind', ''),
-            brand=product_data.get('brand', ''),
+            brand=brand_name,
+            brand_ref=brand_ref,
+            subcategory=product_data.get('subcategory', ''),
             model=product_data.get('model', ''),
             tags=product_data.get('tags', []),
             tracks_inventory=product_data.get('tracks_inventory', False),
         )
         product.full_clean()
         product.save()
+
+        create_product_ean(
+            tenant=tenant,
+            product=product,
+            requested_value=product_data.get('barcode', ''),
+        )
 
         emit_catalog_event(
             action='catalog.product.created',

@@ -8,6 +8,19 @@ vi.mock('../services/operationJournal', () => ({
   },
 }));
 
+vi.mock('../services/auth', () => ({
+  auth: {
+    getDeviceId: vi.fn(() => null),
+    getBranchId: vi.fn(() => null),
+  },
+}));
+
+vi.mock('../services/contingencyPolicy', () => ({
+  contingencyPolicy: {
+    evaluateOfflineSale: vi.fn(() => ({ allowed: false, reason: 'mock policy' })),
+  },
+}));
+
 import { OfflineSaleService } from '../services/offlineSaleService';
 
 describe('OfflineSaleService', () => {
@@ -61,7 +74,7 @@ describe('OfflineSaleService', () => {
       },
       getTenantId: () => 'tenant-1',
       operationJournal: {
-        getAll: () => [{ id: 1 }, { id: 2 }],
+        getAll: () => [{ id: 1, status: 'pending' }, { id: 2, status: 'pending' }],
         addOperation,
       },
       randomUUID: () => 'offline-sale-1',

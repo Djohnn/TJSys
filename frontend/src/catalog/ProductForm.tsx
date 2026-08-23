@@ -40,13 +40,11 @@ const PRODUCT_KIND_OPTIONS = [
 
 const FISCAL_TYPE_OPTIONS = [
   { value: '', label: 'Selecione...' },
-  { value: '00', label: '00 - Tributado integralmente' },
-  { value: '10', label: '10 - Tributado com ICMS ST' },
-  { value: '20', label: '20 - Com redução de base de cálculo' },
-  { value: '30', label: '30 - Isento / Não tributado' },
-  { value: '40', label: '40 - Imune' },
-  { value: '60', label: '60 - ICMS cobrado anteriormente por ST' },
-  { value: '70', label: '70 - Com redução de BC e cobrança ST' },
+  { value: 'revenda', label: 'Revenda' },
+  { value: 'industrializacao', label: 'Industrialização' },
+  { value: 'servico', label: 'Serviço' },
+  { value: 'uso_consumo', label: 'Uso e consumo' },
+  { value: 'outro', label: 'Outro' },
 ]
 
 const ORIGIN_CODE_OPTIONS = [
@@ -142,11 +140,14 @@ export default function ProductForm({
     enabled: showSubresources && !!tenantId,
   })
 
-  const { data: priceTiers, isLoading: tiersLoading } = useQuery({
+  const { data: priceTiersData, isLoading: tiersLoading } = useQuery({
     queryKey: ['product-price-tiers', tenantId, productId],
     queryFn: () => fetchProductPriceTiers(tenantId, productId!),
     enabled: showSubresources && !!tenantId,
   })
+  const priceTiers = Array.isArray(priceTiersData)
+    ? priceTiersData
+    : priceTiersData?.results ?? []
 
   const {
     register: registerFiscal,

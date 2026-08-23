@@ -1,7 +1,8 @@
 import hashlib
 import json
+from decimal import Decimal, InvalidOperation
 
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 
 from audit.services import create_audit_record
 from outbox.services import create_outbox_message
@@ -133,6 +134,63 @@ def _compute_pending_quantities(purchase_order):
     return pending
 
 
+def _normalize_receipt_items(purchase_order, items):
+    from purchasing.models import PurchaseOrderItem
+
+    if not items:
+        raise ValueError('At least one receipt item is required.')
+
+    order_items = {
+        str(item.id): item
+        for item in PurchaseOrderItem.all_objects.filter(
+            purchase_order=purchase_order
+        ).select_related('product', 'unit')
+    }
+    normalized = {}
+    legacy_items = []
+    for entry in items:
+        item_id = str(entry.get('purchase_order_item_id'))
+        po_item = order_items.get(item_id)
+        if not po_item:
+            raise ValueError(f'PurchaseOrderItem {item_id} not found in order.')
+
+        try:
+            quantity = Decimal(str(entry.get('quantity_received')))
+            raw_cost = entry.get('unit_cost')
+            unit_cost = po_item.unit_cost if raw_cost is None else Decimal(str(raw_cost))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValueError('Receipt quantity and unit cost must be valid decimals.') from exc
+
+        if quantity <= 0:
+            raise ValueError('Receipt quantity must be positive.')
+        if unit_cost <= 0:
+            raise ValueError('Receipt unit cost must be positive.')
+
+        legacy_items.append(
+            {
+                'purchase_order_item_id': str(po_item.id),
+                'quantity_received': str(quantity),
+                'unit_cost': str(unit_cost),
+            }
+        )
+        existing = normalized.get(po_item.id)
+        if existing:
+            if existing['unit_cost'] != unit_cost:
+                raise ValueError('Duplicate receipt rows must use the same unit cost.')
+            existing['quantity_received'] += quantity
+        else:
+            normalized[po_item.id] = {
+                'purchase_order_item': po_item,
+                'quantity_received': quantity,
+                'unit_cost': unit_cost,
+            }
+
+    return (
+        sorted(normalized.values(), key=lambda row: str(row['purchase_order_item'].id)),
+        legacy_items,
+    )
+
+
 @transaction.atomic
 def receive_purchase_order(
     *,
@@ -148,6 +206,7 @@ def receive_purchase_order(
     from inventory.models import StockLocation
     from inventory.services import create_receipt as inventory_create_receipt
     from purchasing.models import (
+        PurchaseOrder,
         PurchaseOrderItem,
         PurchaseReceipt,
         PurchaseReceiptItem,
@@ -156,13 +215,46 @@ def receive_purchase_order(
     if purchase_order.tenant_id != tenant.id:
         raise ValueError('Purchase order does not belong to this tenant.')
 
+    purchase_order = (
+        PurchaseOrder.all_objects.select_for_update()
+        .select_related('branch', 'supplier')
+        .get(pk=purchase_order.pk, tenant=tenant)
+    )
+
+    existing = None
     if idempotency_key:
         existing = PurchaseReceipt.all_objects.filter(
             tenant=tenant,
             idempotency_key=idempotency_key,
         ).first()
-        if existing:
-            return existing
+    if existing is None and purchase_order.status not in {'approved', 'partially_received'}:
+        raise ReceiptWithoutApprovedOrder(
+            f'Cannot receive purchase order with status "{purchase_order.status}".'
+            ' Must be "approved" or "partially_received".'
+        )
+
+    receipt_items_data, legacy_items = _normalize_receipt_items(purchase_order, items)
+    payload = {
+        'purchase_order_id': str(purchase_order.id),
+        'notes': notes,
+        'items': [
+            {
+                'purchase_order_item_id': str(row['purchase_order_item'].id),
+                'quantity_received': str(row['quantity_received']),
+                'unit_cost': str(row['unit_cost']),
+            }
+            for row in receipt_items_data
+        ],
+    }
+    fingerprint = _payload_hash(payload)
+    legacy_fingerprint = _payload_hash(
+        {'purchase_order_id': str(purchase_order.id), 'items': legacy_items}
+    )
+
+    if existing:
+        if existing.payload_hash not in {fingerprint, legacy_fingerprint}:
+            raise DuplicateIdempotencyKey(existing)
+        return existing
 
     if purchase_order.status not in {'approved', 'partially_received'}:
         raise ReceiptWithoutApprovedOrder(
@@ -179,65 +271,35 @@ def receive_purchase_order(
         raise ValueError(f'No primary stock location found for branch {purchase_order.branch_id}.')
 
     pending = _compute_pending_quantities(purchase_order)
-    receipt_items_data = []
-    for entry in items:
-        po_item_id = entry['purchase_order_item_id']
-        qty = entry['quantity_received']
-        unit_cost = entry.get('unit_cost')
-
-        po_item = PurchaseOrderItem.all_objects.filter(
-            pk=po_item_id,
-            purchase_order=purchase_order,
-        ).first()
-        if not po_item:
-            raise ValueError(f'PurchaseOrderItem {po_item_id} not found in order.')
-
+    for row in receipt_items_data:
+        po_item = row['purchase_order_item']
         pending_qty = pending.get(po_item.id, 0)
-        if qty > pending_qty:
+        if row['quantity_received'] > pending_qty:
             raise OverReceiptError(
-                f'Cannot receive {qty} of item {po_item_id}. Only {pending_qty} pending.'
+                f'Cannot receive {row["quantity_received"]} of item {po_item.id}. '
+                f'Only {pending_qty} pending.'
             )
 
-        effective_cost = unit_cost if unit_cost is not None else po_item.unit_cost
-        receipt_items_data.append(
-            {
-                'purchase_order_item': po_item,
-                'quantity_received': qty,
-                'unit_cost': effective_cost,
-            }
-        )
-
-    payload = {
-        'purchase_order_id': str(purchase_order.id),
-        'items': [
-            {
-                'purchase_order_item_id': str(d['purchase_order_item'].id),
-                'quantity_received': str(d['quantity_received']),
-                'unit_cost': str(d['unit_cost']),
-            }
-            for d in receipt_items_data
-        ],
-    }
-    fingerprint = _payload_hash(payload)
-
-    if idempotency_key:
+    try:
+        with transaction.atomic():
+            receipt = PurchaseReceipt.all_objects.create(
+                tenant=tenant,
+                purchase_order=purchase_order,
+                status='confirmed',
+                notes=notes,
+                idempotency_key=idempotency_key,
+                payload_hash=fingerprint,
+            )
+    except IntegrityError:
         existing = PurchaseReceipt.all_objects.filter(
             tenant=tenant,
             idempotency_key=idempotency_key,
         ).first()
-        if existing:
-            if existing.payload_hash != fingerprint:
-                raise DuplicateIdempotencyKey(existing)
-            return existing
-
-    receipt = PurchaseReceipt.all_objects.create(
-        tenant=tenant,
-        purchase_order=purchase_order,
-        status='confirmed',
-        notes=notes,
-        idempotency_key=idempotency_key,
-        payload_hash=fingerprint,
-    )
+        if not existing:
+            raise
+        if existing.payload_hash not in {fingerprint, legacy_fingerprint}:
+            raise DuplicateIdempotencyKey(existing) from None
+        return existing
 
     for d in receipt_items_data:
         po_item = d['purchase_order_item']
@@ -292,6 +354,9 @@ def receive_purchase_order(
         amount=total_amount,
         idempotency_key=f'{idempotency_key}:payable' if idempotency_key else '',
         actor=actor,
+        supplier=purchase_order.supplier,
+        purchase_order=purchase_order,
+        purchase_receipt=receipt,
     )
 
     create_audit_record(
@@ -342,10 +407,16 @@ def cancel_purchase_order(
     idempotency_key='',
     actor=None,
 ):
-    from purchasing.models import PurchaseOrderCancellation
+    from purchasing.models import PurchaseOrder, PurchaseOrderCancellation
 
     if purchase_order.tenant_id != tenant.id:
         raise ValueError('Purchase order does not belong to this tenant.')
+
+    purchase_order = (
+        PurchaseOrder.all_objects.select_for_update()
+        .select_related('supplier')
+        .get(pk=purchase_order.pk, tenant=tenant)
+    )
 
     if idempotency_key:
         existing = PurchaseOrderCancellation.all_objects.filter(

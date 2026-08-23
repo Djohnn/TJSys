@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 def _client(ctx):
     client = APIClient()
     client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {ctx['token']}",
+        HTTP_AUTHORIZATION=f'Bearer {ctx["token"]}',
         HTTP_X_TENANT_ID=str(ctx['tenant'].id),
     )
     return client

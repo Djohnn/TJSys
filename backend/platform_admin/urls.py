@@ -23,7 +23,11 @@ app_name = 'platform_admin'
 
 urlpatterns = [
     path('platform/', include(router.urls)),
-    path('platform/tenant-capabilities/', TenantCapabilitiesView.as_view(
-        {'get': 'list'},
-    ), name='tenant-capabilities'),
+    path(
+        'platform/tenant-capabilities/',
+        TenantCapabilitiesView.as_view(
+            {'get': 'list'},
+        ),
+        name='tenant-capabilities',
+    ),
 ]

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -189,6 +191,27 @@ class PurchaseReceiptItemSerializer(FullCleanModelSerializer):
             'updated_at',
             'version',
         ]
+
+
+class PurchaseReceiptInputItemSerializer(serializers.Serializer):
+    purchase_order_item_id = serializers.UUIDField()
+    quantity_received = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        min_value=Decimal('0.000001'),
+    )
+    unit_cost = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal('0.01'),
+        required=False,
+        allow_null=True,
+    )
+
+
+class PurchaseReceiptInputSerializer(serializers.Serializer):
+    items = PurchaseReceiptInputItemSerializer(many=True, allow_empty=False)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class PurchaseReceiptSerializer(FullCleanModelSerializer):

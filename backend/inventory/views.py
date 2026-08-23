@@ -4,6 +4,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -12,26 +14,39 @@ from rest_framework.views import APIView
 
 from catalog.models import Product, Unit
 from inventory.models import (
+    InventoryCount,
+    InventoryCountItem,
+    MovementReason,
+    ProductionOrder,
     ProductStockPolicy,
+    ReplenishmentOrder,
+    ReplenishmentRule,
     StockBalance,
     StockLocation,
     StockLot,
     StockMovement,
     StockOperation,
     StockOperationReversal,
+    StorageType,
 )
 from inventory.permissions import (
     InventoryCapabilityPermission,
     InventoryLocationsPermission,
 )
 from inventory.serializers import (
+    InventoryCountItemSerializer,
+    InventoryCountSerializer,
+    MovementReasonSerializer,
     ProductStockPolicySerializer,
+    ReplenishmentOrderSerializer,
+    ReplenishmentRuleSerializer,
     StockBalanceSerializer,
     StockLocationSerializer,
     StockLotSerializer,
     StockMovementSerializer,
     StockOperationReversalSerializer,
     StockOperationSerializer,
+    StorageTypeSerializer,
 )
 from inventory.services import (
     DuplicateIdempotencyKey,
@@ -39,7 +54,6 @@ from inventory.services import (
     InsufficientStock,
     InvalidLotError,
     ProductStockControlError,
-    ProductStockControlResult,
     create_adjustment,
     create_issue,
     create_receipt,
@@ -198,10 +212,14 @@ class StockLotViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     def expired(self, request):
         from django.utils import timezone
 
-        lots = self.get_queryset().filter(
-            expiry_date__lt=timezone.now().date(),
-            is_active=True,
-        ).order_by('expiry_date')
+        lots = (
+            self.get_queryset()
+            .filter(
+                expiry_date__lt=timezone.now().date(),
+                is_active=True,
+            )
+            .order_by('expiry_date')
+        )
         serializer = self.get_serializer(lots, many=True)
         return Response(serializer.data)
 
@@ -215,9 +233,13 @@ class StockOperationViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        return StockOperation.objects.select_related('branch', 'actor').filter(
-            tenant=self.request.tenant,
-        ).prefetch_related('movements')
+        return (
+            StockOperation.objects.select_related('branch', 'actor')
+            .filter(
+                tenant=self.request.tenant,
+            )
+            .prefetch_related('movements')
+        )
 
     def get_permissions(self):
         permissions = [IsAuthenticated(), HasActiveTenant()]
@@ -498,14 +520,18 @@ class ProductStockPolicyViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet)
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def get_queryset(self):
-        qs = ProductStockPolicy.objects.select_related(
-            'product',
-            'branch',
-            'location',
-        ).filter(tenant=self.request.tenant).order_by(
-            'branch__name',
-            'location__name',
-            'id',
+        qs = (
+            ProductStockPolicy.objects.select_related(
+                'product',
+                'branch',
+                'location',
+            )
+            .filter(tenant=self.request.tenant)
+            .order_by(
+                'branch__name',
+                'location__name',
+                'id',
+            )
         )
         product_id = self.request.query_params.get('product')
         branch_id = self.request.query_params.get('branch')
@@ -629,7 +655,11 @@ class ProductStockControlDeactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
 
@@ -684,7 +714,11 @@ class ProductStockControlReactivateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        product = Product.all_objects.get(tenant=request.tenant, id=product_id)
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=product_id,
+        )
         command_id = str(data['command_id'])
         correlation_id = str(data['correlation_id']) if data.get('correlation_id') else None
         initial_stocks = data.get('initial_stocks', [])
@@ -722,3 +756,384 @@ class ProductStockControlReactivateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class StorageTypeViewSet(viewsets.ModelViewSet):
+    serializer_class = StorageTypeSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = StorageType.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class MovementReasonViewSet(viewsets.ModelViewSet):
+    serializer_class = MovementReasonSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = MovementReason.objects.filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        direction = self.request.query_params.get('direction')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if direction:
+            queryset = queryset.filter(direction=direction)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class ReplenishmentRuleViewSet(viewsets.ModelViewSet):
+    serializer_class = ReplenishmentRuleSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = ReplenishmentRule.objects.select_related(
+            'product',
+            'location',
+        ).filter(tenant=self.request.tenant)
+        is_active = self.request.query_params.get('is_active')
+        trigger_type = self.request.query_params.get('trigger_type')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        if trigger_type:
+            queryset = queryset.filter(trigger_type=trigger_type)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class ReplenishmentOrderViewSet(viewsets.ModelViewSet):
+    serializer_class = ReplenishmentOrderSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = ReplenishmentOrder.objects.select_related(
+            'rule',
+            'approved_by',
+        ).filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class InventoryCountViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryCountSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = InventoryCount.objects.select_related(
+            'location',
+            'counted_by',
+        ).filter(tenant=self.request.tenant)
+        status = self.request.query_params.get('status')
+        location_id = self.request.query_params.get('location')
+        if status:
+            queryset = queryset.filter(status=status)
+        if location_id:
+            queryset = queryset.filter(location_id=location_id)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class InventoryCountItemViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryCountItemSerializer
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveTenant,
+    ]
+
+    def get_queryset(self):
+        queryset = InventoryCountItem.objects.select_related(
+            'count',
+            'product',
+        ).filter(tenant=self.request.tenant)
+        count_id = self.request.query_params.get('count')
+        if count_id:
+            queryset = queryset.filter(count_id=count_id)
+        return queryset
+
+    def get_permissions(self):
+        permissions = [IsAuthenticated(), HasActiveTenant()]
+        if self.action in {'create', 'update', 'partial_update', 'destroy'}:
+            permissions.append(HasVerifiedMFA())
+        return permissions
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    def perform_update(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+
+class ProductionOrderSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    code = serializers.CharField(max_length=40)
+    product = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    unit = serializers.UUIDField()
+    location = serializers.UUIDField()
+    status = serializers.ChoiceField(
+        choices=[
+            ('draft', 'Rascunho'),
+            ('confirmed', 'Confirmada'),
+            ('in_progress', 'Em andamento'),
+            ('completed', 'Concluída'),
+            ('cancelled', 'Cancelada'),
+        ],
+        default='draft',
+    )
+    priority = serializers.ChoiceField(
+        choices=[
+            ('low', 'Baixa'),
+            ('medium', 'Média'),
+            ('high', 'Alta'),
+            ('urgent', 'Urgente'),
+        ],
+        default='medium',
+    )
+    planned_start_date = serializers.DateField(required=False, allow_null=True)
+    planned_end_date = serializers.DateField(required=False, allow_null=True)
+    actual_start_date = serializers.DateField(required=False, allow_null=True)
+    actual_end_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+
+class ProductionOrderViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
+    serializer_class = ProductionOrderSerializer
+    permission_classes = [IsAuthenticated, HasActiveTenant]
+
+    def get_queryset(self):
+        return ProductionOrder.objects.select_related(
+            'product',
+            'unit',
+            'location',
+            'location__branch',
+        ).filter(tenant=self.request.tenant)
+
+    def create(self, request, *args, **kwargs):
+        serializer = ProductionOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        product = get_object_or_404(
+            Product.all_objects,
+            tenant=request.tenant,
+            id=data['product'],
+        )
+        unit = get_object_or_404(
+            Unit.all_objects,
+            tenant=request.tenant,
+            id=data['unit'],
+        )
+        location = get_object_or_404(
+            StockLocation.all_objects,
+            tenant=request.tenant,
+            id=data['location'],
+        )
+
+        order = ProductionOrder(
+            tenant=request.tenant,
+            code=data['code'],
+            product=product,
+            quantity=data['quantity'],
+            unit=unit,
+            location=location,
+            status=data.get('status', 'draft'),
+            priority=data.get('priority', 'medium'),
+            planned_start_date=data.get('planned_start_date'),
+            planned_end_date=data.get('planned_end_date'),
+            actual_start_date=data.get('actual_start_date'),
+            actual_end_date=data.get('actual_end_date'),
+            notes=data.get('notes', ''),
+            created_by=request.user,
+        )
+        order.full_clean()
+        order.save()
+
+        return Response(
+            ProductionOrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'draft':
+            return _problem('Only draft orders can be confirmed.')
+        order.status = 'confirmed'
+        order.confirmed_by = request.user
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'confirmed':
+            return _problem('Only confirmed orders can be started.')
+        order.status = 'in_progress'
+        order.actual_start_date = timezone.now().date()
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'in_progress':
+            return _problem('Only in-progress orders can be completed.')
+        order.status = 'completed'
+        order.actual_end_date = timezone.now().date()
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        if order.status in ('completed', 'cancelled'):
+            return _problem('Completed or cancelled orders cannot be cancelled.')
+        order.status = 'cancelled'
+        order.full_clean()
+        order.save()
+        return Response(ProductionOrderSerializer(order).data)
+
+
+# Sprint F7 — StockMap API (mapa consolidado de estoque)
+# =============================================================================
+
+
+class StockMapView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveTenant]
+
+    def get(self, request):
+        location_id = request.query_params.get('location')
+        product_id = request.query_params.get('product')
+        lot_id = request.query_params.get('lot')
+
+        balances = StockBalance.objects.select_related(
+            'product',
+            'location',
+            'location__branch',
+            'lot',
+        ).filter(tenant=request.tenant)
+
+        if location_id:
+            balances = balances.filter(location_id=location_id)
+        if product_id:
+            balances = balances.filter(product_id=product_id)
+        if lot_id:
+            balances = balances.filter(lot_id=lot_id)
+
+        balances = balances.exclude(quantity=0, reserved=0)
+
+        result = []
+        for balance in balances:
+            result.append(
+                {
+                    'id': str(balance.id),
+                    'product': {
+                        'id': str(balance.product.id),
+                        'sku': balance.product.sku,
+                        'name': balance.product.name,
+                    },
+                    'location': {
+                        'id': str(balance.location.id),
+                        'code': balance.location.code,
+                        'name': balance.location.name,
+                        'branch': {
+                            'id': str(balance.location.branch.id),
+                            'name': balance.location.branch.name,
+                        },
+                    },
+                    'lot': {
+                        'id': str(balance.lot.id),
+                        'lot_number': balance.lot.lot_number,
+                    }
+                    if balance.lot
+                    else None,
+                    'quantity': str(balance.quantity),
+                    'reserved': str(balance.reserved),
+                    'available': str(balance.available),
+                }
+            )
+
+        return Response(result)

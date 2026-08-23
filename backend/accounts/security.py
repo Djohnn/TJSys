@@ -7,7 +7,9 @@ from django.conf import settings
 
 def digest_value(value):
     return hmac.new(
-        settings.SECRET_KEY.encode(), value.encode(), hashlib.sha256,
+        settings.SECRET_KEY.encode(),
+        value.encode(),
+        hashlib.sha256,
     ).hexdigest()
 
 

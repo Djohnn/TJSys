@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useCashSession, CloseReport } from '../contexts/CashSessionContext';
+import { useCashSession } from '../contexts/CashSessionContext';
 import { Card, CardHeader, CardContent, Button, InputGroup, Spinner } from '../components/ui';
 
 const methodLabels: Record<string, string> = {

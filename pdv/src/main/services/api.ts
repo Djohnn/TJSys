@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { apiUrl, normalizeApiBaseUrl } from '../../shared/apiUrl';
 import { getItem, setItem, removeItem } from '../utils/storage';
 
-const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1/';
+const API_BASE_URL = normalizeApiBaseUrl(process.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1/');
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -29,21 +30,30 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = getItem('refresh_token');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const response = await axios.post(`${API_BASE_URL}/devices/refresh/`, {
+        const response = await axios.post(apiUrl(API_BASE_URL, '/devices/refresh/'), {
           refresh_token: refreshToken,
         });
 
-        const { token } = response.data;
+        const { token, refresh_token: newRefreshToken } = response.data;
+        if (
+          typeof token !== 'string' ||
+          token.trim().length === 0 ||
+          typeof newRefreshToken !== 'string' ||
+          newRefreshToken.trim().length === 0
+        ) {
+          throw new Error('Invalid refresh response');
+        }
         setItem('access_token', token);
+        setItem('refresh_token', newRefreshToken);
 
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -54,6 +64,8 @@ api.interceptors.response.use(
         removeItem('refresh_token');
         removeItem('device_id');
         removeItem('branch_id');
+        removeItem('tenant_id');
+        removeItem('api_key');
         return Promise.reject(error);
       }
     }

@@ -29,7 +29,8 @@ def register_organization(*, email, password, tenant_name, company_name, branch_
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT set_config('app.current_tenant_id', %s, true)", [str(tenant.id)],
+                    "SELECT set_config('app.current_tenant_id', %s, true)",
+                    [str(tenant.id)],
                 )
             company = Company.objects.create(tenant=tenant, name=company_name.strip())
             Branch.objects.create(tenant=tenant, company=company, name=branch_name.strip())

@@ -4,11 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile.e2e
     ports:
-      - "5173:5173"
+      - "5199:5199"
     healthcheck:
-      test: wget -qO- http://localhost:5173 || exit 1
+      test: wget -qO- http://localhost:5199 || exit 1
       interval: 5s
       timeout: 5s
       retries: 12
     command: >
-      sh -c "./node_modules/.bin/vite --host 0.0.0.0 --port 5173 & sleep 3 && ./node_modules/.bin/playwright test --reporter=list"
+      sh -c "E2E_EXTERNAL_SERVER=1 ./node_modules/.bin/vite --host 0.0.0.0 --port 5199 & sleep 3 && E2E_EXTERNAL_SERVER=1 ./node_modules/.bin/playwright test --reporter=list"

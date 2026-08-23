@@ -6,6 +6,14 @@ from rest_framework import serializers
 from sales.models import (
     CashMovement,
     CashSession,
+    Commission,
+    CommissionRule,
+    Consignment,
+    ConsignmentItem,
+    PriceList,
+    PriceListItem,
+    Quote,
+    QuoteItem,
     Sale,
     SaleCancellation,
     SaleItem,
@@ -13,7 +21,10 @@ from sales.models import (
     SaleRefund,
     SaleReturn,
     SaleReturnItem,
+    SalesOrder,
+    SalesOrderItem,
 )
+from sales.validators import normalize_reason
 
 
 def _money(value):
@@ -306,6 +317,8 @@ class CloseCashSessionSerializer(serializers.Serializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
+    unit_precision = serializers.IntegerField(source='unit.precision', read_only=True)
+
     class Meta:
         model = SaleItem
         fields = [
@@ -318,6 +331,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
             'unit_price',
             'discount_amount',
             'line_total',
+            'unit_precision',
         ]
         read_only_fields = fields
 
@@ -332,6 +346,7 @@ class SalePaymentSerializer(serializers.ModelSerializer):
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     payments = SalePaymentSerializer(many=True, read_only=True)
+    refundable_balance = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -349,8 +364,24 @@ class SaleSerializer(serializers.ModelSerializer):
             'version',
             'items',
             'payments',
+            'refundable_balance',
         ]
         read_only_fields = fields
+
+    def get_refundable_balance(self, obj):
+        refunds = getattr(obj, '_completed_refunds_for_serializer', None)
+        if refunds is None:
+            refunds = SaleRefund.all_objects.filter(
+                tenant_id=obj.tenant_id,
+                sale_id=obj.pk,
+                status='completed',
+            )
+        refunded_total = sum(
+            (refund.amount for refund in refunds if refund.tenant_id == obj.tenant_id),
+            Decimal('0'),
+        )
+        balance = max(Decimal('0'), obj.net_total - refunded_total)
+        return format(balance.quantize(Decimal('0.01')), 'f')
 
 
 class CounterSaleItemInputSerializer(serializers.Serializer):
@@ -421,14 +452,23 @@ class SaleReturnSerializer(serializers.ModelSerializer):
 
 class ReturnItemInputSerializer(serializers.Serializer):
     sale_item_id = serializers.UUIDField()
-    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+    )
 
 
 class CreateSaleReturnSerializer(serializers.Serializer):
     # DRF supports list-level validation kwargs when ``many=True``; its type stubs
     # do not currently expose ``min_length`` on the child serializer constructor.
     items = ReturnItemInputSerializer(many=True, min_length=1)  # type: ignore[call-arg]
-    reason = serializers.CharField(min_length=1)
+    reason = serializers.CharField(min_length=1, max_length=500)
+
+    def validate_reason(self, value):
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class SaleRefundSerializer(serializers.ModelSerializer):
@@ -436,6 +476,23 @@ class SaleRefundSerializer(serializers.ModelSerializer):
         model = SaleRefund
         fields = ['id', 'sale', 'sale_return', 'method', 'amount', 'status', 'created_at']
         read_only_fields = fields
+
+
+class CreateSaleRefundSerializer(serializers.Serializer):
+    method = serializers.ChoiceField(choices=SaleRefund.METHOD_CHOICES)
+    amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal('0.01'),
+        required=False,
+    )
+    reason = serializers.CharField(min_length=1, max_length=500)
+
+    def validate_reason(self, value):
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class SaleCancellationSerializer(serializers.ModelSerializer):
@@ -446,4 +503,356 @@ class SaleCancellationSerializer(serializers.ModelSerializer):
 
 
 class CreateSaleCancellationSerializer(serializers.Serializer):
-    reason = serializers.CharField(min_length=1)
+    reason = serializers.CharField(min_length=1, max_length=500)
+
+    def validate_reason(self, value):
+        try:
+            return normalize_reason(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
+
+class QuoteItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+
+    class Meta:
+        model = QuoteItem
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'product_sku',
+            'quantity',
+            'unit_price',
+            'discount',
+            'notes',
+        ]
+        read_only_fields = ['id']
+
+
+class QuoteSerializer(serializers.ModelSerializer):
+    items = QuoteItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='customer.name', read_only=True, default='')
+    operator_name = serializers.CharField(source='operator.name', read_only=True, default='')
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
+
+    class Meta:
+        model = Quote
+        fields = [
+            'id',
+            'branch',
+            'branch_name',
+            'customer',
+            'customer_name',
+            'operator',
+            'operator_name',
+            'status',
+            'quote_number',
+            'valid_until',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CreateQuoteSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    customer = serializers.UUIDField(required=False, allow_null=True)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    items = QuoteItemSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('At least one item is required.')
+        return value
+
+
+class SalesOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_sku = serializers.CharField(source='product.sku', read_only=True)
+
+    class Meta:
+        model = SalesOrderItem
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'product_sku',
+            'quantity',
+            'unit_price',
+            'discount',
+            'notes',
+        ]
+        read_only_fields = ['id']
+
+
+class SalesOrderSerializer(serializers.ModelSerializer):
+    items = SalesOrderItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source='customer.name', read_only=True, default='')
+    operator_name = serializers.CharField(source='operator.name', read_only=True, default='')
+    branch_name = serializers.CharField(source='branch.name', read_only=True, default='')
+    quote_number = serializers.CharField(source='quote.quote_number', read_only=True, default='')
+
+    class Meta:
+        model = SalesOrder
+        fields = [
+            'id',
+            'branch',
+            'branch_name',
+            'customer',
+            'customer_name',
+            'operator',
+            'operator_name',
+            'quote',
+            'quote_number',
+            'status',
+            'order_number',
+            'expected_date',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CreateSalesOrderSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    customer = serializers.UUIDField(required=False, allow_null=True)
+    quote = serializers.UUIDField(required=False, allow_null=True)
+    expected_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    items = SalesOrderItemSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError('At least one item is required.')
+        return value
+
+
+# =============================================================================
+# F4 — Consignment
+# =============================================================================
+
+
+class ConsignmentItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConsignmentItem
+        fields = [
+            'id',
+            'product',
+            'unit',
+            'quantity',
+            'returned_quantity',
+            'factor',
+            'unit_price',
+            'discount_amount',
+            'line_total',
+            'notes',
+        ]
+        read_only_fields = fields
+
+
+class PriceListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceListItem
+        fields = [
+            'id',
+            'product',
+            'price',
+            'min_quantity',
+            'max_quantity',
+            'discount_percentage',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class ConsignmentSerializer(serializers.ModelSerializer):
+    items = ConsignmentItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Consignment
+        fields = [
+            'id',
+            'branch',
+            'operator',
+            'customer',
+            'status',
+            'consignment_number',
+            'expected_return_date',
+            'actual_return_date',
+            'notes',
+            'gross_total',
+            'discount_total',
+            'net_total',
+            'converted_sale',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields
+
+
+class CreateConsignmentItemSerializer(serializers.Serializer):
+    product = serializers.UUIDField()
+    unit = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=6)
+    factor = serializers.DecimalField(max_digits=18, decimal_places=6)
+    unit_price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    discount_amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        default=Decimal('0'),
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class CreateConsignmentSerializer(serializers.Serializer):
+    branch = serializers.UUIDField()
+    customer = serializers.UUIDField()
+    expected_return_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+    items = serializers.ListField(
+        child=CreateConsignmentItemSerializer(),
+        min_length=1,
+    )
+
+
+# =============================================================================
+# F4 — Commission
+# =============================================================================
+
+
+class CommissionRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommissionRule
+        fields = [
+            'id',
+            'name',
+            'description',
+            'rule_type',
+            'value',
+            'min_sale_value',
+            'max_sale_value',
+            'product',
+            'category',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CommissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Commission
+        fields = [
+            'id',
+            'sale',
+            'rule',
+            'operator',
+            'status',
+            'sale_value',
+            'commission_value',
+            'notes',
+            'approved_at',
+            'paid_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CreateCommissionRuleSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    rule_type = serializers.ChoiceField(choices=CommissionRule.TYPE_CHOICES)
+    value = serializers.DecimalField(max_digits=18, decimal_places=4)
+    min_sale_value = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+    max_sale_value = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+    )
+    product = serializers.UUIDField(required=False, allow_null=True)
+    category = serializers.UUIDField(required=False, allow_null=True)
+
+
+# =============================================================================
+# F4 — Price lists
+# =============================================================================
+
+
+class PriceListSerializer(serializers.ModelSerializer):
+    items = PriceListItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PriceList
+        fields = [
+            'id',
+            'name',
+            'description',
+            'audience',
+            'is_default',
+            'is_active',
+            'valid_from',
+            'valid_until',
+            'priority',
+            'items',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class CreatePriceListItemSerializer(serializers.Serializer):
+    product = serializers.UUIDField()
+    price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    min_quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal('1'),
+    )
+    max_quantity = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        required=False,
+        allow_null=True,
+    )
+    discount_percentage = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal('0'),
+    )
+
+
+class CreatePriceListSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    audience = serializers.ChoiceField(choices=PriceList.AUDIENCE_CHOICES)
+    is_default = serializers.BooleanField(default=False)
+    is_active = serializers.BooleanField(default=True)
+    valid_from = serializers.DateField(required=False, allow_null=True)
+    valid_until = serializers.DateField(required=False, allow_null=True)
+    priority = serializers.IntegerField(default=0)
+    items = CreatePriceListItemSerializer(many=True, required=False, default=[])

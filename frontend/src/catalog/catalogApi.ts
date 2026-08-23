@@ -1,15 +1,21 @@
 import { apiRequest } from '@/api/client'
 import { getCsrfToken } from '@/api/client'
+import { collectionItems } from '@/api/collections'
 
 export interface Product {
   id: string
   name: string
+  description?: string
+  price?: string | null
+  price_status?: 'priced' | 'missing'
   sku: string
   barcode: string
   category: string | null
   category_name: string
   unit: string | null
   unit_name: string
+  unit_symbol?: string
+  unit_precision?: number
   is_active: boolean
   product_kind: string
   tracks_inventory: boolean
@@ -17,6 +23,8 @@ export interface Product {
   model: string
   tags: string[]
   scale_code: string
+  stock?: Partial<ProductStockData> | null
+  stock_summary?: Partial<ProductStockData> | null
   created_at: string
   updated_at: string
 }
@@ -34,8 +42,41 @@ export interface ProductFiscalData {
 export interface ProductPriceTier {
   id: string
   product: string
+  price?: string | null
   min_quantity: string
   amount: string
+  is_active?: boolean
+  version?: number
+}
+
+export interface ProductPrice {
+  id: string
+  product: string
+  amount: string
+  valid_from: string
+  valid_to: string | null
+  is_active: boolean
+  version: number
+}
+
+export interface ProductPricingTierSnapshot {
+  id: string
+  min_quantity: string
+  amount: string
+  margin: string | null
+}
+
+export interface ProductPricingSnapshot {
+  id: string
+  product: string
+  amount: string
+  cost: string | null
+  currency: string
+  retail_margin: string | null
+  tiers: ProductPricingTierSnapshot[]
+  valid_from?: string | null
+  valid_to?: string | null
+  version: number
 }
 
 export interface Category {
@@ -44,6 +85,24 @@ export interface Category {
   is_active: boolean
   parent: string | null
   parent_name: string
+}
+
+export interface SubCategory {
+  id: string
+  category: string
+  category_name: string
+  name: string
+  code: string
+  is_active: boolean
+  version: number
+}
+
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  is_active: boolean
+  version: number
 }
 
 export interface Unit {
@@ -65,15 +124,41 @@ export interface ProductImage {
   product: string
   object_key: string
   file: string | null
+  file_url: string | null
   alt_text: string
   is_primary: boolean
   position: number
 }
 
-export function fetchProductImages(tenantId: string, productId: string): Promise<ProductImage[]> {
-  return apiRequest<ProductImage[]>(`/catalog/products/${productId}/images/`, {
+export async function fetchProductImages(tenantId: string, productId: string): Promise<ProductImage[]> {
+  const payload = await apiRequest<unknown>(`/catalog/products/${productId}/images/`, {
     tenantId,
-  }) as Promise<ProductImage[]>
+  })
+  return collectionItems<ProductImage>(payload)
+}
+
+export interface ProductStockData {
+  branch: string
+  location: string
+  current_quantity: string
+  initial_quantity: string
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+  allow_negative: boolean
+  unit_name?: string
+  unit_symbol?: string
+  unit_precision?: number
+}
+
+export interface ProductCode {
+  id: string
+  product: string
+  code_type: string
+  value: string
+  is_principal: boolean
+  is_active: boolean
+  version: number
 }
 
 export async function uploadProductImage(
@@ -129,6 +214,65 @@ export function createProduct(
   }) as Promise<Product>
 }
 
+export interface ApplyStockCommand {
+  branch: string
+  location: string
+  initial_quantity: string
+  minimum_quantity: string
+  maximum_quantity?: string | null
+  reorder_point: string
+  allow_negative: boolean
+}
+
+export interface ApplyProductPayload {
+  command_id: string
+  product: Record<string, unknown>
+  stock?: ApplyStockCommand | null
+}
+
+export interface ProductStockSummary {
+  quantity: string
+  reserved: string
+  available: string
+  status: 'negative' | 'zero' | 'low' | 'normal'
+  branch: string | null
+  branch_name: string
+  location: string | null
+  location_name: string
+  minimum_quantity: string
+  maximum_quantity: string | null
+  reorder_point: string
+  unit_name?: string
+  unit_symbol?: string
+  unit_precision?: number
+}
+
+export interface ApplyProductResponse {
+  product: Product
+  stock_summary: ProductStockSummary | null
+}
+
+/** Atomically creates a product and, when tracking inventory, its stock policy and initial balance. */
+export function applyProduct(
+  tenantId: string,
+  payload: ApplyProductPayload,
+): Promise<ApplyProductResponse> {
+  return apiRequest<ApplyProductResponse>('/catalog/products/apply/', {
+    method: 'POST',
+    tenantId,
+    body: payload,
+  }) as Promise<ApplyProductResponse>
+}
+
+export function fetchProductStockSummary(
+  tenantId: string,
+  productId: string,
+): Promise<ProductStockSummary[] | ProductStockSummary | null> {
+  return apiRequest<ProductStockSummary[] | ProductStockSummary | null>(`/inventory/product-summary/${productId}/`, {
+    tenantId,
+  }) as Promise<ProductStockSummary[] | ProductStockSummary | null>
+}
+
 export function updateProduct(
   tenantId: string,
   id: string,
@@ -179,6 +323,83 @@ export function updateCategory(
   }) as Promise<Category>
 }
 
+export function fetchSubCategories(
+  tenantId: string,
+  params: { page?: number; q?: string; category?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<SubCategory>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  if (params.category) searchParams.set('category', params.category)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<SubCategory>>(`/catalog/subcategories/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<SubCategory>>
+}
+
+export function createSubCategory(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<SubCategory> {
+  return apiRequest<SubCategory>('/catalog/subcategories/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<SubCategory>
+}
+
+export function updateSubCategory(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<SubCategory> {
+  return apiRequest<SubCategory>(`/catalog/subcategories/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<SubCategory>
+}
+
+export function fetchTags(
+  tenantId: string,
+  params: { page?: number; q?: string } = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Tag>> {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.set('page', String(params.page))
+  if (params.q) searchParams.set('q', params.q)
+  const qs = searchParams.toString()
+  return apiRequest<PaginatedResponse<Tag>>(`/catalog/tags/${qs ? `?${qs}` : ''}`, {
+    tenantId,
+    signal,
+  }) as Promise<PaginatedResponse<Tag>>
+}
+
+export function createTag(
+  tenantId: string,
+  body: Record<string, unknown>,
+): Promise<Tag> {
+  return apiRequest<Tag>('/catalog/tags/', {
+    method: 'POST',
+    tenantId,
+    body,
+  }) as Promise<Tag>
+}
+
+export function updateTag(
+  tenantId: string,
+  id: string,
+  body: Record<string, unknown>,
+): Promise<Tag> {
+  return apiRequest<Tag>(`/catalog/tags/${id}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<Tag>
+}
+
 export function createUnit(
   tenantId: string,
   body: Record<string, unknown>,
@@ -204,11 +425,14 @@ export function fetchUnits(
   }) as Promise<PaginatedResponse<Unit>>
 }
 
+const productExtensionPath = (productId: string, suffix: string) =>
+  `/catalog/products/${productId}/${suffix}/`
+
 export function fetchProductFiscalData(
   tenantId: string,
   productId: string,
 ): Promise<ProductFiscalData> {
-  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+  return apiRequest<ProductFiscalData>(productExtensionPath(productId, 'fiscal-data'), {
     tenantId,
   }) as Promise<ProductFiscalData>
 }
@@ -218,7 +442,7 @@ export function upsertProductFiscalData(
   productId: string,
   data: Record<string, unknown>,
 ): Promise<ProductFiscalData> {
-  return apiRequest<ProductFiscalData>(`/products/${productId}/fiscal-data/`, {
+  return apiRequest<ProductFiscalData>(productExtensionPath(productId, 'fiscal-data'), {
     method: 'POST',
     tenantId,
     body: data,
@@ -228,10 +452,10 @@ export function upsertProductFiscalData(
 export function fetchProductPriceTiers(
   tenantId: string,
   productId: string,
-): Promise<ProductPriceTier[]> {
-  return apiRequest<ProductPriceTier[]>(`/products/${productId}/price-tiers/`, {
+): Promise<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]> {
+  return apiRequest<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]>(productExtensionPath(productId, 'price-tiers'), {
     tenantId,
-  }) as Promise<ProductPriceTier[]>
+  }) as Promise<PaginatedResponse<ProductPriceTier> | ProductPriceTier[]>
 }
 
 export function createProductPriceTier(
@@ -239,7 +463,7 @@ export function createProductPriceTier(
   productId: string,
   data: Record<string, unknown>,
 ): Promise<ProductPriceTier> {
-  return apiRequest<ProductPriceTier>(`/products/${productId}/price-tiers/`, {
+  return apiRequest<ProductPriceTier>(productExtensionPath(productId, 'price-tiers'), {
     method: 'POST',
     tenantId,
     body: data,
@@ -251,7 +475,7 @@ export function deleteProductPriceTier(
   productId: string,
   tierId: string,
 ): Promise<void> {
-  return apiRequest<void>(`/products/${productId}/price-tiers/${tierId}/`, {
+  return apiRequest<void>(`/catalog/products/${productId}/price-tiers/${tierId}/`, {
     method: 'DELETE',
     tenantId,
   }) as Promise<void>
@@ -277,6 +501,8 @@ export interface CompositionItem {
   component_sku: string
   component_name: string
   quantity: string
+  unit_symbol?: string
+  unit_precision?: number
 }
 
 export function fetchComposition(
@@ -321,6 +547,63 @@ export function fetchProduct(
   }) as Promise<Product>
 }
 
+export function fetchProductPrices(
+  tenantId: string,
+  productId: string,
+): Promise<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot> {
+  return apiRequest<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot>(productExtensionPath(productId, 'prices'), {
+    tenantId,
+  }) as Promise<PaginatedResponse<ProductPrice> | ProductPrice[] | ProductPricingSnapshot>
+}
+
+export function createProductPricingSnapshot(
+  tenantId: string,
+  productId: string,
+  data: { command_id: string; product_id: string; amount: string; tiers: Array<{ min_quantity: string; amount: string }> },
+): Promise<unknown> {
+  return apiRequest<unknown>(productExtensionPath(productId, 'prices'), {
+    method: 'POST',
+    tenantId,
+    body: data,
+  }) as Promise<unknown>
+}
+
+export function createProductPrice(
+  tenantId: string,
+  productId: string,
+  data: Pick<ProductPrice, 'amount'> & Partial<Pick<ProductPrice, 'valid_from' | 'valid_to'>>,
+): Promise<ProductPrice> {
+  return apiRequest<ProductPrice>(productExtensionPath(productId, 'prices'), {
+    method: 'POST',
+    tenantId,
+    body: { valid_from: new Date().toISOString(), ...data },
+  }) as Promise<ProductPrice>
+}
+
+export function updateProductPrice(
+  tenantId: string,
+  productId: string,
+  priceId: string,
+  data: Pick<ProductPrice, 'amount'> & Partial<Pick<ProductPrice, 'valid_from' | 'valid_to'>>,
+  version: number,
+): Promise<ProductPrice> {
+  return apiRequest<ProductPrice>(`${productExtensionPath(productId, 'prices')}${priceId}/`, {
+    method: 'PATCH',
+    tenantId,
+    headers: { 'If-Match': String(version) },
+    body: data,
+  }) as Promise<ProductPrice>
+}
+
+export function fetchProductCodes(
+  tenantId: string,
+  productId: string,
+): Promise<ProductCode[]> {
+  return apiRequest<PaginatedResponse<ProductCode> | ProductCode[]>(`/catalog/products/${productId}/codes/`, {
+    tenantId,
+  }).then((payload) => collectionItems<ProductCode>(payload))
+}
+
 export function createProductCode(
   tenantId: string,
   productId: string,
@@ -331,6 +614,19 @@ export function createProductCode(
     tenantId,
     body,
   }) as Promise<unknown>
+}
+
+export function updateProductCode(
+  tenantId: string,
+  productId: string,
+  codeId: string,
+  body: Partial<Pick<ProductCode, 'value' | 'is_principal' | 'is_active'>>,
+): Promise<ProductCode> {
+  return apiRequest<ProductCode>(`/catalog/products/${productId}/codes/${codeId}/`, {
+    method: 'PATCH',
+    tenantId,
+    body,
+  }) as Promise<ProductCode>
 }
 
 export function fetchBrands(

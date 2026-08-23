@@ -35,13 +35,31 @@ class OverSettlementError(ValueError):
     pass
 
 
-def _build_payload(*, supplier_name, description, amount, due_date):
-    return {
+def _build_payload(
+    *,
+    supplier_name,
+    description,
+    amount,
+    due_date,
+    supplier=None,
+    purchase_order=None,
+    purchase_receipt=None,
+):
+    payload = {
         'supplier_name': supplier_name,
         'description': description,
         'amount': str(amount),
         'due_date': str(due_date) if due_date else None,
     }
+    if supplier or purchase_order or purchase_receipt:
+        payload.update(
+            {
+                'supplier_id': str(supplier.id) if supplier else None,
+                'purchase_order_id': str(purchase_order.id) if purchase_order else None,
+                'purchase_receipt_id': (str(purchase_receipt.id) if purchase_receipt else None),
+            }
+        )
+    return payload
 
 
 @transaction.atomic
@@ -54,6 +72,9 @@ def create_payable(
     due_date=None,
     idempotency_key='',
     actor=None,
+    supplier=None,
+    purchase_order=None,
+    purchase_receipt=None,
 ):
     from financial.models import Payable
 
@@ -63,8 +84,20 @@ def create_payable(
             description=description,
             amount=amount,
             due_date=due_date,
+            supplier=supplier,
+            purchase_order=purchase_order,
+            purchase_receipt=purchase_receipt,
         )
     )
+
+    for source in (supplier, purchase_order, purchase_receipt):
+        if source is not None and source.tenant_id != tenant.id:
+            raise ValueError('Payable provenance must belong to the same tenant.')
+    if supplier and purchase_order and purchase_order.supplier_id != supplier.id:
+        raise ValueError('Payable supplier does not match the purchase order.')
+    if purchase_receipt and purchase_order:
+        if purchase_receipt.purchase_order_id != purchase_order.id:
+            raise ValueError('Payable receipt does not match the purchase order.')
 
     if idempotency_key:
         existing = Payable.all_objects.filter(
@@ -84,6 +117,9 @@ def create_payable(
         due_date=due_date,
         idempotency_key=idempotency_key,
         payload_hash=fingerprint,
+        supplier=supplier,
+        purchase_order=purchase_order,
+        purchase_receipt=purchase_receipt,
     )
 
     create_audit_record(

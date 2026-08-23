@@ -44,7 +44,9 @@ def confirm_totp(*, device, code):
 def issue_email_challenge(*, user):
     cooldown = timezone.now() - timedelta(seconds=settings.EMAIL_MFA_RESEND_COOLDOWN_SECONDS)
     if OneTimeToken.objects.filter(
-        user=user, purpose='email_mfa', created_at__gt=cooldown,
+        user=user,
+        purpose='email_mfa',
+        created_at__gt=cooldown,
     ).exists():
         raise ValueError('Email MFA resend cooldown is active.')
     code = f'{secrets.randbelow(1_000_000):06d}'
@@ -61,7 +63,8 @@ def verify_email_challenge(*, challenge_id, code):
     with transaction.atomic():
         try:
             challenge = OneTimeToken.objects.select_for_update().get(
-                pk=challenge_id, purpose='email_mfa',
+                pk=challenge_id,
+                purpose='email_mfa',
             )
         except OneTimeToken.DoesNotExist:
             return False
@@ -89,9 +92,15 @@ def regenerate_recovery_codes(*, device, count=10):
 def consume_recovery_code(*, device, code):
     candidate = digest_value(code)
     with transaction.atomic():
-        record = RecoveryCode.objects.select_for_update().filter(
-            device=device, digest=candidate, consumed_at__isnull=True,
-        ).first()
+        record = (
+            RecoveryCode.objects.select_for_update()
+            .filter(
+                device=device,
+                digest=candidate,
+                consumed_at__isnull=True,
+            )
+            .first()
+        )
         if record is None:
             return False
         record.consumed_at = timezone.now()

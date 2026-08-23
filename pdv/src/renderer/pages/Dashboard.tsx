@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCashSession } from '../contexts/CashSessionContext';
-import { Card, Button, CardHeader, CardContent, EmptyState, Spinner } from '../components/ui';
+import { Card, Button, CardContent, EmptyState, Spinner } from '../components/ui';
 import { buildReceiptHtml } from '../utils/receipt';
 
 const API_BASE = '/api/v1';
@@ -17,7 +17,7 @@ function authHeaders(): Record<string, string> {
 }
 
 export function Dashboard() {
-  const { isAuthenticated, deviceId, branchId } = useAuth();
+  const { branchId } = useAuth();
   const { session, refreshSession } = useCashSession();
   const [loading, setLoading] = useState(true);
   const [recentSales, setRecentSales] = useState<any[]>([]);
@@ -103,7 +103,7 @@ export function Dashboard() {
     setReprinting(saleId);
     setReprintMessage('');
     try {
-      const electronAPI = (window as any).electronAPI;
+      const electronAPI = window.electronAPI;
       const detailResult = await electronAPI.getSaleDetail(saleId);
       if (!detailResult?.success) {
         setReprintMessage(`Erro ao buscar venda: ${detailResult?.error || 'falha desconhecida'}`);

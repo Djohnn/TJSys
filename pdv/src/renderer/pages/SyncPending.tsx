@@ -1,16 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Button, CardHeader, CardContent, EmptyState, Spinner } from '../components/ui';
-
-declare global {
-  interface Window {
-    electronAPI: {
-      getJournal: () => Promise<{ success: boolean; data: any[] }>;
-      getPendingOperations: () => Promise<{ success: boolean; data: { count: number; operations: any[] } }>;
-      startSync: () => Promise<{ success: boolean; data: any }>;
-      getSyncStatus: () => Promise<{ success: boolean; data: { status: string; pendingCount: number; lastSyncAt: string | null; error: string | null } }>;
-    };
-  }
-}
+import { useEffect, useState, useCallback } from 'react';
+import { Card, Button, CardContent, EmptyState, Spinner } from '../components/ui';
 
 interface PendingView {
   id: number;

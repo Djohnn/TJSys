@@ -26,8 +26,14 @@ def sanitize_audit_detail(value):
 
 
 def create_audit_record(
-    *, action, resource_type, resource_id='', detail=None,
-    actor=None, correlation_id='', tenant_id='',
+    *,
+    action,
+    resource_type,
+    resource_id='',
+    detail=None,
+    actor=None,
+    correlation_id='',
+    tenant_id='',
 ):
     from audit.models import AuditRecord
 

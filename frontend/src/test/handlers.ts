@@ -600,22 +600,22 @@ export const handlers = [
     return HttpResponse.json(sale)
   }),
 
-  http.post(`${BASE}/sales/:id/return/`, async ({ request, params }) => {
+  http.post(`${BASE}/sales/:id/returns/`, async ({ request, params }) => {
     const saleId = params.id as string
     if (saleId === 'sale-409-return' || saleId === 'sale-conflict') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui devolução registrada.', code: 'already_returned' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    const body = await request.json() as { items?: { product: string; quantity: string }[]; reason?: string }
-    if (!body.items?.length || !body.reason?.trim()) {
+    const body = await request.json() as { items?: { sale_item_id?: string; quantity: string; product?: string }[]; reason?: string }
+    if (!body.items?.length || body.items.some((item) => !item.sale_item_id || item.product) || !body.reason?.trim()) {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Invalid input', errors: { reason: !body.reason?.trim() ? ['Este campo é obrigatório.'] : undefined } },
-        { status: 422 },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Devolução registrada com sucesso.' }, { status: 201 })
   }),
 
   http.post(`${BASE}/sales/:id/cancel/`, async ({ request, params }) => {
@@ -623,17 +623,17 @@ export const handlers = [
     if (saleId === 'sale-409-cancel' || saleId === 'sale-already-cancelled') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já está cancelada.', code: 'already_cancelled' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
     const body = await request.json() as { reason?: string }
     if (!body.reason?.trim()) {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
-        { status: 422 },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Venda cancelada com sucesso.' }, { status: 201 })
   }),
 
   http.post(`${BASE}/sales/:id/refund/`, async ({ request, params }) => {
@@ -641,7 +641,7 @@ export const handlers = [
     if (saleId === 'sale-409-refund' || saleId === 'sale-already-refunded') {
       return HttpResponse.json(
         { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Esta venda já possui reembolso.', code: 'already_refunded' },
-        { status: 409 },
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
     if (saleId === 'sale-403') {
@@ -650,14 +650,14 @@ export const handlers = [
         { status: 403 },
       )
     }
-    const body = await request.json() as { amount?: string; reason?: string }
-    if (!body.reason?.trim()) {
+    const body = await request.json() as { method?: string; amount?: string; reason?: string }
+    if (!body.method || !['cash', 'pix', 'card_external'].includes(body.method) || !body.reason?.trim()) {
       return HttpResponse.json(
-        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Motivo é obrigatório.', errors: { reason: ['Este campo é obrigatório.'] } },
-        { status: 422 },
+        { type: 'about:blank', title: 'Validation Error', status: 422, detail: 'Método e motivo são obrigatórios.', errors: { reason: ['Este campo é obrigatório.'] } },
+        { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
       )
     }
-    return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 200 })
+    return HttpResponse.json({ detail: 'Reembolso processado com sucesso.' }, { status: 201 })
   }),
 
   // Cash sessions — management
@@ -1110,4 +1110,91 @@ const TEMPLATES_DATA: RecurringTemplate[] = [
     next_date: '2026-08-01',
     is_active: false,
   },
+]
+
+// Favorites handlers
+const favoritesDb: Array<{
+  id: string
+  entity_type: string
+  entity_id: string | null
+  label: string
+  route: string
+  position: number
+  icon: string
+  created_at: string
+}> = []
+
+let favoriteCounter = 0
+
+export const favoritesHandlers = [
+  http.get(`${BASE}/favorites/`, () => {
+    return HttpResponse.json(favoritesDb)
+  }),
+
+  http.post(`${BASE}/favorites/`, async ({ request }) => {
+    const body = (await request.json()) as {
+      entity_type?: string
+      entity_id?: string | null
+      label?: string
+      route?: string
+      position?: number
+      icon?: string
+    }
+    favoriteCounter++
+    const favorite = {
+      id: `fav-${favoriteCounter}`,
+      entity_type: body.entity_type ?? 'route',
+      entity_id: body.entity_id ?? null,
+      label: body.label ?? 'Untitled',
+      route: body.route ?? '/',
+      position: body.position ?? favoritesDb.length,
+      icon: body.icon ?? '',
+      created_at: new Date().toISOString(),
+    }
+    favoritesDb.push(favorite)
+    return HttpResponse.json(favorite, { status: 201 })
+  }),
+
+  http.delete(`${BASE}/favorites/:id/`, ({ params }) => {
+    const idx = favoritesDb.findIndex((f) => f.id === params.id)
+    if (idx !== -1) favoritesDb.splice(idx, 1)
+    return HttpResponse.json(null, { status: 204 })
+  }),
+
+  http.put(`${BASE}/favorites/reorder/`, async ({ request }) => {
+    const body = (await request.json()) as { favorite_ids?: string[] }
+    const ids = body.favorite_ids ?? []
+    ids.forEach((id, idx) => {
+      const fav = favoritesDb.find((f) => f.id === id)
+      if (fav) fav.position = idx
+    })
+    return HttpResponse.json({ detail: 'Reorder successful.' })
+  }),
+
+  http.get(`${BASE}/search/`, ({ request }) => {
+    const url = new URL(request.url)
+    const q = url.searchParams.get('q') ?? ''
+    if (q.length < 2) return HttpResponse.json({ results: [] })
+    return HttpResponse.json({
+      results: [
+        {
+          type: 'product',
+          id: 'prod-1',
+          label: `Produto ${q}`,
+          subtitle: 'SKU: TEST-001',
+          route: '/catalog/products/prod-1/edit',
+          icon: 'catalog',
+        },
+      ],
+    })
+  }),
+
+  http.get(`${BASE}/auth/shortcuts/`, () => {
+    return HttpResponse.json({ shortcuts: {} })
+  }),
+
+  http.put(`${BASE}/auth/shortcuts/`, async ({ request }) => {
+    const body = (await request.json()) as { shortcuts?: Record<string, string> }
+    return HttpResponse.json({ shortcuts: body.shortcuts ?? {} })
+  }),
 ]

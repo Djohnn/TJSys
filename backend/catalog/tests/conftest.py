@@ -11,6 +11,8 @@ from pathlib import Path
 
 _conftest_path = Path(__file__).resolve().parents[2] / 'tests' / 'conftest.py'
 _spec = spec_from_file_location('tests.conftest', str(_conftest_path))
+if _spec is None or _spec.loader is None:
+    raise RuntimeError(f'Unable to load shared conftest from {_conftest_path}')
 _mod = module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 

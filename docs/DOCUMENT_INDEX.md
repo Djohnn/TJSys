@@ -39,11 +39,23 @@ Registro oficial dos documentos do Zyrp.
 | MILESTONE-001 | Documentation Foundation | 0.1.0 | Review | `10_Releases/MILESTONE-001_Documentation_Foundation.md` |
 | MILESTONE-001-MANIFEST | Documentation Foundation Manifest | 0.1.0 | Generated | `10_Releases/MILESTONE-001_MANIFEST.txt` |
 | SPRINT-001-REPORT | Sprint 1 Authentication and Onboarding Report | 1.0.0 | Complete | `10_Releases/SPRINT-001_Auth_Onboarding_Final_Report.md` |
+| SPRINT-005-REPORT | Sprint 5 PDV Electron Online Final Report | 1.0.0 | Local acceptance complete; backend/live pending | `10_Releases/SPRINT-005_PDV_Electron_Online_Final_Report.md` |
 | SPRINT-030-REPORT | Sprint 30 Catalog Hardening & Acceptance | 1.0.0 | Complete | `10_Releases/SPRINT-030_Catalog_Hardening_Acceptance_Final_Report.md` |
+| RF-GLOBAL-CLOSURE | R0-R11 + F1-F12 Global Closure Final Report | 1.0.0 | Complete | `10_Releases/R0_R11_F1_F12_GLOBAL_CLOSURE_FINAL_REPORT.md` |
 | OPS-CATALOG-ROLLBACK | Rollback Catálogo Sprints 23–30 | 1.0.0 | Approved | `09_Operations/CATALOG_SPRINTS_23_30_ROLLBACK.md` |
 | DESIGN-CATALOG-NEXT | Especificação Sprints 31–33 | 1.0.0 | Approved | `superpowers/specs/2026-08-01-catalog-next-sprints-design.md` |
 | PLAN-CATALOG-NEXT | Plano Sprints 31–33 | 1.0.0 | Approved | `superpowers/plans/2026-08-01-catalog-next-sprints-implementation-plan.md` |
+| DESIGN-SYSTEM-MANIFEST | Design System Reference Manifest | 1.0.0 | Approved | `02_Architecture/design-system/reference/manifest.json` |
+| DESIGN-R1-TOKENS | Sprint R1 Tokens e Componentes Fundamentais (Design) | 1.0.0 | Approved | `superpowers/specs/2026-08-09-sprint-r1-tokens-e-componentes-fundamentais-design.md` |
+| PLAN-R1-TOKENS | Sprint R1 Tokens e Componentes Fundamentais (Plano) | 1.0.0 | Approved | `superpowers/plans/2026-08-09-sprint-r1-tokens-e-componentes-fundamentais-implementation-plan.md` |
+| DESIGN-R2-SHELL | Sprint R2 Shell Navegacao e Responsividade (Design) | 1.0.0 | Approved | `superpowers/specs/2026-08-09-sprint-r2-shell-navegacao-e-responsividade-design.md` |
+| PLAN-R2-SHELL | Sprint R2 Shell Navegacao e Responsividade (Plano) | 1.0.0 | Approved | `superpowers/plans/2026-08-09-sprint-r2-shell-navegacao-e-responsividade-implementation-plan.md` |
+| TEST-R4-VERTICAL | Fechamento vertical R4 — produto, custo, varejo, atacado e margens | 1.0.0 | Complete | `../frontend/e2e/r4-produto-custo-varejo-atacado-e-margens.spec.ts` |
 
 ## Material histórico
+
+### R4 — registro de verificação
+
+O `graphify update .` foi executado com sucesso e atualizou `graphify-out/`. O Playwright R4 passou em Chromium (`1 passed`, 5.5s) com backend e frontend R4 isolados. A regressão de autenticação MFA foi corrigida deduplicando a inicialização concorrente do CSRF; o teste Vitest correspondente passou. O seed E2E fornece estoque, mas não uma entrada de compra confirmada; por isso o cenário registra `Custo` e margens derivadas como `Não informado` enquanto exerce o `POST` R4, o preço varejo e as duas faixas de atacado.
 
 Todo conteúdo em `99_Archive` é não normativo. Os cinco rascunhos do pacote inicial e o PRD recuperado da conversa foram preservados para rastreabilidade, não para orientar implementação.

@@ -10,6 +10,7 @@ import { OrganizationProvider } from '@/organization/OrganizationProvider'
 import AppShell from '@/layout/AppShell'
 import ErrorState from '@/errors/ErrorState'
 import DashboardPage from '@/dashboard/DashboardPage'
+import FavoritesPage from '@/favorites/FavoritesPage'
 import CompaniesPage from '@/organization/CompaniesPage'
 import BranchesPage from '@/organization/BranchesPage'
 import MembersPage from '@/access/MembersPage'
@@ -19,6 +20,7 @@ import DevicesPage from '@/devices/DevicesPage'
 import ProductsPage from '@/catalog/ProductsPage'
 import CatalogHomePage from '@/catalog/CatalogHomePage'
 import ProductEditorPage from '@/catalog/ProductEditorPage'
+import { SprintR4Page } from '@/catalog/ProductPricesStep'
 import ServicesPage from '@/catalog/ServicesPage'
 import ServiceEditorPage from '@/catalog/ServiceEditorPage'
 import CategoriesPage from '@/catalog/CategoriesPage'
@@ -36,6 +38,8 @@ import ReceivablesPage from '@/financial/ReceivablesPage'
 import PayablesPage from '@/financial/PayablesPage'
 import CashflowPage from '@/financial/CashflowPage'
 import ReportsPage from '@/financial/ReportsPage'
+import BankReconciliationPage from '@/financial/BankReconciliationPage'
+import FinancialStatementPage from '@/financial/FinancialStatementPage'
 import SalesPage from '@/salesManagement/SalesPage'
 import SaleDetailPage from '@/salesManagement/SaleDetailPage'
 import CashSessionsPage from '@/salesManagement/CashSessionsPage'
@@ -86,10 +90,12 @@ export default function App(): ReactNode {
             >
               <Route index element={<DashboardPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="favorites" element={<FavoritesPage />} />
               <Route path="catalog" element={<CatalogHomePage />} />
               <Route path="catalog/products" element={<ProductsPage />} />
               <Route path="catalog/products/new" element={<ProductEditorPage />} />
               <Route path="catalog/products/:productId/edit" element={<ProductEditorPage />} />
+              <Route path="catalog/products/:productId/prices" element={<SprintR4Page />} />
               <Route path="catalog/services" element={<ServicesPage />} />
               <Route path="catalog/services/new" element={<ServiceEditorPage />} />
               <Route path="catalog/services/:id/edit" element={<ServiceEditorPage />} />
@@ -110,6 +116,8 @@ export default function App(): ReactNode {
               <Route path="financial/receivables" element={<ReceivablesPage />} />
               <Route path="financial/payables" element={<PayablesPage />} />
               <Route path="financial/cashflow" element={<CashflowPage />} />
+              <Route path="financial/bank-reconciliations" element={<BankReconciliationPage />} />
+              <Route path="financial/statement" element={<FinancialStatementPage />} />
               <Route path="financial/reports" element={<ReportsPage />} />
               <Route path="financial/cash-sessions" element={<CashSessionsPage />} />
               <Route path="financial/cash-sessions/:id" element={<CashSessionDetailPage />} />

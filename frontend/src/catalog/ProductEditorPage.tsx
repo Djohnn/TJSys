@@ -1,13 +1,21 @@
 import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
-import { apiRequest } from '@/api/client'
-import { createProductCode } from './catalogApi'
-import type { Product } from './catalogApi'
-import { toProductPayload } from './catalogSchemas'
+import { isApiProblemError } from '@/api/problem'
+import {
+  applyProduct,
+  createProductCode,
+  fetchProduct,
+  fetchProductCodes,
+  fetchProductStockSummary,
+  updateProduct,
+  updateProductCode,
+} from './catalogApi'
+import type { ApplyProductResponse } from './catalogApi'
+import { productToFormData, toProductPayload } from './catalogSchemas'
 import type { ProductFormData } from './catalogSchemas'
 
 import ProductMediaPanel from './ProductMediaPanel'
@@ -36,36 +44,103 @@ export default function ProductEditorPage(): ReactNode {
 
   const isEditing = Boolean(urlProductId)
 
-  const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('identity')
+  const [commandId] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `cmd-${Date.now()}`,
+  )
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
 
-  const productId = urlProductId ?? createdProductId
+  const {
+    data: persistedProduct,
+    isLoading: productLoading,
+    isError: productLoadError,
+    refetch: refetchProduct,
+  } = useQuery({
+    queryKey: ['catalog-product', tenantId, urlProductId],
+    queryFn: () => fetchProduct(tenantId, urlProductId!),
+    enabled: Boolean(tenantId && urlProductId),
+  })
+  const { data: persistedStockSummary } = useQuery({
+    queryKey: ['catalog-product-stock-summary', tenantId, urlProductId],
+    queryFn: () => fetchProductStockSummary(tenantId, urlProductId!),
+    enabled: Boolean(tenantId && urlProductId && persistedProduct?.tracks_inventory),
+  })
+
+  const productId = urlProductId
   const tabsReady = isEditing || !!productId
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       const payload = toProductPayload(data)
-      const product = await apiRequest<Product>('/catalog/products/', {
-        method: 'POST', tenantId, body: payload.product,
-      }) as Product
-      if (payload.barcode && product) {
-        try { await createProductCode(tenantId, product.id, { code_type: 'ean', value: payload.barcode, is_principal: true }) } catch { /* non-blocking */ }
-      }
-      return product
+      const result = await applyProduct(tenantId, {
+        command_id: commandId,
+        product: { ...payload.product, barcode: payload.barcode },
+        stock: payload.stock ?? null,
+      })
+      return result as ApplyProductResponse
     },
-    onSuccess: (product) => {
-      setCreatedProductId(product.id)
+    onSuccess: (result) => {
+      setFeedback({ kind: 'success', text: 'Produto criado com sucesso.' })
+      setActiveTab('prices')
+      navigate(`/catalog/products/${result.product.id}/edit`, { replace: true })
+    },
+    onError: (err) => {
+      setFeedback({
+        kind: 'error',
+        text: isApiProblemError(err) ? err.problem.detail : 'Erro ao criar produto.',
+      })
+    },
+  })
+
+  const editMutation = useMutation({
+    mutationFn: async (data: ProductFormData) => {
+      if (!urlProductId) throw new Error('Produto inválido.')
+      const payload = toProductPayload(data)
+      const result = await updateProduct(tenantId, urlProductId, payload.product)
+      const codes = await fetchProductCodes(tenantId, urlProductId)
+      const principal = codes.find((code) => code.code_type === 'ean' && code.is_principal && code.is_active)
+      if (payload.barcode && principal) {
+        await updateProductCode(tenantId, urlProductId, principal.id, {
+          value: payload.barcode,
+          is_principal: true,
+          is_active: true,
+        })
+      } else if (payload.barcode) {
+        await createProductCode(tenantId, urlProductId, {
+          code_type: 'ean',
+          value: payload.barcode,
+          is_principal: true,
+        })
+      } else if (principal) {
+        await updateProductCode(tenantId, urlProductId, principal.id, {
+          is_principal: false,
+          is_active: false,
+        })
+      }
+      return result
+    },
+    onSuccess: () => {
+      setFeedback({ kind: 'success', text: 'Produto atualizado com sucesso.' })
+    },
+    onError: (err) => {
+      setFeedback({
+        kind: 'error',
+        text: isApiProblemError(err) ? err.problem.detail : 'Erro ao atualizar produto.',
+      })
     },
   })
 
   const handleIdentitySubmit = useCallback(
     (data: ProductFormData) => {
       if (isEditing) {
+        editMutation.mutate(data)
         return
       }
       createMutation.mutate(data)
     },
-    [createMutation, isEditing],
+    [createMutation, editMutation, isEditing],
   )
 
   const tabs = STEP_TABS.map((tab) => ({
@@ -81,7 +156,7 @@ export default function ProductEditorPage(): ReactNode {
 
     switch (activeTab) {
       case 'identity':
-        return <ProductIdentityStep initialData={undefined} onSubmit={handleIdentitySubmit} />
+        return <ProductIdentityStep initialData={persistedProduct ? productToFormData(persistedProduct, persistedStockSummary) : undefined} onSubmit={handleIdentitySubmit} />
       case 'prices':
         return <ProductPricesStep productId={productId} />
       case 'inventory':
@@ -96,6 +171,9 @@ export default function ProductEditorPage(): ReactNode {
         return null
     }
   }
+
+  const identityReady = !isEditing || (!productLoading && !!persistedProduct)
+  const identityFormKey = `${urlProductId ?? 'new'}-${persistedStockSummary ? 'stock-loaded' : 'stock-pending'}`
 
   return (
     <div data-testid="product-editor-page" className="mx-auto max-w-[1440px]">
@@ -115,6 +193,20 @@ export default function ProductEditorPage(): ReactNode {
         </button>
       </div>
 
+      {feedback && (
+        <div
+          role={feedback.kind === 'error' ? 'alert' : 'status'}
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            feedback.kind === 'error'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-green-200 bg-green-50 text-green-700'
+          }`}
+          data-testid="editor-feedback"
+        >
+          {feedback.text}
+        </div>
+      )}
+
       <ProductEditorSteps tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div
@@ -126,10 +218,26 @@ export default function ProductEditorPage(): ReactNode {
           <ProductMediaPanel productId={productId} />
         </aside>
         <section aria-label="Identificação do produto" className="min-w-0 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-6">
-          {activeTab === 'identity' ? (
+          {activeTab === 'identity' && identityReady ? (
             <ProductIdentityStep
+              key={identityFormKey}
+              initialData={persistedProduct ? productToFormData(persistedProduct, persistedStockSummary) : undefined}
               onSubmit={handleIdentitySubmit}
             />
+          ) : activeTab === 'identity' && productLoadError ? (
+            <div className="space-y-3 p-6 text-center text-sm text-red-700">
+              <p>Não foi possível carregar o produto.</p>
+              <button
+                type="button"
+                onClick={() => refetchProduct()}
+                className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium hover:bg-red-50"
+                data-testid="product-retry-button"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : activeTab === 'identity' ? (
+            <div className="p-6 text-center text-sm text-neutral-500">Carregando produto...</div>
           ) : productId ? (
             renderStep()
           ) : (

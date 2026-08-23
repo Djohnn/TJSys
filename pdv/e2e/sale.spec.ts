@@ -1,10 +1,16 @@
 import { test, expect, Page } from '@playwright/test';
+import { apiUrl } from './config';
 
-const API_KEY = 'e2e-test-key-2026';
+const liveApiKey = process.env.E2E_LIVE_API_KEY;
 
-test.describe('Sale flow (real backend)', () => {
+test.describe('Sale flow @live (real backend)', () => {
+  test.skip(process.env.E2E_LIVE_PDV !== '1', 'Fluxo live exige E2E_LIVE_PDV=1 e API key do ambiente dedicado.');
+  test.beforeEach(() => {
+    if (!liveApiKey) {
+      throw new Error('Defina E2E_LIVE_API_KEY para executar o fluxo live do PDV.');
+    }
+  });
   test.setTimeout(90000);
-  test.use({ baseURL: 'http://localhost:5173' });
 
   test('full sale flow: login, open cash, add stock, create sale', async ({ page }) => {
     await page.addInitScript(() => {
@@ -27,7 +33,7 @@ test.describe('Sale flow (real backend)', () => {
     // Login
     await page.goto('/login', { waitUntil: 'networkidle' });
     await expect(page.getByLabel('Chave de API (API Key)')).toBeVisible({ timeout: 5000 });
-    await page.getByLabel('Chave de API (API Key)').fill(API_KEY);
+    await page.getByLabel('Chave de API (API Key)').fill(liveApiKey!);
     await page.getByRole('button', { name: 'Entrar' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 30000 });
 
@@ -37,7 +43,7 @@ test.describe('Sale flow (real backend)', () => {
     const token = await page.evaluate(() => localStorage.getItem('access_token')) as string;
     const tenantId = await page.evaluate(() => localStorage.getItem('tenant_id')) as string;
 
-    const locResp = await page.request.get('http://localhost:8000/api/v1/stock-locations/', {
+    const locResp = await page.request.get(apiUrl('/stock-locations/'), {
       headers: headers(token, tenantId),
     });
     const locData = await locResp.json();
@@ -45,7 +51,7 @@ test.describe('Sale flow (real backend)', () => {
     await page.evaluate((id: string) => localStorage.setItem('stock_location_id', id), stockLocationId);
 
     // Find product
-    const prodResp = await page.request.get('http://localhost:8000/api/v1/products/?search=E2E', {
+    const prodResp = await page.request.get(apiUrl('/products/?search=E2E'), {
       headers: headers(token, tenantId),
     });
     const prodData = await prodResp.json();
@@ -59,7 +65,7 @@ test.describe('Sale flow (real backend)', () => {
       branch: branchId, location: stockLocationId, product: productId,
       unit: unitId, quantity: '100', factor: '1', unit_cost: '30.00',
     };
-    await page.request.post('http://localhost:8000/api/v1/stock-operations/receipt/', {
+    await page.request.post(apiUrl('/stock-operations/receipt/'), {
       data: receiptPayload,
       headers: { ...headers(token, tenantId), 'Idempotency-Key': crypto.randomUUID() },
     });

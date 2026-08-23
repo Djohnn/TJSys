@@ -1,7 +1,8 @@
-import { describe, expect, it, vi, beforeEach, afterEach, act } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '../../pages/Dashboard';
+import { getElectronAPI } from '../../../shared/electron';
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -37,9 +38,12 @@ describe('Dashboard', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.electronAPI = {
+      ...getElectronAPI(),
       getSaleDetail: vi.fn(),
       getProduct: vi.fn(),
       printReceipt: vi.fn(),
+      printFiscalReceipt: vi.fn(),
+      printBalcaoReceipt: vi.fn(),
     };
   });
 
@@ -172,20 +176,36 @@ describe('Dashboard', () => {
       });
     }) as any;
 
-    window.electronAPI.getSaleDetail.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSaleDetail).mockResolvedValue({
       success: true,
       data: {
         id: 'sale-123456789',
+        branch: 'branch-1',
+        cash_session: 'cash-1',
+        operator: 'operator-1',
+        status: 'confirmed',
+        gross_total: '49.90',
+        discount_total: '0.00',
         net_total: '49.90',
         created_at: '2026-07-18T13:52:03-03:00',
-        items: [{ product: 'prod-1', quantity: '2', line_total: '24.95' }],
+        payments: [],
+        items: [{
+          id: 'item-1',
+          product: 'prod-1',
+          quantity: '2',
+          unit: { id: 'unit-1', symbol: 'un', name: 'Unidade' },
+          factor: '1',
+          unit_price: '12.475',
+          discount_amount: '0.00',
+          line_total: '24.95',
+        }],
       },
     });
-    window.electronAPI.getProduct.mockResolvedValue({
+    vi.mocked(window.electronAPI.getProduct).mockResolvedValue({
       success: true,
-      data: { name: 'Coca-Cola 350ml' },
+      data: { id: 'prod-1', name: 'Coca-Cola 350ml' },
     });
-    window.electronAPI.printReceipt.mockResolvedValue({
+    vi.mocked(window.electronAPI.printBalcaoReceipt).mockResolvedValue({
       success: true,
     });
 
@@ -224,7 +244,7 @@ describe('Dashboard', () => {
       });
     }) as any;
 
-    window.electronAPI.getSaleDetail.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSaleDetail).mockResolvedValue({
       success: false,
       error: 'Venda não encontrada',
     });
@@ -263,20 +283,36 @@ describe('Dashboard', () => {
       });
     }) as any;
 
-    window.electronAPI.getSaleDetail.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSaleDetail).mockResolvedValue({
       success: true,
       data: {
         id: 'sale-123456789',
+        branch: 'branch-1',
+        cash_session: 'cash-1',
+        operator: 'operator-1',
+        status: 'confirmed',
+        gross_total: '49.90',
+        discount_total: '0.00',
         net_total: '49.90',
         created_at: '2026-07-18T13:52:03-03:00',
-        items: [{ product: 'prod-1', quantity: '2', line_total: '24.95' }],
+        payments: [],
+        items: [{
+          id: 'item-1',
+          product: 'prod-1',
+          quantity: '2',
+          unit: { id: 'unit-1', symbol: 'un', name: 'Unidade' },
+          factor: '1',
+          unit_price: '12.475',
+          discount_amount: '0.00',
+          line_total: '24.95',
+        }],
       },
     });
-    window.electronAPI.getProduct.mockResolvedValue({
+    vi.mocked(window.electronAPI.getProduct).mockResolvedValue({
       success: true,
-      data: { name: 'Coca-Cola 350ml' },
+      data: { id: 'prod-1', name: 'Coca-Cola 350ml' },
     });
-    window.electronAPI.printReceipt.mockResolvedValue({
+    vi.mocked(window.electronAPI.printBalcaoReceipt).mockResolvedValue({
       success: false,
       error: 'Impressora não conectada',
     });
@@ -315,24 +351,40 @@ describe('Dashboard', () => {
       });
     }) as any;
 
-    let resolvePrint: (value: any) => void;
-    const printPromise = new Promise((resolve) => {
+    let resolvePrint: (value: { success: true }) => void;
+    const printPromise = new Promise<{ success: true }>((resolve) => {
       resolvePrint = resolve;
     });
-    window.electronAPI.getSaleDetail.mockResolvedValue({
+    vi.mocked(window.electronAPI.getSaleDetail).mockResolvedValue({
       success: true,
       data: {
         id: 'sale-123456789',
+        branch: 'branch-1',
+        cash_session: 'cash-1',
+        operator: 'operator-1',
+        status: 'confirmed',
+        gross_total: '49.90',
+        discount_total: '0.00',
         net_total: '49.90',
         created_at: '2026-07-18T13:52:03-03:00',
-        items: [{ product: 'prod-1', quantity: '2', line_total: '24.95' }],
+        payments: [],
+        items: [{
+          id: 'item-1',
+          product: 'prod-1',
+          quantity: '2',
+          unit: { id: 'unit-1', symbol: 'un', name: 'Unidade' },
+          factor: '1',
+          unit_price: '12.475',
+          discount_amount: '0.00',
+          line_total: '24.95',
+        }],
       },
     });
-    window.electronAPI.getProduct.mockResolvedValue({
+    vi.mocked(window.electronAPI.getProduct).mockResolvedValue({
       success: true,
-      data: { name: 'Coca-Cola 350ml' },
+      data: { id: 'prod-1', name: 'Coca-Cola 350ml' },
     });
-    window.electronAPI.printReceipt.mockReturnValue(printPromise);
+    vi.mocked(window.electronAPI.printBalcaoReceipt).mockReturnValue(printPromise);
 
     render(
       <MemoryRouter>

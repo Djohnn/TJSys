@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Sale } from '../../pages/Sale';
+import { getElectronAPI } from '../../../shared/electron';
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ isAuthenticated: true }),
@@ -69,6 +70,34 @@ describe('Sale', () => {
     });
   });
 
+  it('renders the kilogram symbol when the API provides only the unit name', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-kg',
+          sku: 'PDV-KG-001',
+          name: 'Produto Quilograma',
+          base_unit: 'unit-kg',
+          unit_name: 'KG',
+          price: '24.00',
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Produto Quilograma' },
+    });
+    fireEvent.click(await screen.findByText('Produto Quilograma'));
+
+    expect(await screen.findByText('Qtd: 1kg', { exact: true })).toBeInTheDocument();
+  });
+
   it('shows printable receipt with product name and normalized quantity', async () => {
     const browserPrint = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     const printReceipt = vi.fn().mockResolvedValue({
@@ -88,7 +117,12 @@ describe('Sale', () => {
           }],
       },
     });
-    (window as any).electronAPI = { createSale, printReceipt };
+    window.electronAPI = {
+      ...getElectronAPI(),
+      createSale,
+      printReceipt,
+      printBalcaoReceipt: printReceipt,
+    };
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({
         results: [{
@@ -306,5 +340,79 @@ describe('Sale', () => {
 
     // Botão voltou ao estado inicial
     expect(confirmButton).toBeDisabled();
+  });
+
+  it('accepts an exact two-decimal payment for a fractional floating-point total', async () => {
+    const createSale = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        id: 'sale-rounded-total',
+        created_at: '2026-07-18T13:52:03-03:00',
+        net_total: '59.70',
+        items: [],
+      },
+    });
+    window.electronAPI = { ...getElectronAPI(), createSale };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-rounded',
+          sku: 'PDV-ROUND-001',
+          name: 'Produto Arredondado',
+          base_unit: 'unit-1',
+          price: '19.90',
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Produto Arredondado' },
+    });
+    fireEvent.click(await screen.findByText('Produto Arredondado'));
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('0,00'), { target: { value: '59.70' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar Pagamento' }));
+    const confirmButton = screen.getByRole('button', { name: 'Confirmar Venda' });
+    await waitFor(() => expect(confirmButton).toBeEnabled());
+    fireEvent.click(confirmButton);
+
+    await screen.findByRole('status');
+    expect(createSale).toHaveBeenCalledOnce();
+  });
+
+  it('enables exact payment when binary floating-point totals round to the same cents', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        results: [{
+          id: 'product-cents',
+          sku: 'PDV-CENTS-001',
+          name: 'Produto Centavos',
+          base_unit: 'unit-1',
+          price: '0.10',
+        }],
+      }), { status: 200 }),
+    );
+
+    render(
+      <MemoryRouter>
+        <Sale />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar produto (SKU ou nome)...'), {
+      target: { value: 'Produto Centavos' },
+    });
+    fireEvent.click(await screen.findByText('Produto Centavos'));
+    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '3' } });
+    fireEvent.change(screen.getByPlaceholderText('0,00'), { target: { value: '0.30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar Pagamento' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirmar Venda' })).toBeEnabled());
   });
 });

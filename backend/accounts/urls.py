@@ -1,5 +1,7 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
+from accounts.views.favorites import UserFavoriteReorderView, UserFavoriteViewSet
 from accounts.views.mfa import (
     EmailMFASendView,
     MFAChallengeView,
@@ -10,9 +12,13 @@ from accounts.views.mfa import (
 )
 from accounts.views.onboarding import EmailConfirmationView, RegistrationView
 from accounts.views.password import PasswordForgotView, PasswordResetView
-from accounts.views.session import CSRFView, LoginView, LogoutView, MeView
+from accounts.views.search import GlobalSearchView
+from accounts.views.session import CSRFView, LoginView, LogoutView, MeView, UserShortcutsView
 
 app_name = 'accounts'
+
+router = DefaultRouter()
+router.register('favorites', UserFavoriteViewSet, basename='favorite')
 
 urlpatterns = [
     path('auth/register/', RegistrationView.as_view(), name='register'),
@@ -28,8 +34,13 @@ urlpatterns = [
     path('auth/mfa/email/send/', EmailMFASendView.as_view(), name='email-mfa-send'),
     path('auth/mfa/challenge/', MFAChallengeView.as_view(), name='mfa-challenge'),
     path(
-        'auth/mfa/recovery/regenerate/', RecoveryRegenerateView.as_view(),
+        'auth/mfa/recovery/regenerate/',
+        RecoveryRegenerateView.as_view(),
         name='recovery-regenerate',
     ),
     path('auth/mfa/recovery/verify/', RecoveryVerifyView.as_view(), name='recovery-verify'),
+    path('auth/shortcuts/', UserShortcutsView.as_view(), name='user-shortcuts'),
+    path('favorites/reorder/', UserFavoriteReorderView.as_view(), name='favorite-reorder'),
+    path('search/', GlobalSearchView.as_view(), name='global-search'),
+    path('', include(router.urls)),
 ]

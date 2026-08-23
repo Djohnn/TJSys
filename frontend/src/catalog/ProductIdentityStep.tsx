@@ -9,6 +9,7 @@ import { apiRequest } from '@/api/client'
 import type { PaginatedResponse, Category, Unit, Brand } from './catalogApi'
 import { catalogKeys } from './catalogQueryKeys'
 import { productSchema, type ProductFormData } from './catalogSchemas'
+import ProductStockFields from './ProductStockFields'
 import CategoryQuickCreateModal from './CategoryQuickCreateModal'
 import UnitQuickCreateModal from './UnitQuickCreateModal'
 import BrandQuickCreateModal from './BrandQuickCreateModal'
@@ -26,6 +27,17 @@ const PRODUCT_KIND_OPTIONS = [
 interface ProductIdentityStepProps {
   initialData?: ProductFormData
   onSubmit: (data: ProductFormData) => void
+}
+
+const STOCK_DEFAULTS = {
+  branch: '',
+  location: '',
+  current_quantity: '0',
+  initial_quantity: '0',
+  minimum_quantity: '0',
+  maximum_quantity: '',
+  reorder_point: '0',
+  allow_negative: false,
 }
 
 export default function ProductIdentityStep({ initialData, onSubmit }: ProductIdentityStepProps): ReactNode {
@@ -69,9 +81,12 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
+    shouldUnregister: false,
     defaultValues: initialData ?? {
       name: '',
       sku: '',
@@ -85,12 +100,17 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
       tags: '',
       scale_code: '',
       tracks_inventory: false,
+      stock: STOCK_DEFAULTS,
     },
   })
 
   const categories = categoriesData?.results ?? []
   const units = unitsData?.results ?? []
   const brands = brandsData?.results ?? []
+
+  const productKind = watch('product_kind')
+  const tracksInventory = watch('tracks_inventory')
+  const showStockFields = tracksInventory && productKind !== 'servico'
 
   return (
     <div data-testid="product-identity-step">
@@ -141,7 +161,7 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
         <div>
           <label htmlFor="pi-brand" className="block text-sm font-medium text-neutral-700 mb-1">Marca</label>
           <div className="flex items-center gap-2">
-            <select id="pi-brand" {...register('brand')} className="flex-1 px-3 py-2 border border-border rounded-lg text-sm">
+            <select id="pi-brand" {...register('brand')} className="flex-1 px-3 py-2 border border-border rounded-lg text-sm" data-testid="product-brand-input">
               <option value="">Selecione...</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.name}>{b.name}</option>
@@ -187,24 +207,65 @@ export default function ProductIdentityStep({ initialData, onSubmit }: ProductId
           <input id="pi-barcode" {...register('barcode')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
         </div>
 
-        <div>
-          <label htmlFor="pi-tags" className="block text-sm font-medium text-neutral-700 mb-1">Tags (separadas por vírgula)</label>
-          <input id="pi-tags" {...register('tags')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="tag1, tag2, tag3" />
+        <div className="space-y-4 border-t border-border pt-4 mt-6">
+          <h3 className="text-lg font-semibold text-neutral-800">Dados Comerciais</h3>
+
+          <div>
+            <label htmlFor="pi-product-kind" className="block text-sm font-medium text-neutral-700 mb-1">Tipo de Produto</label>
+            <select id="pi-product-kind" {...register('product_kind')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" data-testid="product-kind-select">
+              {PRODUCT_KIND_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="pi-model" className="block text-sm font-medium text-neutral-700 mb-1">Modelo</label>
+            <input id="pi-model" {...register('model')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" data-testid="product-model-input" />
+          </div>
+
+          <div>
+            <label htmlFor="pi-tags" className="block text-sm font-medium text-neutral-700 mb-1">Tags (separadas por vírgula)</label>
+            <input id="pi-tags" {...register('tags')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" placeholder="tag1, tag2, tag3" data-testid="product-tags-input" />
+          </div>
+
+          <div>
+            <label htmlFor="pi-scale-code" className="block text-sm font-medium text-neutral-700 mb-1">Código Balança</label>
+            <input id="pi-scale-code" {...register('scale_code')} className="w-full px-3 py-2 border border-border rounded-lg text-sm" data-testid="product-scale-code-input" />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-neutral-700">
+            <input
+              type="checkbox"
+              {...register('is_active')}
+              className="rounded border-border"
+            />
+            Ativo
+          </label>
         </div>
 
-        <div>
-          <label htmlFor="pi-product-kind" className="block text-sm font-medium text-neutral-700 mb-1">Tipo de Produto</label>
-          <select id="pi-product-kind" {...register('product_kind')} className="w-full px-3 py-2 border border-border rounded-lg text-sm">
-            {PRODUCT_KIND_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
+        {productKind !== 'servico' && (
+          <div className="space-y-4 border-t border-border pt-4 mt-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+              <input
+                type="checkbox"
+                {...register('tracks_inventory')}
+                className="rounded border-border"
+                data-testid="product-tracks-inventory-checkbox"
+              />
+              Controlar estoque
+            </label>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
-          <input type="checkbox" {...register('is_active')} className="rounded border-border" />
-          Ativo
-        </label>
+            {showStockFields && (
+              <ProductStockFields
+                register={register}
+                errors={errors.stock}
+                setValue={setValue}
+                watch={watch}
+              />
+            )}
+          </div>
+        )}
 
         <div className="pt-4">
           <button

@@ -50,6 +50,7 @@ logs/
 
 # Node.js / React / Electron
 node_modules/
+/test-results/
 .npm/
 .pnpm-store/
 .yarn/cache/

@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface SaleConfirmationToastProps {
   saleId: string;
   saleNumber: string;
@@ -10,7 +8,6 @@ interface SaleConfirmationToastProps {
 }
 
 export function SaleConfirmationToast({
-  saleId,
   saleNumber,
   hasFiscalConfig,
   onPrintFiscal,
