@@ -11,8 +11,25 @@ from accounts.services.onboarding import (
     register_organization,
 )
 from accounts.throttles import RegistrationThrottle
-from audit.services import create_audit_record
 from platform_admin.models import Plan
+
+
+def _problem_response(detail, code, status_code):
+    titles = {
+        'invalid_plan': 'Invalid signup plan',
+        'invalid_or_expired_token': 'Invalid or expired confirmation token',
+    }
+    return Response(
+        {
+            'type': f'https://docs.zyrp.local/errors/{code}',
+            'title': titles.get(code, 'Request error'),
+            'status': status_code,
+            'detail': detail,
+            'code': code,
+        },
+        status=status_code,
+        content_type='application/problem+json',
+    )
 
 
 class PublicPlanListView(APIView):
@@ -37,11 +54,15 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            user = register_organization(**serializer.validated_data)
+            user = register_organization(
+                **serializer.validated_data,
+                correlation_id=getattr(request, 'correlation_id', ''),
+            )
         except InvalidSignupPlan as exc:
-            return Response(
-                {'detail': str(exc), 'code': 'invalid_plan'},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _problem_response(
+                str(exc),
+                'invalid_plan',
+                status.HTTP_400_BAD_REQUEST,
             )
         if user:
             create_audit_record(
@@ -67,9 +88,9 @@ class EmailConfirmationView(APIView):
         try:
             confirm_signup(serializer.validated_data['token'])
         except InvalidSignupToken as exc:
-            return Response(
-                {'detail': str(exc), 'code': 'invalid_or_expired_token'},
-                status=status.HTTP_400_BAD_REQUEST,
-                content_type='application/problem+json',
+            return _problem_response(
+                str(exc),
+                'invalid_or_expired_token',
+                status.HTTP_400_BAD_REQUEST,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
