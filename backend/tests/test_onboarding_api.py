@@ -16,13 +16,16 @@ User = get_user_model()
 
 @pytest.fixture
 def starter_plan(db):
-    return Plan.objects.create(
+    plan, _ = Plan.objects.update_or_create(
         code='starter',
-        name='Starter',
-        is_active=True,
-        is_public=True,
-        trial_days=14,
+        defaults={
+            'name': 'Starter',
+            'is_active': True,
+            'is_public': True,
+            'trial_days': 14,
+        },
     )
+    return plan
 
 
 def _register(client, email='owner@example.test', plan_code='starter'):
