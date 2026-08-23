@@ -9,7 +9,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ('accounts', '0007_customuser_shortcuts_db_default'),
-        ('tenancy', '0007_sprint7_fiscal_models'),
     ]
 
     operations = [
@@ -30,13 +29,7 @@ class Migration(migrations.Migration):
                     related_name='signup_intent',
                     to='accounts.onetimetoken',
                 )),
-                ('provisioned_tenant', models.OneToOneField(
-                    blank=True,
-                    null=True,
-                    on_delete=django.db.models.deletion.PROTECT,
-                    related_name='signup_intent',
-                    to='tenancy.tenant',
-                )),
+                ('provisioned_tenant_id', models.UUIDField(blank=True, null=True)),
                 ('user', models.OneToOneField(
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='signup_intent',
