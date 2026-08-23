@@ -243,7 +243,7 @@ jobs:
         env:
           POSTGRES_APP_USER: zyrp_app
           POSTGRES_APP_PASSWORD: zyrp_app_ci
-          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || env.E2E_USER_PASSWORD }}
 
       - name: Start backend
         run: python manage.py runserver 0.0.0.0:8000 --settings=config.settings.local > /tmp/tjsys-backend.log 2>&1 &
