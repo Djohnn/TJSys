@@ -159,3 +159,33 @@ def test_given_existing_email_when_registered_then_response_is_generic(client, s
 
     assert response.status_code == 202
     assert response.json()['detail'] == 'If eligible, confirmation instructions will be sent.'
+
+
+@pytest.mark.django_db
+def test_public_plans_returns_only_active_public_trial_plans(client, db):
+    Plan.objects.create(
+        code='starter',
+        name='Starter',
+        is_active=True,
+        is_public=True,
+        trial_days=14,
+    )
+    Plan.objects.create(
+        code='hidden',
+        name='Hidden',
+        is_active=True,
+        is_public=False,
+        trial_days=14,
+    )
+    Plan.objects.create(
+        code='expired',
+        name='Expired',
+        is_active=False,
+        is_public=True,
+        trial_days=14,
+    )
+
+    response = client.get('/api/v1/auth/plans/')
+
+    assert response.status_code == 200
+    assert response.json() == [{'code': 'starter', 'name': 'Starter', 'trial_days': 14}]
