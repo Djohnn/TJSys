@@ -159,8 +159,6 @@ jobs:
   playwright:
     runs-on: ubuntu-latest
     needs: ci
-    permissions:
-      contents: write
     env:
       DJANGO_SETTINGS_MODULE: config.settings.e2e
       DB_NAME: zyrp
@@ -212,8 +210,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -292,37 +288,6 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
-
-      - name: Publish visual baseline candidates
-        if: failure()
-        env:
-          CANDIDATE_BRANCH: codex/s34-visual-candidates-${{ github.run_id }}
-        run: |
-          npx playwright test \
-            e2e/r0-baseline-e-governanca-do-design-system.spec.ts \
-            e2e/r1-tokens-e-componentes-fundamentais.spec.ts \
-            e2e/r2-shell-navegacao-e-responsividade.spec.ts \
-            --project=firefox --project=webkit --update-snapshots
-          mapfile -t snapshots < <(
-            find e2e -type f \( -name '*-firefox-linux.png' -o -name '*-webkit-linux.png' \) | sort
-          )
-          if [ "${#snapshots[@]}" -ne 10 ]; then
-            printf 'Expected exactly 10 candidate snapshots, found %s\n' "${#snapshots[@]}"
-            printf '%s\n' "${snapshots[@]}"
-            exit 1
-          fi
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git switch -c "$CANDIDATE_BRANCH"
-          git add -- "${snapshots[@]}"
-          mapfile -t staged < <(git diff --cached --name-only)
-          if [ "${#staged[@]}" -ne 10 ]; then
-            printf 'Expected exactly 10 staged files, found %s\n' "${#staged[@]}"
-            printf '%s\n' "${staged[@]}"
-            exit 1
-          fi
-          git commit -m "test: add Firefox and WebKit snapshot candidates"
-          git push origin "HEAD:refs/heads/$CANDIDATE_BRANCH"
 
       - name: Upload frontend Playwright diagnostics
         if: always()
