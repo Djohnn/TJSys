@@ -114,7 +114,12 @@ jobs:
       - name: Secrets detection
         run: |
           cd ..
-          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+          status=0
+          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline || status=$?
+          if ! git diff --quiet -- .secrets.baseline; then
+            git diff -- .secrets.baseline
+          fi
+          exit "$status"
 
       - name: Deploy check
         run: python manage.py check --deploy --settings=config.settings.production
@@ -156,7 +161,7 @@ jobs:
     needs: ci
     env:
       DJANGO_SETTINGS_MODULE: config.settings.e2e
-      DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+      DB_NAME: zyrp
       POSTGRES_HOST: localhost
       POSTGRES_PORT: '5432'
       POSTGRES_DB: zyrp
@@ -171,6 +176,7 @@ jobs:
       AUTH_LOGIN_RATE: 100/minute
       AUTH_MFA_RATE: 100/minute
       VITE_API_BASE_URL: /api/v1
+      VITE_API_PROXY_TARGET: http://localhost:8000
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     defaults:
@@ -216,7 +222,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-        working-directory: backend
 
       - name: Generate ephemeral MFA encryption key
         working-directory: backend
@@ -224,48 +229,37 @@ jobs:
 
       - name: Bootstrap unprivileged database roles
         working-directory: backend
+        env:
+          POSTGRES_APP_USER: zyrp_app
+          POSTGRES_APP_PASSWORD: zyrp_app_ci
         run: bash ../infra/postgres/init/001_roles.sh
-        working-directory: backend
 
       - name: Run migrations
         working-directory: backend
         run: python manage.py migrate --settings=config.settings.migration
-        working-directory: backend
 
       - name: Seed E2E data
         working-directory: backend
         run: python manage.py seed_e2e
-        working-directory: backend
         env:
-          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-
-      - name: Start backend
-        run: python manage.py runserver 0.0.0.0:8000 --settings=config.settings.local > /tmp/tjsys-backend.log 2>&1 &
-        working-directory: backend
-
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8000/api/v1/health/; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Backend health check failed after 60 seconds"
-          cat /tmp/tjsys-backend.log
-          exit 1
+          POSTGRES_APP_USER: zyrp
+          POSTGRES_APP_PASSWORD: zyrp
+          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || env.E2E_USER_PASSWORD }}
 
       - name: Start E2E backend
         working-directory: backend
         run: |
-          nohup python manage.py runserver 0.0.0.0:8000 >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
+          nohup python manage.py runserver 0.0.0.0:8000 --settings=config.settings.e2e >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
           echo $! >"$RUNNER_TEMP/e2e-backend.pid"
+        env:
+          POSTGRES_APP_USER: zyrp_app
+          POSTGRES_APP_PASSWORD: zyrp_app_ci
 
       - name: Wait for E2E backend health
         working-directory: backend
         run: |
           for i in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:8000/api/v1/health/; then
+            if curl --fail --silent --show-error http://localhost:8000/api/v1/health/; then
               exit 0
             fi
             sleep 2
@@ -294,6 +288,17 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
+
+      - name: Upload frontend Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-playwright-${{ github.run_id }}
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 2
 
   pdv-e2e:
     runs-on: ubuntu-latest

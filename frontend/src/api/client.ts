@@ -136,6 +136,11 @@ export async function apiRequest<T>(
     return undefined
   }
 
+  if (response.status === 202) {
+    const text = await response.text()
+    return text.trim() ? (JSON.parse(text) as T) : undefined
+  }
+
   const json: unknown = await response.json()
   return json as T
 }

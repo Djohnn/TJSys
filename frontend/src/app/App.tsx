@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom'
 
 import { AuthProvider } from '@/auth/AuthProvider'
 import LoginPage from '@/auth/LoginPage'
+import RegisterPage from '@/auth/RegisterPage'
+import ConfirmEmailPage from '@/auth/ConfirmEmailPage'
 import MfaPage from '@/auth/MfaPage'
 import ProtectedRoute from '@/auth/ProtectedRoute'
 import { TenantProvider } from '@/tenant/TenantProvider'
@@ -79,6 +81,8 @@ export default function App(): ReactNode {
         <OrganizationProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/confirm-email" element={<ConfirmEmailPage />} />
             <Route path="/mfa" element={<MfaPage />} />
             <Route
               path="/"
