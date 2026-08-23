@@ -20,6 +20,8 @@ class PlanSerializer(serializers.ModelSerializer):
             'capabilities',
             'limits',
             'is_active',
+            'is_public',
+            'trial_days',
             'sort_order',
             'created_at',
             'updated_at',
