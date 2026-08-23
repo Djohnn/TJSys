@@ -57,7 +57,14 @@ test.describe('R5 — PDV desktop online', () => {
     await authedPage.goto('/cash-session');
     await closedSessionResponse;
     await authedPage.getByLabel('Valor de Abertura').fill('100.00');
+    // O Dashboard faz uma segunda leitura do caixa ao montar; aguarde-a
+    // antes de navegar para a venda para não deixar uma resposta tardia limpar a sessão.
+    const openedSessionResponse = authedPage.waitForResponse(
+      (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 200,
+    );
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
+    await expect(authedPage).toHaveURL(/\\/dashboard/);
+    await openedSessionResponse;
     await authedPage.goto('/sale');
 
     await authedPage.getByPlaceholder('Buscar produto (SKU ou nome)...').fill('CAF-001');
