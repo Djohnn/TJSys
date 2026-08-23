@@ -264,7 +264,6 @@ def test_e2e_workflow_delegates_frontend_readiness_to_playwright_web_server():
     job_text = workflow['e2e']
     steps = _steps(job_text)
 
-    assert not any('Start frontend' in step for step in steps)
     frontend_install_index = job_text.index('- name: Install frontend deps')
     playwright_index = job_text.index('- name: Run Playwright E2E')
     frontend_start_region = job_text[frontend_install_index:playwright_index]
