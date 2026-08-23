@@ -18,3 +18,9 @@ export function resolveTagColor(value: string): string {
   const resolved = getComputedStyle(document.documentElement).getPropertyValue(value).trim()
   return resolved || value
 }
+
+export function isTagColorSelected(selectedValue: string, optionValue: string): boolean {
+  if (selectedValue === optionValue) return true
+
+  return selectedValue.trim().toLowerCase() === resolveTagColor(optionValue).trim().toLowerCase()
+}
