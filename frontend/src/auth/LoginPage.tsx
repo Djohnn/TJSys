@@ -1,44 +1,39 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
-import { z } from "zod";
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { Link, useNavigate } from 'react-router-dom'
+import { z } from 'zod'
 
-import { useAuth } from "./AuthProvider";
+import { useAuth } from './AuthProvider'
 
 const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(1, "Senha é obrigatória"),
-});
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'Senha é obrigatória'),
+})
 
-type LoginForm = z.infer<typeof loginSchema>;
+type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const auth = useAuth();
-  const navigate = useNavigate();
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({
+  const auth = useAuth()
+  const navigate = useNavigate()
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-  });
+  })
 
   async function onSubmit(data: LoginForm) {
     try {
-      const result = await auth.login(data.email, data.password);
+      const result = await auth.login(data.email, data.password)
       if (result.requiresMfa) {
-        navigate("/mfa", {
+        navigate('/mfa', {
           state: {
             temporaryToken: result.temporaryToken,
             tenantId: result.tenantId,
           },
-        });
+        })
       } else {
-        navigate("/select-tenant");
+        navigate('/select-tenant')
       }
     } catch {
-      setError("root", { message: "Credenciais inválidas." });
+      setError('root', { message: 'Credenciais inválidas.' })
     }
   }
 
@@ -52,42 +47,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-neutral-700 mb-1"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              {...register("email")}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-2 focus:outline-primary-500 focus:border-primary-500"
-              placeholder="seu@email.com"
-            />
-            {errors.email && (
-              <p className="text-xs text-danger mt-1">{errors.email.message}</p>
-            )}
+            <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1">Email</label>
+            <input id="email" type="email" {...register('email')} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-2 focus:outline-primary-500 focus:border-primary-500" placeholder="seu@email.com" />
+            {errors.email && <p className="text-xs text-danger mt-1">{errors.email.message}</p>}
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-neutral-700 mb-1"
-            >
-              Senha
-            </label>
-            <input
-              id="password"
-              type="password"
-              {...register("password")}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-2 focus:outline-primary-500 focus:border-primary-500"
-            />
-            {errors.password && (
-              <p className="text-xs text-danger mt-1">
-                {errors.password.message}
-              </p>
-            )}
+            <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-1">Senha</label>
+            <input id="password" type="password" {...register('password')} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-2 focus:outline-primary-500 focus:border-primary-500" />
+            {errors.password && <p className="text-xs text-danger mt-1">{errors.password.message}</p>}
           </div>
 
           {errors.root && (
@@ -96,24 +64,13 @@ export default function LoginPage() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {isSubmitting ? "Entrando..." : "Entrar"}
+          <button type="submit" disabled={isSubmitting} className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer">
+            {isSubmitting ? 'Entrando...' : 'Entrar'}
           </button>
-          <p className="text-center text-sm text-neutral-600">
-            Ainda não tem uma conta?{" "}
-            <Link
-              to="/register"
-              className="font-semibold text-primary-800 underline underline-offset-2"
-            >
-              Criar conta
-            </Link>
-          </p>
+          <p className="text-center text-sm text-neutral-600">Ainda não tem uma conta? <Link to="/register" className="font-semibold text-primary-800 underline underline-offset-2">Criar conta</Link></p>
         </form>
       </div>
     </div>
-  );
+  )
 }
+

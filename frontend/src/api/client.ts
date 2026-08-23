@@ -1,31 +1,27 @@
-import { ApiProblemError, UnauthorizedError } from "./problem";
-import type { ApiProblem } from "./problem";
+import { ApiProblemError, UnauthorizedError } from './problem'
+import type { ApiProblem } from './problem'
 
 export interface RequestOptions {
-  method?: string;
-  body?: unknown;
-  tenantId?: string | number;
-  headers?: Record<string, string>;
-  signal?: AbortSignal;
+  method?: string
+  body?: unknown
+  tenantId?: string | number
+  headers?: Record<string, string>
+  signal?: AbortSignal
 }
 
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 function getBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+  return import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 }
 
 function isAbortError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as { name?: unknown }).name === "AbortError"
-  );
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError'
 }
 
 export function getCsrfToken(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
-  return match ? match[1] : null;
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
+  return match ? match[1] : null
 }
 
 function normalizeProblem(
@@ -34,107 +30,92 @@ function normalizeProblem(
   body: unknown,
   correlationId?: string,
 ): ApiProblem {
-  if (body && typeof body === "object" && !Array.isArray(body)) {
-    const obj = body as Record<string, unknown>;
-    const ptype = obj.type;
-    const ptitle = obj.title;
-    const pstatus = obj.status;
-    if (
-      typeof ptype === "string" &&
-      typeof ptitle === "string" &&
-      typeof pstatus === "number"
-    ) {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const obj = body as Record<string, unknown>
+    const ptype = obj.type
+    const ptitle = obj.title
+    const pstatus = obj.status
+    if (typeof ptype === 'string' && typeof ptitle === 'string' && typeof pstatus === 'number') {
       return {
         type: ptype,
         title: ptitle,
         status: pstatus,
-        detail: typeof obj.detail === "string" ? obj.detail : statusText,
-        code: typeof obj.code === "string" ? obj.code : undefined,
+        detail: typeof obj.detail === 'string' ? obj.detail : statusText,
+        code: typeof obj.code === 'string' ? obj.code : undefined,
         errors: obj.errors as Record<string, string[]> | undefined,
         correlationId,
-      };
+      }
     }
   }
 
   return {
-    type: "about:blank",
+    type: 'about:blank',
     title: statusText,
     status,
-    detail: typeof body === "string" ? body : statusText,
+    detail: typeof body === 'string' ? body : statusText,
     correlationId,
-  };
+  }
 }
 
-export function apiRequest(
-  path: string,
-  options?: RequestOptions,
-): Promise<void>;
-export function apiRequest<T>(
-  path: string,
-  options?: RequestOptions,
-): Promise<T>;
+export function apiRequest(path: string, options?: RequestOptions): Promise<void>
+export function apiRequest<T>(path: string, options?: RequestOptions): Promise<T>
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T | void> {
-  const baseUrl = getBaseUrl();
-  const method = (options.method ?? "GET").toUpperCase();
-  const url = `${baseUrl}${path}`;
+  const baseUrl = getBaseUrl()
+  const method = (options.method ?? 'GET').toUpperCase()
+  const url = `${baseUrl}${path}`
 
   const headers: Record<string, string> = {
-    Accept: "application/json",
+    Accept: 'application/json',
     ...options.headers,
-  };
+  }
 
-  if (options.body !== undefined && method !== "GET") {
-    headers["Content-Type"] = "application/json";
+  if (options.body !== undefined && method !== 'GET') {
+    headers['Content-Type'] = 'application/json'
   }
 
   if (UNSAFE_METHODS.has(method)) {
-    const csrfToken = getCsrfToken();
+    const csrfToken = getCsrfToken()
     if (csrfToken) {
-      headers["X-CSRFToken"] = csrfToken;
+      headers['X-CSRFToken'] = csrfToken
     }
   }
 
   if (options.tenantId != null) {
-    headers["X-Tenant-ID"] = String(options.tenantId);
+    headers['X-Tenant-ID'] = String(options.tenantId)
   }
 
   const doFetch = (): Promise<Response> =>
     fetch(url, {
       method,
       headers,
-      credentials: "include",
-      body:
-        options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      credentials: 'include',
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       signal: options.signal,
-    });
+    })
 
-  let response: Response;
+  let response: Response
 
   try {
-    response = await doFetch();
+    response = await doFetch()
   } catch (firstErr) {
-    if (
-      method === "GET" &&
-      !options.signal?.aborted &&
-      !isAbortError(firstErr)
-    ) {
-      response = await doFetch();
+    if (method === 'GET' && !options.signal?.aborted && !isAbortError(firstErr)) {
+      response = await doFetch()
     } else {
-      throw firstErr;
+      throw firstErr
     }
   }
 
-  const correlationId = response.headers.get("X-Correlation-ID") ?? undefined;
+  const correlationId = response.headers.get('X-Correlation-ID') ?? undefined
 
   if (!response.ok) {
-    let body: unknown;
+    let body: unknown
     try {
-      body = await response.json();
+      body = await response.json()
     } catch {
-      body = response.statusText;
+      body = response.statusText
     }
 
     const problem = normalizeProblem(
@@ -142,24 +123,24 @@ export async function apiRequest<T>(
       response.statusText,
       body,
       correlationId,
-    );
+    )
 
     if (response.status === 401) {
-      throw new UnauthorizedError(problem);
+      throw new UnauthorizedError(problem)
     }
 
-    throw new ApiProblemError(problem);
+    throw new ApiProblemError(problem)
   }
 
   if (response.status === 204) {
-    return undefined;
+    return undefined
   }
 
   if (response.status === 202) {
-    const text = await response.text();
-    return text.trim() ? (JSON.parse(text) as T) : undefined;
+    const text = await response.text()
+    return text.trim() ? (JSON.parse(text) as T) : undefined
   }
 
-  const json: unknown = await response.json();
-  return json as T;
+  const json: unknown = await response.json()
+  return json as T
 }
