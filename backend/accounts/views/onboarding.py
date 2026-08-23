@@ -91,9 +91,11 @@ class EmailConfirmationView(APIView):
         serializer = TokenSerializer(data=request.data)
         if not serializer.is_valid():
             return _problem_response(
-                serializer.errors,
+                'Request validation failed.',
                 'validation_error',
                 status.HTTP_400_BAD_REQUEST,
+                request=request,
+                errors=serializer.errors,
             )
         try:
             confirm_signup(serializer.validated_data['token'])
@@ -102,6 +104,7 @@ class EmailConfirmationView(APIView):
                 str(exc),
                 'invalid_plan',
                 status.HTTP_400_BAD_REQUEST,
+                request=request,
             )
         except InvalidSignupToken as exc:
             return _problem_response(
