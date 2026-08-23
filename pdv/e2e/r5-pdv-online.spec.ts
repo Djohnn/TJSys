@@ -42,7 +42,13 @@ test.describe('R5 — PDV desktop online', () => {
   });
 
   test('Given o caixa aberto e um produto precificado, When recebe em dinheiro e confirma, Then a venda e o recebimento são confirmados', async ({ authedPage }) => {
+    // Aguarda o refresh inicial do caixa terminar antes de abrir: caso contrário,
+    // o 404 tardio de /current pode limpar a sessão recém-aberta.
+    const closedSessionResponse = authedPage.waitForResponse(
+      (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 404,
+    );
     await authedPage.goto('/cash-session');
+    await closedSessionResponse;
     await authedPage.getByLabel('Valor de Abertura').fill('100.00');
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
     await authedPage.goto('/sale');
