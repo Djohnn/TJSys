@@ -24,6 +24,8 @@ class Plan(TimeStampedModel):
     capabilities = models.JSONField(default=dict, blank=True)
     limits = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=False)
+    trial_days = models.PositiveIntegerField(default=0)
     sort_order = models.PositiveIntegerField(default=0)
 
     class Meta:
