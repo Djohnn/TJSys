@@ -112,13 +112,7 @@ class SignupIntent(models.Model):
     branch_name = models.CharField(max_length=200)
     plan_code = models.CharField(max_length=40)
     status = models.CharField(max_length=20, default=STATUS_PENDING)
-    provisioned_tenant = models.OneToOneField(
-        'tenancy.Tenant',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='signup_intent',
-    )
+    provisioned_tenant_id = models.UUIDField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
