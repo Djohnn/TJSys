@@ -109,6 +109,15 @@
   --color-module-pessoas: var(--r1-color-module-pessoas);
   --color-module-relatorios: var(--r1-color-module-relatorios);
   --color-module-admin: var(--r1-color-module-admin);
+  /* Semantic tag colors: components consume the token, APIs receive the resolved HEX. */
+  --color-tag-gray: #6B7280;
+  --color-tag-red: #EF4444;
+  --color-tag-yellow: #F59E0B;
+  --color-tag-green: #10B981;
+  --color-tag-blue: #3B82F6;
+  --color-tag-purple: #8B5CF6;
+  --color-tag-pink: #EC4899;
+  --color-tag-teal: #14B8A6;
   --color-brand: var(--r1-color-primary-800);
   --color-background: var(--r1-color-gray-100);
   --color-surface: var(--r1-color-white);
