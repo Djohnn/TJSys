@@ -32,7 +32,7 @@ test.describe('R5 — PDV desktop online', () => {
       (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 200,
     );
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
-    await expect(authedPage).toHaveURL(/\\/dashboard/);
+    await expect(authedPage).toHaveURL(/\/dashboard/);
     await openedSessionResponse;
     await authedPage.goto('/sale');
 
@@ -63,7 +63,7 @@ test.describe('R5 — PDV desktop online', () => {
       (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 200,
     );
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
-    await expect(authedPage).toHaveURL(/\\/dashboard/);
+    await expect(authedPage).toHaveURL(/\/dashboard/);
     await openedSessionResponse;
     await authedPage.goto('/sale');
 
