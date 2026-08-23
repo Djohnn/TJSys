@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { resolveTagColor } from './tagColors'
+import { isTagColorSelected, resolveTagColor } from './tagColors'
 
 describe('tag color resolution', () => {
   beforeEach(() => {
@@ -13,5 +13,10 @@ describe('tag color resolution', () => {
 
   it('Given a HEX color returned by the API, When a tag is edited, Then it remains unchanged', () => {
     expect(resolveTagColor('#123456')).toBe('#123456')
+  })
+
+  it('Given a HEX color returned by the API, When a swatch is rendered, Then its semantic token is selected', () => {
+    expect(isTagColorSelected('#EF4444', '--color-tag-red')).toBe(true)
+    expect(isTagColorSelected('#EF4444', '--color-tag-blue')).toBe(false)
   })
 })
