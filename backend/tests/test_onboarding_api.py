@@ -47,7 +47,7 @@ def _token():
     return re.search(r'token=([^\s]+)', mail.outbox[-1].body).group(1)
 
 
-def _assert_problem(response, code, instance):
+def _assert_problem(response, code, instance, expected_errors={}):
     data = response.json()
     assert set(data) == {
         'type',
@@ -63,7 +63,7 @@ def _assert_problem(response, code, instance):
     assert isinstance(data['detail'], str)
     assert data['instance'] == instance
     assert 'correlation_id' in data
-    assert data['errors'] == {}
+    assert data['errors'] == expected_errors
 
 
 @pytest.mark.django_db(transaction=True)
@@ -241,6 +241,7 @@ def test_given_consumed_token_with_wrong_secret_when_replayed_then_reject(client
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
+    _assert_problem(response, 'invalid_or_expired_token', '/api/v1/auth/email/confirm/')
 
 
 @pytest.mark.django_db(transaction=True)
@@ -288,7 +289,7 @@ def test_plan_deactivated_before_confirmation_returns_problem_and_rolls_back(cli
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
     assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
-    assert response.json()['code'] == 'invalid_plan'
+    _assert_problem(response, 'invalid_plan', '/api/v1/auth/email/confirm/')
     assert not Tenant.objects.filter(memberships__user__email='deactivated@example.test').exists()
     assert User.objects.get(email='deactivated@example.test').email_verified_at is None
     assert SignupIntent.objects.get(user__email='deactivated@example.test').status == SignupIntent.STATUS_PENDING
@@ -311,5 +312,5 @@ def test_missing_public_registration_field_returns_problem_details(client, start
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
     assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
-    _assert_problem(response, 'validation_error', '/api/v1/auth/register/')
+    _assert_problem(response, 'validation_error', '/api/v1/auth/register/', expected_errors=None)
     assert 'plan_code' in response.json()['errors']
