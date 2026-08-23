@@ -18,6 +18,7 @@ def _problem_response(detail, code, status_code):
     titles = {
         'invalid_plan': 'Invalid signup plan',
         'invalid_or_expired_token': 'Invalid or expired confirmation token',
+        'validation_error': 'Invalid request',
     }
     return Response(
         {
@@ -52,7 +53,12 @@ class RegistrationView(APIView):
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem_response(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_400_BAD_REQUEST,
+            )
         try:
             user = register_organization(
                 **serializer.validated_data,
@@ -76,9 +82,20 @@ class EmailConfirmationView(APIView):
 
     def post(self, request):
         serializer = TokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return _problem_response(
+                serializer.errors,
+                'validation_error',
+                status.HTTP_400_BAD_REQUEST,
+            )
         try:
             confirm_signup(serializer.validated_data['token'])
+        except InvalidSignupPlan as exc:
+            return _problem_response(
+                str(exc),
+                'invalid_plan',
+                status.HTTP_400_BAD_REQUEST,
+            )
         except InvalidSignupToken as exc:
             return _problem_response(
                 str(exc),
