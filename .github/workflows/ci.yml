@@ -176,6 +176,7 @@ jobs:
       AUTH_LOGIN_RATE: 100/minute
       AUTH_MFA_RATE: 100/minute
       VITE_API_BASE_URL: /api/v1
+      VITE_API_PROXY_TARGET: http://localhost:8000
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     defaults:
