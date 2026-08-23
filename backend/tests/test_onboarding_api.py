@@ -189,3 +189,24 @@ def test_public_plans_returns_only_active_public_trial_plans(client, db):
 
     assert response.status_code == 200
     assert response.json() == [{'code': 'starter', 'name': 'Starter', 'trial_days': 14}]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_given_consumed_token_with_wrong_secret_when_replayed_then_reject(client, starter_plan):
+    _register(client, 'tampered-replay@example.test')
+    token = _token()
+    assert client.post(
+        '/api/v1/auth/email/confirm/',
+        {'token': token},
+        content_type='application/json',
+    ).status_code == 204
+
+    tampered = f'{token[:-1]}x'
+    response = client.post(
+        '/api/v1/auth/email/confirm/',
+        {'token': tampered},
+        content_type='application/json',
+    )
+
+    assert response.status_code == 400
+    assert response['Content-Type'].startswith('application/problem+json')
