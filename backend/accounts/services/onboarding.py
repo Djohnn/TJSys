@@ -166,7 +166,7 @@ def confirm_signup(raw_token):
         user.email_verified_at = timezone.now()
         user.save(update_fields=['email_verified_at'])
         intent.status = SignupIntent.STATUS_PROVISIONED
-        intent.provisioned_tenant = tenant
+        intent.provisioned_tenant_id = tenant.id
         intent.confirmed_at = timezone.now()
         intent.save(update_fields=['status', 'provisioned_tenant', 'confirmed_at', 'updated_at'])
 
