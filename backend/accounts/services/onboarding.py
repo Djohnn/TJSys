@@ -51,11 +51,10 @@ def register_organization(
     correlation_id='',
 ):
     email = email.strip().casefold()
-    if User.objects.filter(email=email).exists():
-        return None
-
     validate_password(password)
     _public_trial_plan(plan_code)
+    if User.objects.filter(email=email).exists():
+        return None
 
     with transaction.atomic():
         user = User.objects.create_user(email=email, password=password)
