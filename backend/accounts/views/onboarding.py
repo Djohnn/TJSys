@@ -14,20 +14,24 @@ from accounts.throttles import RegistrationThrottle
 from platform_admin.models import Plan
 
 
-def _problem_response(detail, code, status_code):
+def _problem_response(detail, code, status_code, *, request, errors=None):
     titles = {
         'invalid_plan': 'Invalid signup plan',
         'invalid_or_expired_token': 'Invalid or expired confirmation token',
         'validation_error': 'Invalid request',
     }
+    payload = {
+        'type': f'https://docs.zyrp.local/errors/{code}',
+        'title': titles.get(code, 'Request error'),
+        'status': status_code,
+        'detail': detail if isinstance(detail, str) else 'Request validation failed.',
+        'instance': request.path,
+        'code': code,
+        'correlation_id': getattr(request, 'correlation_id', ''),
+        'errors': errors if errors is not None else {},
+    }
     return Response(
-        {
-            'type': f'https://docs.zyrp.local/errors/{code}',
-            'title': titles.get(code, 'Request error'),
-            'status': status_code,
-            'detail': detail,
-            'code': code,
-        },
+        payload,
         status=status_code,
         content_type='application/problem+json',
     )
@@ -55,9 +59,11 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             return _problem_response(
-                serializer.errors,
+                'Request validation failed.',
                 'validation_error',
                 status.HTTP_400_BAD_REQUEST,
+                request=request,
+                errors=serializer.errors,
             )
         try:
             user = register_organization(
@@ -69,6 +75,7 @@ class RegistrationView(APIView):
                 str(exc),
                 'invalid_plan',
                 status.HTTP_400_BAD_REQUEST,
+                request=request,
             )
         return Response(
             {'detail': 'If eligible, confirmation instructions will be sent.'},
@@ -101,5 +108,6 @@ class EmailConfirmationView(APIView):
                 str(exc),
                 'invalid_or_expired_token',
                 status.HTTP_400_BAD_REQUEST,
+                request=request,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
