@@ -280,6 +280,8 @@ jobs:
 
       - name: Check API schema matches generated types
         run: npm run api:generate && npm run api:check
+        env:
+          API_BASE_URL: http://localhost:8000/api/v1
         working-directory: frontend
 
       - name: Install Playwright browsers
