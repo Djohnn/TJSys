@@ -111,11 +111,14 @@ def confirm_signup(raw_token):
         except (OneTimeToken.DoesNotExist, ValueError):
             raise InvalidSignupToken('Invalid or expired token.') from None
 
-        intent = (
-            SignupIntent.objects.select_for_update()
-            .select_related('user')
-            .get(confirmation_token=token)
-        )
+        try:
+            intent = (
+                SignupIntent.objects.select_for_update()
+                .select_related('user')
+                .get(confirmation_token=token)
+            )
+        except SignupIntent.DoesNotExist:
+            raise InvalidSignupToken('Invalid or expired token.') from None
         if intent.status == SignupIntent.STATUS_PROVISIONED:
             return intent
         if not token.is_usable or not secure_compare(
