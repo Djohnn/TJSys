@@ -17,6 +17,9 @@ def test_e2e_pdv_live_gate_uses_seeded_environment():
     assert "E2E_LIVE_PDV: '1'" in workflow
     assert 'E2E_PDV_API_KEY: e2e-test-key-2026' in workflow
     assert 'E2E_ADMIN_RECOVERY_CODE: e2e0000001' in workflow
+    assert 'E2E_API_BASE_URL: http://127.0.0.1:8000/api/v1' in workflow
+    assert '- name: Start frontend for PDV stock verification' in workflow
+    assert '- name: Wait for frontend PDV verification' in workflow
     assert 'secrets.E2E_PDV_API_KEY' not in pdv_step
     assert 'secrets.E2E_USER_EMAIL' not in pdv_step
     assert 'secrets.E2E_USER_PASSWORD' not in pdv_step
