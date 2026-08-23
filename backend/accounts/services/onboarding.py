@@ -62,13 +62,20 @@ def register_organization(
             purpose='email_confirmation',
             user=user,
         )
-        SignupIntent.objects.create(
+        intent = SignupIntent.objects.create(
             user=user,
             confirmation_token=token_record,
             tenant_name=tenant_name.strip(),
             company_name=company_name.strip(),
             branch_name=branch_name.strip(),
             plan_code=plan_code,
+        )
+        create_outbox_message(
+            event_type='auth.signup.requested',
+            aggregate_type='signup_intent',
+            aggregate_id=intent.id,
+            payload={'plan_code': plan_code, 'status': SignupIntent.STATUS_PENDING},
+            tenant_id='',
         )
         transaction.on_commit(lambda: send_confirmation_email(email, raw_token))
     return user
@@ -167,13 +174,6 @@ def confirm_signup(raw_token):
             resource_type='SignupIntent',
             resource_id=intent.id,
             tenant_id=tenant.id,
-        )
-        create_outbox_message(
-            event_type='auth.signup.requested',
-            aggregate_type='signup_intent',
-            aggregate_id=intent.id,
-            payload={'plan_code': plan.code, 'status': intent.status},
-            tenant_id='',
         )
         create_outbox_message(
             event_type='tenant.trial.activated',
