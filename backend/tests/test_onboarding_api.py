@@ -173,12 +173,14 @@ def test_given_existing_email_when_registered_then_response_is_generic(client, s
 
 @pytest.mark.django_db
 def test_public_plans_returns_only_active_public_trial_plans(client, db):
-    Plan.objects.create(
+    Plan.objects.update_or_create(
         code='starter',
-        name='Starter',
-        is_active=True,
-        is_public=True,
-        trial_days=14,
+        defaults={
+            'name': 'Starter',
+            'is_active': True,
+            'is_public': True,
+            'trial_days': 14,
+        },
     )
     Plan.objects.create(
         code='hidden',
