@@ -245,29 +245,10 @@ jobs:
           POSTGRES_APP_PASSWORD: zyrp
           SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || env.E2E_USER_PASSWORD }}
 
-      - name: Start backend
-        run: python manage.py runserver 0.0.0.0:8000 --settings=config.settings.local > /tmp/tjsys-backend.log 2>&1 &
-        working-directory: backend
-        env:
-          POSTGRES_APP_USER: zyrp_app
-          POSTGRES_APP_PASSWORD: zyrp_app_ci
-
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8000/api/v1/health/; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Backend health check failed after 60 seconds"
-          cat /tmp/tjsys-backend.log
-          exit 1
-
       - name: Start E2E backend
         working-directory: backend
         run: |
-          nohup python manage.py runserver 0.0.0.0:8000 >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
+          nohup python manage.py runserver 0.0.0.0:8000 --settings=config.settings.e2e >"$RUNNER_TEMP/e2e-backend.log" 2>&1 &
           echo $! >"$RUNNER_TEMP/e2e-backend.pid"
         env:
           POSTGRES_APP_USER: zyrp_app
