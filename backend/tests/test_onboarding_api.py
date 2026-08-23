@@ -73,7 +73,7 @@ def test_given_pending_intent_when_confirmed_then_tenant_and_trial_are_created(c
     user = User.objects.get(email='confirm@example.test')
     tenant = Tenant.objects.get(memberships__user=user)
     assert user.email_verified_at is not None
-    assert Company.objects.filter(tenant=tenant).count() == 1
+    assert Company.all_objects.filter(tenant=tenant).count() == 1
     assert tenant.memberships.get(user=user).role == 'admin'
     subscription = Subscription.objects.get(tenant=tenant)
     assert subscription.status == Subscription.STATUS_TRIAL
