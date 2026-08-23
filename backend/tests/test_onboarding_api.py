@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from uuid import UUID
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -316,7 +317,23 @@ def test_existing_email_and_new_email_with_invalid_plan_are_indistinguishable(cl
 
     assert existing.status_code == new.status_code == 400
     assert existing['Content-Type'].startswith('application/problem+json')
-    assert existing.json() == new.json()
+    _assert_problem(existing, 'invalid_plan', '/api/v1/auth/register/')
+    _assert_problem(new, 'invalid_plan', '/api/v1/auth/register/')
+
+    existing_problem = existing.json()
+    new_problem = new.json()
+    UUID(existing_problem['correlation_id'])
+    UUID(new_problem['correlation_id'])
+    assert existing_problem['correlation_id'] != new_problem['correlation_id']
+    assert {
+        key: value
+        for key, value in existing_problem.items()
+        if key != 'correlation_id'
+    } == {
+        key: value
+        for key, value in new_problem.items()
+        if key != 'correlation_id'
+    }
     assert not User.objects.filter(email='new@example.test').exists()
 
 
