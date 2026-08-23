@@ -125,7 +125,7 @@ export default function RegisterPage() {
     if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email))
       next.email = "Informe um e-mail válido.";
     if (form.password.length < 12)
-      next.password = "A senha deve ter pelo menos 12 caracteres.";
+      next.password = "A senha deve ter pelo menos 12 caracteres."; // pragma: allowlist secret
     if (!form.tenant_name.trim())
       next.tenant_name = "Informe o nome do tenant.";
     if (!form.company_name.trim())
