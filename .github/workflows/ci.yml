@@ -279,11 +279,7 @@ jobs:
         working-directory: frontend
 
       - name: Check API schema matches generated types
-        run: |
-          # Preserve the api:generate/api:check contract while using the allowed localhost host.
-          npx openapi-typescript http://localhost:8000/api/v1/schema/ -o src/api/generated/schema.ts
-          npx openapi-typescript http://localhost:8000/api/v1/schema/ -o /tmp/schema-check.ts
-          diff /tmp/schema-check.ts src/api/generated/schema.ts
+        run: npm run api:generate && npm run api:check
         working-directory: frontend
 
       - name: Install Playwright browsers
