@@ -48,6 +48,7 @@ def register_organization(
     company_name,
     branch_name,
     plan_code='starter',
+    correlation_id='',
 ):
     email = email.strip().casefold()
     if User.objects.filter(email=email).exists():
@@ -76,6 +77,13 @@ def register_organization(
             aggregate_id=intent.id,
             payload={'plan_code': plan_code, 'status': SignupIntent.STATUS_PENDING},
             tenant_id='',
+        )
+        create_audit_record(
+            actor=user,
+            action='auth.registered',
+            resource_type='User',
+            resource_id=user.id,
+            correlation_id=correlation_id,
         )
         transaction.on_commit(lambda: send_confirmation_email(email, raw_token))
     return user
@@ -168,7 +176,7 @@ def confirm_signup(raw_token):
         intent.status = SignupIntent.STATUS_PROVISIONED
         intent.provisioned_tenant_id = tenant.id
         intent.confirmed_at = timezone.now()
-        intent.save(update_fields=['status', 'provisioned_tenant', 'confirmed_at', 'updated_at'])
+        intent.save(update_fields=['status', 'provisioned_tenant_id', 'confirmed_at', 'updated_at'])
 
         create_audit_record(
             actor=user,
