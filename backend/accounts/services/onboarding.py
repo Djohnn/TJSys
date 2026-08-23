@@ -47,7 +47,7 @@ def register_organization(
     tenant_name,
     company_name,
     branch_name,
-    plan_code,
+    plan_code='starter',
 ):
     email = email.strip().casefold()
     if User.objects.filter(email=email).exists():
