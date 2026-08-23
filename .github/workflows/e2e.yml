@@ -69,7 +69,6 @@ jobs:
         env:
           DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
           REDIS_URL: redis://localhost:6379
-          SECRET_KEY: ci-secret-key
           DEBUG: 'true'
           SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
         run: |
