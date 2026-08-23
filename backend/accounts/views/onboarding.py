@@ -70,5 +70,6 @@ class EmailConfirmationView(APIView):
             return Response(
                 {'detail': str(exc), 'code': 'invalid_or_expired_token'},
                 status=status.HTTP_400_BAD_REQUEST,
+                content_type='application/problem+json',
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
