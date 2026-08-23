@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { StrictMode } from "react";
 
 import { server } from "@/test/server";
 import RegisterPage from "./RegisterPage";
@@ -12,6 +13,11 @@ import LoginPage from "./LoginPage";
 import { AuthContext } from "./AuthProvider";
 
 const BASE = "/api/v1";
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname}{location.search}</output>;
+}
 
 function renderPage(ui: ReactNode, initialEntry = "/register") {
   return render(
@@ -131,14 +137,23 @@ test("login oferece navegação pública para criar conta", async () => {
 describe("confirmação de e-mail", () => {
   it("confirma o token e não autentica automaticamente", async () => {
     let requestBody: Record<string, unknown> | undefined;
+    let requestCount = 0;
     server.use(
       http.post(`${BASE}/auth/email/confirm/`, async ({ request }) => {
+        requestCount += 1;
         requestBody = (await request.json()) as Record<string, unknown>;
         return new HttpResponse(null, { status: 204 });
       }),
     );
 
-    renderPage(<ConfirmEmailPage />, "/confirm-email?token=token-seguro");
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/confirm-email?token=token-seguro"]}>
+          <LocationProbe />
+          <ConfirmEmailPage />
+        </MemoryRouter>
+      </StrictMode>,
+    );
 
     await waitFor(() =>
       expect(
@@ -146,6 +161,8 @@ describe("confirmação de e-mail", () => {
       ).toBeVisible(),
     );
     expect(requestBody).toEqual({ token: "token-seguro" });
+    expect(requestCount).toBe(1);
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/confirm-email$/);
     expect(
       screen.getByRole("link", { name: "Ir para o login" }),
     ).toHaveAttribute("href", "/login");

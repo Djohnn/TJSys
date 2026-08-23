@@ -7,8 +7,8 @@ import PublicAuthLayout from "./PublicAuthLayout";
 type ConfirmationState = "confirming" | "success" | "expired" | "error";
 
 export default function ConfirmEmailPage() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [token] = useState(() => searchParams.get("token"));
   const started = useRef(false);
   const [state, setState] = useState<ConfirmationState>(
     token ? "confirming" : "error",
@@ -17,6 +17,7 @@ export default function ConfirmEmailPage() {
   useEffect(() => {
     if (!token || started.current) return;
     started.current = true;
+    setSearchParams({}, { replace: true });
     confirmEmail(token)
       .then(() => setState("success"))
       .catch((error: unknown) => {
@@ -26,7 +27,7 @@ export default function ConfirmEmailPage() {
             : undefined;
         setState(status === 400 ? "expired" : "error");
       });
-  }, [token]);
+  }, [setSearchParams, token]);
 
   if (state === "confirming")
     return (
@@ -99,3 +100,4 @@ export default function ConfirmEmailPage() {
     </PublicAuthLayout>
   );
 }
+
