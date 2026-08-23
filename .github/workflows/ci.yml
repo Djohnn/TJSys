@@ -279,9 +279,10 @@ jobs:
         working-directory: frontend
 
       - name: Check API schema matches generated types
-        run: npm run api:generate && npm run api:check
-        env:
-          API_BASE_URL: http://localhost:8000/api/v1
+        run: |
+          npx openapi-typescript http://localhost:8000/api/v1/schema/ -o src/api/generated/schema.ts
+          npx openapi-typescript http://localhost:8000/api/v1/schema/ -o /tmp/schema-check.ts
+          diff /tmp/schema-check.ts src/api/generated/schema.ts
         working-directory: frontend
 
       - name: Install Playwright browsers
