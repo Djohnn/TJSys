@@ -322,9 +322,9 @@ def test_existing_email_and_new_email_with_invalid_plan_are_indistinguishable(cl
 
     existing_problem = existing.json()
     new_problem = new.json()
-    UUID(existing_problem['correlation_id'])
-    UUID(new_problem['correlation_id'])
-    assert existing_problem['correlation_id'] != new_problem['correlation_id']
+    existing_correlation_id = UUID(existing_problem['correlation_id'])
+    new_correlation_id = UUID(new_problem['correlation_id'])
+    assert existing_correlation_id != new_correlation_id
     assert {
         key: value
         for key, value in existing_problem.items()
