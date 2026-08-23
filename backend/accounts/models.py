@@ -92,7 +92,6 @@ class OneTimeToken(models.Model):
         return self.consumed_at is None and self.expires_at > timezone.now()
 
 
-
 class SignupIntent(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_PROVISIONED = 'provisioned'
