@@ -10,7 +10,7 @@ from accounts.views.mfa import (
     TOTPConfirmationView,
     TOTPEnrollmentView,
 )
-from accounts.views.onboarding import EmailConfirmationView, RegistrationView
+from accounts.views.onboarding import EmailConfirmationView, PublicPlanListView, RegistrationView
 from accounts.views.password import PasswordForgotView, PasswordResetView
 from accounts.views.search import GlobalSearchView
 from accounts.views.session import CSRFView, LoginView, LogoutView, MeView, UserShortcutsView
@@ -21,6 +21,7 @@ router = DefaultRouter()
 router.register('favorites', UserFavoriteViewSet, basename='favorite')
 
 urlpatterns = [
+    path('auth/plans/', PublicPlanListView.as_view(), name='public-plans'),
     path('auth/register/', RegistrationView.as_view(), name='register'),
     path('auth/email/confirm/', EmailConfirmationView.as_view(), name='email-confirm'),
     path('auth/login/', LoginView.as_view(), name='login'),
