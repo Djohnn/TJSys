@@ -222,3 +222,74 @@ def test_given_consumed_token_with_wrong_secret_when_replayed_then_reject(client
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
+
+
+@pytest.mark.django_db(transaction=True)
+def test_existing_email_and_new_email_with_invalid_plan_are_indistinguishable(client, starter_plan):
+    Plan.objects.create(
+        code='private',
+        name='Private',
+        is_active=True,
+        is_public=False,
+        trial_days=14,
+    )
+    User.objects.create_user(email='already@example.test', password='test-password')
+
+    existing = _register(client, 'already@example.test', plan_code='private')
+    new = _register(client, 'new@example.test', plan_code='private')
+
+    assert existing.status_code == new.status_code == 400
+    assert existing['Content-Type'].startswith('application/problem+json')
+    assert existing.json() == new.json()
+    assert not User.objects.filter(email='new@example.test').exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nonexistent_plan_is_rejected_without_creating_user(client, starter_plan):
+    response = _register(client, 'missing-plan@example.test', plan_code='does-not-exist')
+
+    assert response.status_code == 400
+    assert response['Content-Type'].startswith('application/problem+json')
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert response.json()['code'] == 'invalid_plan'
+    assert not User.objects.filter(email='missing-plan@example.test').exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_plan_deactivated_before_confirmation_returns_problem_and_rolls_back(client, starter_plan):
+    _register(client, 'deactivated@example.test')
+    Plan.objects.filter(code='starter').update(is_active=False)
+
+    response = client.post(
+        '/api/v1/auth/email/confirm/',
+        {'token': _token()},
+        content_type='application/json',
+    )
+
+    assert response.status_code == 400
+    assert response['Content-Type'].startswith('application/problem+json')
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert response.json()['code'] == 'invalid_plan'
+    assert not Tenant.objects.filter(memberships__user__email='deactivated@example.test').exists()
+    assert User.objects.get(email='deactivated@example.test').email_verified_at is None
+    assert SignupIntent.objects.get(user__email='deactivated@example.test').status == SignupIntent.STATUS_PENDING
+
+
+@pytest.mark.django_db
+def test_missing_public_registration_field_returns_problem_details(client, starter_plan):
+    response = client.post(
+        '/api/v1/auth/register/',
+        {
+            'email': 'missing-field@example.test',
+            'password': 'A-strong-test-password-2026',
+            'tenant_name': 'Tenant',
+            'company_name': 'Company',
+            'branch_name': 'Branch',
+        },
+        content_type='application/json',
+    )
+
+    assert response.status_code == 400
+    assert response['Content-Type'].startswith('application/problem+json')
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert response.json()['code'] == 'validation_error'
