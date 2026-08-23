@@ -73,6 +73,8 @@ def test_given_pending_intent_when_confirmed_then_tenant_and_trial_are_created(c
     user = User.objects.get(email='confirm@example.test')
     tenant = Tenant.objects.get(memberships__user=user)
     assert user.email_verified_at is not None
+    intent = SignupIntent.objects.get(user=user)
+    assert intent.provisioned_tenant_id == tenant.id
     assert Company.all_objects.filter(tenant=tenant).count() == 1
     assert tenant.memberships.get(user=user).role == 'admin'
     subscription = Subscription.objects.get(tenant=tenant)
@@ -104,6 +106,9 @@ def test_given_non_public_plan_when_registered_then_nothing_is_provisioned(clien
     response = _register(client, plan_code='private')
 
     assert response.status_code == 400
+    assert response['Content-Type'].startswith('application/problem+json')
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert response.json()['code'] == 'invalid_plan'
     assert not User.objects.filter(email='owner@example.test').exists()
     assert not Tenant.objects.exists()
 
@@ -124,6 +129,8 @@ def test_given_expired_token_when_confirmed_then_problem_response(client, starte
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert response.json()['code'] == 'invalid_or_expired_token'
     assert not Tenant.objects.filter(memberships__user__email='expired@example.test').exists()
 
 
