@@ -70,7 +70,6 @@ jobs:
           DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
           REDIS_URL: redis://localhost:6379
           DEBUG: 'true'
-          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
         run: |
           pip install -e .
           python manage.py migrate --noinput
