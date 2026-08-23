@@ -4,14 +4,23 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.utils import timezone
 
 from accounts.models import OneTimeToken, SignupIntent
 from outbox.models import OutboxMessage
 from platform_admin.models import Plan, Subscription
 from tenancy.models import Branch, Company, Tenant
+from tests.conftest import _run_in_tenant
 
 User = get_user_model()
+
+
+@pytest.fixture(autouse=True)
+def _clear_throttle_cache():
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture
@@ -101,7 +110,15 @@ def test_given_pending_intent_when_confirmed_then_tenant_and_trial_are_created(
     assert user.email_verified_at is not None
     intent = SignupIntent.objects.get(user=user)
     assert intent.provisioned_tenant_id == tenant.id
-    assert Company.all_objects.filter(tenant=tenant).count() == 1
+    company_count, branch_count = _run_in_tenant(
+        tenant,
+        lambda: (
+            Company.objects.filter(tenant=tenant).count(),
+            Branch.objects.filter(tenant=tenant).count(),
+        ),
+    )
+    assert company_count == 1
+    assert branch_count == 1
     assert tenant.memberships.get(user=user).role == 'admin'
     subscription = Subscription.objects.get(tenant=tenant)
     assert subscription.status == Subscription.STATUS_TRIAL
