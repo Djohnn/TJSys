@@ -64,14 +64,6 @@ class RegistrationView(APIView):
                 'invalid_plan',
                 status.HTTP_400_BAD_REQUEST,
             )
-        if user:
-            create_audit_record(
-                actor=user,
-                action='auth.registered',
-                resource_type='User',
-                resource_id=user.id,
-                correlation_id=getattr(request, 'correlation_id', ''),
-            )
         return Response(
             {'detail': 'If eligible, confirmation instructions will be sent.'},
             status=status.HTTP_202_ACCEPTED,
