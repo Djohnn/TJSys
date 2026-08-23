@@ -30,6 +30,7 @@ jobs:
       AUTH_LOGIN_RATE: 100/minute
       AUTH_MFA_RATE: 100/minute
       VITE_API_BASE_URL: /api/v1
+      E2E_API_BASE_URL: http://127.0.0.1:8000/api/v1
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     services:
@@ -114,6 +115,25 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+
+      - name: Start frontend for PDV stock verification
+        working-directory: ./frontend
+        run: |
+          nohup npm run dev -- --host 127.0.0.1 --port 5173 >"$RUNNER_TEMP/e2e-frontend.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/e2e-frontend.pid"
+
+      - name: Wait for frontend PDV verification
+        working-directory: ./frontend
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:5173/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Frontend PDV verification timed out after 60 seconds.'
+          cat "$RUNNER_TEMP/e2e-frontend.log"
+          exit 1
 
       - name: Run PDV vertical acceptance
         working-directory: ./pdv
