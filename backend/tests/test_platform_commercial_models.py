@@ -36,7 +36,10 @@ class TestPlanModel:
 @pytest.mark.django_db
 class TestSubscriptionModel:
     def test_create_subscription(self, tenant_alpha):
-        plan = Plan.objects.create(code='starter', name='Starter')
+        plan, _ = Plan.objects.update_or_create(
+            code='starter',
+            defaults={'name': 'Starter'},
+        )
         sub = Subscription.objects.create(
             tenant=tenant_alpha,
             plan=plan,
