@@ -47,6 +47,25 @@ def _token():
     return re.search(r'token=([^\s]+)', mail.outbox[-1].body).group(1)
 
 
+def _assert_problem(response, code, instance):
+    data = response.json()
+    assert set(data) == {
+        'type',
+        'title',
+        'status',
+        'detail',
+        'instance',
+        'code',
+        'correlation_id',
+        'errors',
+    }
+    assert data['code'] == code
+    assert isinstance(data['detail'], str)
+    assert data['instance'] == instance
+    assert 'correlation_id' in data
+    assert data['errors'] == {}
+
+
 @pytest.mark.django_db(transaction=True)
 def test_given_valid_signup_when_registered_then_only_pending_intent_exists(client, starter_plan):
     response = _register(client)
@@ -110,8 +129,8 @@ def test_given_non_public_plan_when_registered_then_nothing_is_provisioned(clien
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
-    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
-    assert response.json()['code'] == 'invalid_plan'
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
+    _assert_problem(response, 'invalid_plan', '/api/v1/auth/register/')
     assert not User.objects.filter(email='owner@example.test').exists()
     assert not Tenant.objects.exists()
 
@@ -132,8 +151,8 @@ def test_given_expired_token_when_confirmed_then_problem_response(client, starte
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
-    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
-    assert response.json()['code'] == 'invalid_or_expired_token'
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
+    _assert_problem(response, 'invalid_or_expired_token', '/api/v1/auth/email/confirm/')
     assert not Tenant.objects.filter(memberships__user__email='expired@example.test').exists()
 
 
@@ -250,7 +269,7 @@ def test_nonexistent_plan_is_rejected_without_creating_user(client, starter_plan
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
-    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
     assert response.json()['code'] == 'invalid_plan'
     assert not User.objects.filter(email='missing-plan@example.test').exists()
 
@@ -268,7 +287,7 @@ def test_plan_deactivated_before_confirmation_returns_problem_and_rolls_back(cli
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
-    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
     assert response.json()['code'] == 'invalid_plan'
     assert not Tenant.objects.filter(memberships__user__email='deactivated@example.test').exists()
     assert User.objects.get(email='deactivated@example.test').email_verified_at is None
@@ -291,5 +310,6 @@ def test_missing_public_registration_field_returns_problem_details(client, start
 
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
-    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'code'}
-    assert response.json()['code'] == 'validation_error'
+    assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
+    _assert_problem(response, 'validation_error', '/api/v1/auth/register/')
+    assert 'plan_code' in response.json()['errors']
