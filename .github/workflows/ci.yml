@@ -161,7 +161,8 @@ jobs:
     needs: ci
     env:
       DJANGO_SETTINGS_MODULE: config.settings.e2e
-      DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
+      DB_NAME: zyrp
+      DATABASE_URL: postgres://zyrp_app:${{ env.POSTGRES_APP_PASSWORD }}@localhost:5432/zyrp
       POSTGRES_HOST: localhost
       POSTGRES_PORT: '5432'
       POSTGRES_DB: zyrp
@@ -241,8 +242,8 @@ jobs:
         working-directory: backend
         run: python manage.py seed_e2e
         env:
-          POSTGRES_APP_USER: zyrp_app
-          POSTGRES_APP_PASSWORD: zyrp_app_ci
+          POSTGRES_APP_USER: zyrp
+          POSTGRES_APP_PASSWORD: zyrp
           SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD || env.E2E_USER_PASSWORD }}
 
       - name: Start backend
