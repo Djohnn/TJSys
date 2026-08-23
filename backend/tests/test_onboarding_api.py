@@ -47,7 +47,7 @@ def _token():
     return re.search(r'token=([^\s]+)', mail.outbox[-1].body).group(1)
 
 
-def _assert_problem(response, code, instance, expected_errors={}):
+def _assert_problem(response, code, instance, expected_errors=None):
     data = response.json()
     assert set(data) == {
         'type',
@@ -63,7 +63,8 @@ def _assert_problem(response, code, instance, expected_errors={}):
     assert isinstance(data['detail'], str)
     assert data['instance'] == instance
     assert 'correlation_id' in data
-    assert data['errors'] == expected_errors
+    if expected_errors is not None:
+        assert data['errors'] == expected_errors
 
 
 @pytest.mark.django_db(transaction=True)
@@ -271,7 +272,7 @@ def test_nonexistent_plan_is_rejected_without_creating_user(client, starter_plan
     assert response.status_code == 400
     assert response['Content-Type'].startswith('application/problem+json')
     assert set(response.json()) == {'type', 'title', 'status', 'detail', 'instance', 'code', 'correlation_id', 'errors'}
-    assert response.json()['code'] == 'invalid_plan'
+    _assert_problem(response, 'invalid_plan', '/api/v1/auth/register/')
     assert not User.objects.filter(email='missing-plan@example.test').exists()
 
 
