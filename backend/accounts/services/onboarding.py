@@ -119,12 +119,11 @@ def confirm_signup(raw_token):
             )
         except SignupIntent.DoesNotExist:
             raise InvalidSignupToken('Invalid or expired token.') from None
+        if not secure_compare(token.digest, digest_value(secret)):
+            raise InvalidSignupToken('Invalid or expired token.')
         if intent.status == SignupIntent.STATUS_PROVISIONED:
             return intent
-        if not token.is_usable or not secure_compare(
-            token.digest,
-            digest_value(secret),
-        ):
+        if not token.is_usable:
             raise InvalidSignupToken('Invalid or expired token.')
 
         plan = _public_trial_plan(intent.plan_code)
