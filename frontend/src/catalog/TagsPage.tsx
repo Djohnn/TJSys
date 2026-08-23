@@ -5,7 +5,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse } from './catalogApi'
-import { COLOR_OPTIONS, DEFAULT_TAG_COLOR, resolveTagColor } from './tagColors'
+import { COLOR_OPTIONS, DEFAULT_TAG_COLOR, isTagColorSelected, resolveTagColor } from './tagColors'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -172,7 +172,7 @@ export default function TagsPage() {
                     key={color.value}
                     type="button"
                     onClick={() => setFormColor(color.value)}
-                    className={`w-8 h-8 rounded-full border-2 ${formColor === color.value ? 'border-neutral-900' : 'border-transparent'}`}
+                    className={`w-8 h-8 rounded-full border-2 ${isTagColorSelected(formColor, color.value) ? 'border-neutral-900' : 'border-transparent'}`}
                     style={{ backgroundColor: `var(${color.value})` }}
                     title={color.label}
                   />
@@ -242,7 +242,7 @@ export default function TagsPage() {
                                     key={color.value}
                                     type="button"
                                     onClick={() => setFormColor(color.value)}
-                                    className={`w-8 h-8 rounded-full border-2 ${formColor === color.value ? 'border-neutral-900' : 'border-transparent'}`}
+                                    className={`w-8 h-8 rounded-full border-2 ${isTagColorSelected(formColor, color.value) ? 'border-neutral-900' : 'border-transparent'}`}
                                     style={{ backgroundColor: `var(${color.value})` }}
                                     title={color.label}
                                   />
