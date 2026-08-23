@@ -160,4 +160,3 @@ export default function App(): ReactNode {
     </AuthProvider>
   )
 }
-
