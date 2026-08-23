@@ -66,7 +66,7 @@ class RegistrationView(APIView):
                 errors=serializer.errors,
             )
         try:
-            user = register_organization(
+            register_organization(
                 **serializer.validated_data,
                 correlation_id=getattr(request, 'correlation_id', ''),
             )
