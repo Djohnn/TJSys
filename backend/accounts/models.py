@@ -120,7 +120,7 @@ class SignupIntent(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(status__in=[STATUS_PENDING, STATUS_PROVISIONED]),
+                condition=models.Q(status__in=['pending', 'provisioned']),
                 name='signup_intent_valid_status',
             ),
         ]
