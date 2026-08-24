@@ -325,7 +325,7 @@ def test_playwright_authentication_consumes_the_seeded_recovery_code_once():
         "await page.waitForURL((url) => !['/login', '/mfa'].includes(url.pathname), "
         "{ waitUntil: 'domcontentloaded' })"
     ) in fixtures
-    assert "await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })" in fixtures
+    assert "await page.goto('/app/dashboard', { waitUntil: 'domcontentloaded' })" in fixtures
     assert 'anonymousPage' in fixtures
     assert 'storageState: { cookies: [], origins: [] }' in fixtures
     auth_spec = (frontend_root / 'e2e' / 'auth-tenant.spec.ts').read_text(encoding='utf-8')
