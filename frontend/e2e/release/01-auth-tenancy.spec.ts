@@ -4,7 +4,7 @@ import { authenticatePage, test } from '../fixtures'
 test.describe('Autenticação e Tenancy', () => {
   test('Login bem-sucedido redireciona para o dashboard', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('dashboard-page')).toBeVisible()
     await expect(page.getByTestId('app-shell')).toBeVisible()
   })
@@ -20,13 +20,13 @@ test.describe('Autenticação e Tenancy', () => {
 
   test('Seletor de tenant está visível no dashboard', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('tenant-selector')).toBeVisible()
   })
 
   test('Navegação exibe todos os links de módulos principais', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('main-navigation')).toBeVisible()
 
     const moduleLinks = [
@@ -47,31 +47,31 @@ test.describe('Autenticação e Tenancy', () => {
     const adminFlyout = page.getByRole('menu', { name: 'Administração' })
     await expect(adminFlyout).toBeVisible()
     for (const [label, href] of [
-      ['Empresas', '/organization/companies'],
-      ['Filiais', '/organization/branches'],
-      ['Membros', '/access/members'],
-      ['Convites', '/access/invitations'],
-      ['Segurança', '/security/mfa'],
-      ['Dispositivos', '/devices'],
+      ['Empresas', '/app/organization/companies'],
+      ['Filiais', '/app/organization/branches'],
+      ['Membros', '/app/access/members'],
+      ['Convites', '/app/access/invitations'],
+      ['Segurança', '/app/security/mfa'],
+      ['Dispositivos', '/app/devices'],
     ] as const) {
       await expect(adminFlyout.getByRole('menuitem', { name: label })).toHaveAttribute('href', href)
     }
   })
 
   test('Recuperação de sessão expirada — rota protegida sem auth → login → retorno', async ({ anonymousPage: page }) => {
-    await page.goto('/financial/receivables')
+    await page.goto('/app/financial/receivables')
     await expect(page).toHaveURL(/\/login/)
 
     await authenticatePage(page)
 
-    await page.goto('/financial/receivables')
+    await page.goto('/app/financial/receivables')
     await expect(page.getByTestId('receivables-page')).toBeVisible()
   })
 
   test('Negação de papel — operador não pode acessar páginas somente-admin', async ({ anonymousPage: page }) => {
     await authenticatePage(page, 'operator@tjsys.local')
 
-    await page.goto('/fiscal/emitters')
+    await page.goto('/app/fiscal/emitters')
     await expect(page.getByTestId('forbidden-page').or(page.getByRole('alert'))).toBeVisible()
   })
 })

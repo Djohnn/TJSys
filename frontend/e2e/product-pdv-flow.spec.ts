@@ -44,7 +44,7 @@ async function createProduct(
     tracksInventory: boolean;
   },
 ) {
-  await page.goto("/catalog/products/new");
+  await page.goto("/app/catalog/products/new");
   await expect(page.getByTestId("product-identity-step")).toBeVisible();
   await page.getByLabel("Nome").fill(input.name);
   await page.getByLabel("SKU").fill(input.sku);
@@ -78,7 +78,7 @@ async function createProduct(
   expect(response.status()).toBe(201);
   const body = (await response.json()) as { product: { id: string } };
   await expect(page).toHaveURL(
-    new RegExp(`/catalog/products/${body.product.id}/edit`),
+    new RegExp(`/app/catalog/products/${body.product.id}/edit`),
   );
   return body.product.id;
 }

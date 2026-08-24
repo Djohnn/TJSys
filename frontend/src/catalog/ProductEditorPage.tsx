@@ -84,7 +84,7 @@ export default function ProductEditorPage(): ReactNode {
     onSuccess: (result) => {
       setFeedback({ kind: 'success', text: 'Produto criado com sucesso.' })
       setActiveTab('prices')
-      navigate(`/catalog/products/${result.product.id}/edit`, { replace: true })
+      navigate(`/app/catalog/products/${result.product.id}/edit`, { replace: true })
     },
     onError: (err) => {
       setFeedback({
@@ -186,7 +186,7 @@ export default function ProductEditorPage(): ReactNode {
         </div>
         <button
           type="button"
-          onClick={() => navigate('/catalog/products')}
+          onClick={() => navigate('/app/catalog/products')}
           className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-neutral-50 cursor-pointer"
         >
           Voltar

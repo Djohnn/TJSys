@@ -5,7 +5,7 @@ test.describe('Catálogo — shell responsivo', () => {
 
   test('abre o catálogo pelo drawer e não causa rolagem horizontal', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/catalog/products')
+    await page.goto('/app/catalog/products')
 
     await expect(page.getByTestId('main-navigation')).toBeHidden()
     await page.getByRole('button', { name: 'Abrir menu' }).click()

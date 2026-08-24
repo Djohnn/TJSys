@@ -121,7 +121,7 @@ export default function ServiceEditorPage(): ReactNode {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services', tenantId] })
-      navigate('/catalog/services')
+      navigate('/app/catalog/services')
     },
     onError: (err) => {
       if (isApiProblemError(err) && err.problem.errors) {
@@ -148,7 +148,7 @@ export default function ServiceEditorPage(): ReactNode {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services', tenantId] })
-      navigate('/catalog/services')
+      navigate('/app/catalog/services')
     },
     onError: (err) => {
       if (isApiProblemError(err) && err.problem.errors) {
@@ -182,7 +182,7 @@ export default function ServiceEditorPage(): ReactNode {
         </h1>
         <button
           type="button"
-          onClick={() => navigate('/catalog/services')}
+          onClick={() => navigate('/app/catalog/services')}
           className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-neutral-50 cursor-pointer"
         >
           Voltar
@@ -328,7 +328,7 @@ export default function ServiceEditorPage(): ReactNode {
             <Button type="submit" disabled={isPending} loading={isPending}>
               {isPending ? 'Salvando...' : 'Salvar'}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => navigate('/catalog/services')} disabled={isPending}>
+            <Button type="button" variant="secondary" onClick={() => navigate('/app/catalog/services')} disabled={isPending}>
               Cancelar
             </Button>
           </div>

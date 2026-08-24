@@ -7,7 +7,7 @@ test.describe('Segurança e Resiliência', () => {
     // Given an anonymous browser context, the explicit login owns this test's auth state.
     await authenticatePage(page)
 
-    await page.goto('/financial/receivables')
+    await page.goto('/app/financial/receivables')
     await expect(page.getByTestId('receivables-table')).toBeVisible()
 
     const firstRowBefore = await page
@@ -21,7 +21,7 @@ test.describe('Segurança e Resiliência', () => {
       await tenantButtons.nth(1).click()
       await expect(tenantButtons.nth(1)).toHaveAttribute('aria-current', 'true')
 
-      await page.goto('/financial/receivables')
+      await page.goto('/app/financial/receivables')
       await expect(page.getByTestId('receivables-page')).toBeVisible()
       if (firstRowBefore) {
         await expect(page.locator('main')).not.toContainText(firstRowBefore.trim())
@@ -31,12 +31,12 @@ test.describe('Segurança e Resiliência', () => {
 
   test('Expiração de sessão — cookies limpos → redireciona ao login', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('dashboard-page')).toBeVisible()
 
     await page.context().clearCookies()
 
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page).toHaveURL(/\/login/)
   })
 
@@ -53,16 +53,16 @@ test.describe('Segurança e Resiliência', () => {
       }
     })
 
-    await page.goto('/financial/receivables')
+    await page.goto('/app/financial/receivables')
     await expect(page.getByTestId('error-recovery-message').or(page.getByTestId('receivables-table'))).toBeVisible()
   })
 
   test('Navegação browser voltar/avançar preserva estado', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('dashboard-page')).toBeVisible()
 
-    await page.goto('/sales')
+    await page.goto('/app/sales')
     await expect(page.getByTestId('sales-page')).toBeVisible()
 
     await page.goBack()
@@ -74,7 +74,7 @@ test.describe('Segurança e Resiliência', () => {
 
   test('Auditoria de acessibilidade no dashboard sem violações críticas ou sérias', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

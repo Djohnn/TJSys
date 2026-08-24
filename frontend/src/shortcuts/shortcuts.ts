@@ -21,15 +21,15 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
 ]
 
 export const SHORTCUT_ROUTES: Record<string, string> = {
-  'navigate-home': '/dashboard',
-  'navigate-favorites': '/favorites',
-  'navigate-catalog': '/catalog',
-  'navigate-sales': '/sales',
-  'navigate-inventory': '/inventory',
-  'navigate-purchasing': '/purchasing/orders',
-  'navigate-financial': '/financial',
-  'navigate-reports': '/monitoring/operations',
-  'navigate-admin': '/organization/companies',
+  'navigate-home': '/app/dashboard',
+  'navigate-favorites': '/app/favorites',
+  'navigate-catalog': '/app/catalog',
+  'navigate-sales': '/app/sales',
+  'navigate-inventory': '/app/inventory',
+  'navigate-purchasing': '/app/purchasing/orders',
+  'navigate-financial': '/app/financial',
+  'navigate-reports': '/app/monitoring/operations',
+  'navigate-admin': '/app/organization/companies',
 }
 
 export function formatShortcutKeys(keys: string): string {

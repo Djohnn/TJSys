@@ -32,7 +32,7 @@ export default function CombosPage() {
     <div data-testid="combos-page" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">Combos Comerciais</h2>
-        <Link to="/catalog/combos/new">
+        <Link to="/app/catalog/combos/new">
           <Button variant="primary">Novo Combo</Button>
         </Link>
       </div>
@@ -55,7 +55,7 @@ export default function CombosPage() {
           title="Nenhum combo"
           description="Crie seu primeiro combo comercial para começar."
           action={
-            <Link to="/catalog/combos/new">
+            <Link to="/app/catalog/combos/new">
               <Button variant="primary">Criar Combo</Button>
             </Link>
           }
@@ -89,7 +89,7 @@ export default function CombosPage() {
                       <Badge variant={combo.is_active ? 'success' : 'neutral'}>{combo.is_active ? 'Ativo' : 'Inativo'}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Link to={`/catalog/combos/${combo.id}/edit`}>
+                      <Link to={`/app/catalog/combos/${combo.id}/edit`}>
                         <Button variant="ghost" size="sm">Editar</Button>
                       </Link>
                     </td>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { useFavorites } from '@/favorites/useFavorites'
 import EmptyState from '@/components/EmptyState'
+import { normalizeAdminRoute } from '@/app/adminRoutes'
 
 export default function FavoritesPage(): React.ReactNode {
   const { favorites, removeFavorite, isLoading } = useFavorites()
@@ -25,7 +26,7 @@ export default function FavoritesPage(): React.ReactNode {
           description="Adicione itens aos favoritos para acesso rápido."
           action={
             <Link
-              to="/catalog"
+              to="/app/catalog"
               className="inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary-800)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-primary-900)]"
             >
               Explorar catálogo
@@ -51,7 +52,7 @@ export default function FavoritesPage(): React.ReactNode {
               </div>
               <div className="min-w-0 flex-1">
                 <Link
-                  to={favorite.route}
+                  to={normalizeAdminRoute(favorite.route)}
                   className="text-sm font-semibold text-[var(--color-gray-900)] hover:underline"
                 >
                   {favorite.label}

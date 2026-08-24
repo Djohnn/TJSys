@@ -62,7 +62,7 @@ export default function PurchaseOrderDetailPage() {
 
   return (
     <div data-testid="purchase-order-detail" className="p-6 space-y-6">
-      <Button onClick={() => navigate('/purchasing/orders')} variant="secondary" size="sm">Voltar</Button>
+      <Button onClick={() => navigate('/app/purchasing/orders')} variant="secondary" size="sm">Voltar</Button>
 
       <div className="flex items-center gap-3">
         <h2 className="text-2xl font-bold text-neutral-900">Ordem de Compra: {order.number}</h2>
@@ -138,7 +138,7 @@ export default function PurchaseOrderDetailPage() {
         )}
 
         {order.status === 'draft' && (
-          <Button onClick={() => navigate(`/purchasing/orders/${id}/edit`)} variant="secondary">
+          <Button onClick={() => navigate(`/app/purchasing/orders/${id}/edit`)} variant="secondary">
             Editar
           </Button>
         )}

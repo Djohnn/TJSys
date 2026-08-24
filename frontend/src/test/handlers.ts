@@ -1182,7 +1182,7 @@ export const favoritesHandlers = [
           id: 'prod-1',
           label: `Produto ${q}`,
           subtitle: 'SKU: TEST-001',
-          route: '/catalog/products/prod-1/edit',
+          route: '/app/catalog/products/prod-1/edit',
           icon: 'catalog',
         },
       ],

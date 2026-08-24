@@ -59,7 +59,7 @@ export default function ServicesPage(): ReactNode {
     <div data-testid="services-page" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">Serviços</h2>
-        <Button onClick={() => navigate('/catalog/services/new')} variant="primary">Novo Serviço</Button>
+        <Button onClick={() => navigate('/app/catalog/services/new')} variant="primary">Novo Serviço</Button>
       </div>
 
       <Card>
@@ -80,7 +80,7 @@ export default function ServicesPage(): ReactNode {
           title="Nenhum serviço"
           description="Cadastre seu primeiro serviço."
           action={
-            <Button onClick={() => navigate('/catalog/services/new')} variant="primary">Criar Serviço</Button>
+            <Button onClick={() => navigate('/app/catalog/services/new')} variant="primary">Criar Serviço</Button>
           }
         />
       ) : (
@@ -110,7 +110,7 @@ export default function ServicesPage(): ReactNode {
                       <Badge variant={service.is_active ? 'success' : 'neutral'}>{service.is_active ? 'Ativo' : 'Inativo'}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Button onClick={() => navigate(`/catalog/services/${service.id}/edit`)} variant="ghost" size="sm">Editar</Button>
+                      <Button onClick={() => navigate(`/app/catalog/services/${service.id}/edit`)} variant="ghost" size="sm">Editar</Button>
                     </td>
                   </tr>
                 ))}

@@ -88,7 +88,7 @@ export default function CashSessionDetailPage() {
           </div>
 
           <div className="pt-4 border-t border-border">
-            <Link to="/financial/cash-sessions" className="text-primary-600 hover:text-primary-700 font-medium text-sm">Voltar para sessões</Link>
+            <Link to="/app/financial/cash-sessions" className="text-primary-600 hover:text-primary-700 font-medium text-sm">Voltar para sessões</Link>
           </div>
         </div>
       </Card>

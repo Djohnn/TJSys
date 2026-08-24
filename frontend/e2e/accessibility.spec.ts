@@ -17,15 +17,15 @@ test.describe('Acessibilidade (axe-core)', () => {
   })
 
   for (const [path, marker] of [
-    ['/catalog', 'catalog-home-page'],
-    ['/catalog/products', 'products-page'],
-    ['/catalog/products/new', 'product-editor-page'],
-    ['/catalog/services', 'services-page'],
-    ['/catalog/combos', 'combos-page'],
-    ['/catalog/categories', 'categories-page'],
-    ['/catalog/brands', 'brands-page'],
-    ['/catalog/units', 'units-page'],
-    ['/catalog/labels', 'labels-page'],
+    ['/app/catalog', 'catalog-home-page'],
+    ['/app/catalog/products', 'products-page'],
+    ['/app/catalog/products/new', 'product-editor-page'],
+    ['/app/catalog/services', 'services-page'],
+    ['/app/catalog/combos', 'combos-page'],
+    ['/app/catalog/categories', 'categories-page'],
+    ['/app/catalog/brands', 'brands-page'],
+    ['/app/catalog/units', 'units-page'],
+    ['/app/catalog/labels', 'labels-page'],
   ]) {
     test(`Catálogo ${path} não possui violações críticas ou sérias`, async ({
       authenticatedPage,
@@ -44,7 +44,7 @@ test.describe('Acessibilidade (axe-core)', () => {
   }
 
   test('Shell autenticado não possui violações críticas ou sérias', async ({ authenticatedPage }) => {
-    await authenticatedPage.goto('/')
+    await authenticatedPage.goto('/app')
     await expect(authenticatedPage.getByTestId('dashboard-page')).toBeVisible()
 
     const results = await new AxeBuilder({ page: authenticatedPage })

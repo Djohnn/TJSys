@@ -67,7 +67,7 @@ export default function ReconciliationBatchesPage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => navigate(`/payments/reconciliation-batches/${batch.id}`)}
+                      onClick={() => navigate(`/app/payments/reconciliation-batches/${batch.id}`)}
                       data-testid={`view-batch-${batch.id}`}
                     >
                       Ver
