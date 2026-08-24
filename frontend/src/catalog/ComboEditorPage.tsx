@@ -81,7 +81,7 @@ export default function ComboEditorPage() {
     mutationFn: (body: Record<string, unknown>) => createCombo(tenantId, body),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['combos', tenantId] })
-      navigate(`/catalog/combos/${data.id}/edit`, { replace: true })
+      navigate(`/app/catalog/combos/${data.id}/edit`, { replace: true })
     },
     onError: (err) => {
       if (isApiProblemError(err) && err.problem.errors) {
@@ -180,7 +180,7 @@ export default function ComboEditorPage() {
   return (
     <div data-testid="combo-editor-page" className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="secondary" size="sm" onClick={() => navigate('/catalog/combos')}>Voltar</Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/app/catalog/combos')}>Voltar</Button>
         <h2 className="text-2xl font-bold text-neutral-900">{pageTitle}</h2>
       </div>
 
@@ -283,7 +283,7 @@ export default function ComboEditorPage() {
               <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending} loading={createMutation.isPending || updateMutation.isPending}>
                 {createMutation.isPending || updateMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
-              <Button variant="secondary" onClick={() => navigate('/catalog/combos')}>
+              <Button variant="secondary" onClick={() => navigate('/app/catalog/combos')}>
                 Cancelar
               </Button>
             </div>

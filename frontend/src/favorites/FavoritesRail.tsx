@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 
 import { useFavorites } from './useFavorites'
+import { normalizeAdminRoute } from '@/app/adminRoutes'
 
 interface FavoritesRailProps {
   onNavigate?: () => void
@@ -21,11 +22,12 @@ export function FavoritesRail({ onNavigate }: FavoritesRailProps): React.ReactNo
       </h2>
       <div className="space-y-1">
         {favorites.map((favorite) => {
-          const isActive = pathname === favorite.route || pathname.startsWith(`${favorite.route}/`)
+          const route = normalizeAdminRoute(favorite.route)
+          const isActive = pathname === route || pathname.startsWith(`${route}/`)
           return (
             <div key={favorite.id} className="group relative">
               <Link
-                to={favorite.route}
+                to={route}
                 onClick={onNavigate}
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors ${

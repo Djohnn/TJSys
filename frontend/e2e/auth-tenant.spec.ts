@@ -27,7 +27,7 @@ test.describe('Autenticação e troca de tenant', () => {
   test('Login MFA do global setup persiste a sessão no dashboard', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('app-shell')).toBeVisible()
   })
 
@@ -42,14 +42,14 @@ test.describe('Autenticação e troca de tenant', () => {
   test('Seletor de tenant aparece quando há múltiplos tenants', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     await expect(page.getByTestId('tenant-selector')).toBeVisible()
   })
 
   test('Troca de tenant exibe novo tenant no seletor', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
 
     await expect(page.getByTestId('tenant-selector')).toBeVisible()
     const tenantButtons = page.getByTestId('tenant-selector').getByRole('button')
@@ -63,7 +63,7 @@ test.describe('Autenticação e troca de tenant', () => {
   test('Logout redireciona para página de login', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     const assertLogoutRequest = await mockLogout(page)
     const logoutRequest = page.waitForRequest(
       (request) =>
@@ -80,7 +80,7 @@ test.describe('Autenticação e troca de tenant', () => {
   test('Após logout, navegação ao dashboard retorna ao login', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/dashboard')
+    await page.goto('/app/dashboard')
     const assertLogoutRequest = await mockLogout(page)
     const logoutRequest = page.waitForRequest(
       (request) =>
@@ -94,12 +94,12 @@ test.describe('Autenticação e troca de tenant', () => {
     await page.waitForURL(/\/login/)
     await mockUnauthenticatedSession(page)
 
-    await page.goto('/')
+    await page.goto('/app')
     await expect(page).toHaveURL(/\/login/)
   })
 
   test('Usuário não autenticado é redirecionado ao login', async ({ anonymousPage: page }) => {
-    await page.goto('/')
+    await page.goto('/app')
     await expect(page).toHaveURL(/\/login/)
   })
 

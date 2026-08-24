@@ -95,7 +95,7 @@ export default function CashSessionsPage() {
                         <Badge variant={diff < 0 ? 'danger' : 'success'}>{session.difference}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <Link to={`/financial/cash-sessions/${session.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
+                        <Link to={`/app/financial/cash-sessions/${session.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
                       </td>
                     </tr>
                   )

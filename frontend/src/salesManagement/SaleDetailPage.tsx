@@ -140,7 +140,7 @@ export default function SaleDetailPage() {
           )}
 
           <div className="pt-4 border-t border-border">
-            <Link to="/sales" className="text-primary-600 hover:text-primary-700 font-medium text-sm">Voltar para vendas</Link>
+            <Link to="/app/sales" className="text-primary-600 hover:text-primary-700 font-medium text-sm">Voltar para vendas</Link>
           </div>
         </div>
       </Card>

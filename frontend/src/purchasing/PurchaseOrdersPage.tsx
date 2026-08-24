@@ -56,7 +56,7 @@ export default function PurchaseOrdersPage() {
     <div data-testid="purchase-orders-page" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">Ordens de Compra</h2>
-        <Button onClick={() => navigate('/purchasing/orders/new')} variant="primary">Nova Ordem</Button>
+        <Button onClick={() => navigate('/app/purchasing/orders/new')} variant="primary">Nova Ordem</Button>
       </div>
 
       <Card>
@@ -79,7 +79,7 @@ export default function PurchaseOrdersPage() {
           title="Nenhuma ordem de compra"
           description="Crie sua primeira ordem de compra para começar."
           action={
-            <Button onClick={() => navigate('/purchasing/orders/new')} variant="primary">Criar Ordem</Button>
+            <Button onClick={() => navigate('/app/purchasing/orders/new')} variant="primary">Criar Ordem</Button>
           }
         />
       )}
@@ -103,7 +103,7 @@ export default function PurchaseOrdersPage() {
                   <tr
                     key={order.id}
                     data-testid="order-row"
-                    onClick={() => navigate(`/purchasing/orders/${order.id}`)}
+                    onClick={() => navigate(`/app/purchasing/orders/${order.id}`)}
                     className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 text-neutral-700">{order.number}</td>

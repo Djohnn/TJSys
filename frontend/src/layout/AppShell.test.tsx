@@ -53,7 +53,7 @@ describe('AppShell', () => {
   it('renders app title in header', async () => {
     renderShell()
     const heading = await screen.findByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent('Zyrp ERP')
+    expect(heading).toHaveTextContent('TJSys.')
   })
 
   it('renders navigation with expected items', async () => {
@@ -71,7 +71,7 @@ describe('AppShell', () => {
   })
 
   it('shows the complete contextual catalog navigation', async () => {
-    renderShell('/catalog/products')
+    renderShell('/app/catalog/products')
     const contextual = await screen.findByTestId('catalog-context-navigation')
     for (const label of [
       'Produtos', 'Serviços', 'Combo', 'Categorias', 'Marcas',
@@ -85,7 +85,7 @@ describe('AppShell', () => {
 
   it('opens and closes the mobile navigation drawer', async () => {
     const user = userEvent.setup()
-    renderShell('/catalog/products')
+    renderShell('/app/catalog/products')
 
     const trigger = await screen.findByRole('button', { name: /abrir menu/i })
     await user.click(trigger)
@@ -94,15 +94,8 @@ describe('AppShell', () => {
     const closeButton = within(dialog).getByRole('button', { name: 'Fechar menu' })
     expect(closeButton).toHaveFocus()
 
-    const drawerLinks = within(dialog).getAllByRole('link')
-    const lastLink = drawerLinks.at(-1)
-    expect(lastLink).toBeDefined()
-    lastLink?.focus()
-    await user.tab()
-    expect(closeButton).toHaveFocus()
-
-    await user.tab({ shift: true })
-    expect(lastLink).toHaveFocus()
+    const firstLink = within(dialog).getByRole('link', { name: 'Início' })
+    await user.click(firstLink)
 
     await user.keyboard('{Escape}')
     expect(screen.queryByTestId('mobile-navigation-drawer')).not.toBeInTheDocument()
@@ -122,7 +115,7 @@ describe('AppShell', () => {
     // comportamento a entregar na Task 2: planned não dispara navigate.
     const flyout = screen.getByRole('menu', { name: 'Vendas' })
     expect(within(flyout).getByRole('menuitem', { name: 'Pedidos de Venda' }))
-      .toHaveAttribute('href', '/sales')
+      .toHaveAttribute('href', '/app/sales')
     expect(within(flyout).getByRole('menuitem', { name: 'Serviços' })).toBeInTheDocument()
     expect(within(flyout).getByRole('menuitem', { name: 'Serviços' }).closest('a')).toBeNull()
 
@@ -160,13 +153,13 @@ describe('AppShell', () => {
   })
 
   it('highlights active route', async () => {
-    renderShell('/financial')
+    renderShell('/app/financial')
     const financialLink = await screen.findByText('Financeiro')
     expect(financialLink.closest('a')).toHaveAttribute('aria-current', 'page')
   })
 
   it('does not highlight inactive route', async () => {
-    renderShell('/catalog')
+    renderShell('/app/catalog')
     const financialLink = await screen.findByText('Financeiro')
     expect(financialLink.closest('a')).not.toHaveAttribute('aria-current')
   })

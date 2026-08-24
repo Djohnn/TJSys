@@ -219,7 +219,7 @@ export default function PeoplePage({ hasPiiPermission = true }: PeoplePageProps)
                 {people.map((person) => (
                   <tr key={person.id} data-testid="person-row" className="border-b border-border last:border-0 hover:bg-neutral-50 transition-colors">
                     <td className="px-4 py-3 text-neutral-700">
-                      <Link to={`/people/${person.id}`} className="text-primary-600 hover:text-primary-700 font-medium">{person.name}</Link>
+                      <Link to={`/app/people/${person.id}`} className="text-primary-600 hover:text-primary-700 font-medium">{person.name}</Link>
                     </td>
                     <td className="px-4 py-3 text-neutral-700">{hasPiiPermission ? person.document : maskDocument(person.document)}</td>
                     <td className="px-4 py-3 text-neutral-700">{person.person_type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}</td>

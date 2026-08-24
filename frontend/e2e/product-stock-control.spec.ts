@@ -10,7 +10,7 @@ test('cadastra produto com classificadores, saldo inicial e extensões persistid
   const categoryName = `Categoria Estoque E2E ${suffix}`
   const brandName = `Marca Estoque E2E ${suffix}`
 
-  await page.goto('/catalog/products/new')
+  await page.goto('/app/catalog/products/new')
   await page.getByLabel('Nome').fill('Produto Estoque E2E')
   await page.getByLabel('SKU').fill(`STOCK-${suffix}`)
 
@@ -53,7 +53,7 @@ test('cadastra produto com classificadores, saldo inicial e extensões persistid
   await expect(page.getByTestId('stock-reserved-value')).toHaveText('0')
   await expect(page.getByText('Normal', { exact: true })).toBeVisible()
 
-  const editUrl = `/catalog/products/${productId}/edit`
+  const editUrl = `/app/catalog/products/${productId}/edit`
 
   await page.getByRole('tab', { name: 'Preços' }).click()
   await page.getByTestId('base-price-amount').fill('49.90')

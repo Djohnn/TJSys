@@ -79,7 +79,7 @@ export default function FiscalDocumentsPage() {
                   <td className="px-4 py-3 text-neutral-700">{doc.protocol || '-'}</td>
                   <td className="px-4 py-3 text-neutral-700">{new Date(doc.created_at).toLocaleDateString('pt-BR')}</td>
                   <td className="px-4 py-3">
-                    <Link to={`/fiscal/documents/${doc.id}`} data-testid={`doc-link-${doc.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
+                    <Link to={`/app/fiscal/documents/${doc.id}`} data-testid={`doc-link-${doc.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
                   </td>
                 </tr>
               ))}

@@ -111,8 +111,8 @@ function ModuleRail({ pathname, flyoutScope, openFlyout, onToggleFlyout, onFlyou
 
   return (
     <div ref={railRef} data-testid="module-navigation" className="relative flex w-[88px] shrink-0 flex-col bg-[var(--shell-ink)] text-white">
-      <h1 aria-label="Zyrp ERP" className="flex h-[78px] flex-col items-center justify-center border-b border-white/10">
-        <span className="text-lg font-black tracking-tight">Zyrp </span>
+      <h1 aria-label="TJSys." className="flex h-[78px] flex-col items-center justify-center border-b border-white/10">
+        <span className="text-lg font-black tracking-tight">TJSys.</span>
         <span className="text-[9px] font-semibold tracking-[0.28em] text-cyan-300">ERP</span>
       </h1>
       <div ref={scrollerRef} className="shell-scrollbar flex-1 space-y-1 overflow-y-auto px-2 py-3">
@@ -152,7 +152,7 @@ function ModuleRail({ pathname, flyoutScope, openFlyout, onToggleFlyout, onFlyou
 }
 
 function CatalogContext({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }): ReactNode {
-  if (!pathname.startsWith('/catalog')) return null
+  if (!pathname.startsWith('/catalog') && !pathname.startsWith('/app/catalog')) return null
   return (
     <div data-testid="catalog-context-navigation" className="w-[248px] shrink-0 border-r border-blue-950/20 bg-[var(--shell-ink-soft)] text-white">
       <div className="border-b border-white/10 px-6 py-6">

@@ -1,0 +1,272 @@
+/* Landing page scoped styles — TJSys. */
+/* Extends design-system tokens; does NOT modify canonical tokens.css */
+
+/* ── Grid background ───────────────────────────────────────────── */
+.landing-grid-bg {
+  max-width: 100%;
+  overflow-x: clip;
+  background-image:
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(37, 99, 235, 0.03) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(37, 99, 235, 0.02) 0%,
+      transparent 50%
+    );
+  background-size: 100% 100%;
+}
+
+/* ── Hero visual composition ───────────────────────────────────── */
+.landing-grid-bg .landing-hero-visual {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-50) 0%,
+    var(--color-info-50) 100%
+  );
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .landing-grid-bg .landing-hero-visual {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+}
+.landing-grid-bg .landing-hero-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.landing-grid-bg .landing-hero-card .metric {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-primary-700);
+  line-height: 1.2;
+}
+
+.landing-grid-bg .landing-hero-card .metric-label {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ── Section spacing ───────────────────────────────────────────── */
+.landing-grid-bg .landing-section {
+  padding: 80px 0;
+}
+
+@media (max-width: 768px) {
+  .landing-grid-bg .landing-section {
+    padding: 48px 0;
+  }
+}
+
+.landing-grid-bg .landing-section-alt {
+  background: var(--color-primary-50);
+}
+
+/* ── Module cards ──────────────────────────────────────────────── */
+.landing-grid-bg .module-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.landing-grid-bg .module-card:hover {
+  border-color: var(--color-primary-300);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.landing-grid-bg .module-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* ── Steps ─────────────────────────────────────────────────────── */
+.landing-grid-bg .step-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary-600);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+/* ── Form ──────────────────────────────────────────────────────── */
+.landing-grid-bg .landing-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.landing-grid-bg .landing-input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.landing-grid-bg .landing-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.landing-grid-bg .landing-input-error {
+  border-color: var(--color-danger-600);
+}
+
+.landing-grid-bg .landing-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+/* ── CTA button ────────────────────────────────────────────────── */
+.landing-grid-bg .landing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: var(--color-primary-600);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+  text-decoration: none;
+}
+
+.landing-grid-bg .landing-cta:hover {
+  background: var(--color-primary-700);
+}
+
+.landing-grid-bg .landing-cta:active {
+  transform: scale(0.98);
+}
+
+.landing-grid-bg .landing-cta:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.landing-grid-bg .landing-cta-secondary {
+  background: transparent;
+  color: var(--color-primary-700);
+  border: 1px solid var(--color-primary-300);
+}
+
+.landing-grid-bg .landing-cta-secondary:hover {
+  background: var(--color-primary-50);
+}
+
+/* ── FAQ accordion ─────────────────────────────────────────────── */
+.landing-grid-bg .faq-item summary {
+  cursor: pointer;
+  list-style: none;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.landing-grid-bg .faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-grid-bg .faq-item summary::before {
+  content: '+';
+  font-weight: 700;
+  margin-right: 12px;
+  color: var(--color-primary-600);
+}
+
+.landing-grid-bg .faq-item[open] summary::before {
+  content: '−';
+}
+
+/* ── Touch targets ─────────────────────────────────────────────── */
+.landing-grid-bg a,
+.landing-grid-bg button,
+.landing-grid-bg [role='link'],
+.landing-grid-bg [role='button'] {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* ── Animations ────────────────────────────────────────────────── */
+@keyframes landing-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-grid-bg .landing-animate-in {
+  animation: landing-fade-in 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-grid-bg .landing-animate-in {
+    animation: none;
+  }
+  .landing-grid-bg .landing-cta,
+  .landing-grid-bg .module-card,
+  .landing-grid-bg .landing-input {
+    transition: none;
+  }
+}
+
+/* ── Trust badges ──────────────────────────────────────────────── */
+.landing-grid-bg .trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.landing-grid-bg .trust-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success-600);
+  flex-shrink: 0;
+}

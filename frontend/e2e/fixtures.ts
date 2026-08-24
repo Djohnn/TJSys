@@ -71,7 +71,7 @@ export async function openAuthenticatedShell(page: Page): Promise<void> {
     route.fulfill({ status: 200, contentType: 'application/json', json: EMPTY_PAGE }),
   )
 
-  await page.goto('/settings', { waitUntil: 'domcontentloaded' })
+  await page.goto('/app/settings', { waitUntil: 'domcontentloaded' })
   await expect(page.getByTestId('app-shell')).toBeVisible()
 }
 
@@ -112,7 +112,7 @@ export const test = base.extend<{
   anonymousPage: Page
 }>({
   authenticatedPage: async ({ page }, use) => {
-    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
+    await page.goto('/app/dashboard', { waitUntil: 'domcontentloaded' })
     await use(page)
   },
   anonymousPage: async ({ browser, baseURL }, use) => {

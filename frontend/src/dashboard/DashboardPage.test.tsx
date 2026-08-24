@@ -111,12 +111,12 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('card-organization')).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId('card-organization')).toHaveAttribute('href', '/organization/companies')
-    expect(screen.getByTestId('card-catalog')).toHaveAttribute('href', '/catalog')
-    expect(screen.getByTestId('card-sales')).toHaveAttribute('href', '/sales')
-    expect(screen.getByTestId('card-access')).toHaveAttribute('href', '/access/members')
-    expect(screen.getByTestId('card-security')).toHaveAttribute('href', '/security/mfa')
-    expect(screen.getByTestId('card-devices')).toHaveAttribute('href', '/devices')
+    expect(screen.getByTestId('card-organization')).toHaveAttribute('href', '/app/organization/companies')
+    expect(screen.getByTestId('card-catalog')).toHaveAttribute('href', '/app/catalog')
+    expect(screen.getByTestId('card-sales')).toHaveAttribute('href', '/app/sales')
+    expect(screen.getByTestId('card-access')).toHaveAttribute('href', '/app/access/members')
+    expect(screen.getByTestId('card-security')).toHaveAttribute('href', '/app/security/mfa')
+    expect(screen.getByTestId('card-devices')).toHaveAttribute('href', '/app/devices')
   })
 })
 

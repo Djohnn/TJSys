@@ -215,6 +215,7 @@ function renderProductEditor(initialRoute = '/catalog/products/new') {
             <Routes>
               <Route path="/catalog/products/new" element={<ProductEditorPage />} />
               <Route path="/catalog/products/:productId/edit" element={<><ProductEditorPage /><LocationProbe /></>} />
+              <Route path="/app/catalog/products/:productId/edit" element={<><ProductEditorPage /><LocationProbe /></>} />
             </Routes>
           </TenantContext.Provider>
         </AuthContext.Provider>
@@ -1064,9 +1065,9 @@ describe('CatalogHomePage', () => {
     renderCatalogHome()
     expect(screen.getByTestId('catalog-home-page')).toBeInTheDocument()
     expect(screen.getByTestId('catalog-overview')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver produtos' })).toHaveAttribute('href', '/catalog/products')
-    expect(screen.getByRole('link', { name: 'Novo produto' })).toHaveAttribute('href', '/catalog/products/new')
-    expect(screen.getByRole('link', { name: 'Imprimir etiquetas' })).toHaveAttribute('href', '/catalog/labels')
+    expect(screen.getByRole('link', { name: 'Ver produtos' })).toHaveAttribute('href', '/app/catalog/products')
+    expect(screen.getByRole('link', { name: 'Novo produto' })).toHaveAttribute('href', '/app/catalog/products/new')
+    expect(screen.getByRole('link', { name: 'Imprimir etiquetas' })).toHaveAttribute('href', '/app/catalog/labels')
   })
 
   it('lists every catalog area without duplicating the contextual menu', () => {
@@ -1157,7 +1158,7 @@ describe('ProductEditorPage', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('location-path')).toHaveTextContent('/catalog/products/p-new/edit')
+      expect(screen.getByTestId('location-path')).toHaveTextContent('/app/catalog/products/p-new/edit')
     })
     expect(screen.getByTestId('step-tab-prices')).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByTestId('product-prices-step')).toBeInTheDocument()
@@ -1437,9 +1438,9 @@ describe('ProductEditorPage – inventory step', () => {
     expect(screen.getByTestId('stock-reserved-value')).toHaveTextContent('0,000000')
     expect(screen.getByText('Normal')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ajustar estoque' }))
-      .toHaveAttribute('href', '/inventory/adjustments/new?product=p1&branch=b1&location=l1')
+      .toHaveAttribute('href', '/app/inventory/adjustments/new?product=p1&branch=b1&location=l1')
     expect(screen.getByRole('link', { name: 'Ver movimentações' }))
-      .toHaveAttribute('href', '/inventory/movements?product=p1&branch=b1&location=l1')
+      .toHaveAttribute('href', '/app/inventory/movements?product=p1&branch=b1&location=l1')
   })
 })
 

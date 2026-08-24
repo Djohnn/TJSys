@@ -29,7 +29,7 @@ export default function MfaPage() {
     try {
       if (!state?.tenantId) throw new Error('Tenant MFA não informado.')
       await auth.verifyRecovery(state.tenantId, code)
-      navigate('/', { replace: true })
+      navigate('/app', { replace: true })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Codigo invalido.')
     } finally {

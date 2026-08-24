@@ -141,7 +141,7 @@ export default function PurchaseOrderEditor() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders', tenantId] })
       setSuccessMessage('Ordem criada com sucesso!')
-      setTimeout(() => navigate(`/purchasing/orders/${data.id}`), 500)
+      setTimeout(() => navigate(`/app/purchasing/orders/${data.id}`), 500)
     },
     onError: (err) => {
       if (isApiProblemError(err) && err.problem.errors) {
@@ -179,7 +179,7 @@ export default function PurchaseOrderEditor() {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders', tenantId] })
       queryClient.invalidateQueries({ queryKey: ['purchase-order', tenantId, id] })
       setSuccessMessage('Ordem aprovada com sucesso!')
-      setTimeout(() => navigate(`/purchasing/orders/${data.id}`), 500)
+      setTimeout(() => navigate(`/app/purchasing/orders/${data.id}`), 500)
     },
     onError: (err) => {
       if (isApiProblemError(err)) {
@@ -360,7 +360,7 @@ export default function PurchaseOrderEditor() {
           )}
 
           {!isEditing && (
-            <Button type="button" variant="secondary" onClick={() => navigate('/purchasing/orders')}>
+            <Button type="button" variant="secondary" onClick={() => navigate('/app/purchasing/orders')}>
               Cancelar
             </Button>
           )}

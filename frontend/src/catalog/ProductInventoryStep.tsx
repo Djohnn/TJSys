@@ -133,7 +133,7 @@ export default function ProductInventoryStep({ productId }: ProductInventoryStep
           <div className="flex flex-wrap gap-3">
             {summary.branch && summary.location ? (
               <Link
-                to={`/inventory/adjustments/new?product=${productId}&branch=${summary.branch}&location=${summary.location}`}
+                to={`/app/inventory/adjustments/new?product=${productId}&branch=${summary.branch}&location=${summary.location}`}
                 className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 cursor-pointer inline-flex items-center"
                 data-testid="inventory-adjust-link"
               >
@@ -145,7 +145,7 @@ export default function ProductInventoryStep({ productId }: ProductInventoryStep
               </span>
             )}
             <Link
-              to={`/inventory/movements?product=${productId}&branch=${summary.branch ?? ''}&location=${summary.location ?? ''}`}
+              to={`/app/inventory/movements?product=${productId}&branch=${summary.branch ?? ''}&location=${summary.location ?? ''}`}
               className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 cursor-pointer inline-flex items-center"
               data-testid="inventory-movements-link"
             >

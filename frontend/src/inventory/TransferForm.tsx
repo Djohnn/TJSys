@@ -47,7 +47,7 @@ export default function TransferForm(): ReactNode {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['balances', tenantId] })
       queryClient.invalidateQueries({ queryKey: ['movements', tenantId] })
-      navigate('/inventory/movements')
+      navigate('/app/inventory/movements')
     },
     onError: (err) => {
       if (isApiProblemError(err) && err.problem.errors) {

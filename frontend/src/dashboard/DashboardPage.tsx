@@ -27,14 +27,14 @@ interface ModuleCard {
 }
 
 const MODULES: ModuleCard[] = [
-  { id: 'organization', label: 'Empresas e Filiais', description: 'Gerenciar empresas e filiais', capability: 'organization.read', to: '/organization/companies' },
-  { id: 'catalog', label: 'Catálogo', description: 'Produtos, preços e categorias', capability: 'catalog.view', to: '/catalog' },
-  { id: 'inventory', label: 'Estoque', description: 'Entradas, saídas e transferências', capability: 'inventory.view', to: '/inventory' },
-  { id: 'sales', label: 'Vendas', description: 'PDV, pedidos e comandas', capability: 'sales.view', to: '/sales' },
-  { id: 'financial', label: 'Financeiro', description: 'Contas a pagar/receber e relatórios', capability: 'financial.view', to: '/financial' },
-  { id: 'access', label: 'Acesso', description: 'Membros, convites e funções', capability: 'users.manage', to: '/access/members' },
-  { id: 'security', label: 'Segurança', description: 'Política MFA e dispositivos', capability: 'organization.read', to: '/security/mfa' },
-  { id: 'devices', label: 'Dispositivos', description: 'PDV tablets e terminais', capability: 'organization.read', to: '/devices' },
+  { id: 'organization', label: 'Empresas e Filiais', description: 'Gerenciar empresas e filiais', capability: 'organization.read', to: '/app/organization/companies' },
+  { id: 'catalog', label: 'Catálogo', description: 'Produtos, preços e categorias', capability: 'catalog.view', to: '/app/catalog' },
+  { id: 'inventory', label: 'Estoque', description: 'Entradas, saídas e transferências', capability: 'inventory.view', to: '/app/inventory' },
+  { id: 'sales', label: 'Vendas', description: 'PDV, pedidos e comandas', capability: 'sales.view', to: '/app/sales' },
+  { id: 'financial', label: 'Financeiro', description: 'Contas a pagar/receber e relatórios', capability: 'financial.view', to: '/app/financial' },
+  { id: 'access', label: 'Acesso', description: 'Membros, convites e funções', capability: 'users.manage', to: '/app/access/members' },
+  { id: 'security', label: 'Segurança', description: 'Política MFA e dispositivos', capability: 'organization.read', to: '/app/security/mfa' },
+  { id: 'devices', label: 'Dispositivos', description: 'PDV tablets e terminais', capability: 'organization.read', to: '/app/devices' },
 ]
 
 function hasCapability(role: string, capability: string): boolean {

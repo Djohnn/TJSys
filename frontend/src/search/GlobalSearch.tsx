@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { useTenant } from '@/tenant/TenantProvider'
 import { search, type SearchResult } from './searchApi'
+import { normalizeAdminRoute } from '@/app/adminRoutes'
 
 interface GlobalSearchProps {
   open: boolean
@@ -39,7 +40,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps): React.ReactN
 
   const handleSelect = useCallback(
     (result: SearchResult) => {
-      navigate(result.route)
+      navigate(normalizeAdminRoute(result.route))
       onClose()
     },
     [navigate, onClose],

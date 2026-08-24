@@ -181,7 +181,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
   test('Vendas — lista de vendas carrega', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/sales')
+    await page.goto('/app/sales')
     await expect(page.getByTestId('sales-page')).toBeVisible()
     await expect(page.getByTestId('sales-table')).toBeVisible()
   })
@@ -190,7 +190,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     authenticatedPage,
   }) => {
     const page = authenticatedPage
-    await page.goto('/sales')
+    await page.goto('/app/sales')
     await expect(page.getByTestId('sales-table')).toBeVisible()
     // Click on the first sale row link (assuming there's a link in the row)
     const firstSaleLink = page
@@ -205,7 +205,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
   test('Vendas — nenhuma ação de nova venda', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/sales')
+    await page.goto('/app/sales')
     await expect(page.getByRole('button', { name: /nova venda/i })).toHaveCount(
       0,
     )
@@ -220,7 +220,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     const { sale, saleItem, product, tenantId } = await findR9ReturnSale(page)
 
     // When abre o detalhe, aciona Devolver itens e informa quantidade/motivo.
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
     await page.getByRole('button', { name: 'Devolver itens' }).click()
 
@@ -304,7 +304,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     const { sale } = await findSaleForSku(page, 'E2E-R9-REFUND-001')
 
     // When abre o detalhe, aciona Reembolsar e informa valor, metodo e motivo.
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
     await page.getByRole('button', { name: 'Reembolsar' }).click()
 
@@ -362,7 +362,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     const { sale, tenantId } = await findSaleForSku(page, 'E2E-R9-CANCEL-001')
 
     // When abre o detalhe, aciona Cancelar venda e informa motivo.
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
     await page.getByRole('button', { name: 'Cancelar venda' }).click()
 
@@ -417,7 +417,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     // Given venda real carregada, mas a leitura separada do dialog indisponivel.
     const page = authenticatedPage
     const { sale } = await findSaleForSku(page, 'E2E-R9-REFUND-001')
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
 
     const saleUrl = `**/api/v1/sales/${sale.id}/`
@@ -456,7 +456,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     // Given venda real carregada, mas a leitura separada do dialog indisponivel.
     const page = authenticatedPage
     const { sale } = await findSaleForSku(page, 'E2E-R9-RETURN-001')
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
 
     const saleUrl = `**/api/v1/sales/${sale.id}/`
@@ -497,7 +497,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
     // Use a stable confirmed seed distinct from the real cancellation journey;
     // this UI edge is mocked and must not depend on the prior mutation.
     const { sale } = await findSaleForSku(page, 'E2E-PROD-001')
-    await page.goto(`/sales/${sale.id}`)
+    await page.goto(`/app/sales/${sale.id}`)
     await expect(page.getByTestId('sale-detail-page')).toBeVisible()
 
     const saleUrl = `**/api/v1/sales/${sale.id}/`
@@ -530,14 +530,14 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
   test('Sessões de caixa — lista carrega', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/financial/cash-sessions')
+    await page.goto('/app/financial/cash-sessions')
     await expect(page.getByTestId('cash-sessions-page')).toBeVisible()
     await expect(page.getByTestId('cash-sessions-table')).toBeVisible()
   })
 
   test('Pessoas — lista com busca', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/people')
+    await page.goto('/app/people')
     await expect(page.getByTestId('people-page')).toBeVisible()
     await expect(page.getByTestId('people-table')).toBeVisible()
 
@@ -549,7 +549,7 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
   test('Pessoas — detalhe mostra seções', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/people')
+    await page.goto('/app/people')
     await expect(page.getByTestId('people-table')).toBeVisible()
     // Click on the first person row link
     const firstPersonLink = page
@@ -564,14 +564,14 @@ test.describe('Gestão de PDV, Pessoas e Financeiro', () => {
 
   test('Financeiro — contas a receber', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/financial/receivables')
+    await page.goto('/app/financial/receivables')
     await expect(page.getByTestId('receivables-page')).toBeVisible()
     await expect(page.getByTestId('receivables-table')).toBeVisible()
   })
 
   test('Financeiro — fluxo de caixa', async ({ authenticatedPage }) => {
     const page = authenticatedPage
-    await page.goto('/financial/cashflow')
+    await page.goto('/app/financial/cashflow')
     await expect(page.getByTestId('cashflow-page')).toBeVisible()
     await expect(page.getByTestId('cashflow-table')).toBeVisible()
   })

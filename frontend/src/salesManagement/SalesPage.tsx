@@ -122,7 +122,7 @@ export default function SalesPage() {
                       <Badge variant={statusVariant[sale.status] ?? 'neutral'} testId={`status-badge-${sale.id}`}>{sale.status_label}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Link to={`/sales/${sale.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
+                      <Link to={`/app/sales/${sale.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">Detalhes</Link>
                     </td>
                   </tr>
                 ))}
