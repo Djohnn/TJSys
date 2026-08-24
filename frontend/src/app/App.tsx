@@ -3,6 +3,8 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 
 import { AuthProvider } from '@/auth/AuthProvider'
 import LoginPage from '@/auth/LoginPage'
+import RegisterPage from '@/auth/RegisterPage'
+import ConfirmEmailPage from '@/auth/ConfirmEmailPage'
 import MfaPage from '@/auth/MfaPage'
 import ProtectedRoute from '@/auth/ProtectedRoute'
 import { TenantProvider, useTenant } from '@/tenant/TenantProvider'
@@ -287,11 +289,18 @@ function AdminRoutes(): ReactNode {
 export default function App(): ReactNode {
   const { pathname } = useLocation()
 
-  if (pathname === '/login' || pathname === '/mfa') {
+  if (
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/confirm-email' ||
+    pathname === '/mfa'
+  ) {
     return (
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/confirm-email" element={<ConfirmEmailPage />} />
           <Route path="/mfa" element={<MfaPage />} />
         </Routes>
       </AuthProvider>

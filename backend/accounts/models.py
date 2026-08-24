@@ -92,6 +92,43 @@ class OneTimeToken(models.Model):
         return self.consumed_at is None and self.expires_at > timezone.now()
 
 
+class SignupIntent(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_PROVISIONED = 'provisioned'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='signup_intent',
+    )
+    confirmation_token = models.OneToOneField(
+        OneTimeToken,
+        on_delete=models.PROTECT,
+        related_name='signup_intent',
+    )
+    tenant_name = models.CharField(max_length=200)
+    company_name = models.CharField(max_length=200)
+    branch_name = models.CharField(max_length=200)
+    plan_code = models.CharField(max_length=40)
+    status = models.CharField(max_length=20, default=STATUS_PENDING)
+    provisioned_tenant_id = models.UUIDField(null=True, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=['pending', 'provisioned']),
+                name='signup_intent_valid_status',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user.email} [{self.status}]'
+
+
 class MFADevice(models.Model):
     TYPES = [('totp', 'TOTP'), ('email', 'Email')]
 

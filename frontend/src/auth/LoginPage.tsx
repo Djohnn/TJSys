@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from './AuthProvider'
@@ -67,6 +67,7 @@ export default function LoginPage() {
           <button type="submit" disabled={isSubmitting} className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer">
             {isSubmitting ? 'Entrando...' : 'Entrar'}
           </button>
+          <p className="text-center text-sm text-neutral-600">Ainda não tem uma conta? <Link to="/register" className="font-semibold text-primary-800 underline underline-offset-2">Criar conta</Link></p>
         </form>
       </div>
     </div>

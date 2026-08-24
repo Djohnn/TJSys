@@ -16,10 +16,6 @@ async function assertExternalServer() {
 }
 
 export default async function globalSetup() {
-  if (process.env.E2E_LIVE_PDV === '1') {
-    return async () => undefined;
-  }
-
   if (EXTERNAL_SERVER) {
     await assertExternalServer()
     return async () => undefined

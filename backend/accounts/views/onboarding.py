@@ -1,14 +1,53 @@
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.serializers import RegistrationSerializer, TokenSerializer
-from accounts.services.onboarding import register_organization
+from accounts.serializers import PublicPlanSerializer, RegistrationSerializer, TokenSerializer
+from accounts.services.onboarding import (
+    InvalidSignupPlan,
+    InvalidSignupToken,
+    confirm_signup,
+    register_organization,
+)
 from accounts.throttles import RegistrationThrottle
-from accounts.tokens import consume_token
-from audit.services import create_audit_record
+from platform_admin.models import Plan
+
+
+def _problem_response(detail, code, status_code, *, request, errors=None):
+    titles = {
+        'invalid_plan': 'Invalid signup plan',
+        'invalid_or_expired_token': 'Invalid or expired confirmation token',
+        'validation_error': 'Invalid request',
+    }
+    payload = {
+        'type': f'https://docs.zyrp.local/errors/{code}',
+        'title': titles.get(code, 'Request error'),
+        'status': status_code,
+        'detail': detail if isinstance(detail, str) else 'Request validation failed.',
+        'instance': request.path,
+        'code': code,
+        'correlation_id': getattr(request, 'correlation_id', ''),
+        'errors': errors if errors is not None else {},
+    }
+    return Response(
+        payload,
+        status=status_code,
+        content_type='application/problem+json',
+    )
+
+
+class PublicPlanListView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        plans = Plan.objects.filter(
+            is_active=True,
+            is_public=True,
+            trial_days__gt=0,
+        )
+        return Response(PublicPlanSerializer(plans, many=True).data)
 
 
 class RegistrationView(APIView):
@@ -18,15 +57,25 @@ class RegistrationView(APIView):
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = register_organization(**serializer.validated_data)
-        if user:
-            create_audit_record(
-                actor=user,
-                action='auth.registered',
-                resource_type='User',
-                resource_id=user.id,
+        if not serializer.is_valid():
+            return _problem_response(
+                'Request validation failed.',
+                'validation_error',
+                status.HTTP_400_BAD_REQUEST,
+                request=request,
+                errors=serializer.errors,
+            )
+        try:
+            register_organization(
+                **serializer.validated_data,
                 correlation_id=getattr(request, 'correlation_id', ''),
+            )
+        except InvalidSignupPlan as exc:
+            return _problem_response(
+                str(exc),
+                'invalid_plan',
+                status.HTTP_400_BAD_REQUEST,
+                request=request,
             )
         return Response(
             {'detail': 'If eligible, confirmation instructions will be sent.'},
@@ -40,20 +89,28 @@ class EmailConfirmationView(APIView):
 
     def post(self, request):
         serializer = TokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        record = consume_token(
-            serializer.validated_data['token'],
-            purpose='email_confirmation',
-        )
-        if record is None:
-            return Response({'detail': 'Invalid or expired token.'}, status=400)
-        record.user.email_verified_at = timezone.now()
-        record.user.save(update_fields=['email_verified_at'])
-        create_audit_record(
-            actor=record.user,
-            action='auth.email_confirmed',
-            resource_type='User',
-            resource_id=record.user_id,
-            correlation_id=getattr(request, 'correlation_id', ''),
-        )
+        if not serializer.is_valid():
+            return _problem_response(
+                'Request validation failed.',
+                'validation_error',
+                status.HTTP_400_BAD_REQUEST,
+                request=request,
+                errors=serializer.errors,
+            )
+        try:
+            confirm_signup(serializer.validated_data['token'])
+        except InvalidSignupPlan as exc:
+            return _problem_response(
+                str(exc),
+                'invalid_plan',
+                status.HTTP_400_BAD_REQUEST,
+                request=request,
+            )
+        except InvalidSignupToken as exc:
+            return _problem_response(
+                str(exc),
+                'invalid_or_expired_token',
+                status.HTTP_400_BAD_REQUEST,
+                request=request,
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)

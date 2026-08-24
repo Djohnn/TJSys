@@ -179,6 +179,11 @@ class Command(BaseCommand):
                     symbol='UN',
                     defaults={'name': 'Unidade', 'precision': 0},
                 )
+                Unit.objects.get_or_create(
+                    tenant=tenant,
+                    symbol='KG',
+                    defaults={'name': 'Quilograma', 'precision': 3},
+                )
 
                 cat, _ = Category.objects.get_or_create(
                     tenant=tenant,

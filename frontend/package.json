@@ -13,8 +13,8 @@
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",
     "test:e2e:public": "playwright test --config playwright.public.config.ts",
-    "api:generate": "openapi-typescript http://127.0.0.1:8000/api/v1/schema/ -o src/api/generated/schema.ts",
-    "api:check": "openapi-typescript http://127.0.0.1:8000/api/v1/schema/ -o /tmp/schema-check.ts && diff /tmp/schema-check.ts src/api/generated/schema.ts",
+    "api:generate": "openapi-typescript http://localhost:8000/api/v1/schema/ -o src/api/generated/schema.ts",
+    "api:check": "openapi-typescript http://localhost:8000/api/v1/schema/ -o /tmp/schema-check.ts && diff /tmp/schema-check.ts src/api/generated/schema.ts",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui"
   },

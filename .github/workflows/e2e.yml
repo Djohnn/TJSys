@@ -24,9 +24,13 @@ jobs:
       E2E_USER_EMAIL: web-admin@tjsys.local
       E2E_USER_PASSWORD: e2e-test-pwd-2026
       E2E_RECOVERY_CODE: e2e0000001
+      E2E_LIVE_PDV: '1'
+      E2E_PDV_API_KEY: e2e-test-key-2026
+      E2E_ADMIN_RECOVERY_CODE: e2e0000001
       AUTH_LOGIN_RATE: 100/minute
       AUTH_MFA_RATE: 100/minute
       VITE_API_BASE_URL: /api/v1
+      E2E_API_BASE_URL: http://127.0.0.1:8000/api/v1
       DEBUG: 'true'
       MONITORING_ENABLED: 'true'
     services:
@@ -69,9 +73,7 @@ jobs:
         env:
           DATABASE_URL: postgres://zyrp:zyrp@localhost:5432/zyrp
           REDIS_URL: redis://localhost:6379
-          SECRET_KEY: ci-secret-key
           DEBUG: 'true'
-          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
         run: |
           pip install -e .
           python manage.py migrate --noinput
@@ -114,14 +116,29 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      - name: Start frontend for PDV stock verification
+        working-directory: ./frontend
+        run: |
+          nohup npm run dev -- --host 127.0.0.1 --port 5173 >"$RUNNER_TEMP/e2e-frontend.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/e2e-frontend.pid"
+
+      - name: Wait for frontend PDV verification
+        working-directory: ./frontend
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:5173/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Frontend PDV verification timed out after 60 seconds.'
+          cat "$RUNNER_TEMP/e2e-frontend.log"
+          exit 1
+
       - name: Run PDV vertical acceptance
         working-directory: ./pdv
         env:
           PLAYWRIGHT_RETRIES: '0'
-          E2E_PDV_API_KEY: ${{ secrets.E2E_PDV_API_KEY }}
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-          E2E_ADMIN_RECOVERY_CODE: ${{ secrets.E2E_ADMIN_RECOVERY_CODE }}
           E2E_ARTIFACT_PATH: ${{ github.workspace }}/test-results/product-pdv-flow.json
         run: |
           npm run typecheck:e2e

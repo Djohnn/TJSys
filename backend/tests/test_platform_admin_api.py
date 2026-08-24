@@ -61,8 +61,14 @@ def _regular_client(client, tenant_alpha):
 class TestPlansAPI:
     def test_list_plans(self, client, tenant_alpha):
         c = _admin_client(client, tenant_alpha)
-        Plan.objects.create(code='starter', name='Starter')
-        Plan.objects.create(code='pro', name='Professional')
+        Plan.objects.update_or_create(
+            code='starter',
+            defaults={'name': 'Starter'},
+        )
+        Plan.objects.update_or_create(
+            code='pro',
+            defaults={'name': 'Professional'},
+        )
         resp = c.get('/api/v1/platform/plans/')
         assert resp.status_code == 200
         assert len(resp.json()['results']) == 2

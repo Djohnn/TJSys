@@ -26,7 +26,14 @@ test.describe('R5 — PDV desktop online', () => {
   test('Given o operador autenticado, When busca no catálogo, Then produtos com e sem preço são apresentados', async ({ authedPage }) => {
     await authedPage.goto('/cash-session');
     await authedPage.getByLabel('Valor de Abertura').fill('100.00');
+    // O Dashboard faz uma segunda leitura do caixa ao montar; aguarde-a
+    // antes de navegar para a venda para não deixar uma resposta tardia limpar a sessão.
+    const openedSessionResponse = authedPage.waitForResponse(
+      (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 200,
+    );
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
+    await expect(authedPage).toHaveURL(/\/dashboard/);
+    await openedSessionResponse;
     await authedPage.goto('/sale');
 
     const search = authedPage.getByPlaceholder('Buscar produto (SKU ou nome)...');
@@ -42,9 +49,22 @@ test.describe('R5 — PDV desktop online', () => {
   });
 
   test('Given o caixa aberto e um produto precificado, When recebe em dinheiro e confirma, Then a venda e o recebimento são confirmados', async ({ authedPage }) => {
+    // Aguarda o refresh inicial do caixa terminar antes de abrir: caso contrário,
+    // o 404 tardio de /current pode limpar a sessão recém-aberta.
+    const closedSessionResponse = authedPage.waitForResponse(
+      (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 404,
+    );
     await authedPage.goto('/cash-session');
+    await closedSessionResponse;
     await authedPage.getByLabel('Valor de Abertura').fill('100.00');
+    // O Dashboard faz uma segunda leitura do caixa ao montar; aguarde-a
+    // antes de navegar para a venda para não deixar uma resposta tardia limpar a sessão.
+    const openedSessionResponse = authedPage.waitForResponse(
+      (response) => response.url().includes('/api/v1/cash-sessions/current/') && response.status() === 200,
+    );
     await authedPage.getByRole('button', { name: 'Abrir Caixa' }).click();
+    await expect(authedPage).toHaveURL(/\/dashboard/);
+    await openedSessionResponse;
     await authedPage.goto('/sale');
 
     await authedPage.getByPlaceholder('Buscar produto (SKU ou nome)...').fill('CAF-001');

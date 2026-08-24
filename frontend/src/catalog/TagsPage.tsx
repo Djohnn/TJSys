@@ -5,6 +5,7 @@ import { useTenant } from '@/tenant/TenantProvider'
 import { apiRequest } from '@/api/client'
 import { isApiProblemError } from '@/api/problem'
 import type { PaginatedResponse } from './catalogApi'
+import { COLOR_OPTIONS, DEFAULT_TAG_COLOR, isTagColorSelected, resolveTagColor } from './tagColors'
 import LoadingState from '@/components/LoadingState'
 import EmptyState from '@/components/EmptyState'
 import Card from '@/components/ui/Card'
@@ -19,17 +20,6 @@ export interface Tag {
   version: number
 }
 
-const COLOR_OPTIONS = [
-  { value: '#6B7280', label: 'Cinza' },
-  { value: '#EF4444', label: 'Vermelho' },
-  { value: '#F59E0B', label: 'Amarelo' },
-  { value: '#10B981', label: 'Verde' },
-  { value: '#3B82F6', label: 'Azul' },
-  { value: '#8B5CF6', label: 'Roxo' },
-  { value: '#EC4899', label: 'Rosa' },
-  { value: '#14B8A6', label: 'Teal' },
-]
-
 export default function TagsPage() {
   const { selectedTenant } = useTenant()
   const queryClient = useQueryClient()
@@ -38,7 +28,7 @@ export default function TagsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formName, setFormName] = useState('')
-  const [formColor, setFormColor] = useState('#6B7280')
+  const [formColor, setFormColor] = useState(DEFAULT_TAG_COLOR)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const tenantId = selectedTenant?.tenant_id ?? ''
 
@@ -63,7 +53,7 @@ export default function TagsPage() {
       queryClient.invalidateQueries({ queryKey: ['tags', tenantId] })
       setShowForm(false)
       setFormName('')
-      setFormColor('#6B7280')
+      setFormColor(DEFAULT_TAG_COLOR)
       setSubmitError(null)
     },
     onError: (err) => {
@@ -88,7 +78,7 @@ export default function TagsPage() {
       queryClient.invalidateQueries({ queryKey: ['tags', tenantId] })
       setEditingId(null)
       setFormName('')
-      setFormColor('#6B7280')
+      setFormColor(DEFAULT_TAG_COLOR)
       setSubmitError(null)
     },
     onError: (err) => {
@@ -111,13 +101,13 @@ export default function TagsPage() {
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
-    createMutation.mutate({ name: formName, color: formColor })
+    createMutation.mutate({ name: formName, color: resolveTagColor(formColor) })
   }
 
   function handleEditSubmit(e: React.FormEvent, id: string) {
     e.preventDefault()
     setSubmitError(null)
-    updateMutation.mutate({ id, body: { name: formName, color: formColor } })
+    updateMutation.mutate({ id, body: { name: formName, color: resolveTagColor(formColor) } })
   }
 
   function startEdit(tag: Tag) {
@@ -131,7 +121,7 @@ export default function TagsPage() {
     setShowForm(false)
     setEditingId(null)
     setFormName('')
-    setFormColor('#6B7280')
+    setFormColor(DEFAULT_TAG_COLOR)
     setSubmitError(null)
   }
 
@@ -140,7 +130,7 @@ export default function TagsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-neutral-900">Tags</h2>
         {!showForm && tags.length > 0 && (
-          <Button onClick={() => { setShowForm(true); setFormName(''); setFormColor('#6B7280'); setSubmitError(null) }} variant="primary">Nova Tag</Button>
+          <Button onClick={() => { setShowForm(true); setFormName(''); setFormColor(DEFAULT_TAG_COLOR); setSubmitError(null) }} variant="primary">Nova Tag</Button>
         )}
       </div>
 
@@ -182,8 +172,8 @@ export default function TagsPage() {
                     key={color.value}
                     type="button"
                     onClick={() => setFormColor(color.value)}
-                    className={`w-8 h-8 rounded-full border-2 ${formColor === color.value ? 'border-neutral-900' : 'border-transparent'}`}
-                    style={{ backgroundColor: color.value }}
+                    className={`w-8 h-8 rounded-full border-2 ${isTagColorSelected(formColor, color.value) ? 'border-neutral-900' : 'border-transparent'}`}
+                    style={{ backgroundColor: `var(${color.value})` }}
                     title={color.label}
                   />
                 ))}
@@ -206,7 +196,7 @@ export default function TagsPage() {
           title="Nenhuma tag"
           description="Crie sua primeira tag para começar."
           action={
-            <Button onClick={() => { setShowForm(true); setFormName(''); setFormColor('#6B7280'); setSubmitError(null) }} variant="primary">Criar Tag</Button>
+            <Button onClick={() => { setShowForm(true); setFormName(''); setFormColor(DEFAULT_TAG_COLOR); setSubmitError(null) }} variant="primary">Criar Tag</Button>
           }
         />
       )}
@@ -252,8 +242,8 @@ export default function TagsPage() {
                                     key={color.value}
                                     type="button"
                                     onClick={() => setFormColor(color.value)}
-                                    className={`w-8 h-8 rounded-full border-2 ${formColor === color.value ? 'border-neutral-900' : 'border-transparent'}`}
-                                    style={{ backgroundColor: color.value }}
+                                    className={`w-8 h-8 rounded-full border-2 ${isTagColorSelected(formColor, color.value) ? 'border-neutral-900' : 'border-transparent'}`}
+                                    style={{ backgroundColor: `var(${color.value})` }}
                                     title={color.label}
                                   />
                                 ))}
