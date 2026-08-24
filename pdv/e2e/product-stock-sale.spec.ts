@@ -135,9 +135,9 @@ test.describe('PDV @live — venda baixa estoque e protege preço ausente', () =
       await primaryTenant.click()
       await expect(primaryTenant).toHaveAttribute('aria-current', 'true')
     }
-    await admin.goto(`/inventory/balances?q=${encodeURIComponent(artifact.products.unit.name)}`)
+    await admin.goto(`/app/inventory/balances?q=${encodeURIComponent(artifact.products.unit.name)}`)
     await expect(admin.getByTestId('balance-row').filter({ hasText: artifact.products.unit.name })).toContainText('7.000000')
-    await admin.goto(`/inventory/balances?q=${encodeURIComponent(artifact.products.kilogram.name)}`)
+    await admin.goto(`/app/inventory/balances?q=${encodeURIComponent(artifact.products.kilogram.name)}`)
     const kilogramBalance = admin.getByTestId('balance-row').filter({ hasText: artifact.products.kilogram.name })
     await expect(kilogramBalance).toContainText('0.500000')
     await expect(kilogramBalance).toContainText(/kg/i)
